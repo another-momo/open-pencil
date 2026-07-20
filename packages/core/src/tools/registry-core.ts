@@ -15,6 +15,7 @@ import {
 import { findNodes, getJsx, getNode, getSelection } from './read'
 import type { ToolDef } from './schema'
 import { stockPhoto } from './stock-photo'
+import { generateImage } from './image-gen'
 import { batchUpdate, deleteNode, nodeResize, reparentNode } from './structure'
 import { viewportZoomToFit } from './vector'
 
@@ -46,6 +47,8 @@ export const CORE_TOOLS: ToolDef[] = [
   batchUpdate,
   // Stock photos
   stockPhoto,
+  // Image generation / editing
+  generateImage,
   // Inspect & utility
   describe,
   calc,

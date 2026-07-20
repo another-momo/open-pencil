@@ -9,7 +9,7 @@ import {
   IS_TAURI
 } from '@open-pencil/core/constants'
 import type { AIProviderID } from '@open-pencil/core/constants'
-import { setPexelsApiKey, setUnsplashAccessKey } from '@open-pencil/core/tools'
+import { setPexelsApiKey, setUnsplashAccessKey, setImageGenCredentials } from '@open-pencil/core/tools'
 
 const STORAGE_PREFIX = 'open-pencil:'
 const LEGACY_KEY_STORAGE = `${STORAGE_PREFIX}openrouter-api-key`
@@ -47,6 +47,16 @@ export const customAPIType = useLocalStorage<'completions' | 'responses'>(
 export const maxOutputTokens = useLocalStorage(`${STORAGE_PREFIX}ai-max-output-tokens`, 16384)
 export const pexelsApiKey = useLocalStorage(`${STORAGE_PREFIX}pexels-api-key`, '')
 export const unsplashAccessKey = useLocalStorage(`${STORAGE_PREFIX}unsplash-access-key`, '')
+// Image-generation credentials — independent from the chat LLM key/base URL.
+export const imageGenApiKey = useLocalStorage(`${STORAGE_PREFIX}image-gen-api-key`, '')
+export const imageGenBaseURL = useLocalStorage(
+  `${STORAGE_PREFIX}image-gen-base-url`,
+  'https://www.dmxapi.cn/v1'
+)
+export const imageGenModel = useLocalStorage(
+  `${STORAGE_PREFIX}image-gen-model`,
+  'gpt-image-2-ssvip'
+)
 
 export const providerDef = computed(
   () => AI_PROVIDERS.find((p) => p.id === providerID.value) ?? AI_PROVIDERS[0]
@@ -80,6 +90,14 @@ export function registerAIChatEffects(markTransportDirty: () => void) {
     unsplashAccessKey,
     (key) => {
       setUnsplashAccessKey(key || null)
+    },
+    { immediate: true }
+  )
+
+  watch(
+    [imageGenApiKey, imageGenBaseURL, imageGenModel],
+    ([key, baseURL, model]) => {
+      setImageGenCredentials(key || null, baseURL || undefined, model || undefined)
     },
     { immediate: true }
   )

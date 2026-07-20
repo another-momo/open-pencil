@@ -19,7 +19,10 @@ function createProviderSettingsContext() {
     customAPIType,
     maxOutputTokens,
     pexelsApiKey,
-    unsplashAccessKey
+    unsplashAccessKey,
+    imageGenApiKey,
+    imageGenBaseURL,
+    imageGenModel
   } = useAIChat()
 
   const isACP = computed(() => providerID.value.startsWith('acp:'))
@@ -31,6 +34,10 @@ function createProviderSettingsContext() {
   const hasExistingKey = ref(!!apiKey.value)
   const hasExistingPexelsKey = ref(!!pexelsApiKey.value)
   const hasExistingUnsplashKey = ref(!!unsplashAccessKey.value)
+  const imageGenKeyInput = ref('')
+  const imageGenBaseURLInput = ref(imageGenBaseURL.value)
+  const imageGenModelInput = ref(imageGenModel.value)
+  const hasExistingImageGenKey = ref(!!imageGenApiKey.value)
   const connectionTestStatus = ref<'idle' | 'testing' | 'success' | 'error'>('idle')
   const connectionTestReason = ref<ProviderConnectionTestFailureReason | null>(null)
 
@@ -56,7 +63,7 @@ function createProviderSettingsContext() {
     resetConnectionTest()
   })
 
-  watch([keyInput, baseURLInput, customModelInput, customAPIType], resetConnectionTest)
+  watch([keyInput, baseURLInput, customModelInput, customAPIType, imageGenBaseURLInput], resetConnectionTest)
 
   function save() {
     if (keyInput.value.trim()) {
@@ -73,6 +80,17 @@ function createProviderSettingsContext() {
       unsplashAccessKey.value = unsplashKeyInput.value.trim()
       hasExistingUnsplashKey.value = true
       unsplashKeyInput.value = ''
+    }
+    if (imageGenKeyInput.value.trim()) {
+      imageGenApiKey.value = imageGenKeyInput.value.trim()
+      hasExistingImageGenKey.value = true
+      imageGenKeyInput.value = ''
+    }
+    if (imageGenBaseURLInput.value.trim()) {
+      imageGenBaseURL.value = imageGenBaseURLInput.value.trim()
+    }
+    if (imageGenModelInput.value.trim()) {
+      imageGenModel.value = imageGenModelInput.value.trim()
     }
     if (providerDef.value.supportsCustomBaseURL) {
       customBaseURL.value = baseURLInput.value.trim()
@@ -98,6 +116,12 @@ function createProviderSettingsContext() {
     unsplashAccessKey.value = ''
     unsplashKeyInput.value = ''
     hasExistingUnsplashKey.value = false
+  }
+
+  function clearImageGenKey() {
+    imageGenApiKey.value = ''
+    imageGenKeyInput.value = ''
+    hasExistingImageGenKey.value = false
   }
 
   function setCustomAPIType(value: string) {
@@ -144,15 +168,23 @@ function createProviderSettingsContext() {
     maxOutputTokens,
     pexelsApiKey,
     unsplashAccessKey,
+    imageGenApiKey,
+    imageGenBaseURL,
+    imageGenModel,
     isACP,
     keyInput,
     pexelsKeyInput,
     unsplashKeyInput,
+    imageGenKeyInput,
+    imageGenBaseURLInput,
+    imageGenModelInput,
     baseURLInput,
     customModelInput,
     hasExistingKey,
     hasExistingPexelsKey,
     hasExistingUnsplashKey,
+    hasExistingImageGenKey,
+    hasExistingImageGenModel: ref(!!imageGenModel.value),
     connectionTestStatus,
     connectionTestReason,
     canTestConnection,
@@ -160,6 +192,7 @@ function createProviderSettingsContext() {
     clearKey,
     clearPexelsKey,
     clearUnsplashKey,
+    clearImageGenKey,
     setCustomAPIType,
     testConnection
   }

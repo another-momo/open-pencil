@@ -7,15 +7,17 @@ import ProviderSettingsField from '@/components/chat/ProviderSettings/ProviderSe
 import ProviderSettingsInput from '@/components/chat/ProviderSettings/ProviderSettingsInput.vue'
 import ProviderSettingsLink from '@/components/chat/ProviderSettings/ProviderSettingsLink.vue'
 
-const { label, modelValue, saved, kind, placeholder, keyUrl, keyUrlLabel } = defineProps<{
-  label: string
-  modelValue: string
-  saved: boolean
-  kind: 'api' | 'pexels' | 'unsplash'
-  placeholder: string
-  keyUrl?: string
-  keyUrlLabel?: string
-}>()
+const { label, modelValue, saved, kind, type = 'password', placeholder, keyUrl, keyUrlLabel } =
+  defineProps<{
+    label: string
+    modelValue: string
+    saved: boolean
+    kind: 'api' | 'pexels' | 'unsplash' | 'url' | 'model'
+    type?: 'text' | 'password'
+    placeholder: string
+    keyUrl?: string
+    keyUrlLabel?: string
+  }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
@@ -47,7 +49,7 @@ const clearDataTestId = computed(() => {
   >
     <ProviderSettingsInput
       :model-value="modelValue"
-      type="password"
+      :type="type"
       :data-test-id="inputDataTestId"
       :placeholder="placeholder"
       @update:model-value="emit('update:modelValue', String($event))"

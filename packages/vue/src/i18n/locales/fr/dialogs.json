@@ -133,5 +133,10 @@
   "you": "Vous",
   "youSuffix": "vous",
   "followingPeerStop": "Suit {name} (cliquer pour arrêter)",
-  "clickToFollowPeer": "Cliquer pour suivre {name}"
+  "clickToFollowPeer": "Cliquer pour suivre {name}",
+  "imageGenAPIKey": "Image Generation API Key",
+  "imageGenBaseURL": "Image Generation Base URL",
+  "imageGenModel": "Image Generation Model",
+  "imageGenAPIKeyPlaceholder": "Separate from the chat LLM key — for generate_image tool",
+  "imageGenAPIDocs": "Image API docs →"
 }

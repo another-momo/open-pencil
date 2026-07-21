@@ -1,7 +1,7 @@
 # OpenPencil → AI 营销图片设计工作台：规划
 
-> 最后更新 2026-07-21。三层架构：生图工具（已完成）→ 营销 Agent 模式（近期）→ 工作台交互改造（远期）。
-> 详细的 Agent 模式设计见 `marketing-agent-mode-plan.md`，模式切换设计见 `marketing-mode-switch-plan.md`。
+> 最后更新 2026-07-21。三层架构：生图工具（已完成）→ 营销 Agent 模式（进行中）→ 工作台交互改造（远期）。
+> 详细的 Agent 模式设计见 `marketing-agent-mode-plan.md`。
 
 ## 1. 产品定位
 
@@ -29,7 +29,7 @@
 | 层 | 能力 | 状态 | 说明 |
 |---|---|---|---|
 | L1 生图 | 文生图 / 图编辑落画布 | ✅ 已实现 | `generate_image` 工具 + DMXAPI gpt-image-2 provider |
-| L2 营销 Agent 模式 | 营销专用工作流与 prompt | ❌ 未做 | 营销 system prompt 变体 + Section 类型库 |
+| L2 营销 Agent 模式 | 营销专用工作流与 prompt | 🔄 Phase 0 完成 | 模式切换基础设施 + 营销 system prompt + 设置面板 UI |
 | L3 工作台交互改造 | 人机协作界面与流程 | ❌ 未做 | 模板选择、品牌包、进度展示、导出 |
 
 ## 3. 已实现的 MVP（L1 生图工具）
@@ -81,21 +81,32 @@ packages/core/src/tools/image-gen/
 
 ## 5. 下一步规划
 
-### Layer 2：营销 Agent 模式（近期重点）
+### Layer 2：营销 Agent 模式（进行中）
+
+#### ✅ Phase 0：模式切换基础设施（已完成）
+
+模式切换的核心技术方案已落地实现（原设计文档已归档至 `docs/archive/marketing-mode-switch-plan.md`）：
+
+| 改动 | 文件 | 状态 |
+|---|---|---|
+| `ChatMode` 类型 + `chatMode` ref + watch | `src/app/ai/chat/storage.ts` | ✅ 已实现 |
+| `transports.ts` 按模式选择 prompt 和 step budget | `src/app/ai/chat/transports.ts` | ✅ 已实现 |
+| 营销专用 system prompt | `src/app/ai/chat/system-prompt-marketing.md` | ✅ 已实现 |
+| 设置面板模式选择器 `ChatModeSection.vue` | `src/components/chat/ProviderSettings/ChatModeSection.vue` | ✅ 已实现 |
+| 设置面板分组（LLM Configuration / Image Generation / Stock Photos） | `src/components/chat/ProviderSettings/ProviderSettings.vue` | ✅ 已实现 |
+| 输入框上方模式+模型名合并显示（如 `UI Design | GPT 5.0`） | `src/components/chat/ChatInput.vue` | ✅ 已实现 |
+| i18n 键（designMode / llmConfiguration / imageGeneration / stockPhotos） | `packages/vue/src/i18n/messages/dialogs.ts` | ✅ 已实现 |
+
+**共享（不变）**：ToolDef 定义、Tool 执行引擎、FigmaAPI、undo/redo、AI provider 配置、图片生成配置。
+
+#### 下一步：Phase 1 — 营销 prompt 迭代 + Section 类型库
 
 详见 `marketing-agent-mode-plan.md`，核心工作：
 
-1. **模式切换基础设施**（详见 `marketing-mode-switch-plan.md`）：
-   - `storage.ts` 新增 `chatMode: 'ui' | 'marketing'` 状态，复用 `markTransportDirty()` 触发 transport 重建
-   - `transports.ts` 的 `createToolLoopTransport()` 按模式选择 prompt 和 step budget
-   - 设置面板新增模式选择器 UI
-   - **共享**（不变）：ToolDef 定义、Tool 执行引擎、FigmaAPI、undo/redo、AI provider 配置、图片生成配置
-   - **差异化**（按模式切换）：System Prompt、Step Budget（默认 50 步不变，支持独立配置）、可选 Tool 过滤
-   - Vercel AI SDK v6 无内置模式概念，通过 `ToolLoopAgent({ instructions, tools })` 参数化实现
-2. **营销专用 system prompt 变体**：保留 UI prompt 中可复用的经验规则（flex/fill 链、calc 算术、骨架→填充→验证循环、describe/batch_update 修复），替换 Workflow 章节为营销流程，新增营销特有元素的 render 模式。
-3. **Section 类型库**：定义 ImageHero / PureLayout / MixedCard 等类型，AI 按 section 类型选择对应工作流。
-4. **generate_image + render 交替节奏**：不是先全部生图再全部排版，而是按 section 交替进行。
-5. **营销特有 render 模式**：九宫格、价格标签、流程图、印章/徽标、QR 码占位。
+1. **营销专用 system prompt 变体**：保留 UI prompt 中可复用的经验规则（flex/fill 链、calc 算术、骨架→填充→验证循环、describe/batch_update 修复），替换 Workflow 章节为营销流程，新增营销特有元素的 render 模式。
+2. **Section 类型库**：定义 ImageHero / PureLayout / MixedCard 等类型，AI 按 section 类型选择对应工作流。
+3. **generate_image + render 交替节奏**：不是先全部生图再全部排版，而是按 section 交替进行。
+4. **营销特有 render 模式**：九宫格、价格标签、流程图、印章/徽标、QR 码占位。
 
 ### Layer 3：工作台交互改造（远期）
 
@@ -115,8 +126,8 @@ packages/core/src/tools/image-gen/
 
 ## 6. 推荐落地顺序
 
-1. **Layer 2 Phase 0**：模式切换基础设施（`storage.ts` + `transports.ts` + 设置 UI），为 prompt 切换提供技术底座
-2. **Layer 2 Phase 1**：营销 system prompt 变体 + Section 类型库（纯 prompt 工作，不碰代码）
+1. ~~**Layer 2 Phase 0**：模式切换基础设施~~ ✅ 已完成
+2. **Layer 2 Phase 1**：营销 system prompt 迭代 + Section 类型库（prompt 工作 + 实测）
 3. **Layer 2 Phase 2**：prompt 实测迭代，用真实营销需求验证
 4. **Layer 3 Phase 1**：模板选择 UI + 品牌包设置面板
 5. **Layer 3 Phase 2**：生图进度展示 + 导出流程
@@ -128,9 +139,12 @@ packages/core/src/tools/image-gen/
 - 工具注册：`packages/core/src/tools/registry-core.ts`（`CORE_TOOLS` 含 `generateImage`）
 - AI 接线：`src/app/ai/tools/index.ts`（`toolsToAI` + `onAfterExecute` 自动 layout/render/undo）
 - Transport 创建：`src/app/ai/chat/transports.ts`（`createToolLoopTransport()` — 模式切换入口）
-- 模式状态：`src/app/ai/chat/storage.ts`（`chatMode` — 待新增）
-- 系统提示词：`src/app/ai/chat/system-prompt.md`（含 `# AI Image Generation` 章节）
-- 营销提示词：`src/app/ai/chat/system-prompt-marketing.md`（待新建）
+- 模式状态：`src/app/ai/chat/storage.ts`（`chatMode`、`ChatMode` 类型）
+- 系统提示词：`src/app/ai/chat/system-prompt.md`（UI 设计，593 行）
+- 营销提示词：`src/app/ai/chat/system-prompt-marketing.md`（营销设计，6 阶段）
+- 模式选择 UI：`src/components/chat/ProviderSettings/ChatModeSection.vue`
+- 设置面板：`src/components/chat/ProviderSettings/ProviderSettings.vue`
+- 输入框 UI：`src/components/chat/ChatInput.vue`（模式+模型名合并显示）
 - 独立配置：`src/app/ai/chat/storage.ts`、`src/components/chat/ProviderSettings/ImageGenKeysSection.vue`
 - 外部图落画布（复用模式）：`packages/core/src/tools/stock-photo/apply.ts`
 - 文字/装饰叠加：`packages/core/src/tools/create/render.ts`（`render` 工具）

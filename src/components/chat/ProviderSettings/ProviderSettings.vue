@@ -5,6 +5,7 @@ import { useI18n } from '@open-pencil/vue'
 
 import ApiKeySection from '@/components/chat/ProviderSettings/ApiKeySection.vue'
 import ApiTypeSection from '@/components/chat/ProviderSettings/ApiTypeSection.vue'
+import ChatModeSection from '@/components/chat/ProviderSettings/ChatModeSection.vue'
 import CustomEndpointSection from '@/components/chat/ProviderSettings/CustomEndpointSection.vue'
 import MaxTokensSection from '@/components/chat/ProviderSettings/MaxTokensSection.vue'
 import ProviderSelectField from '@/components/chat/ProviderSelect/ProviderSelectField.vue'
@@ -54,15 +55,20 @@ function onInteractOutside(e: Event) {
         @interact-outside="onInteractOutside"
       >
         <div class="flex flex-col gap-2.5">
-          <h3 class="text-[11px] font-semibold text-surface">{{ dialogs.aiProvider }}</h3>
+          <ChatModeSection />
+          <h3 class="text-[11px] font-semibold text-surface">{{ dialogs.llmConfiguration }}</h3>
           <ProviderSelectField data-test-id="provider-settings-provider" />
-          <MaxTokensSection />
-          <StockPhotoKeysSection />
-          <ImageGenKeysSection />
           <CustomEndpointSection />
-          <ApiTypeSection />
           <ApiKeySection />
+          <MaxTokensSection />
+          <ApiTypeSection />
           <TestConnectionSection />
+
+          <h3 class="text-[11px] font-semibold text-surface">{{ dialogs.imageGeneration }}</h3>
+          <ImageGenKeysSection />
+
+          <h3 class="text-[11px] font-semibold text-surface">{{ dialogs.stockPhotos }}</h3>
+          <StockPhotoKeysSection />
 
           <PopoverClose
             class="mt-1 w-full rounded bg-accent px-2 py-1 text-center text-[11px] font-medium text-white hover:bg-accent/90"

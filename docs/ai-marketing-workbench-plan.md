@@ -1,7 +1,7 @@
 # OpenPencil → AI 营销图片设计工作台：规划
 
-> 最后更新 2026-07-20。本文档记录产品方向、已实现进展、以及对下一步的重新思考。
-> 早期草稿中部分假设已被实测推翻，相关结论已在此修正，不再保留过时方案。
+> 最后更新 2026-07-21。三层架构：生图工具（已完成）→ 营销 Agent 模式（近期）→ 工作台交互改造（远期）。
+> 详细的 Agent 模式设计见 `marketing-agent-mode-plan.md`，模式切换设计见 `marketing-mode-switch-plan.md`。
 
 ## 1. 产品定位
 
@@ -11,16 +11,28 @@
 
 **一句话目标**：让不懂设计的运营，用自然语言得到一张**可继续编辑**的营销图（banner/海报/长图），且**品牌一致、文字清晰、图层可改**。
 
-## 2. 能力分层
+## 2. 三层架构总览
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Layer 3: 工作台交互改造（远期）                       │
+│  模板选择 UI · 品牌包设置 · 生图进度 · 导出流程         │
+├─────────────────────────────────────────────────────┤
+│  Layer 2: 营销 Agent 模式（近期）                      │
+│  营销专用 prompt · Section 类型库 · 工作流编排           │
+├─────────────────────────────────────────────────────┤
+│  Layer 1: 生图工具（已完成）                           │
+│  generate_image · DMXAPI provider · 独立配置           │
+└─────────────────────────────────────────────────────┘
+```
 
 | 层 | 能力 | 状态 | 说明 |
 |---|---|---|---|
-| L0 生图 | 文生图 / 图编辑落画布 | ✅ 已实现 | `generate_image` 工具 + DMXAPI gpt-image-2 provider |
-| L1 排版 | 底图 + 文字 + 装饰成稿 | ⚠️ Agent 即兴 | 需模板驱动，避免文字摆错位置 |
-| L2 场景 | banner/海报/长图预设 | ❌ 未做 | 场景模板 + 尺寸预设 |
-| L3 品牌 | 风格/色/logo 一致性 | ❌ 未做 | 品牌包（brand kit）注入 prompt |
+| L1 生图 | 文生图 / 图编辑落画布 | ✅ 已实现 | `generate_image` 工具 + DMXAPI gpt-image-2 provider |
+| L2 营销 Agent 模式 | 营销专用工作流与 prompt | ❌ 未做 | 营销 system prompt 变体 + Section 类型库 |
+| L3 工作台交互改造 | 人机协作界面与流程 | ❌ 未做 | 模板选择、品牌包、进度展示、导出 |
 
-## 3. 已实现的 MVP（L0）
+## 3. 已实现的 MVP（L1 生图工具）
 
 ### 3.1 工具域 `generate_image`
 
@@ -61,44 +73,64 @@ packages/core/src/tools/image-gen/
 
 | 早期假设 | 实测结论 | 修正 |
 |---|---|---|
-| 长图 = 分段生图 + 自动拼版编排 Agent | 长图主体是排版问题不是生图问题；拼版靠 auto-layout frame | 长图 = 纵向 auto-layout frame 内含 N 区块，每区块底图+文字，复用 layout |
+| 营销图 section = 底图 + 几个文字节点 | 长图 section 内部结构高度异构：有纯排版（流程图、九宫格）、有纯生图（主视觉）、有混合（商品卡片） | 按 section 类型选择不同工作流，不能一刀切 |
+| 长图 = 分段生图 + 自动拼版编排 Agent | 长图主体是排版问题不是生图问题；拼版靠 auto-layout frame | 长图 = 纵向 auto-layout frame 内含 N 区块，每区块按类型处理 |
 | 生图可做像素级精修（inpaint/mask） | edits 不支持文本 mask，只能整图 img2img | 生图适合"大区域替换/风格化"，不适合像素级精修 |
 | size 约束是"16 倍数 + ≤3840 + 比例≤3:1" | 实际是固定枚举 + 像素总数窗口 | 映射到允许枚举集 |
 | 生图配置可复用 LLM key | 完全独立 | 独立 key/baseURL/model |
 
-## 5. 下一步规划（按优先级）
+## 5. 下一步规划
 
-### P0 — 模板驱动的排版（最高杠杆，最低风险）
-**为什么先做**：L0 已能出图，但成稿质量取决于 AI 即兴排版，文字常摆错位置。把"即兴"变"模板驱动"直接解决原目标里的"文字对齐"问题。
-- `src/app/marketing/templates.ts`：banner / poster / long-image 三套模板，定义画布尺寸、底图区、文字槽位（标题/副标题/卖点/CTA/logo）、安全边距。模板即结构化 JSX + 槽位约束，喂给现有 `render`。
-- `system-prompt.md` 新增「Marketing workflow」：规定流水线 **`generate_image` 出底图 → 按模板 `render` 叠文字 → `modify`/`structure` 微调**。硬规则：**生图不含文字，文字交给 `render` 文字节点**。
-- 不碰内核，纯 app 层 + prompt。
+### Layer 2：营销 Agent 模式（近期重点）
 
-### P1 — 长图分段编排（务实版，复用 P0）
-- 长图模板 = 纵向 auto-layout frame，内含 N 区块（每区块一张底图 + 文字）。Agent 先批量 `generate_image` 出 N 张区块底图，再 `render` 填文字，auto-layout 自动拼接。
-- 不写"生图编排 Agent"，复用 P0 模板机制。
+详见 `marketing-agent-mode-plan.md`，核心工作：
 
-### P2 — 错误与体验闭环（被低估，影响真实可用性）
-- 生图是慢操作 + 易 400，当前最影响体验。
-- (a) 工具返回更友好错误（已部分做）；(b) AI chat 显示"生成中"进度；(c) key 未配置时明确引导到生图设置页。
+1. **模式切换基础设施**（详见 `marketing-mode-switch-plan.md`）：
+   - `storage.ts` 新增 `chatMode: 'ui' | 'marketing'` 状态，复用 `markTransportDirty()` 触发 transport 重建
+   - `transports.ts` 的 `createToolLoopTransport()` 按模式选择 prompt 和 step budget
+   - 设置面板新增模式选择器 UI
+   - **共享**（不变）：ToolDef 定义、Tool 执行引擎、FigmaAPI、undo/redo、AI provider 配置、图片生成配置
+   - **差异化**（按模式切换）：System Prompt、Step Budget（默认 50 步不变，支持独立配置）、可选 Tool 过滤
+   - Vercel AI SDK v6 无内置模式概念，通过 `ToolLoopAgent({ instructions, tools })` 参数化实现
+2. **营销专用 system prompt 变体**：保留 UI prompt 中可复用的经验规则（flex/fill 链、calc 算术、骨架→填充→验证循环、describe/batch_update 修复），替换 Workflow 章节为营销流程，新增营销特有元素的 render 模式。
+3. **Section 类型库**：定义 ImageHero / PureLayout / MixedCard 等类型，AI 按 section 类型选择对应工作流。
+4. **generate_image + render 交替节奏**：不是先全部生图再全部排版，而是按 section 交替进行。
+5. **营销特有 render 模式**：九宫格、价格标签、流程图、印章/徽标、QR 码占位。
 
-### P3 — 品牌包 brand kit（差异化真正来源）
-- 设置里存"品牌色 / 字体 / logo / 固定风格词"。`generate_image` 调用时自动追加到 prompt 后缀；`render` 文字时套用品牌色/字体。
-- 把"一次性出图"变成"品牌一致出图"，是友商难抄的点。需新增设置 UI + prompt 注入。
+### Layer 3：工作台交互改造（远期）
+
+在 Agent 模式验证可行后，逐步改造人机协作界面：
+
+1. **模板选择 UI**：banner / 海报 / 长图预设，用户点选后自动设置画布尺寸 + 加载对应 prompt。
+2. **品牌包设置面板**：品牌色 / 字体 / logo / 风格词，注入到 prompt 后缀。
+3. **生图进度展示**：当前生图是黑盒慢操作，需要"生成中..."/"已完成"/"失败重试"状态反馈。
+4. **营销图导出流程**：适配不同投放渠道的尺寸导出（朋友圈 1080x1080、公众号 900x500 等）。
+5. **迭代交互优化**：用户说"标题再大一点"时的精准修改，而非重新生成整张图。
+
+### 长期：品牌包 brand kit
+
+- 设置里存"品牌色 / 字体 / logo / 固定风格词"。
+- `generate_image` 调用时自动追加到 prompt 后缀；`render` 文字时套用品牌色/字体。
+- 把"一次性出图"变成"品牌一致出图"，是友商难抄的点。
 
 ## 6. 推荐落地顺序
 
-1. **P0** 模板 + 编排 prompt（1–2 天，纯 app 层，立刻提升成稿质量）
-2. **P2** 体验闭环（进度/错误），L0 已能用但体验糙
-3. **P1** 长图模板（复用 P0，多区块）
-4. **P3** brand kit（新设置 UI + prompt 注入）
+1. **Layer 2 Phase 0**：模式切换基础设施（`storage.ts` + `transports.ts` + 设置 UI），为 prompt 切换提供技术底座
+2. **Layer 2 Phase 1**：营销 system prompt 变体 + Section 类型库（纯 prompt 工作，不碰代码）
+3. **Layer 2 Phase 2**：prompt 实测迭代，用真实营销需求验证
+4. **Layer 3 Phase 1**：模板选择 UI + 品牌包设置面板
+5. **Layer 3 Phase 2**：生图进度展示 + 导出流程
+6. **长期**：品牌包深度集成 + 迭代交互优化
 
 ## 7. 源码参考
 
 - 生图工具域：`packages/core/src/tools/image-gen*`
 - 工具注册：`packages/core/src/tools/registry-core.ts`（`CORE_TOOLS` 含 `generateImage`）
 - AI 接线：`src/app/ai/tools/index.ts`（`toolsToAI` + `onAfterExecute` 自动 layout/render/undo）
+- Transport 创建：`src/app/ai/chat/transports.ts`（`createToolLoopTransport()` — 模式切换入口）
+- 模式状态：`src/app/ai/chat/storage.ts`（`chatMode` — 待新增）
 - 系统提示词：`src/app/ai/chat/system-prompt.md`（含 `# AI Image Generation` 章节）
+- 营销提示词：`src/app/ai/chat/system-prompt-marketing.md`（待新建）
 - 独立配置：`src/app/ai/chat/storage.ts`、`src/components/chat/ProviderSettings/ImageGenKeysSection.vue`
 - 外部图落画布（复用模式）：`packages/core/src/tools/stock-photo/apply.ts`
 - 文字/装饰叠加：`packages/core/src/tools/create/render.ts`（`render` 工具）

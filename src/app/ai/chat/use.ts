@@ -4,6 +4,7 @@ import { IS_BROWSER } from '@open-pencil/core/constants'
 
 import {
   apiKey,
+  chatMode,
   customAPIType,
   customBaseURL,
   customModelID,
@@ -37,6 +38,7 @@ const chatSession = createChatSessionManager({
   customBaseURL,
   customAPIType,
   maxOutputTokens,
+  chatMode,
   getActiveEditorStore
 })
 
@@ -64,6 +66,7 @@ export function useAIChat() {
     imageGenApiKey,
     imageGenBaseURL,
     imageGenModel,
+    chatMode,
     activeTab,
     isConfigured,
     ensureChat: chatSession.ensureChat,

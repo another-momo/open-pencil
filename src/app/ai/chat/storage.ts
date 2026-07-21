@@ -12,6 +12,8 @@ import type { AIProviderID } from '@open-pencil/core/constants'
 import { setPexelsApiKey, setUnsplashAccessKey, setImageGenCredentials } from '@open-pencil/core/tools'
 
 const STORAGE_PREFIX = 'open-pencil:'
+
+export type ChatMode = 'ui' | 'marketing'
 const LEGACY_KEY_STORAGE = `${STORAGE_PREFIX}openrouter-api-key`
 
 export function keyStorageKey(id: string) {
@@ -57,6 +59,9 @@ export const imageGenModel = useLocalStorage(
   `${STORAGE_PREFIX}image-gen-model`,
   'gpt-image-2-ssvip'
 )
+
+// Chat mode: 'ui' (default) or 'marketing'
+export const chatMode = useLocalStorage<ChatMode>(`${STORAGE_PREFIX}chat-mode`, 'ui')
 
 export const providerDef = computed(
   () => AI_PROVIDERS.find((p) => p.id === providerID.value) ?? AI_PROVIDERS[0]
@@ -115,4 +120,5 @@ export function registerAIChatEffects(markTransportDirty: () => void) {
   watch(customAPIType, markTransportDirty)
   watch(apiKey, markTransportDirty)
   watch(customBaseURL, markTransportDirty)
+  watch(chatMode, markTransportDirty)
 }

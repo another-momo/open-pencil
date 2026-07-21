@@ -1,6 +1,7 @@
 import { computed, inject, provide, proxyRefs, ref, watch } from 'vue'
 import type { InjectionKey, ShallowUnwrapRef } from 'vue'
 
+import type { ChatMode } from '@/app/ai/chat/storage'
 import {
   testProviderConnection,
   type ProviderConnectionTestFailureReason
@@ -22,7 +23,9 @@ function createProviderSettingsContext() {
     unsplashAccessKey,
     imageGenApiKey,
     imageGenBaseURL,
-    imageGenModel
+    imageGenModel,
+    chatMode,
+    resetChat
   } = useAIChat()
 
   const isACP = computed(() => providerID.value.startsWith('acp:'))
@@ -129,6 +132,11 @@ function createProviderSettingsContext() {
     save()
   }
 
+  function setChatMode(mode: ChatMode) {
+    chatMode.value = mode
+    resetChat()
+  }
+
   async function testConnection() {
     if (connectionTestStatus.value === 'testing') return
     connectionTestStatus.value = 'testing'
@@ -171,6 +179,7 @@ function createProviderSettingsContext() {
     imageGenApiKey,
     imageGenBaseURL,
     imageGenModel,
+    chatMode,
     isACP,
     keyInput,
     pexelsKeyInput,
@@ -194,6 +203,7 @@ function createProviderSettingsContext() {
     clearUnsplashKey,
     clearImageGenKey,
     setCustomAPIType,
+    setChatMode,
     testConnection
   }
 }

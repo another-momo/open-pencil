@@ -8,7 +8,9 @@ import type { ACPAgentID, AIProviderID } from '@open-pencil/core/constants'
 
 import { createLanguageModel, resolveLanguageModelID } from '@/app/ai/chat/model'
 import SYSTEM_PROMPT from '@/app/ai/chat/system-prompt.md?raw'
+import SYSTEM_PROMPT_MARKETING from '@/app/ai/chat/system-prompt-marketing.md?raw'
 import { MAX_AGENT_STEPS, createAITools, recordStepUsage, resetRunSteps } from '@/app/ai/tools'
+import type { ChatMode } from '@/app/ai/chat/storage'
 import type { getActiveEditorStore } from '@/app/editor/active-store'
 
 type EditorStore = ReturnType<typeof getActiveEditorStore>
@@ -23,6 +25,7 @@ type ChatSessionOptions = {
   customBaseURL: Ref<string>
   customAPIType: Ref<'completions' | 'responses'>
   maxOutputTokens: Ref<number>
+  chatMode: Ref<ChatMode>
   getActiveEditorStore: () => EditorStore
 }
 
@@ -35,6 +38,7 @@ type ToolLoopTransportOptions = {
   customBaseURL: string
   customAPIType: 'completions' | 'responses'
   maxOutputTokens: number
+  chatMode: ChatMode
 }
 
 const ANTHROPIC_CACHE_CONTROL = {
@@ -67,13 +71,16 @@ export function createToolLoopTransport({
   customModelID,
   customBaseURL,
   customAPIType,
-  maxOutputTokens
+  maxOutputTokens,
+  chatMode
 }: ToolLoopTransportOptions) {
   const tools = createAITools(store)
   const effectiveModelID = resolveLanguageModelID({ providerID, modelID, customModelID })
   const cacheProviderOptions = supportsAnthropicCaching(providerID, effectiveModelID)
     ? ANTHROPIC_CACHE_CONTROL
     : undefined
+
+  const instructions = chatMode === 'marketing' ? SYSTEM_PROMPT_MARKETING : SYSTEM_PROMPT
 
   const agent = new ToolLoopAgent({
     model: createLanguageModel({
@@ -84,7 +91,7 @@ export function createToolLoopTransport({
       customBaseURL,
       customAPIType
     }),
-    instructions: SYSTEM_PROMPT,
+    instructions,
     tools,
     stopWhen: stepCountIs(MAX_AGENT_STEPS),
     maxOutputTokens,
@@ -124,6 +131,7 @@ export function createChatSessionManager({
   customBaseURL,
   customAPIType,
   maxOutputTokens,
+  chatMode,
   getActiveEditorStore
 }: ChatSessionOptions) {
   let transportDirty = false
@@ -160,7 +168,8 @@ export function createChatSessionManager({
       customModelID: customModelID.value,
       customBaseURL: customBaseURL.value,
       customAPIType: customAPIType.value,
-      maxOutputTokens: maxOutputTokens.value
+      maxOutputTokens: maxOutputTokens.value,
+      chatMode: chatMode.value
     })
   }
 

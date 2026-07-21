@@ -12,7 +12,7 @@ import { useI18n } from '@open-pencil/vue'
 
 import { ACP_AGENTS } from '@open-pencil/core/constants'
 
-const { providerID, providerDef, modelID, customModelID } = useAIChat()
+const { providerID, providerDef, modelID, customModelID, chatMode } = useAIChat()
 const { dialogs } = useI18n()
 
 const { status } = defineProps<{
@@ -58,6 +58,8 @@ const selectedModelName = computed(() => {
   return providerDef.value.models.find((m) => m.id === modelID.value)?.name ?? modelID.value
 })
 
+const modeLabel = computed(() => chatMode.value === 'marketing' ? 'Marketing Design' : 'UI Design')
+
 function handleSubmit(e: Event) {
   e.preventDefault()
   const text = input.value.trim()
@@ -75,6 +77,8 @@ function handleSubmit(e: Event) {
         <template v-if="isACPProvider">
           <div class="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-muted">
             <icon-lucide-bot class="size-3" />
+            {{ modeLabel }}
+            <span class="text-border">|</span>
             {{ acpAgentName }}
           </div>
         </template>
@@ -84,11 +88,13 @@ function handleSubmit(e: Event) {
             data-test-id="chat-custom-model-label"
           >
             <icon-lucide-bot class="size-3" />
+            {{ modeLabel }}
+            <span class="text-border">|</span>
             {{ selectedModelName }}
           </div>
         </template>
         <ProviderModelSelect v-else>
-          <template #value>{{ selectedModelName }}</template>
+          <template #value>{{ modeLabel }} | {{ selectedModelName }}</template>
         </ProviderModelSelect>
 
         <div class="ml-auto">

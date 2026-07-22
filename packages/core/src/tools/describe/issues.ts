@@ -47,10 +47,20 @@ function detectStructuralIssues(
   issues: DescribeIssue[]
 ): void {
   if (node.x % 1 !== 0 || node.y % 1 !== 0) {
-    issues.push({
-      message: `Subpixel position (${node.x}, ${node.y})`,
-      suggestion: `(${Math.round(node.x)}, ${Math.round(node.y)})`
-    })
+    // Subpixel offsets from auto-layout centering (odd content sizes) are
+    // inevitable and correct — only flag positions the author controls:
+    // absolute-positioned children and nodes outside auto-layout parents.
+    const parent = node.parentId ? graph.getNode(node.parentId) : undefined
+    const layoutComputed =
+      parent !== undefined &&
+      parent.layoutMode !== 'NONE' &&
+      node.layoutPositioning !== 'ABSOLUTE'
+    if (!layoutComputed) {
+      issues.push({
+        message: `Subpixel position (${node.x}, ${node.y})`,
+        suggestion: `(${Math.round(node.x)}, ${Math.round(node.y)})`
+      })
+    }
   }
   if (CONTAINER_TYPES.has(node.type) && node.fills.length === 0 && node.childIds.length === 0) {
     issues.push({ message: 'Empty frame with no fill' })
@@ -153,7 +163,7 @@ function checkSameFillAsParent(node: SceneNode, graph: SceneGraph, issues: Descr
   if (!parentFill) return
   if (colorDistance(nodeFill.color, parentFill.color) < 3) {
     issues.push({
-      message: `"${node.name}" fill ${colorToHex(nodeFill.color)} matches parent "${parent.name}" — invisible border`,
+      message: `"${node.name}" fill ${colorToHex(nodeFill.color)} matches parent "${parent.name}" — no visible boundary`,
       suggestion: 'Use a different fill color or remove fill'
     })
   }

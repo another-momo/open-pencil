@@ -40,9 +40,17 @@ export const stockPhoto = defineTool({
     const reqs = parsePhotoRequests(requests)
     if ('error' in reqs) return reqs
 
-    const results = await Promise.all(reqs.map((request) => applyPhoto(figma, provider, request)))
+    const results = await Promise.all(
+      reqs.requests.map((request) => applyPhoto(figma, provider, request))
+    )
     const ok = results.filter((result) => result.photo).length
 
-    return { applied: ok, failed: results.length - ok, provider: provider.name, results }
+    return {
+      applied: ok,
+      failed: results.length - ok,
+      provider: provider.name,
+      ...(reqs.warning ? { warning: reqs.warning } : {}),
+      results
+    }
   }
 })

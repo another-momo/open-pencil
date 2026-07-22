@@ -9,7 +9,11 @@ import {
   IS_TAURI
 } from '@open-pencil/core/constants'
 import type { AIProviderID } from '@open-pencil/core/constants'
-import { setPexelsApiKey, setUnsplashAccessKey, setImageGenCredentials } from '@open-pencil/core/tools'
+import {
+  setPexelsApiKey,
+  setUnsplashAccessKey,
+  setImageGenCredentials
+} from '@open-pencil/core/tools'
 
 const STORAGE_PREFIX = 'open-pencil:'
 

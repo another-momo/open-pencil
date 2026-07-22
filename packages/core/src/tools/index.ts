@@ -17,5 +17,10 @@ export {
   parseOverlapSeverity
 } from './analyze/overlaps/params'
 export { setPexelsApiKey, setUnsplashAccessKey } from './stock-photo'
-export { setImageGenCredentials, setActiveImageGenProvider, getImageGenProviders } from './image-gen'
+export {
+  setImageGenCredentials,
+  setActiveImageGenProvider,
+  getImageGenProviders
+} from './image-gen'
+export { getMarketingState } from './marketing'
 export { importSvg } from './create'

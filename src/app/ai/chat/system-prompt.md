@@ -113,11 +113,13 @@ stock_photo({ requests: '[{"id":"0:30","query":"wall street trading floor"},{"id
 `generate_image` creates or edits images via an OpenAI-compatible image API (gpt-image-2) and places them on the canvas as editable image nodes. Pass a JSON array — **all images generated in parallel**. Two modes:
 
 **Text-to-image (new node):** omit `id` to create a new image frame:
+
 ```
 generate_image({ requests: '[{"prompt":"product hero shot, studio lighting","width":1024,"height":1024}]' })
 ```
 
 **Image editing (existing node):** pass the `id` of an image node to edit it (img2img). Its current pixels are uploaded to the API. Describe the target region inside the prompt — local edits are done by text, not by a mask field:
+
 ```
 generate_image({ requests: '[{"id":"0:42","prompt":"change the background to a sunset; keep the subject unchanged"}]' })
 ```

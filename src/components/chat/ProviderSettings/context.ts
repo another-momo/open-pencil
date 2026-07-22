@@ -1,11 +1,11 @@
 import { computed, inject, provide, proxyRefs, ref, watch } from 'vue'
 import type { InjectionKey, ShallowUnwrapRef } from 'vue'
 
-import type { ChatMode } from '@/app/ai/chat/storage'
 import {
   testProviderConnection,
   type ProviderConnectionTestFailureReason
 } from '@/app/ai/chat/connection-test'
+import type { ChatMode } from '@/app/ai/chat/storage'
 import { useAIChat } from '@/app/ai/chat/use'
 
 function createProviderSettingsContext() {
@@ -66,7 +66,10 @@ function createProviderSettingsContext() {
     resetConnectionTest()
   })
 
-  watch([keyInput, baseURLInput, customModelInput, customAPIType, imageGenBaseURLInput], resetConnectionTest)
+  watch(
+    [keyInput, baseURLInput, customModelInput, customAPIType, imageGenBaseURLInput],
+    resetConnectionTest
+  )
 
   function save() {
     if (keyInput.value.trim()) {

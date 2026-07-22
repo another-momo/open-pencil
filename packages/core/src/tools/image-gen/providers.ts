@@ -59,11 +59,7 @@ let imageGenKey: string | null = null
 let imageGenBaseURL = 'https://www.dmxapi.cn/v1'
 let imageGenModelName = 'gpt-image-2-ssvip'
 
-export function setImageGenCredentials(
-  key: string | null,
-  baseURL?: string,
-  model?: string
-): void {
+export function setImageGenCredentials(key: string | null, baseURL?: string, model?: string): void {
   if (key) {
     imageGenKey = key
     if (baseURL) imageGenBaseURL = baseURL.replace(/\/$/, '')
@@ -99,7 +95,10 @@ const dmxImageProvider: ImageGenProvider = {
   async generate(req, baseImage) {
     if (!imageGenKey) throw new Error('Image-gen API key not configured')
     const hasDims =
-      req.width != null && req.height != null && Number.isFinite(req.width) && Number.isFinite(req.height)
+      req.width != null &&
+      req.height != null &&
+      Number.isFinite(req.width) &&
+      Number.isFinite(req.height)
     const size = hasDims ? `${req.width}x${req.height}` : 'auto'
     const resultWidth = hasDims ? (req.width as number) : 1024
     const resultHeight = hasDims ? (req.height as number) : 1024
@@ -113,21 +112,14 @@ const dmxImageProvider: ImageGenProvider = {
       form.append('quality', req.quality ?? 'auto')
       form.append('output_format', req.outputFormat ?? 'png')
       form.append('background', req.background ?? 'auto')
-      form.append(
-        'image',
-        new Blob([baseImage.slice().buffer], { type: 'image/png' }),
-        'input.png'
-      )
+      form.append('image', new Blob([baseImage.slice().buffer], { type: 'image/png' }), 'input.png')
 
-      const response = await ofetch.raw<ImageApiResponse>(
-        `${imageGenBaseURL}/images/edits`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${imageGenKey}` },
-          body: form,
-          retry: 0
-        }
-      )
+      const response = await ofetch.raw<ImageApiResponse>(`${imageGenBaseURL}/images/edits`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${imageGenKey}` },
+        body: form,
+        retry: 0
+      })
       if (!response.ok) throw new Error(`Image edit API ${response.status}`)
       const bytes = await extractImageBytes(response._data as ImageApiResponse)
       return { bytes, width: resultWidth, height: resultHeight }
@@ -141,22 +133,22 @@ const dmxImageProvider: ImageGenProvider = {
       quality: req.quality ?? 'auto',
       output_format: req.outputFormat ?? 'png'
     }
-    if ((req.outputFormat === 'jpeg' || req.outputFormat === 'webp') && req.outputCompression != null) {
+    if (
+      (req.outputFormat === 'jpeg' || req.outputFormat === 'webp') &&
+      req.outputCompression != null
+    ) {
       body.output_compression = req.outputCompression
     }
 
-    const response = await ofetch.raw<ImageApiResponse>(
-      `${imageGenBaseURL}/images/generations`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${imageGenKey}`,
-          'Content-Type': 'application/json'
-        },
-        body,
-        retry: 0
-      }
-    )
+    const response = await ofetch.raw<ImageApiResponse>(`${imageGenBaseURL}/images/generations`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${imageGenKey}`,
+        'Content-Type': 'application/json'
+      },
+      body,
+      retry: 0
+    })
     if (!response.ok) throw new Error(`Image gen API ${response.status}`)
     const bytes = await extractImageBytes(response._data as ImageApiResponse)
     return { bytes, width: resultWidth, height: resultHeight }

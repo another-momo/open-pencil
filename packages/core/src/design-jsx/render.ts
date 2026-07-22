@@ -1,3 +1,4 @@
+import { parse } from 'culori'
 import { transform } from 'sucrase'
 
 import type { SceneGraph } from '@open-pencil/scene-graph'
@@ -143,11 +144,32 @@ function unsupportedPropWarnings(tree: TreeNode): string[] {
 function collectUnsupportedPropWarnings(tree: TreeNode, warnings: string[]): void {
   for (const key of Object.keys(tree.props)) {
     if (!SUPPORTED_PROPS.has(key)) {
-      warnings.push(`Unsupported prop "${key}" on <${tree.type}> is ignored.`)
+      if (key === 'id') {
+        warnings.push(
+          `Unsupported prop "id" on <${tree.type}> is ignored. JSX cannot set node IDs or target a parent — to render INTO an existing frame, pass render's parent_id parameter; to replace a node, use replace_id.`
+        )
+      } else {
+        warnings.push(`Unsupported prop "${key}" on <${tree.type}> is ignored.`)
+      }
     }
   }
   for (const child of tree.children) {
     if (isTreeNode(child)) collectUnsupportedPropWarnings(child, warnings)
+  }
+}
+
+const COLOR_PROPS = new Set(['bg', 'color', 'stroke'])
+
+function collectInvalidColorWarnings(tree: TreeNode, warnings: string[]): void {
+  for (const [key, value] of Object.entries(tree.props)) {
+    if (COLOR_PROPS.has(key) && typeof value === 'string' && !parse(value)) {
+      warnings.push(
+        `Invalid color "${value}" in prop "${key}" on <${tree.type}> — fell back to black. Fix the hex value and re-render with replace_id.`
+      )
+    }
+  }
+  for (const child of tree.children) {
+    if (isTreeNode(child)) collectInvalidColorWarnings(child, warnings)
   }
 }
 
@@ -229,6 +251,7 @@ export async function renderJSX(
   }
 
   const warnings = unsupportedPropWarnings(tree)
+  collectInvalidColorWarnings(tree, warnings)
 
   if (tree.type === '' && tree.children.length > 0) {
     const results: RenderResult[] = []

@@ -1,16 +1,18 @@
-import { safeDestr } from 'destr'
+import { parseJsonArrayParam } from '#core/tools/json-array'
 
 import type { PhotoRequest } from './apply'
 
-export function parsePhotoRequests(value: unknown): PhotoRequest[] | { error: string } {
-  let parsed: unknown
-  try {
-    parsed = safeDestr(String(value))
-  } catch {
-    return { error: 'Invalid JSON in requests' }
-  }
+export interface ParsedPhotoRequests {
+  requests: PhotoRequest[]
+  warning?: string
+}
 
-  const requests = Array.isArray(parsed) ? parsed : [parsed]
-  if (requests.length === 0) return { error: 'Empty requests array' }
-  return requests as PhotoRequest[]
+export function parsePhotoRequests(value: unknown): ParsedPhotoRequests | { error: string } {
+  const parsed = parseJsonArrayParam(value, 'requests')
+  if ('error' in parsed) return parsed
+
+  if (parsed.items.length === 0) return { error: 'Empty requests array' }
+  const result: ParsedPhotoRequests = { requests: parsed.items as PhotoRequest[] }
+  if (parsed.warning) result.warning = parsed.warning
+  return result
 }

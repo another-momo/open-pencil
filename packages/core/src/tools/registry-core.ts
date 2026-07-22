@@ -2,6 +2,8 @@ import { evalCode } from './analyze'
 import { calc } from './calc'
 import { render } from './create'
 import { describe } from './describe'
+import { generateImage } from './image-gen'
+import { setupMaterialTypeTool, validateTool } from './marketing'
 import {
   setFill,
   setLayout,
@@ -15,7 +17,6 @@ import {
 import { findNodes, getJsx, getNode, getSelection } from './read'
 import type { ToolDef } from './schema'
 import { stockPhoto } from './stock-photo'
-import { generateImage } from './image-gen'
 import { batchUpdate, deleteNode, nodeResize, reparentNode } from './structure'
 import { viewportZoomToFit } from './vector'
 
@@ -49,6 +50,9 @@ export const CORE_TOOLS: ToolDef[] = [
   stockPhoto,
   // Image generation / editing
   generateImage,
+  // Marketing
+  setupMaterialTypeTool,
+  validateTool,
   // Inspect & utility
   describe,
   calc,

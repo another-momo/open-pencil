@@ -1,4 +1,4 @@
-import { safeDestr } from 'destr'
+import { parseJsonArrayParam } from '#core/tools/json-array'
 
 import type { ImageGenRequest } from './providers'
 
@@ -28,7 +28,10 @@ interface NormalizedSize {
  * candidate by absolute area delta and aspect-ratio delta so a 1080x500 banner
  * lands on 2048x1152 (landscape 16:9) rather than a square.
  */
-function normalizeSize(width: number, height: number): NormalizedSize | { error: string } {
+export function normalizeSize(
+  width: number,
+  height: number
+): NormalizedSize | { error: string } {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     return { error: `Invalid size ${width}x${height}` }
   }
@@ -40,7 +43,8 @@ function normalizeSize(width: number, height: number): NormalizedSize | { error:
   let bestScore = Number.POSITIVE_INFINITY
   for (const candidate of ALLOWED_SIZES) {
     const candArea = candidate.width * candidate.height
-    const candRatio = Math.max(candidate.width, candidate.height) / Math.min(candidate.width, candidate.height)
+    const candRatio =
+      Math.max(candidate.width, candidate.height) / Math.min(candidate.width, candidate.height)
     const areaScore = Math.abs(candArea - reqArea) / reqArea
     const ratioScore = Math.abs(candRatio - reqRatio) / reqRatio
     const score = areaScore + ratioScore
@@ -57,17 +61,12 @@ function normalizeSize(width: number, height: number): NormalizedSize | { error:
 export interface ParsedImageGenRequests {
   requests: ImageGenRequest[]
   sizeNote?: string
+  warning?: string
 }
 
-export function parseImageGenRequests(
-  value: unknown
-): ParsedImageGenRequests | { error: string } {
-  let parsed: unknown
-  try {
-    parsed = safeDestr(String(value))
-  } catch {
-    return { error: 'Invalid JSON in requests' }
-  }
+export function parseImageGenRequests(value: unknown): ParsedImageGenRequests | { error: string } {
+  const parsed = parseJsonArrayParam(value, 'requests')
+  if ('error' in parsed) return parsed
 
   interface RawRequest {
     id?: unknown
@@ -80,7 +79,7 @@ export function parseImageGenRequests(
     background?: unknown
   }
 
-  const requests = (Array.isArray(parsed) ? parsed : [parsed]) as RawRequest[]
+  const requests = parsed.items as RawRequest[]
   if (requests.length === 0) return { error: 'Empty requests array' }
 
   const sizeNotes: string[] = []
@@ -125,9 +124,12 @@ export function parseImageGenRequests(
     })
   }
 
-  const result: { requests: ImageGenRequest[]; sizeNote?: string } = { requests: out }
+  const result: { requests: ImageGenRequest[]; sizeNote?: string; warning?: string } = {
+    requests: out
+  }
   if (sizeNotes.length > 0) {
     result.sizeNote = `Mapped to allowed gpt-image-2 sizes: ${sizeNotes.join(', ')}`
   }
+  if (parsed.warning) result.warning = parsed.warning
   return result
 }

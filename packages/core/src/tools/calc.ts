@@ -1,5 +1,6 @@
 import ExprEval from 'expr-eval'
 
+import { parseJsonArrayParam } from './json-array'
 import { defineTool } from './schema'
 
 const parser = new ExprEval.Parser()
@@ -33,18 +34,21 @@ export const calc = defineTool({
     }
   },
   execute: (_figma, { expr }) => {
-    let exprs: string[]
-    try {
-      const parsed = JSON.parse(expr)
-      exprs = Array.isArray(parsed) ? parsed : [expr]
-    } catch {
-      exprs = [expr]
+    const trimmed = expr.trim()
+    if (!trimmed.startsWith('[')) return evalExpr(expr)
+
+    const parsed = parseJsonArrayParam(trimmed, 'expr')
+    if ('error' in parsed) {
+      return {
+        expr,
+        error: `Malformed JSON array in expr — send a single expression or a valid JSON array of expressions. (${parsed.error})`
+      }
     }
 
-    if (exprs.length === 1) {
-      return evalExpr(exprs[0])
-    }
+    const exprs = parsed.items.map(String)
+    if (exprs.length === 1) return evalExpr(exprs[0])
 
-    return { results: exprs.map(evalExpr) }
+    const results = exprs.map(evalExpr)
+    return parsed.warning ? { results, warning: parsed.warning } : { results }
   }
 })

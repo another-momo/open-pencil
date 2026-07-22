@@ -138,5 +138,9 @@
   "imageGenBaseURL": "Image Generation Base URL",
   "imageGenModel": "Image Generation Model",
   "imageGenAPIKeyPlaceholder": "Separate from the chat LLM key — for generate_image tool",
-  "imageGenAPIDocs": "Image API docs →"
+  "imageGenAPIDocs": "Image API docs →",
+  "designMode": "Tryb projektowania",
+  "llmConfiguration": "Konfiguracja LLM",
+  "imageGeneration": "Generowanie obrazów",
+  "stockPhotos": "Zdjęcia stockowe"
 }

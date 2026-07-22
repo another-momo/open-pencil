@@ -1,5 +1,6 @@
 import type { SceneNode } from '@open-pencil/scene-graph'
 
+import { recordInstanceOverrides } from '#core/tools/instance-overrides'
 import { defineTool, nodeNotFound } from '#core/tools/schema'
 
 export const updateNode = defineTool({
@@ -29,6 +30,7 @@ export const updateNode = defineTool({
     },
     font_size: { type: 'number', description: 'Font size', min: 1 },
     font_weight: { type: 'number', description: 'Font weight (100-900)' },
+    font_family: { type: 'string', description: 'Font family, e.g. "PingFang SC" (TEXT nodes)' },
     name: { type: 'string', description: 'Layer name' }
   },
   execute: (figma, args) => {
@@ -87,6 +89,15 @@ export const updateNode = defineTool({
       figma.graph.updateNode(node.id, { fontWeight: args.font_weight })
       updated.push('fontWeight')
     }
+    if (args.font_family !== undefined) {
+      figma.graph.updateNode(node.id, { fontFamily: args.font_family })
+      updated.push('fontFamily')
+    }
+    recordInstanceOverrides(
+      figma.graph,
+      args.id,
+      updated.flatMap((name) => (name === 'size' ? ['width', 'height'] : [name]))
+    )
     return { id: args.id, updated }
   }
 })

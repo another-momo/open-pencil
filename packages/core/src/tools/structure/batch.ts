@@ -1,11 +1,30 @@
-import { safeDestr } from 'destr'
-
 import type { FigmaNodeProxy } from '#core/figma-api'
+import { recordInstanceOverrides } from '#core/tools/instance-overrides'
+import { parseJsonArrayParam } from '#core/tools/json-array'
 import { defineTool } from '#core/tools/schema'
 
 interface BatchOp {
   id: string
   props: Record<string, unknown>
+}
+
+const SCENE_PROP_MAP: Record<string, string[]> = {
+  spacing: ['itemSpacing'],
+  padding: ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'],
+  padding_horizontal: ['paddingLeft', 'paddingRight'],
+  padding_vertical: ['paddingTop', 'paddingBottom'],
+  counter_align: ['counterAxisAlign'],
+  align: ['primaryAxisAlign'],
+  sizing_horizontal: ['primaryAxisSizing', 'counterAxisSizing'],
+  sizing_vertical: ['primaryAxisSizing', 'counterAxisSizing'],
+  grow: ['layoutGrow'],
+  name: ['name'],
+  visible: ['visible'],
+  corner_radius: ['cornerRadius'],
+  opacity: ['opacity'],
+  auto_resize: ['textAutoResize'],
+  direction: ['layoutMode'],
+  font_family: ['fontFamily']
 }
 
 function str(value: unknown): string {
@@ -85,6 +104,10 @@ function applyBatchProps(node: FigmaNodeProxy, props: Record<string, unknown>): 
     node.layoutMode = str(props.direction) as 'HORIZONTAL' | 'VERTICAL'
     updated.push('direction')
   }
+  if (props.font_family !== undefined && node.type === 'TEXT') {
+    node.fontName = { family: str(props.font_family), style: node.fontName.style }
+    updated.push('font_family')
+  }
 
   return updated
 }
@@ -93,7 +116,7 @@ export const batchUpdate = defineTool({
   name: 'batch_update',
   mutates: true,
   description:
-    'Execute multiple modifications in one call. Each operation is {id, props} where props can include: spacing, padding, padding_horizontal, padding_vertical, counter_align, sizing_horizontal, sizing_vertical, grow, name, visible, corner_radius, auto_resize (for text), direction. Runs all updates with one layout recompute.',
+    'Execute multiple modifications in one call. Each operation is {id, props} where props can include: spacing, padding, padding_horizontal, padding_vertical, counter_align, sizing_horizontal, sizing_vertical, grow, name, visible, corner_radius, auto_resize (for text), direction, font_family (for text, preserves weight/style). Runs all updates with one layout recompute.',
   params: {
     operations: {
       type: 'string',
@@ -103,13 +126,9 @@ export const batchUpdate = defineTool({
     }
   },
   execute: (figma, { operations }) => {
-    let ops: BatchOp[]
-    try {
-      ops = safeDestr<BatchOp[]>(String(operations))
-    } catch {
-      return { error: 'Invalid JSON in operations' }
-    }
-    if (!Array.isArray(ops)) return { error: 'operations must be a JSON array' }
+    const parsed = parseJsonArrayParam(operations, 'operations')
+    if ('error' in parsed) return { error: parsed.error }
+    const ops = parsed.items as BatchOp[]
 
     const results: Array<{ id: string; updated: string[] }> = []
     const errors: string[] = []
@@ -121,12 +140,20 @@ export const batchUpdate = defineTool({
         continue
       }
       const updated = applyBatchProps(node, op.props)
-      if (updated.length > 0) results.push({ id: op.id, updated })
+      if (updated.length > 0) {
+        results.push({ id: op.id, updated })
+        recordInstanceOverrides(
+          figma.graph,
+          op.id,
+          updated.flatMap((name) => SCENE_PROP_MAP[name] ?? [])
+        )
+      }
     }
 
     const out: Record<string, unknown> = { updated: results.length }
     if (results.length > 0) out.results = results
     if (errors.length > 0) out.errors = errors
+    if (parsed.warning) out.warning = parsed.warning
     return out
   }
 })

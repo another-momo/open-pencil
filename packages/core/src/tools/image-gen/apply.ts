@@ -1,6 +1,8 @@
 import type { FigmaAPI } from '#core/figma-api'
+import { createImageFill } from '#core/tools/image-fill'
 
 import type { ImageGenProvider, ImageGenRequest } from './providers'
+import { normalizeSize } from './requests'
 
 export interface ImageGenExecuteResult {
   id: string
@@ -41,24 +43,18 @@ export async function generateOne(
     target.resize(req.width ?? 1024, req.height ?? 1024)
     target.name = req.prompt.slice(0, 40) || 'Generated image'
   } else if (req.id) {
-    // Editing: inherit the target node's real dimensions for the API size.
-    req.width = Math.round(target.width)
-    req.height = Math.round(target.height)
+    // Editing/filling: inherit the target node's real dimensions for the API
+    // size — mapped to the allowed enum, otherwise gpt-image-2 returns 400.
+    const normalized = normalizeSize(Math.round(target.width), Math.round(target.height))
+    if (!('error' in normalized)) {
+      req.width = normalized.width
+      req.height = normalized.height
+    }
   }
 
   const gen = await provider.generate(req, baseImage)
 
-  const image = figma.createImage(gen.bytes)
-  target.fills = [
-    {
-      type: 'IMAGE',
-      color: { r: 1, g: 1, b: 1, a: 1 },
-      imageHash: image.hash,
-      imageScaleMode: 'FILL',
-      visible: true,
-      opacity: 1
-    }
-  ]
+  target.fills = [createImageFill(figma, gen.bytes)]
 
   return { id: target.id, width: gen.width, height: gen.height, provider: provider.name }
 }

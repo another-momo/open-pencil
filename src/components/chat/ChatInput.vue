@@ -58,7 +58,9 @@ const selectedModelName = computed(() => {
   return providerDef.value.models.find((m) => m.id === modelID.value)?.name ?? modelID.value
 })
 
-const modeLabel = computed(() => chatMode.value === 'marketing' ? 'Marketing Design' : 'UI Design')
+const modeLabel = computed(() =>
+  chatMode.value === 'marketing' ? 'Marketing Design' : 'UI Design'
+)
 
 function handleSubmit(e: Event) {
   e.preventDefault()

@@ -41,6 +41,17 @@ const INSTANCE_SYNC_PROPS: (keyof SceneNode)[] = [
   'boundVariables'
 ]
 
+const INSTANCE_SYNC_TEXT_PROPS = [
+  'name',
+  'text',
+  'fontSize',
+  'fontWeight',
+  'fontFamily',
+  'textDirection'
+] as const
+
+export { INSTANCE_SYNC_PROPS, INSTANCE_SYNC_TEXT_PROPS }
+
 function setSceneProp<K extends keyof SceneNode>(
   target: Partial<SceneNode>,
   key: K,
@@ -137,14 +148,7 @@ function syncChildren(
       copyProp(instChild, compChild, key)
     }
 
-    for (const key of [
-      'name',
-      'text',
-      'fontSize',
-      'fontWeight',
-      'fontFamily',
-      'textDirection'
-    ] as const) {
+    for (const key of INSTANCE_SYNC_TEXT_PROPS) {
       const overrideKey = `${instChild.id}:${key}`
       if (overrideKey in overrides) continue
       copyProp(instChild, compChild, key)

@@ -23,4 +23,15 @@ export {
   getImageGenProviders
 } from './image-gen'
 export { getMarketingState } from './marketing'
+export {
+  BRIEF_ENTRY_NAME,
+  BRIEF_NAME,
+  BRIEF_ZONE_AI_NAME,
+  BRIEF_ZONE_MATERIALS_NAME,
+  BRIEF_ZONE_USER_NAME,
+  appendToBriefAiZone,
+  createBrief,
+  findBrief,
+  isBrief
+} from './marketing'
 export { importSvg } from './create'

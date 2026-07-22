@@ -142,5 +142,6 @@
   "designMode": "Mode de conception",
   "llmConfiguration": "Configuration LLM",
   "imageGeneration": "Génération d'images",
-  "stockPhotos": "Photos de stock"
+  "stockPhotos": "Photos de stock",
+  "newBrief": "Nouveau brief de conception"
 }

@@ -1,0 +1,475 @@
+/**
+ * 需求单 (design brief): a specially-marked FRAME that serves as the
+ * dedicated human↔AI communication carrier for marketing design inputs.
+ *
+ * Marked via pluginData (rename-proof). Layout: amber sticky-note with
+ * white content cards on the left (内容区 / 素材区 with one sample material
+ * entry) and a deeper-amber AI结论区 card on the right. NOT a new node
+ * type — plain FRAME/TEXT/RECTANGLE nodes so .fig round-trip is unaffected.
+ *
+ * Visual design follows the UI-design-mode reference (RequirementCard):
+ * amber palette, white cards, typographic hierarchy, 8px-grid spacing.
+ * Lucide icons from the reference are intentionally skipped — icon data
+ * requires async fetching; plus signs are drawn with plain rectangles.
+ */
+
+import type { SceneNode } from '@open-pencil/scene-graph'
+
+import type { FigmaAPI } from '#core/figma-api'
+
+export const BRIEF_PLUGIN_ID = 'open-pencil-marketing'
+export const BRIEF_ROLE_KEY = 'role'
+export const BRIEF_ROLE_VALUE = 'brief'
+export const BRIEF_NAME = '需求单'
+
+export const BRIEF_ZONE_USER_NAME = '内容区'
+export const BRIEF_ZONE_MATERIALS_NAME = '素材区'
+export const BRIEF_ZONE_AI_NAME = 'AI结论区'
+export const BRIEF_ENTRY_NAME = '素材条目'
+const BRIEF_CONCLUSIONS_NAME = '结论列表'
+const BRIEF_EMPTY_STATE_NAME = '空状态'
+
+const BRIEF_BG = { r: 0.996, g: 0.965, b: 0.839 }
+const CARD_BG = { r: 1, g: 1, b: 1 }
+const CARD_STROKE = { r: 0.953, g: 0.91, b: 0.722 }
+const INPUT_BG = { r: 0.984, g: 0.973, b: 0.933 }
+const INPUT_STROKE = { r: 0.937, g: 0.902, b: 0.784 }
+const ACCENT = { r: 0.961, g: 0.62, b: 0.043 }
+const AI_ZONE_BG = { r: 0.988, g: 0.827, b: 0.302 }
+const TITLE_COLOR = { r: 0.259, g: 0.125, b: 0.024 }
+const LABEL_COLOR = { r: 0.706, g: 0.325, b: 0.035 }
+const SUB_COLOR = { r: 0.572, g: 0.251, b: 0.055 }
+const MUTED_COLOR = { r: 0.631, g: 0.384, b: 0.027 }
+const EXAMPLE_COLOR = { r: 0.573, g: 0.38, b: 0.29 }
+const SLOT_BG = { r: 0.961, g: 0.941, b: 0.886 }
+const SLOT_STROKE = { r: 0.898, g: 0.875, b: 0.784 }
+const PLUS_COLOR = { r: 0.788, g: 0.659, b: 0.416 }
+
+export function isBrief(node: SceneNode | undefined): node is SceneNode {
+  if (node?.type !== 'FRAME') return false
+  return node.pluginData.some(
+    (entry) =>
+      entry.pluginId === BRIEF_PLUGIN_ID &&
+      entry.key === BRIEF_ROLE_KEY &&
+      entry.value === BRIEF_ROLE_VALUE
+  )
+}
+
+/** Find the first brief frame on the current page (top-level only) */
+export function findBrief(figma: FigmaAPI): SceneNode | undefined {
+  const page = figma.graph.getNode(figma.currentPage.id)
+  if (!page) return undefined
+  for (const childId of page.childIds) {
+    const child = figma.graph.getNode(childId)
+    if (isBrief(child)) return child
+  }
+  return undefined
+}
+
+interface TextOptions {
+  fontSize?: number
+  fontWeight?: number
+  color?: { r: number; g: number; b: number }
+  lineHeight?: number
+  letterSpacing?: number
+  opacity?: number
+  align?: 'LEFT' | 'CENTER'
+  /** Wrap at parent width (fill + height-resize); default hugs content */
+  wrap?: boolean
+}
+
+function createText(
+  figma: FigmaAPI,
+  parentId: string,
+  name: string,
+  characters: string,
+  options: TextOptions = {}
+): string {
+  const graph = figma.graph
+  const node = graph.createNode('TEXT', parentId, { name })
+  graph.updateNode(node.id, {
+    text: characters,
+    fontSize: options.fontSize ?? 12,
+    fontWeight: options.fontWeight ?? 400,
+    textAutoResize: options.wrap ? 'HEIGHT' : 'WIDTH_AND_HEIGHT',
+    ...(options.wrap ? { layoutAlignSelf: 'STRETCH' as const } : {}),
+    ...(options.lineHeight !== undefined ? { lineHeight: options.lineHeight } : {}),
+    ...(options.letterSpacing !== undefined ? { letterSpacing: options.letterSpacing } : {}),
+    ...(options.opacity !== undefined ? { opacity: options.opacity } : {}),
+    ...(options.align ? { textAlignHorizontal: options.align } : {}),
+    fills: [
+      {
+        type: 'SOLID',
+        color: { r: 0.29, g: 0.25, b: 0.13, a: 1, ...options.color },
+        opacity: 1,
+        visible: true
+      }
+    ]
+  })
+  return node.id
+}
+
+interface CardOptions {
+  bg?: { r: number; g: number; b: number }
+  stroke?: { r: number; g: number; b: number }
+  gap?: number
+  padding?: number
+  rounded?: number
+  /** Sizing along the PARENT's primary axis */
+  primary?: 'FIXED' | 'FILL' | 'HUG'
+  /** Sizing along the PARENT's counter axis */
+  counter?: 'FIXED' | 'FILL' | 'HUG'
+  width?: number
+  justify?: 'SPACE_BETWEEN'
+}
+
+function createCard(
+  figma: FigmaAPI,
+  parentId: string,
+  name: string,
+  options: CardOptions = {}
+): string {
+  const graph = figma.graph
+  const card = graph.createNode('FRAME', parentId, { name })
+  const padding = options.padding ?? 12
+  graph.updateNode(card.id, {
+    layoutMode: 'VERTICAL',
+    itemSpacing: options.gap ?? 6,
+    paddingTop: padding,
+    paddingBottom: padding,
+    paddingLeft: padding,
+    paddingRight: padding,
+    cornerRadius: options.rounded ?? 10,
+    primaryAxisSizing: options.primary ?? 'HUG',
+    counterAxisSizing: options.counter ?? 'FILL',
+    ...(options.width ? { width: options.width } : {}),
+    ...(options.justify ? { primaryAxisAlign: options.justify } : {}),
+    fills: [
+      {
+        type: 'SOLID',
+        color: { ...(options.bg ?? CARD_BG), a: 1 },
+        opacity: 1,
+        visible: true
+      }
+    ],
+    strokes: options.stroke
+      ? [
+          {
+            color: { ...options.stroke, a: 1 },
+            weight: 1,
+            opacity: 1,
+            visible: true,
+            align: 'INSIDE'
+          }
+        ]
+      : []
+  })
+  return card.id
+}
+
+function createLabelRow(
+  figma: FigmaAPI,
+  parentId: string,
+  label: string,
+  badge: string
+): void {
+  const graph = figma.graph
+  const row = graph.createNode('FRAME', parentId, { name: 'LabelRow' })
+  graph.updateNode(row.id, {
+    layoutMode: 'HORIZONTAL',
+    primaryAxisSizing: 'FILL',
+    counterAxisSizing: 'HUG',
+    primaryAxisAlign: 'SPACE_BETWEEN',
+    counterAxisAlign: 'CENTER',
+    fills: []
+  })
+  createText(figma, row.id, 'Label', label, {
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: 0.8,
+    color: LABEL_COLOR
+  })
+  createText(figma, row.id, 'Badge', badge, {
+    fontSize: 10,
+    opacity: 0.75,
+    color: MUTED_COLOR
+  })
+}
+
+/** Simple plus sign drawn with two rectangles (icons need async fetching) */
+function createPlusSign(figma: FigmaAPI, parentId: string): void {
+  const graph = figma.graph
+  const wrap = graph.createNode('FRAME', parentId, { name: 'Plus' })
+  graph.updateNode(wrap.id, { width: 18, height: 18, fills: [] })
+  for (const [x, y, w, h] of [
+    [7.75, 0, 2.5, 18],
+    [0, 7.75, 18, 2.5]
+  ] as const) {
+    const bar = graph.createNode('RECTANGLE', wrap.id, { name: 'Bar' })
+    graph.updateNode(bar.id, {
+      x,
+      y,
+      width: w,
+      height: h,
+      cornerRadius: 1.25,
+      fills: [{ type: 'SOLID', color: { ...PLUS_COLOR, a: 1 }, opacity: 1, visible: true }]
+    })
+  }
+}
+
+function createSlot(
+  figma: FigmaAPI,
+  parentId: string,
+  name: string,
+  caption: string,
+  filled: boolean
+): string {
+  const graph = figma.graph
+  const slot = graph.createNode('FRAME', parentId, { name })
+  graph.updateNode(slot.id, {
+    layoutMode: 'VERTICAL',
+    itemSpacing: 8,
+    counterAxisAlign: 'CENTER',
+    primaryAxisSizing: 'HUG',
+    counterAxisSizing: 'FILL',
+    layoutGrow: 1,
+    fills: []
+  })
+  const image = graph.createNode('FRAME', slot.id, { name: '图片位' })
+  graph.updateNode(image.id, {
+    width: 64,
+    height: 64,
+    cornerRadius: 10,
+    layoutMode: 'HORIZONTAL',
+    primaryAxisAlign: 'CENTER',
+    counterAxisAlign: 'CENTER',
+    fills: [
+      {
+        type: 'SOLID',
+        color: { ...(filled ? SLOT_BG : INPUT_BG), a: 1 },
+        opacity: 1,
+        visible: true
+      }
+    ],
+    strokes: [
+      {
+        color: { ...(filled ? SLOT_STROKE : INPUT_STROKE), a: 1 },
+        weight: 1,
+        opacity: 1,
+        visible: true,
+        align: 'INSIDE'
+      }
+    ]
+  })
+  if (!filled) createPlusSign(figma, image.id)
+  createText(figma, slot.id, 'Caption', caption, {
+    fontSize: 10,
+    align: 'CENTER',
+    ...(filled ? { color: SUB_COLOR } : { opacity: 0.65, color: MUTED_COLOR })
+  })
+  return slot.id
+}
+
+/** Create the brief frame at (x, y) with the full three-zone structure */
+export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
+  const graph = figma.graph
+  const brief = graph.createNode('FRAME', figma.currentPage.id, { name: BRIEF_NAME, x, y })
+  graph.updateNode(brief.id, {
+    width: 560,
+    layoutMode: 'HORIZONTAL',
+    itemSpacing: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
+    paddingLeft: 16,
+    paddingRight: 16,
+    cornerRadius: 16,
+    primaryAxisSizing: 'FIXED',
+    counterAxisSizing: 'HUG',
+    counterAxisAlign: 'STRETCH',
+    fills: [{ type: 'SOLID', color: { ...BRIEF_BG, a: 1 }, opacity: 1, visible: true }],
+    effects: [
+      {
+        type: 'DROP_SHADOW',
+        color: { ...SUB_COLOR, a: 0.1 },
+        offset: { x: 0, y: 6 },
+        radius: 20,
+        spread: 0,
+        visible: true,
+        blendMode: 'NORMAL'
+      }
+    ],
+    pluginData: [
+      { pluginId: BRIEF_PLUGIN_ID, key: BRIEF_ROLE_KEY, value: BRIEF_ROLE_VALUE }
+    ]
+  })
+
+  const main = graph.createNode('FRAME', brief.id, { name: '需求内容' })
+  graph.updateNode(main.id, {
+    layoutMode: 'VERTICAL',
+    itemSpacing: 16,
+    primaryAxisSizing: 'HUG',
+    counterAxisSizing: 'FILL',
+    layoutGrow: 1,
+    fills: []
+  })
+
+  const header = graph.createNode('FRAME', main.id, { name: 'Header' })
+  graph.updateNode(header.id, {
+    layoutMode: 'VERTICAL',
+    itemSpacing: 8,
+    primaryAxisSizing: 'HUG',
+    counterAxisSizing: 'FILL',
+    fills: []
+  })
+  const titleRow = graph.createNode('FRAME', header.id, { name: 'TitleRow' })
+  graph.updateNode(titleRow.id, {
+    layoutMode: 'HORIZONTAL',
+    itemSpacing: 8,
+    counterAxisAlign: 'CENTER',
+    primaryAxisSizing: 'FILL',
+    counterAxisSizing: 'HUG',
+    fills: []
+  })
+  const accentBar = graph.createNode('RECTANGLE', titleRow.id, { name: 'AccentBar' })
+  graph.updateNode(accentBar.id, {
+    width: 4,
+    height: 22,
+    cornerRadius: 2,
+    fills: [{ type: 'SOLID', color: { ...ACCENT, a: 1 }, opacity: 1, visible: true }]
+  })
+  createText(figma, titleRow.id, 'Title', BRIEF_NAME, {
+    fontSize: 20,
+    fontWeight: 700,
+    color: TITLE_COLOR
+  })
+  createText(figma, header.id, 'Subtitle', '填好后对 AI 说：按需求单做一张朋友圈广告', {
+    lineHeight: 18,
+    color: SUB_COLOR,
+    wrap: true
+  })
+
+  const contentCard = createCard(figma, main.id, BRIEF_ZONE_USER_NAME, {
+    stroke: CARD_STROKE,
+    gap: 12
+  })
+  createLabelRow(figma, contentCard, BRIEF_ZONE_USER_NAME, '支持长文本 · 双击替换示例')
+  const contentInput = createCard(figma, contentCard, 'ContentInput', {
+    bg: INPUT_BG,
+    stroke: INPUT_STROKE,
+    rounded: 8
+  })
+  createText(
+    figma,
+    contentInput,
+    'ContentExample',
+    '例如：「XX奶茶」夏季新品买一送一，主推芒果冰沙，单价 9.9 元，活动时间 6 月 1 日 — 6 月 7 日。文案方向：年轻、清爽、突出「夏日解暑」的感觉。',
+    { lineHeight: 20, color: EXAMPLE_COLOR, wrap: true }
+  )
+  createText(figma, contentCard, 'FieldsHint', '需要的字段：品牌名 · 优惠活动 · 价格 · 时间 · 想要的文案', {
+    fontSize: 11,
+    color: MUTED_COLOR
+  })
+
+  const materialCard = createCard(figma, main.id, BRIEF_ZONE_MATERIALS_NAME, {
+    stroke: CARD_STROKE,
+    gap: 12
+  })
+  createLabelRow(figma, materialCard, BRIEF_ZONE_MATERIALS_NAME, '支持多个 · 直接拖入图片')
+  const grid = graph.createNode('FRAME', materialCard, { name: 'MaterialGrid' })
+  graph.updateNode(grid.id, {
+    layoutMode: 'HORIZONTAL',
+    itemSpacing: 12,
+    primaryAxisSizing: 'FILL',
+    counterAxisSizing: 'HUG',
+    fills: []
+  })
+  createSlot(figma, grid.id, BRIEF_ENTRY_NAME, '主视觉', true)
+  for (let i = 0; i < 3; i++) createSlot(figma, grid.id, '添加位', '添加', false)
+  createText(figma, materialCard, 'MaterialNote', '每张图可备注用途（主视觉 / 卡片配图 / 仅参考风格）', {
+    fontSize: 11,
+    color: MUTED_COLOR
+  })
+
+  const aiCard = createCard(figma, brief.id, BRIEF_ZONE_AI_NAME, {
+    bg: AI_ZONE_BG,
+    width: 172,
+    gap: 8,
+    primary: 'FILL',
+    counter: 'FIXED',
+    justify: 'SPACE_BETWEEN'
+  })
+  const aiTop = graph.createNode('FRAME', aiCard, { name: 'Top' })
+  graph.updateNode(aiTop.id, {
+    layoutMode: 'VERTICAL',
+    itemSpacing: 8,
+    primaryAxisSizing: 'HUG',
+    counterAxisSizing: 'FILL',
+    fills: []
+  })
+  createText(figma, aiTop.id, 'Label', BRIEF_ZONE_AI_NAME, {
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: 0.8,
+    color: SUB_COLOR
+  })
+  createText(figma, aiTop.id, 'Hint', 'AI 确认的结论会记在这里，不用管', {
+    lineHeight: 18,
+    color: TITLE_COLOR,
+    wrap: true
+  })
+  const conclusions = graph.createNode('FRAME', aiTop.id, { name: BRIEF_CONCLUSIONS_NAME })
+  graph.updateNode(conclusions.id, {
+    layoutMode: 'VERTICAL',
+    itemSpacing: 6,
+    primaryAxisSizing: 'HUG',
+    counterAxisSizing: 'FILL',
+    fills: []
+  })
+  const emptyState = graph.createNode('FRAME', aiCard, { name: BRIEF_EMPTY_STATE_NAME })
+  graph.updateNode(emptyState.id, {
+    layoutMode: 'VERTICAL',
+    itemSpacing: 8,
+    counterAxisAlign: 'CENTER',
+    primaryAxisSizing: 'HUG',
+    counterAxisSizing: 'FILL',
+    fills: []
+  })
+  const divider = graph.createNode('RECTANGLE', emptyState.id, { name: 'Divider' })
+  graph.updateNode(divider.id, {
+    width: 48,
+    height: 1,
+    opacity: 0.4,
+    fills: [{ type: 'SOLID', color: { ...ACCENT, a: 1 }, opacity: 1, visible: true }]
+  })
+  createText(figma, emptyState.id, 'Status', '（尚无结论）', {
+    fontSize: 10,
+    opacity: 0.75,
+    color: SUB_COLOR
+  })
+
+  return brief
+}
+
+/** Append one confirmed conclusion line into the brief's AI zone */
+export function appendToBriefAiZone(figma: FigmaAPI, briefId: string, text: string): boolean {
+  const graph = figma.graph
+  const brief = graph.getNode(briefId)
+  if (!isBrief(brief)) return false
+  const aiCardId = brief.childIds.find((id) => graph.getNode(id)?.name === BRIEF_ZONE_AI_NAME)
+  if (!aiCardId) return false
+
+  const findChild = (parentId: string, name: string) =>
+    graph.getNode(parentId)?.childIds.find((id) => graph.getNode(id)?.name === name)
+  const topId = findChild(aiCardId, 'Top')
+  const conclusionsId = topId ? findChild(topId, BRIEF_CONCLUSIONS_NAME) : undefined
+  if (!conclusionsId) return false
+
+  createText(figma, conclusionsId, '结论', `· ${text}`, {
+    fontSize: 11,
+    color: TITLE_COLOR,
+    wrap: true
+  })
+  const emptyStateId = findChild(aiCardId, BRIEF_EMPTY_STATE_NAME)
+  if (emptyStateId) graph.updateNode(emptyStateId, { visible: false })
+  return true
+}

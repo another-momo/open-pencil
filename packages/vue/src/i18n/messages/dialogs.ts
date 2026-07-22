@@ -117,6 +117,7 @@ export const dialogMessageDefaults = {
   llmConfiguration: 'LLM Configuration',
   imageGeneration: 'Image Generation',
   stockPhotos: 'Stock Photos',
+  newBrief: 'New design brief',
   done: 'Done',
   apiKey: 'API Key',
   apiType: 'API Type',

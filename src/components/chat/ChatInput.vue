@@ -8,9 +8,13 @@ import AppInput from '@/components/ui/AppInput.vue'
 import Tip from '@/components/ui/Tip.vue'
 import { useButtonUI } from '@/components/ui/button'
 import { useAIChat } from '@/app/ai/chat/use'
+import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
+import { getActiveEditorStore } from '@/app/editor/active-store'
 import { useI18n } from '@open-pencil/vue'
 
 import { ACP_AGENTS } from '@open-pencil/core/constants'
+import { computeAllLayouts } from '@open-pencil/core/layout'
+import { createBrief } from '@open-pencil/core/tools'
 
 const { providerID, providerDef, modelID, customModelID, chatMode } = useAIChat()
 const { dialogs } = useI18n()
@@ -69,6 +73,23 @@ function handleSubmit(e: Event) {
   emit('submit', text)
   input.value = ''
 }
+
+function handleNewBrief() {
+  const store = getActiveEditorStore()
+  const before = store.snapshotPage()
+  const figma = makeFigmaFromStore(store)
+  const center = store.viewportCanvasCenter()
+  const brief = createBrief(figma, center.x - 180, center.y - 120)
+  computeAllLayouts(store.graph, store.state.currentPageId)
+  store.select([brief.id])
+  store.requestRender()
+  const after = store.snapshotPage()
+  store.pushUndoEntry({
+    label: '新建需求单',
+    forward: () => store.restorePageFromSnapshot(after),
+    inverse: () => store.restorePageFromSnapshot(before)
+  })
+}
 </script>
 
 <template>
@@ -99,7 +120,17 @@ function handleSubmit(e: Event) {
           <template #value>{{ modeLabel }} | {{ selectedModelName }}</template>
         </ProviderModelSelect>
 
-        <div class="ml-auto">
+        <div class="ml-auto flex items-center gap-1">
+          <Tip v-if="chatMode === 'marketing'" :label="dialogs.newBrief">
+            <button
+              type="button"
+              data-test-id="new-brief-button"
+              class="rounded p-0.5 text-muted hover:bg-hover hover:text-surface"
+              @click="handleNewBrief"
+            >
+              <icon-lucide-sticky-note class="size-3" />
+            </button>
+          </Tip>
           <ProviderSettings />
         </div>
       </div>

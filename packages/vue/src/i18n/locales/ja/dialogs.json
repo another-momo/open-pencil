@@ -142,5 +142,6 @@
   "designMode": "デザインモード",
   "llmConfiguration": "LLM 設定",
   "imageGeneration": "画像生成",
-  "stockPhotos": "ストックフォト"
+  "stockPhotos": "ストックフォト",
+  "newBrief": "新規デザインブリーフ"
 }

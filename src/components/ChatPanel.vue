@@ -13,6 +13,7 @@ import ChatMessage from '@/components/chat/ChatMessage.vue'
 import AppTextButton from '@/components/ui/AppTextButton.vue'
 import ProviderSetup from '@/components/chat/ProviderSetup.vue'
 import { useAIChat } from '@/app/ai/chat/use'
+import { getActiveEditorStoreOrNull } from '@/app/editor/active-store'
 import { toast } from '@/app/shell/ui'
 import { useI18n } from '@open-pencil/vue'
 
@@ -22,7 +23,7 @@ import type { JsonObject } from '@open-pencil/scene-graph/primitives'
 
 const IS_DEV = import.meta.env.DEV
 
-const { isConfigured, ensureChat, resetChat } = useAIChat()
+const { isConfigured, ensureChat, resetChat, chatMode } = useAIChat()
 const { copy } = useClipboard()
 const { dialogs } = useI18n()
 
@@ -85,6 +86,23 @@ watch(
   }
 )
 
+function withSelectionContext(text: string): string {
+  if (chatMode.value !== 'marketing') return text
+  const store = getActiveEditorStoreOrNull()
+  if (!store) return text
+  const lines: string[] = []
+  for (const id of store.state.selectedIds) {
+    const node = store.graph.getNode(id)
+    if (!node) continue
+    const hasImage = node.fills.some((fill) => fill.visible && fill.type === 'IMAGE')
+    lines.push(
+      `- ${id} "${node.name}" ${node.type} ${Math.round(node.width)}×${Math.round(node.height)}${hasImage ? '（图片）' : ''}`
+    )
+  }
+  if (lines.length === 0) return text
+  return `${text}\n\n[画布选区]\n${lines.join('\n')}`
+}
+
 async function handleSubmit(text: string) {
   if (status.value === 'streaming' || status.value === 'submitted') return
   try {
@@ -95,7 +113,7 @@ async function handleSubmit(text: string) {
     toast.error(e instanceof Error ? e.message : String(e))
     return
   }
-  chat.value?.sendMessage({ text }).catch((e: unknown) => {
+  chat.value?.sendMessage({ text: withSelectionContext(text) }).catch((e: unknown) => {
     console.error('Chat error:', e)
     toast.error(e instanceof Error ? e.message : String(e))
   })

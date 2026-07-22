@@ -142,5 +142,6 @@
   "designMode": "Режим дизайна",
   "llmConfiguration": "Конфигурация LLM",
   "imageGeneration": "Генерация изображений",
-  "stockPhotos": "Стоковые фото"
+  "stockPhotos": "Стоковые фото",
+  "newBrief": "Новый дизайн-бриф"
 }

@@ -142,5 +142,6 @@
   "designMode": "设计模式",
   "llmConfiguration": "LLM 配置",
   "imageGeneration": "图片生成",
-  "stockPhotos": "图库照片"
+  "stockPhotos": "图库照片",
+  "newBrief": "新建需求单"
 }

@@ -142,5 +142,6 @@
   "designMode": "Tryb projektowania",
   "llmConfiguration": "Konfiguracja LLM",
   "imageGeneration": "Generowanie obrazów",
-  "stockPhotos": "Zdjęcia stockowe"
+  "stockPhotos": "Zdjęcia stockowe",
+  "newBrief": "Nowy brief projektu"
 }

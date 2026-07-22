@@ -23,6 +23,7 @@ export {
   getImageGenProviders
 } from './image-gen'
 export { getMarketingState } from './marketing'
+export { listMaterialTypes } from './marketing'
 export {
   BRIEF_ENTRY_NAME,
   BRIEF_NAME,

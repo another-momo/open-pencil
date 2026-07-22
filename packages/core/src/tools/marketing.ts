@@ -15,6 +15,7 @@ export {
   isBrief
 } from './marketing/brief'
 export { getMarketingState } from './marketing/registry'
+export { listMaterialTypes } from './marketing/material-types'
 
 export const setupMaterialTypeTool = defineTool({
   name: 'setup_material_type',
@@ -27,11 +28,25 @@ export const setupMaterialTypeTool = defineTool({
   params: {
     id: {
       type: 'string',
-      description: 'Material type id, e.g. "wechat_moments", "product_long", "ecommerce_detail"',
+      description:
+        'Material type id, e.g. "wechat_moments", "product_long", "ecommerce_detail". Use "custom" with width+height for sizes no preset covers.',
       required: true
+    },
+    width: {
+      type: 'number',
+      description: 'Design width in px (required when id is "custom")'
+    },
+    height: {
+      type: 'number',
+      description: 'Design height in px (required when id is "custom")'
     }
   },
-  execute: (figma, { id }) => setupMaterialType(figma, id)
+  execute: (figma, { id, width, height }) =>
+    setupMaterialType(
+      figma,
+      id,
+      typeof width === 'number' && typeof height === 'number' ? { width, height } : undefined
+    )
 })
 
 export const validateTool = defineTool({

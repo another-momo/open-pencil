@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { TooltipProvider } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import ProviderModelSelect from '@/components/chat/ProviderModelSelect.vue'
 import ProviderSettings from '@/components/chat/ProviderSettings/ProviderSettings.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import Tip from '@/components/ui/Tip.vue'
 import { useButtonUI } from '@/components/ui/button'
+import { inferMaterialTypeFromText } from '@/app/ai/chat/material-type-infer'
+import {
+  materialTypeSelection,
+  setInferredMaterialType,
+  toggleMaterialTypeLock
+} from '@/app/ai/chat/storage'
 import { useAIChat } from '@/app/ai/chat/use'
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
 import { getActiveEditorStore } from '@/app/editor/active-store'
@@ -14,7 +20,7 @@ import { useI18n } from '@open-pencil/vue'
 
 import { ACP_AGENTS } from '@open-pencil/core/constants'
 import { computeAllLayouts } from '@open-pencil/core/layout'
-import { createBrief } from '@open-pencil/core/tools'
+import { createBrief, listMaterialTypes } from '@open-pencil/core/tools'
 
 const { providerID, providerDef, modelID, customModelID, chatMode } = useAIChat()
 const { dialogs } = useI18n()
@@ -65,6 +71,22 @@ const selectedModelName = computed(() => {
 const modeLabel = computed(() =>
   chatMode.value === 'marketing' ? 'Marketing Design' : 'UI Design'
 )
+
+const materialTypes = listMaterialTypes()
+
+watch(input, (text) => {
+  if (chatMode.value !== 'marketing') return
+  setInferredMaterialType(inferMaterialTypeFromText(text))
+})
+
+function materialTypeChipClass(id: string): string {
+  const selected = materialTypeSelection.value?.id === id
+  const locked = selected && materialTypeSelection.value?.source === 'user'
+  const base = 'shrink-0 rounded-full border px-2 py-0.5 text-[10px] transition-colors'
+  if (locked) return `${base} border-accent bg-accent/15 font-medium text-accent`
+  if (selected) return `${base} border-dashed border-accent/60 bg-accent/5 text-accent`
+  return `${base} border-border text-muted hover:border-accent/40 hover:text-surface`
+}
 
 function handleSubmit(e: Event) {
   e.preventDefault()
@@ -133,6 +155,24 @@ function handleNewBrief() {
           </Tip>
           <ProviderSettings />
         </div>
+      </div>
+
+      <!-- Material type chips (marketing mode) -->
+      <div
+        v-if="chatMode === 'marketing'"
+        class="mb-1.5 flex items-center gap-1 overflow-x-auto"
+        data-test-id="material-type-chips"
+      >
+        <button
+          v-for="type in materialTypes"
+          :key="type.id"
+          type="button"
+          :class="materialTypeChipClass(type.id)"
+          :data-type-id="type.id"
+          @click="toggleMaterialTypeLock(type.id)"
+        >
+          {{ type.label }}
+        </button>
       </div>
 
       <!-- Input form -->

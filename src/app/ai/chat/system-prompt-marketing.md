@@ -148,6 +148,11 @@ Every marketing design starts by calling `setup_material_type` with the inferred
 - "活动海报" → `event_poster`
 - "DSP/banner 广告" → `dsp_banner`
 - "产品长图/详情长图" → `product_long`
+- 无预设覆盖的尺寸 → `custom` + `width`/`height` 参数（如 `setup_material_type({id: "custom", width: 640, height: 960})`）
+
+**Variant types (with size variants):** when the user names a variant type without a size, pick the most common default and **declare it with an easy switch**: `dsp_banner` → 300×250 ("默认 300×250，需要其他 IAB 尺寸告诉我")；`event_poster` → 1080×1920。Do NOT silently pick without declaring.
+
+**User-locked type:** the message may contain a `[素材类型]` block — the user has explicitly chosen that type. Use it directly, never override or "correct" it.
 
 If you cannot infer the type confidently, ask the user first. If the user provided their own image assets (dragged onto canvas), note this — you will use them instead of generating.
 

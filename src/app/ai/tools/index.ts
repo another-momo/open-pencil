@@ -3,10 +3,11 @@ import { tool } from 'ai'
 import * as v from 'valibot'
 
 import { computeAllLayouts } from '@open-pencil/core/layout'
-import { CORE_TOOLS, toolsToAI } from '@open-pencil/core/tools'
+import { CORE_TOOLS, getMarketingState, toolsToAI } from '@open-pencil/core/tools'
 import type { StepBudget, ToolLogEntry } from '@open-pencil/core/tools'
 import type { SceneNode } from '@open-pencil/scene-graph'
 
+import { syncMaterialTypeFromAI } from '@/app/ai/chat/storage'
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
 import { getActiveEditorStore } from '@/app/editor/active-store'
 import type { EditorStore } from '@/app/editor/active-store'
@@ -96,6 +97,10 @@ export function createAITools(store: EditorStore) {
         }
       },
       onAfterExecute: async (def) => {
+        if (def.name === 'setup_material_type') {
+          const typeId = getMarketingState(store.graph)?.materialTypeId
+          if (typeId) syncMaterialTypeFromAI(typeId)
+        }
         if (def.mutates) {
           const pageId = store.state.currentPageId
           const pageNode = store.graph.getNode(pageId)

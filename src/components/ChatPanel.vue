@@ -6,6 +6,7 @@ import { computed, markRaw, nextTick, ref, watch } from 'vue'
 import { getAcpDebugText, clearAcpDebugLog, hasAcpDebugEntries } from '@/app/ai/acp/transport'
 import { copyChatLog } from '@/app/ai/debug'
 import { clearToolLogEntries, didHitStepLimit } from '@/app/ai/tools'
+import { materialTypeSelection } from '@/app/ai/chat/storage'
 import { activeTab } from '@/app/tabs'
 import AcpPermissionDialog from '@/components/chat/AcpPermissionDialog.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
@@ -88,8 +89,13 @@ watch(
 
 function withSelectionContext(text: string): string {
   if (chatMode.value !== 'marketing') return text
+  let result = text
+  const locked = materialTypeSelection.value
+  if (locked?.source === 'user') {
+    result += `\n\n[素材类型] 用户已指定：${locked.id} — 请直接使用该类型调用 setup_material_type，不要更改。`
+  }
   const store = getActiveEditorStoreOrNull()
-  if (!store) return text
+  if (!store) return result
   const lines: string[] = []
   for (const id of store.state.selectedIds) {
     const node = store.graph.getNode(id)
@@ -99,8 +105,8 @@ function withSelectionContext(text: string): string {
       `- ${id} "${node.name}" ${node.type} ${Math.round(node.width)}×${Math.round(node.height)}${hasImage ? '（图片）' : ''}`
     )
   }
-  if (lines.length === 0) return text
-  return `${text}\n\n[画布选区]\n${lines.join('\n')}`
+  if (lines.length > 0) result += `\n\n[画布选区]\n${lines.join('\n')}`
+  return result
 }
 
 async function handleSubmit(text: string) {

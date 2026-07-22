@@ -24,6 +24,7 @@ import {
 import {
   getMaterialType,
   listMaterialTypes,
+  makeCustomMaterialType,
   type MaterialTypeConfig
 } from '#core/tools/marketing/material-types'
 import {
@@ -284,13 +285,25 @@ function resolveAnchors(
   return { anchors, readonly, repaired }
 }
 
-export function setupMaterialType(figma: FigmaAPI, id: string): SetupResult | { error: string } {
-  const config = getMaterialType(id)
+export function setupMaterialType(
+  figma: FigmaAPI,
+  id: string,
+  size?: { width: number; height: number }
+): SetupResult | { error: string } {
+  let config: MaterialTypeConfig | undefined
+  if (id === 'custom') {
+    if (!size || size.width <= 0 || size.height <= 0) {
+      return { error: 'Custom material type requires positive width and height.' }
+    }
+    config = makeCustomMaterialType(size.width, size.height)
+  } else {
+    config = getMaterialType(id)
+  }
   if (!config) {
     const available = listMaterialTypes()
       .map((type) => `${type.id} (${type.label})`)
       .join(', ')
-    return { error: `Unknown material type: "${id}". Available: ${available}` }
+    return { error: `Unknown material type: "${id}". Available: ${available}, custom (needs width+height)` }
   }
 
   const graph = figma.graph

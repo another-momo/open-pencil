@@ -204,6 +204,28 @@ export function getMaterialType(id: string): MaterialTypeConfig | undefined {
   return MATERIAL_TYPES.find((type) => type.id === id)
 }
 
+/** Escape hatch for sizes no preset covers — generic single-page layout */
+export function makeCustomMaterialType(width: number, height: number): MaterialTypeConfig {
+  return {
+    id: 'custom',
+    label: `自定义 ${width}×${height}`,
+    size: { width, height },
+    anchors: [],
+    structure: { anchors: [], minSections: 1, maxSections: 10 },
+    sectionPlan: [
+      { id: 'main', weight: 60, contentGuide: '主视觉区域，一张底图 + 品牌名或主标题叠加' },
+      { id: 'content', weight: 25, contentGuide: '内容区域，按主题自由组织' },
+      { id: 'cta', weight: 15, contentGuide: '行动号召文字 + 品牌标识' }
+    ],
+    styleGuide: {
+      colors: ['#FF6B35', '#FFFFFF', '#1A1A1A'],
+      fonts: ['PingFang SC'],
+      keywords: ['清晰', '促销', '直接']
+    },
+    custom: { note: '用户自定义尺寸，无平台预设约束' }
+  }
+}
+
 export function listMaterialTypes(): { id: string; label: string }[] {
   return MATERIAL_TYPES.map((type) => ({ id: type.id, label: type.label }))
 }

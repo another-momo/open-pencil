@@ -169,6 +169,26 @@ test('switching material type clears previous anchors', () => {
   expect(state.anchors.length).toBe(0)
 })
 
+test('custom material type creates root frame at the given size', () => {
+  const { graph, figma } = setupToolTest()
+  const result = getTool('setup_material_type').execute(figma, {
+    id: 'custom',
+    width: 640,
+    height: 960
+  }) as SetupToolResult
+  expect(result.error).toBeUndefined()
+
+  const rootFrame = expectDefined(graph.getNode(result.rootFrameId as string))
+  expect(rootFrame.width).toBe(640)
+  expect(rootFrame.height).toBe(960)
+})
+
+test('custom material type without dimensions returns an error', () => {
+  const { figma } = setupToolTest()
+  const result = getTool('setup_material_type').execute(figma, { id: 'custom' }) as SetupToolResult
+  expect(result.error).toContain('width and height')
+})
+
 test('unknown material type returns error with available ids', () => {
   const { result } = run('nonexistent')
   expect(result.error).toBeDefined()

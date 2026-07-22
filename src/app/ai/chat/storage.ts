@@ -1,5 +1,5 @@
 import { useLocalStorage } from '@vueuse/core'
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import {
   AI_PROVIDERS,
@@ -66,6 +66,34 @@ export const imageGenModel = useLocalStorage(
 
 // Chat mode: 'ui' (default) or 'marketing'
 export const chatMode = useLocalStorage<ChatMode>(`${STORAGE_PREFIX}chat-mode`, 'ui')
+
+/**
+ * Material type selection for the marketing chips row.
+ * - 'user': explicitly clicked by the user — a hard lock injected into the
+ *   next message; AI must not override it
+ * - 'inferred': local keyword pre-inference from the input text — visual
+ *   hint only, replaced whenever the user clicks or the AI sets up
+ * - 'ai': synced from the AI's setup_material_type call
+ */
+export type MaterialTypeSource = 'user' | 'inferred' | 'ai'
+export const materialTypeSelection = ref<{ id: string; source: MaterialTypeSource } | null>(
+  null
+)
+
+export function toggleMaterialTypeLock(id: string): void {
+  const current = materialTypeSelection.value
+  materialTypeSelection.value =
+    current?.source === 'user' && current.id === id ? null : { id, source: 'user' }
+}
+
+export function setInferredMaterialType(id: string | null): void {
+  if (materialTypeSelection.value?.source === 'user') return
+  materialTypeSelection.value = id ? { id, source: 'inferred' } : null
+}
+
+export function syncMaterialTypeFromAI(id: string): void {
+  materialTypeSelection.value = { id, source: 'ai' }
+}
 
 export const providerDef = computed(
   () => AI_PROVIDERS.find((p) => p.id === providerID.value) ?? AI_PROVIDERS[0]

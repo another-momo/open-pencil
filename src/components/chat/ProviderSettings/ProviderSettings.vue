@@ -17,7 +17,7 @@ import { usePopoverUI } from '@/components/ui/popover'
 import Tip from '@/components/ui/Tip.vue'
 
 const { dialogs } = useI18n()
-const cls = usePopoverUI({ content: 'isolate z-[51] w-64 p-3' })
+const cls = usePopoverUI({ content: 'isolate z-[51] w-[480px] p-3' })
 const popoverOpen = ref(false)
 const providerSettings = provideProviderSettings()
 
@@ -54,21 +54,28 @@ function onInteractOutside(e: Event) {
         :class="cls.content"
         @interact-outside="onInteractOutside"
       >
-        <div class="flex flex-col gap-2.5">
-          <ChatModeSection />
-          <h3 class="text-[11px] font-semibold text-surface">{{ dialogs.llmConfiguration }}</h3>
-          <ProviderSelectField data-test-id="provider-settings-provider" />
-          <CustomEndpointSection />
-          <ApiKeySection />
-          <MaxTokensSection />
-          <ApiTypeSection />
-          <TestConnectionSection />
+        <div class="flex max-h-[75vh] flex-col gap-2.5 overflow-y-auto">
+          <div class="grid grid-cols-2 items-start gap-4">
+            <div class="flex flex-col gap-2.5">
+              <h3 class="text-[11px] font-semibold text-surface">{{ dialogs.designMode }}</h3>
+              <ChatModeSection />
+              <h3 class="text-[11px] font-semibold text-surface">{{ dialogs.llmConfiguration }}</h3>
+              <ProviderSelectField data-test-id="provider-settings-provider" />
+              <CustomEndpointSection />
+              <ApiKeySection />
+              <MaxTokensSection />
+              <ApiTypeSection />
+              <TestConnectionSection />
+            </div>
 
-          <h3 class="text-[11px] font-semibold text-surface">{{ dialogs.imageGeneration }}</h3>
-          <ImageGenKeysSection />
+            <div class="flex flex-col gap-2.5">
+              <h3 class="text-[11px] font-semibold text-surface">{{ dialogs.imageGeneration }}</h3>
+              <ImageGenKeysSection />
 
-          <h3 class="text-[11px] font-semibold text-surface">{{ dialogs.stockPhotos }}</h3>
-          <StockPhotoKeysSection />
+              <h3 class="text-[11px] font-semibold text-surface">{{ dialogs.stockPhotos }}</h3>
+              <StockPhotoKeysSection />
+            </div>
+          </div>
 
           <PopoverClose
             class="mt-1 w-full rounded bg-accent px-2 py-1 text-center text-[11px] font-medium text-white hover:bg-accent/90"

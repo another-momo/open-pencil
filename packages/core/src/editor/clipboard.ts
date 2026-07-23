@@ -99,8 +99,14 @@ export function createClipboardActions(ctx: EditorContext) {
       const pasteTarget = replacementTargets[0]?.parentId ?? resolvePasteTarget(ctx)
       const created = importClipboardNodes(figma.nodes, ctx.graph, pasteTarget, 0, 0, figma.blobs)
       if (created.length === 0) {
+        const summary = figma.nodes
+          .map(
+            (nc) =>
+              `${nc.type}:${nc.name}(${nc.guid?.sessionID}:${nc.guid?.localID}<-${nc.parentIndex?.guid ? `${nc.parentIndex.guid.sessionID}:${nc.parentIndex.guid.localID}` : '∅'})`
+          )
+          .join(' ')
         console.warn(
-          `[clipboard] paste produced 0 nodes (parsed ${figma.nodes.length} source nodes, target=${pasteTarget})`
+          `[clipboard] paste produced 0 nodes (parsed ${figma.nodes.length} source nodes, target=${pasteTarget}) ${summary}`
         )
         return
       }

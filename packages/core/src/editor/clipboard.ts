@@ -98,7 +98,12 @@ export function createClipboardActions(ctx: EditorContext) {
       const replacementTargets = options.replaceSelection ? selectedReplacementTargets(ctx) : []
       const pasteTarget = replacementTargets[0]?.parentId ?? resolvePasteTarget(ctx)
       const created = importClipboardNodes(figma.nodes, ctx.graph, pasteTarget, 0, 0, figma.blobs)
-      if (created.length === 0) return
+      if (created.length === 0) {
+        console.warn(
+          `[clipboard] paste produced 0 nodes (parsed ${figma.nodes.length} source nodes, target=${pasteTarget})`
+        )
+        return
+      }
 
       if (replacementTargets.length > 0) {
         replaceTargetsWithCreated(
@@ -123,7 +128,10 @@ export function createClipboardActions(ctx: EditorContext) {
         fontActions.loadFontsForNodes(created)
       ])
       ctx.requestRender()
+      return
     }
+
+    console.warn('[clipboard] paste: clipboard HTML matched neither openpencil nor figma format')
   }
 
   function pasteOpenPencilNodes(

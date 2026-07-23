@@ -41,7 +41,10 @@ export function bindEditorClipboard(store: EditorStore) {
   })
 
   useEventListener(window, 'paste', (e: ClipboardEvent) => {
-    if (isEditing(e)) return
+    if (isEditing(e)) {
+      console.warn('[clipboard] paste ignored: focus is in an input/textarea')
+      return
+    }
     e.preventDefault()
 
     const cursorPos = cursorPosition(store)

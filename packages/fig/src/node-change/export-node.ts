@@ -315,20 +315,28 @@ function getOrCreateNodeGuid(
   if (existing) return existing
   const importedGuid = node.source.id ? parseGuidOrNull(node.source.id) : null
 
-  // When source.id maps to a GUID value that is already assigned to a
-  // different node (e.g. two nodes from different canvases with the same
-  // source.id "1:94"), fall back to the counter to avoid collisions.
-  if (importedGuid && context.assignedGuidValues) {
-    const key = `${importedGuid.sessionID}:${importedGuid.localID}`
-    if (context.assignedGuidValues.has(key)) {
-      const guid: GUID = { sessionID: 1, localID: localIdCounter.value++ }
-      context.nodeIdToGuid?.set(nodeId, guid)
-      context.assignedGuidValues.add(`${guid.sessionID}:${guid.localID}`)
-      return guid
+  const isUsed = (guid: GUID): boolean =>
+    context.assignedGuidValues?.has(`${guid.sessionID}:${guid.localID}`) ?? false
+  const nextFromCounter = (): GUID => {
+    let guid: GUID = { sessionID: 1, localID: localIdCounter.value }
+    while (isUsed(guid)) {
+      localIdCounter.value++
+      guid = { sessionID: 1, localID: localIdCounter.value }
     }
+    localIdCounter.value++
+    return guid
   }
 
-  const guid = importedGuid ?? { sessionID: 1, localID: localIdCounter.value++ }
+  // source.id may collide within this payload (e.g. nodes duplicated from a
+  // previous clipboard paste). Reuse it only when it is still free here;
+  // otherwise mint a fresh, also-collision-safe guid from the counter.
+  if (importedGuid && !isUsed(importedGuid)) {
+    context.nodeIdToGuid?.set(nodeId, importedGuid)
+    context.assignedGuidValues?.add(`${importedGuid.sessionID}:${importedGuid.localID}`)
+    return importedGuid
+  }
+
+  const guid = nextFromCounter()
   context.nodeIdToGuid?.set(nodeId, guid)
   context.assignedGuidValues?.add(`${guid.sessionID}:${guid.localID}`)
   return guid

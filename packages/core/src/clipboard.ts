@@ -11,6 +11,7 @@ import { initCodec, getCompiledSchema, getSchemaBytes } from '@open-pencil/kiwi/
 import type { NodeChange as KiwiNodeChange } from '@open-pencil/kiwi/fig/codec'
 import { decodeBinarySchema, compileSchema, ByteBuffer } from '@open-pencil/kiwi/schema-runtime'
 import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
+import type { GUID } from '@open-pencil/scene-graph/primitives'
 
 import { shapeTextForClipboard } from './canvas/text/clipboard'
 import {
@@ -305,6 +306,8 @@ export async function buildFigmaClipboardHTML(
   const docGuid = { sessionID: 0, localID: 0 }
   const canvasGuid = { sessionID: 0, localID: 1 }
   const localIdCounter = { value: 100 }
+  const nodeIdToGuid = new Map<string, GUID>()
+  const assignedGuidValues = new Set<string>()
 
   const nodeChanges: KiwiNodeChange[] = [
     makeDocumentNodeChange(docGuid, graph.documentColorSpace),
@@ -331,8 +334,12 @@ export async function buildFigmaClipboardHTML(
         localIdCounter,
         graph,
         blobs,
+        nodeIdToGuid,
+        fontDigestMap,
         undefined,
-        fontDigestMap
+        undefined,
+        undefined,
+        assignedGuidValues
       )
     )
   }

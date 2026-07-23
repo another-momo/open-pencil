@@ -203,4 +203,42 @@ describe('buildFigmaClipboardHTML', () => {
     expect(children[0].text).toBe('Analytics Overview')
     expect(children[1].text).toContain('Track your key metrics')
   })
+
+  it('re-copying previously pasted nodes mints unique guids', async () => {
+    const graph = new SceneGraph()
+    const page = graph.getPages()[0]
+    const frame = graph.createNode('FRAME', page.id, {
+      name: 'F1',
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200
+    })
+    const group = graph.createNode('GROUP', frame.id, { name: 'G' })
+    graph.createNode('TEXT', group.id, { name: 'A', text: 'AAA', fontSize: 16 })
+    graph.createNode('TEXT', group.id, { name: 'B', text: 'BBB', fontSize: 16, x: 60 })
+
+    // Paste the same clipboard twice: both copies carry identical source.id
+    // values (1:100, 1:101, ...) from the first payload
+    const html1 = await buildFigmaClipboardHTML([frame], graph)
+    const parsed1 = expectDefined(await parseFigmaClipboard(expectDefined(html1)))
+    const created1 = importClipboardNodes(parsed1.nodes, graph, page.id)
+    const created2 = importClipboardNodes(parsed1.nodes, graph, page.id)
+    expect(created1).toHaveLength(1)
+    expect(created2).toHaveLength(1)
+    const pasted1 = expectDefined(graph.getNode(created1[0]))
+    const pasted2 = expectDefined(graph.getNode(created2[0]))
+    expect(pasted1.source.id).toBeTruthy()
+    expect(pasted1.source.id).toBe(pasted2.source.id)
+
+    // Copying BOTH pasted subtrees: without collision handling their shared
+    // source.ids duplicate within the payload and the import drops everything
+    const html2 = await buildFigmaClipboardHTML([pasted1, pasted2], graph)
+    const parsed2 = expectDefined(await parseFigmaClipboard(expectDefined(html2)))
+    const guids = parsed2.nodes.map((nc) => `${nc.guid?.sessionID}:${nc.guid?.localID}`)
+    expect(new Set(guids).size).toBe(guids.length)
+
+    const created3 = importClipboardNodes(parsed2.nodes, graph, page.id)
+    expect(created3.length).toBeGreaterThan(0)
+  })
 })

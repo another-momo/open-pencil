@@ -44,4 +44,4 @@ jobs:
         with:
           tauriScript: bunx tauri
           args: --target ${{ matrix.target }}
-          releaseDraft: true
+          releaseDraft: ${{ github.event_name == 'push' }}

@@ -45,3 +45,13 @@ jobs:
           tauriScript: bunx tauri
           args: --target ${{ matrix.target }}
           releaseDraft: ${{ github.event_name == 'push' }}
+
+      - name: Upload bundles
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenPencil-windows-x64
+          path: |
+            desktop/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+            desktop/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error

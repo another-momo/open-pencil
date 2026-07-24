@@ -9,13 +9,20 @@ export interface CanvasKitOptions {
   locateFile?: (file: string) => string
 }
 
+let nodeFileURLToPath: ((url: URL) => string) | null = null
+
 export async function getCanvasKit(options?: CanvasKitOptions): Promise<CanvasKit> {
   if (instance) return instance
 
+  if (!IS_BROWSER && !nodeFileURLToPath) {
+    nodeFileURLToPath = (await import('node:url')).fileURLToPath
+  }
+  const fileURLToPathFn = nodeFileURLToPath
+
   const defaultLocate = (file: string) => {
-    if (!IS_BROWSER) {
+    if (!IS_BROWSER && fileURLToPathFn) {
       const ckPath = import.meta.resolve('canvaskit-wasm')
-      return decodeURIComponent(new URL(file, ckPath).pathname)
+      return fileURLToPathFn(new URL(file, ckPath))
     }
     const base = 'env' in import.meta ? import.meta.env.BASE_URL : '/'
     const prefix = base === '/' ? '' : base.replace(/\/$/, '')

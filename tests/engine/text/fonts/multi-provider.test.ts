@@ -53,7 +53,7 @@ test('font registrations reach all attached providers', () => {
   expect(overlay.registrations).toHaveLength(3)
 })
 
-test('loadFonts-style detach+reattach does not wipe other providers', () => {
+test('loadFonts-style provider recreation does not wipe other providers', () => {
   const manager = new FontManager()
   const first = fakeProvider()
   const second = fakeProvider()
@@ -62,8 +62,21 @@ test('loadFonts-style detach+reattach does not wipe other providers', () => {
   manager.markLoaded('Inter', 'Regular', bytes(1))
 
   manager.attachProvider(ck, second)
-  manager.detachProvider(undefined)
+  manager.detachProvider(first)
   manager.markLoaded('Inter', 'Bold', bytes(2))
-  expect(first.registrations).toHaveLength(2)
+  expect(first.registrations).toHaveLength(1)
   expect(second.registrations).toHaveLength(2)
+})
+
+test('no-arg detach tears down all providers', () => {
+  const manager = new FontManager()
+  const first = fakeProvider()
+  const second = fakeProvider()
+
+  manager.attachProvider(ck, first)
+  manager.attachProvider(ck, second)
+  manager.detachProvider(undefined)
+  manager.markLoaded('Inter', 'Regular', bytes(1))
+  expect(first.registrations).toHaveLength(0)
+  expect(second.registrations).toHaveLength(0)
 })

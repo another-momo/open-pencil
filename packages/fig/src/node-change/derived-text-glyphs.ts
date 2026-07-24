@@ -8,8 +8,10 @@ export function convertFigmaDerivedTextGlyphs(
   return (derivedTextData?.glyphs ?? [])
     .map((glyph) => {
       if (glyph.commandsBlob === undefined) return null
+      const commandsBlob = blobs.at(glyph.commandsBlob)
+      if (!commandsBlob) return null
       return {
-        commandsBlob: blobs[glyph.commandsBlob],
+        commandsBlob,
         x: glyph.position.x,
         y: glyph.position.y,
         fontSize: glyph.fontSize

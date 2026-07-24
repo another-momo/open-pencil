@@ -11,6 +11,7 @@ import {
   type LocalFontAccessState,
   type WebFontProviderId
 } from '@open-pencil/core/text'
+import { IS_BROWSER } from '@open-pencil/core/constants'
 import type { SceneGraph } from '@open-pencil/scene-graph'
 import { dialogMessages } from '@open-pencil/vue'
 
@@ -76,7 +77,7 @@ configureTauriFontCache()
 // fontManager's access state is in-memory ('prompt' on every load). Sync it
 // on startup so previously granted local fonts actually resolve — without
 // this, granted users still get no local fonts (and no CJK fallback).
-if (!isTauri() && typeof navigator !== 'undefined' && window.queryLocalFonts) {
+if (!isTauri() && IS_BROWSER && window.queryLocalFonts) {
   void (async () => {
     try {
       const status = await navigator.permissions.query({

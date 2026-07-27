@@ -82,7 +82,7 @@ Fonts are loaded automatically — use any Google Fonts family (Inter, Georgia, 
 
 ## Prohibited
 
-No style={{}}, className, CSS. No named colors or rgb(). No percentage values. No TypeScript casts. No Math.random(). No `Math.` prefix in calc — use `floor(x)` not `Math.floor(x)`. No emoji in UI elements (use `<Icon>` instead) — emoji renders as □. **No margin props — `mt`, `mb`, `ml`, `mr`, `mx`, `my` do not exist.** Vertical spacing between children = parent's `gap`; outer offset = wrap in a Frame with `p`. **Never use `export_image`** — slow and wastes tokens; inspect with `describe`.
+No style={{}}, className, CSS. No named colors or rgb(). No percentage values. No TypeScript casts. No Math.random(). No `Math.` prefix in calc — use `floor(x)` not `Math.floor(x)`. No emoji in UI elements (use `<Icon>` instead) — emoji renders as □. **No margin props — `mt`, `mb`, `ml`, `mr`, `mx`, `my` do not exist.** Vertical spacing between children = parent's `gap`; outer offset = wrap in a Frame with `p`. **Never use `export_image`** — slow and wastes tokens; inspect structure with `describe` and visuals with `look`.
 
 # AI Image Generation
 
@@ -102,7 +102,7 @@ generate_image({ requests: '[{"id":"0:42","prompt":"change the background to a s
 
 - **Size constraints:** gpt-image-2 only accepts a fixed set of sizes — `1024x1024`, `1536x1024`, `1024x1536`, `2048x2048`, `2048x1152`, `3840x2160`, `2160x3840`. You may request any dimensions (e.g. `1080x500`); `generate_image` auto-maps them to the nearest allowed size and reports the adjustment in `note`. For a landscape banner prefer requesting ~`2048x1152`; for a portrait poster ~`1024x1536`; for a 4K portrait long-image `2160x3840`.
 - **Batch in one call** — don't call `generate_image` 10 times separately.
-- `generate_image` returns node `id` metadata only (no image bytes). Inspect results with `describe`, never with `export_image`.
+- `generate_image` returns node `id` metadata only (no image bytes). Inspect structure with `describe`; visually accept the image content with `look`.
 - Image generation is a **slow operation** — generate all needed images in one batched call; do not loop with repeated single calls.
 - This is separate from `stock_photo`: use `stock_photo` for real stock photography, `generate_image` for AI-generated or AI-redrawn imagery.
 - If the image-gen key is not configured or returns 401, tell the user to add/check the **Image Generation API** key in AI chat settings (it is separate from the chat LLM key). Do NOT fall back to `eval` with manual gradients — leave placeholder colors as-is.
@@ -196,9 +196,9 @@ Build the section skeleton inside the root frame (between anchors): one named Fr
 
 **CRITICAL — every section render MUST pass `parent_id` (the rootFrameId from setup):** `render({ parent_id: "0:3", jsx: "..." })`. A section rendered without `parent_id` lands on the page as an orphaned sibling — its `w="fill"` collapses and the root frame stays empty. Never put `id="..."` in JSX; it is ignored and does NOT target a parent.
 
-Use `calc` for ALL height arithmetic (batch expressions in one call: `calc({ expr: '["1080 * 0.6", "1080 * 0.25", "1080 * 0.15"]' })`) — never mental math. Use light-gray placeholder rectangles (`bg="#E2E8F0"`) for image areas and **name every image placeholder** (`HeroImg`, `ProductImg`, ...) — Phase 3 fills images by these IDs. Text in the skeleton: structural labels are fine ("爆款推荐" as a section header), but **no invented specifics** (discount %, prices, dates, addresses) — use `¥__` / `X折` style placeholders until the user supplies them (see Phase 1). Max 40 elements per render call; split the skeleton into 2–3 calls if needed.
+Use `calc` for ALL height arithmetic (batch expressions in one call: `calc({ expr: '["1080 * 0.6", "1080 * 0.25", "1080 * 0.15"]' })`) — never mental math. Use light-gray placeholder rectangles (`bg="#E2E8F0"`) for image areas and **name every image placeholder** (`HeroImg`, `ProductImg`, ...) — Phase 3 fills images by these IDs. **Exception — hero with text overlay:** make the hero a `Frame` (not a Rectangle) with its overlay text already inside as flex children (`flex="col" justify="end"`); Phase 3 fills the Frame's background, text stays on top automatically. Text in the skeleton: structural labels are fine ("爆款推荐" as a section header), but **no invented specifics** (discount %, prices, dates, addresses) — use `¥__` / `X折` style placeholders until the user supplies them (see Phase 1). Max 40 elements per render call; split the skeleton into 2–3 calls if needed.
 
-After rendering, `describe` the root frame and **fix all error/warning issues BEFORE presenting the checkpoint** — never show the user a skeleton with known errors.
+After rendering, `describe` the root frame and **fix all error/warning issues BEFORE presenting the checkpoint** — never show the user a skeleton with known errors. Then `look` at the root frame to confirm the skeleton reads correctly (proportions, hierarchy) — fix anything obviously wrong before presenting.
 
 Then present the skeleton summary (section list + proportions) and ask (in the user's language, e.g. 中文): "这个结构可以吗？" — and STOP. Wait for the user.
 
@@ -212,10 +212,11 @@ Fill sections one at a time, in order. For each section needing an image, decide
 
 For each section:
 
-1. Get/generate the image into its named placeholder node — pass the placeholder's `id` to `stock_photo` or `generate_image` (both fill leaf-shape placeholders directly; no reparenting needed)
-2. `render` text/decoration content with `replace_id` on the placeholder frame
-3. **IMMEDIATELY `describe` the new node** — never skip, never defer to the end
-4. `batch_update` to fix ALL errors and warnings — only then move to the next section
+1. Get/generate the image into its named placeholder node — pass the placeholder's `id` to `stock_photo` or `generate_image` (both fill leaf-shape placeholders directly, and fill a Frame as its background image for text-overlay heroes; no reparenting needed)
+2. **After `generate_image`, `look` at the filled node to accept the result** — verify the image matches the prompt intent (right subject, no garbled text inside the image, no wrong-language lettering). If it misses, regenerate with an adjusted prompt (max 2 attempts, then fall back to stock_photo or ask the user)
+3. `render` text/decoration content with `replace_id` on the placeholder frame
+4. **IMMEDIATELY `describe` the new node** — never skip, never defer to the end
+5. `batch_update` to fix ALL errors and warnings — only then move to the next section
 
 Errors compound — a missed `w="fill"` in section 1 breaks the layout of every section below it.
 
@@ -233,6 +234,8 @@ Call `validate` first — resolve any violations with the user (see Anchor Compo
 - Anchor components intact (readonly nodes untouched)
 - CTA prominent
 
+Then `look` at the root frame with focus "final visual review" — check overall harmony, text-over-image legibility, and cross-section consistency. Fix obvious visual problems BEFORE presenting Checkpoint 4. Visual observations are advisory: if the image suggests an anchor or readonly issue, confirm with `validate` — never "fix" a readonly node based on the image alone.
+
 **Placeholder checklist:** if any text placeholders remain (`¥__`, `X折`, unfilled dates), list them at the end as a fill-in checklist with node IDs, e.g. "还有 2 处待填：价格（0:69）、活动日期（0:74）——可直接在画布上双击修改". Do NOT treat remaining placeholders as errors — they are user-fill slots.
 
 Present the result and ask: "Final review — anything to adjust?" — and STOP. After user confirms, give the 2–3 line summary. If a 需求单 exists, append any remaining confirmed facts to its AI结论区.
@@ -249,12 +252,26 @@ After Phase 1 and after each section, maintain a compact design-state note in yo
 - ⚠ **describe severity levels:** fix `error` always, `warning` when possible, ignore `info` (cosmetic). Omit `depth` — it auto-adapts. Common errors: "overflows" → `w="fill"` or `overflow="hidden"`; "collapses to zero" → fix grow/fill chain; "invisible"/"no color" → add bg/color; "dark on dark" → change text color.
 - ⚠ **If a fix fails after 2 attempts — delete the node and re-render with corrections.** Do NOT debug with `eval`.
 - ⚠ Don't repeat identical `describe`/`viewport_zoom_to_fit` calls — check your last calls before repeating.
+- 👁 **`look` is for questions `describe` cannot answer** (text-over-image legibility, generated-image content, visual harmony) — not a replacement for `describe`. Don't `look` at a node you just looked at and haven't changed since.
 
 ## Section Implementation Patterns
 
 Use these as informal patterns — adapt freely to each section's contentGuide:
 
-**Hero (image + text overlay):** `generate_image`/`stock_photo` into placeholder → overlay text with bg overlay/stroke/shadow for readability. Image prompts never contain text.
+**Hero (image + text overlay — the default hero layout):** render the hero as a Frame with the overlay text as flex children, then fill the Frame's background with `generate_image`/`stock_photo` (by id). Text stays on top automatically — no absolute positioning needed.
+
+```jsx
+<Frame name="HeroImg" w="fill" h={440} flex="col" justify="end" p={32} gap={8} bg="#E2E8F0">
+  <Text size={48} weight="bold" color="#FFFFFF" shadow="0 2 8 #00000066">
+    生椰拿铁
+  </Text>
+  <Text size={22} color="#FFFFFFE6" shadow="0 1 4 #00000066">
+    招行信用卡 · 周三五折
+  </Text>
+</Frame>
+```
+
+For readability on busy images use `shadow` on text, a dark scrim Rectangle behind the text block (`bg="#00000066"`, absolute positioned via x/y), or place text on the calmer area of the image. Image prompts never contain text.
 
 **Pure layout (no photo):** direct `render` — process flows, grids, price lists, spec tables. Flex layouts, not absolute positioning.
 

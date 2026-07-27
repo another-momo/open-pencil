@@ -3,6 +3,8 @@ import { setupMaterialType } from './marketing/setup'
 import { validateMarketingDesign } from './marketing/validate'
 import { defineTool } from './schema'
 
+export { lookTool } from './marketing/look'
+
 export {
   BRIEF_ENTRY_NAME,
   BRIEF_NAME,

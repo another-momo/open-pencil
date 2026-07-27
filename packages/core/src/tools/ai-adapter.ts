@@ -99,7 +99,8 @@ function captureNodeSnapshot(
   if (!targetId) return undefined
   const raw = figma.graph.getNode(targetId)
   if (!raw) return undefined
-  return Object.fromEntries(Object.entries(structuredClone(raw)))
+  const { source: _source, ...rest } = structuredClone(raw)
+  return rest
 }
 
 function emitToolLog(
@@ -138,6 +139,32 @@ function emitToolLog(
   })
 }
 
+const MEDIA_OUTPUT_TOOLS = new Set(['export_image', 'look'])
+
+interface MediaToolOutput {
+  base64: string
+  mimeType: string
+  note?: string
+}
+
+function isMediaToolOutput(output: unknown): output is MediaToolOutput {
+  return (
+    !!output &&
+    typeof output === 'object' &&
+    'base64' in output &&
+    'mimeType' in output &&
+    typeof (output as MediaToolOutput).base64 === 'string'
+  )
+}
+
+/** Replace base64 payloads with a size marker so debug logs stay readable */
+function sanitizeForLog(result: unknown): unknown {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return result
+  if (!isMediaToolOutput(result)) return result
+  const { base64: _base64, ...rest } = result as MediaToolOutput & Record<string, unknown>
+  return { ...rest, base64: `[omitted ${result.base64.length} chars]` }
+}
+
 export function toolsToAI(
   tools: ToolDef[],
   options: AIAdapterOptions,
@@ -172,7 +199,7 @@ export function toolsToAI(
             const ids = extractNodeIds(execResult)
             if (ids.length > 0) options.onFlashNodes(ids)
           }
-          emitToolLog(options, def, args, startTime, figma, nodeBefore, execResult)
+          emitToolLog(options, def, args, startTime, figma, nodeBefore, sanitizeForLog(execResult))
           if (options.getStepBudget) {
             execResult = appendStepWarning(execResult, options.getStepBudget())
           }
@@ -187,14 +214,13 @@ export function toolsToAI(
       }
     }
 
-    if (def.name === 'export_image') {
+    if (MEDIA_OUTPUT_TOOLS.has(def.name)) {
       toolOpts.toModelOutput = ({ output }: { output: unknown }) => {
-        if (output && typeof output === 'object' && 'base64' in output && 'mimeType' in output) {
-          const r = output as { base64: string; mimeType: string }
-          return {
-            type: 'content' as const,
-            value: [{ type: 'media' as const, mediaType: r.mimeType, data: r.base64 }]
-          }
+        if (isMediaToolOutput(output)) {
+          const value: Array<Record<string, unknown>> = []
+          if (output.note) value.push({ type: 'text', text: output.note })
+          value.push({ type: 'media', mediaType: output.mimeType, data: output.base64 })
+          return { type: 'content' as const, value }
         }
         return { type: 'json' as const, value: output as JsonObject }
       }

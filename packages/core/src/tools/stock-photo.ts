@@ -20,7 +20,7 @@ export const stockPhoto = defineTool({
   mutates: true,
   description:
     'Search stock photos and apply to nodes. Pass a JSON array — all fetched in parallel. ' +
-    'Each item: {id, query, index?, orientation?}. Only works on leaf shapes (Rectangle/Ellipse).',
+    'Each item: {id, query, index?, orientation?}. Fills leaf shapes (Rectangle/Ellipse) directly, or a Frame as its background image (children are kept — this is how you put text over a photo hero).',
   params: {
     requests: {
       type: 'string',

@@ -4,6 +4,8 @@
 
 ### Added
 
+- Let marketing-mode AI visually inspect designs with a new `look` tool: renders any node (defaulting to the design root frame) to an image the model can see, used for generated-image acceptance and pre-checkpoint visual review. Repeated looks at an unchanged node return a text note instead of a duplicate image.
+- Fill frames with images as their background in `generate_image` and `stock_photo`, keeping children intact — enables text-over-image hero layouts in marketing designs.
 - Import HTML, CSS, Tailwind, and JSX as editable documents from the app, CLI, and SDK, and export standalone browser-ready HTML with compiled CSS and optional external assets.
 - Author richer Design JSX with components, instances, variables, gradients, structured fills, shadows, and blur effects.
 - Manage pages with rename, delete, and drag-to-reorder actions in the Pages panel.
@@ -26,6 +28,7 @@
 
 ### Fixed
 
+- Honor explicit width/height in `generate_image` when filling an existing node — target-node size is now only inherited when no size is given (previously an explicit 2048×1152 request could be silently replaced by 1024×1024).
 - Keep desktop text visible across the scene and overlay canvases, refresh it after local fonts load, and preserve rendering when a requested italic face is unavailable (#395).
 - Honor node-scoped variable modes in `.fig` files so light and dark component examples keep their intended colors.
 - Preserve nested instance text, visibility, and paint overrides across repeated children and component swaps in `.fig` files.

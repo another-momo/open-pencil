@@ -3,7 +3,7 @@ import { calc } from './calc'
 import { render } from './create'
 import { describe } from './describe'
 import { generateImage } from './image-gen'
-import { setupMaterialTypeTool, validateTool } from './marketing'
+import { lookTool, setupMaterialTypeTool, validateTool } from './marketing'
 import {
   setFill,
   setLayout,
@@ -53,6 +53,7 @@ export const CORE_TOOLS: ToolDef[] = [
   // Marketing
   setupMaterialTypeTool,
   validateTool,
+  lookTool,
   // Inspect & utility
   describe,
   calc,

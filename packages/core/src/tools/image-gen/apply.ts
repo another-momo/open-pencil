@@ -42,9 +42,10 @@ export async function generateOne(
     target = figma.createFrame()
     target.resize(req.width ?? 1024, req.height ?? 1024)
     target.name = req.prompt.slice(0, 40) || 'Generated image'
-  } else if (req.id) {
-    // Editing/filling: inherit the target node's real dimensions for the API
-    // size — mapped to the allowed enum, otherwise gpt-image-2 returns 400.
+  } else if (req.id && (req.width === undefined || req.height === undefined)) {
+    // Editing/filling without an explicit size: inherit the target node's real
+    // dimensions for the API size — mapped to the allowed enum, otherwise
+    // gpt-image-2 returns 400. Explicit width/height always win.
     const normalized = normalizeSize(Math.round(target.width), Math.round(target.height))
     if (!('error' in normalized)) {
       req.width = normalized.width

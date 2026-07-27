@@ -10,10 +10,6 @@ export interface PhotoRequest {
   orientation?: 'landscape' | 'portrait' | 'square'
 }
 
-interface NodeWithChildren {
-  children: unknown[]
-}
-
 export interface PhotoResult {
   id: string
   photo?: {
@@ -33,11 +29,6 @@ export async function applyPhoto(
 ): Promise<PhotoResult> {
   const node = figma.getNodeById(req.id)
   if (!node) return { id: req.id, error: 'Not found' }
-
-  const children = 'children' in node ? (node as NodeWithChildren).children : []
-  if (children.length > 0) {
-    return { id: req.id, error: `"${node.name}" has children — use a leaf shape` }
-  }
 
   const perPage = Math.min((req.index ?? 0) + 3, 15)
   const orientation = req.orientation ?? 'landscape'

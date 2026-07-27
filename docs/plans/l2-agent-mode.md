@@ -1,6 +1,6 @@
 # 营销图片设计 Agent 模式：详细规划
 
-> 最后更新 2026-07-22。本文档定义营销 Agent 模式的设计，包括核心理念、工作流、素材类型体系、资源管理和关键挑战。Phase 1+2 代码已完成，3 轮冒烟测试（错误目录见 §11），当前处于实测打磨阶段；Layer 3 工作台交互改造已并行启动构想讨论（见 `ai-marketing-workbench-plan.md`）。
+> 本文档定义营销 Agent 模式的设计：核心理念、工作流、素材类型体系、资源管理、运行时机制与校验。**状态与任务进度见 `README.md`（唯一状态来源）**；冒烟错误目录见 `knowledge/error-catalog.md`，实测方法论见 `knowledge/methodology.md`。
 
 ## 1. 核心设计理念
 
@@ -195,7 +195,7 @@ setup_material_type({ id: "wechat_moments" })
 
 素材类型配置中给 AI 用的内容（见 §3.2）：section 规划、风格指南、自定义字段、锚点组件 readonly 信息。
 
-此外 `note` 字段携带**含真实 rootFrameId 的操作硬指令**：`render every section INTO the root frame with render({ parent_id: "<rootFrameId>", jsx: ... })`。冒烟测试证明（见 §11 错误 E1）：prompt 规则不足以保证 AI 使用 `parent_id`，而工具结果常驻对话上下文、且带着具体 ID，是最可靠的注入位置。
+此外 `note` 字段携带**含真实 rootFrameId 的操作硬指令**：`render every section INTO the root frame with render({ parent_id: "<rootFrameId>", jsx: ... })`。冒烟测试证明（见 `knowledge/error-catalog.md` R2-1）：prompt 规则不足以保证 AI 使用 `parent_id`，而工具结果常驻对话上下文、且带着具体 ID，是最可靠的注入位置。
 
 工具返回值留在对话上下文中，AI 后续所有阶段都能引用——不需要额外的 prompt 注入基础设施。
 
@@ -306,96 +306,8 @@ generate_image 输出尺寸是枚举值，目标区域可能是任意尺寸。�
 
 tool call 失败时，generate_image 失败尝试 stock_photo 作为备选或让用户上传；图片风格不匹配时调整 prompt 重新生成（最多重试 2 次）；用户拒绝某个 section 时只重做该 section，不影响已完成部分；步数用完时保存设计状态，用户发送"继续"后从中断处恢复。
 
-## 10. 实现路径
+## 10. 实现与状态
 
-### Phase 1: 核心链路（目标：端到端跑通四阶段工作流）
+实施任务表与各阶段状态已迁移至 `README.md`（唯一状态来源）；冒烟测试错误目录见 `knowledge/error-catalog.md`，实测方法论见 `knowledge/methodology.md`。
 
-营销工具统一放在 `packages/core/src/tools/marketing/` 域（仿 image-gen 模式：入口文件 + 子文件夹实现）。
-
-| # | 任务 | 产出物 | 验证方式 |
-|---|---|---|---|
-| 1.1 | 素材类型注册表 | `marketing/material-types.ts`：MaterialTypeConfig 类型 + 7 个预设 + 查询 API。纯数据接口（为后续 JSON 配置化留路） | typecheck |
-| 1.2 | 资产注册表 | `marketing/assets.ts`：资产 ID → 字节的注册与查询，内置默认资产（示例 logo） | typecheck |
-| 1.3 | 组件模板 + 构建器 | `marketing/component-templates.ts`：BrandBar/CTABar 模板（结构化节点树 + 内联 readonly 标记 + imageRef 引用）；`marketing/builder.ts`：递归 createNode 构建器（解析 imageRef → createImage → IMAGE fill） | typecheck + 引擎单测 |
-| 1.4 | `setup_material_type` 工具 | `marketing/setup.ts` + 入口 `tools/marketing.ts`：创建根 frame → 确保"Components"页面存在（幂等）→ 构建器物化 → createComponentFromNode + createInstance → 写会话注册表（`WeakMap<SceneGraph, ...>`）→ 返回配置。**支持三种调用模式**：首次（全量物化）、切换（清除旧锚点实例和注册表条目，按新类型重建）、修复（检测缺失的锚点实例，只重物化缺失部分并补写注册表） | CLI eval 无头测试 |
-| 1.5 | CORE_TOOLS 注册 | `registry-core.ts` 加入 setupMaterialType（AI chat 只读 CORE_TOOLS；两模式共享工具集，营销工具在 UI 模式可见但无害） | app 内 AI 可见 |
-| 1.6 | 营销 prompt 重写 | `system-prompt-marketing.md`：四阶段工作流、Checkpoint 交互规则、一致性规则、设计状态追踪、组件填充规则 | 人工 review |
-| 1.7 | 冒烟测试 | 手动跑 2 个需求：wechat_moments（无锚点）+ product_long（有锚点），验证四阶段流程走通 | 🔄 已跑 2 轮（wechat_moments），错误目录见 §11 |
-
-依赖关系：1.1/1.2/1.3 互不依赖可并行 → 1.4 依赖前三个 → 1.5 依赖 1.4 → 1.6 依赖 1.4（prompt 要引用真实工具名和配置字段）→ 1.7 收尾。
-
-### Phase 2: 安全护栏（目标：锚点保护生效）
-
-| # | 任务 | 产出物 | 验证方式 |
-|---|---|---|---|
-| 2.1 | override 自动记录 | `batch.ts` + `update.ts`：检测目标节点是否在 INSTANCE 内（沿 parentId 上溯），把 `childId:propName` 写入根实例的 overrides 记录。**不下沉 scene-graph**（影响面可控），后续按需再议 | 引擎单测 |
-| 2.2 | `validate` 工具 | `marketing/validate.ts`：readonly 属性对比 + 结构位置校验 → 返回违规列表。**只报告不修复**（修复由 AI 在用户确认后用 batch_update 执行；锚点实例被删则由 AI 调用 `setup_material_type` 修复模式重物化）。用户确认"有意修改"时通过参数更新注册表基准值。注册到 CORE_TOOLS | CLI eval + app 内测试 |
-| 2.3 | prompt 补充 validate 规则 | `system-prompt-marketing.md`：补充 validate 调用时机（每完成一个 section 后、Phase 4 最终检查）、违规处理流程（报告用户 → 询问 → 误改修复 / 有意更新基准值）。validate 存在前 prompt 不引用它 | 人工 review |
-| 2.4 | 护栏场景测试 | 手动验证：AI 误改 readonly → validate 报告 → 询问用户 → 误改则修复 / 有意则更新基准值；锚点实例被删 → 修复模式重物化 | 🔄 待 app 内验证（冒烟测试第 3 轮） |
-
-### Phase 3: 实测迭代（进行中）
-
-用真实营销需求测试：收集 AI 常犯的错误，补充硬规则。优化工作流节奏。验证 generate_image + render 交替节奏。已完成 2 轮冒烟测试，错误目录见 §11。
-
-### Phase 4: 品牌包集成（远期）
-
-品牌色/字体/logo 注入机制。资产注册表扩展用户配置覆盖（模板零改动，见 §4.2）。generate_image prompt 追加品牌风格关键词。render 文字自动套用品牌字体/配色。
-
-## 11. 冒烟测试错误目录（实测驱动迭代的核心资产）
-
-测试需求：咖啡店朋友圈广告（`wechat_moments`，无锚点）。分析手段：AI debug log（工具调用序列 + 诊断 + 对话全文）。
-
-### 第 1 轮（2026-07-21）
-
-| # | 现象 | 根因 | 修复 |
-|---|---|---|---|
-| R1-1 | 同一 `insert_index` 重复 render，产出 5 个 section（应为 3 个） | prompt 未禁止同位置二次渲染 | prompt 加 `replace_id` 规则：修复错误必须重渲染替换，禁止重复渲染 |
-| R1-2 | `mt` prop 幻觉 ×5 | prompt 的 margin 禁令不够显眼 | prompt Prohibited 区加粗显式列出 `mt/mb/ml/mr/mx/my` 不存在 |
-| R1-3 | 乱码中文文案 + `#6B728λή` 损坏 hex 静默解析为黑色 | render 不校验颜色合法性 | `render.ts` 增加 `collectInvalidColorWarnings`（culori 解析失败即警告）；文案质量属模型能力，待观察 |
-| R1-4 | 中文用户收到英文 checkpoint | prompt 无语言规则 | prompt 加"checkpoint 一律用用户语言"规则 |
-
-### 第 2 轮（2026-07-22）— 发现致命 bug
-
-| # | 现象 | 根因 | 修复 |
-|---|---|---|---|
-| R2-1 | **致命**：3 个 section 全部渲染在根 frame 之外，成为页面级孤儿（148×648 等坍塌尺寸），根 frame 始终空白 | prompt 从未告知 `render` 的 `parent_id` 参数；AI 幻觉出在 JSX 里写 `id="0:3"` 想指定父级（被忽略，警告出现 3 次 AI 未反应）| 三层修复：① `setup_material_type` 的 note 注入含真实 ID 的 `parent_id` 硬指令（工具结果常驻上下文）；② prompt Phase 2 加 parent_id 必传规则 + 示例；③ `render.ts` 的 `id` prop 警告特化为指向 `parent_id`/`replace_id` |
-| R2-2 | describe 报出 error（深字压深底）和多个 warning，AI 未修复直接展示 checkpoint | prompt 只说"修复"，没禁止带病展示 | prompt 明确"修完所有 error/warning 才能展示 checkpoint" |
-| R2-3 | checkpoint 问题仍是英文（"Does this structure work?"） | prompt 里字面英文示例覆盖了 R1-4 的语言规则 | checkpoint 问句改为中文示例（"这个结构可以吗？"） |
-| R2-4 | Phase 2 骨架阶段就写入全部真实文案/价格 | prompt 未禁止 | prompt 明确 Phase 2 只用占位文字，真实内容 Phase 3 才写 |
-| R2-5 | 幻觉品牌名"掌上生活App 扫码即享"（招商银行 App） | CP1 未收集品牌/产品名 | prompt Phase 1：需求缺品牌/产品名时在 CP1 一并询问，禁止编造 |
-| R2-6 | styleGuide 字体 PingFang SC 未应用（全程默认 Inter） | prompt 无字体应用规则 | prompt Phase 1：锁定字体必须通过 `fontFamily` prop 应用 |
-| R2-7 | 根 frame 无底色 → "Empty frame with no fill" 警告诱导 AI 浪费 3 次调用（含 1 次 no-op resize） | 根 frame 创建时无 fills | `setup.ts` 创建根 frame 时默认白色底色 |
-
-### 第 3 轮（2026-07-22 下午）— 端到端首次完整跑通
-
-上轮修复全部生效（parent_id ✓、中文 checkpoint ✓、CP1 品牌名询问 ✓、validate 收尾 ✓）。暴露的新问题：
-
-| # | 现象 | 根因 | 修复 |
-|---|---|---|---|
-| R3-1 | calc×5 / batch_update×6 / image-gen×1 / stock-photo×1 共 13 次 "Invalid JSON" 失败（约占 1/4 steps）；AI 偶然发现尾部加空格能成功 | 模型吐 tool args 时 JSON 字符串值尾部双重闭合（`\"}`），外层 JSON 合法故 SDK 正常投递——只有"JSON 字符串套 JSON"参数的工具中招（render/set_text 等普通参数全程无恙）。calc 还有二层问题：JSON.parse 失败后兜底喂 expr-eval，报错看似表达式语法错误，误导 AI 朝加空格方向重试 | 共享 `parseJsonArrayParam`（destr 快路径 + "尾部只含无关字符"守卫的救助路径 + warning 透传结果），接入 calc/batch_update/image-gen/stock-photo；calc malformed array 直接报清晰错误不再喂 expr-eval；原型污染防护保持（destr 快路径 + 救助路径 __proto__ 守卫） |
-| R3-2 | 用户明确"主视觉用AI生成"，但 AI 认为 generate_image 不能填灰色占位符 → 页面级生成新节点 + eval insertChild 插回（还先用错 getNodeByIdAsync 浪费一次） | **工具描述与 prompt 规则矛盾**：prompt 说"按 id 填占位符"，工具描述却说"id 用于 img2img 编辑现有图片节点"——AI 信工具描述。另有潜在 bug：apply.ts 从目标节点回填的原始尺寸（1080×500）未做枚举映射，真调用了会 400 | 工具描述明确"无图片填充的叶子形状占位符直接填充"（代码本就支持）；apply.ts 回填尺寸经 normalizeSize 映射；prompt Phase 3 明确两个图片工具都接受占位符 id、无需 reparent |
-| R3-3 | 改字体被迫用 eval ×2，且 `fontName={style:'Bold'}` 把 11px 说明文字误设为 Bold（样式回归） | update_node/batch_update 无 font_family prop；eval 的 fontName 语义是 family+style 对，改字族必然碰字重 | update_node + batch_update 加 `font_family`（保留原字重/样式） |
-| R3-4 | "fill matches parent" error 触发 2 次，诱发无效修复（造出 #FFF8F0 vs #FAF6F1 这种肉眼无差的差异）；subpixel warning 满屏（justify=center 必然产生 .5 偏移，AI 正确忽略） | 消息文案含 "invisible" 被 ERROR_PATTERNS 的 /invisible/ 截获（INFO_PATTERNS 的 /fill.*matches parent/ 永远轮不到）；subpixel 检查不区分布局计算值和显式定位 | 文案改 "no visible boundary"（正确落入 info）；auto-layout 父级内非 ABSOLUTE 子节点跳过 subpixel 检查 |
-| R3-5 | setup 结果不含设计尺寸 → 多花一次 get_node 查根 frame 宽高 | 遗漏 | `SetupResult` 加 `size` 字段 |
-| R3-6 | Phase 2 骨架混入真实促销文案，"周三5折"是 AI 虚构的活动 | 原"骨架禁真实文案"规则打偏：结构性文案（"爆款推荐"）无害且让 CP2 更直观；真正有害的是**虚构营销事实**——它存在于所有阶段，禁骨架文案不解决（Phase 3 照样编，因为没有 checkpoint 问过活动细节） | 规则改"骨架允许结构性标签 + 全阶段禁止虚构具体信息（折扣/价格/日期/地址），未知用 `¥__`/`X折` 可见占位"；CP1 在品牌名之外加问活动细节 |
-
-### 修复方法论沉淀（补充）
-
-两轮测试验证了"**工具结果注入 > prompt 规则**"的可靠性排序：prompt 规则 AI 可能忽略或误解（R2-1 中警告出现 3 次都没纠正行为），而带具体参数的工具返回 note 常驻上下文、可直接引用。新硬规则的注入优先级：① 工具返回值（note/警告文本）→ ② prompt 硬性规则（CRITICAL 标记）→ ③ prompt 一般指引。
-
-第 3 轮补充两条：
-
-- **工具描述是 prompt 表面的一部分，必须与 prompt 规则一致**（R3-2）：prompt 说"按 id 填占位符"，工具描述说"id 用于编辑现有图片节点"，AI 选择相信工具描述。修改 prompt 规则时同步检查相关工具描述。
-- **错误消息是 AI 的调试依据，误导性报错会放大重试成本**（R3-1 calc）：兜底路径产生的报错看似表达式语法错误，AI 朝错误方向重试 5 次。工具报错应指向真实原因和正确做法。
-
-同时从 UI prompt 回搬了 13 条成熟规则（calc 强制、40 元素上限、render→describe→batch_update 强制循环、复用工具返回 ID、describe 严重级别对照表、修复 2 次失败删掉重来等），两份 prompt 现有约 100 行重复，后续可抽基础 prompt 在 transports 层拼接（已知技术债，暂缓）。
-
-### 待验证场景（第 4 轮）
-
-- 回归：朋友圈广告重测（JSON 尾部垃圾被救助且带 warning、calc 不再误导性报错、generate_image 直接填占位符、改字体走 font_family 不用 eval、CP1 加问活动细节、骨架无虚构促销信息）
-- 护栏（修改）：product_long → 手动改 BrandBar logo/品牌名 → AI 调 validate 报告并**询问**（而非擅自恢复）→ "误改" → AI 用 violation 的 `originalValue` 直接 batch_update 恢复
-- 护栏（删除）：手动删 BrandBar 内 readonly 子节点 → validate 报 `readonly_deleted` → 用户确认误删 → 修复模式从组件定义重物化该锚点（新实例 nodeId 重注册，无残留死映射）
-- 护栏（有意修改）：手动改 readonly 后声明"有意" → `validate({accept: true})` 重置基准 → 再次 validate 通过
-- CP3 图片来源 checkpoint：小红书种草图，验证逐 section 询问/批量指令记忆
-- 用户素材识别：拖图入画布后"用这张图做 banner"
-- 素材类型切换：公众号封面中途改活动海报，验证 setup 切换模式清理旧内容
+营销工具统一放在 `packages/core/src/tools/marketing/` 域（仿 image-gen 模式：入口文件 + 子文件夹实现）。后续阶段：Phase 3 实测迭代（进行中）→ Phase 4 品牌包集成（远期，优先级论证见 `../review/2026-07-27-agent-design-review.md`）。

@@ -2,7 +2,7 @@
 
 > **⚠️ 已归档** — 此设计文档的实现工作已于 2026-07-21 完成（L2 Phase 0），内容保留供参考。
 > 最终实现见 `src/app/ai/chat/storage.ts`、`transports.ts`、`src/components/chat/ProviderSettings/`。
-> 主规划文档：`docs/ai-marketing-workbench-plan.md`。
+> 主规划文档：`../00-overview.md`。
 
 > 最后更新 2026-07-21。定义营销 Agent 模式的切换机制，分析共享与差异化的组件，基于 Vercel AI SDK v6 的实际架构给出实现方案。
 

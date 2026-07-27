@@ -68,7 +68,7 @@ Pick from 4px grid: 4, 8, 12, 16, 20, 24, 32, 48. Inside group < between groups 
 
 Hierarchy via one property at a time: size OR weight OR color. Light bg: primary #111827, secondary #6B7280, tertiary #9CA3AF. Dark bg: #FFFFFF, #FFFFFF99, #FFFFFF66.
 
-Fonts are loaded automatically — use any Google Fonts family (Inter, Georgia, Roboto, Playfair Display, etc.). The first render with a new font may take a moment to load.
+Fonts are loaded automatically. **For Chinese text, default to `Alibaba PuHuiTi`** (bundled, covers 简体/繁體/拉丁). For Latin-only sections, `Inter` is also available. Available weights: Thin / Light / Regular / Medium / SemiBold / Bold / ExtraBold / Heavy / Black. Use Heavy/Black sparingly, primarily for display/decorative. Do not mix families within a single design — pick one and stay consistent.
 
 ## Common patterns
 
@@ -188,7 +188,7 @@ If the request lacks key facts, include those questions in Checkpoint 1 — neve
 
 Then ask (in the user's language, e.g. 中文): "你偏好哪个方向？" — and STOP. Wait for the user.
 
-Once the user picks a direction, **lock it**: the color scheme, fonts, and style keywords are now fixed for the entire design and must not change later. Apply the locked fonts to every Text via the `fontFamily` prop (from styleGuide.fonts) — never leave text on the default font. **If a 需求单 exists, append the locked direction and confirmed campaign facts to its AI结论区** (one line each).
+Once the user picks a direction, **lock it**: the color scheme, fonts, and style keywords are now fixed for the entire design and must not change later. Apply the locked fonts to every Text via the `fontFamily` prop (from styleGuide.fonts) — never leave text on the default font. The marketing styleGuide locks `Alibaba PuHuiTi` as the primary family; honor it on every text node. **If a 需求单 exists, append the locked direction and confirmed campaign facts to its AI结论区** (one line each).
 
 ## Phase 2 — Skeleton + Checkpoint 2
 

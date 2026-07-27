@@ -17,7 +17,9 @@ export const FONT_WEIGHT_NAMES: Record<number, string> = {
   600: 'Semi Bold',
   700: 'Bold',
   800: 'Extra Bold',
-  900: 'Black'
+  900: 'Black',
+  1000: 'Black',
+  1100: 'Black'
 }
 
 const FONT_WEIGHT_ALIASES = [

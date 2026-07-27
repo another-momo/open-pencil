@@ -3,3 +3,7 @@
 
 /canvaskit-webgpu/canvaskit.wasm
   Content-Type: application/wasm
+
+/*.ttf
+  Content-Type: font/ttf
+  Cache-Control: public, max-age=31536000, immutable

@@ -75,7 +75,7 @@ const MATERIAL_TYPES: MaterialTypeConfig[] = [
     ],
     styleGuide: {
       colors: ['#FF6B35', '#FFFFFF', '#1A1A1A'],
-      fonts: ['PingFang SC'],
+      fonts: ['Alibaba PuHuiTi'],
       keywords: ['促销', '活力', '直接']
     },
     custom: { platform: '微信朋友圈', tone: '活泼年轻' }
@@ -91,7 +91,7 @@ const MATERIAL_TYPES: MaterialTypeConfig[] = [
     ],
     styleGuide: {
       colors: ['#1A1A1A', '#FFFFFF', '#07C160'],
-      fonts: ['PingFang SC'],
+      fonts: ['Alibaba PuHuiTi'],
       keywords: ['简洁', '标题突出', '可读性']
     },
     custom: { platform: '微信公众号' }
@@ -113,7 +113,7 @@ const MATERIAL_TYPES: MaterialTypeConfig[] = [
     ],
     styleGuide: {
       colors: ['#FF2442', '#FFFFFF', '#333333'],
-      fonts: ['PingFang SC'],
+      fonts: ['Alibaba PuHuiTi'],
       keywords: ['生活化', '真实感', '种草']
     },
     custom: { platform: '小红书', tone: '真诚分享' }
@@ -136,7 +136,7 @@ const MATERIAL_TYPES: MaterialTypeConfig[] = [
     ],
     styleGuide: {
       colors: ['#FF4400', '#FFFFFF', '#333333'],
-      fonts: ['PingFang SC'],
+      fonts: ['Alibaba PuHuiTi'],
       keywords: ['促销感', '卖点清晰', '信任感']
     },
     custom: { platform: '电商', featureCount: '3-5个核心卖点' }
@@ -154,7 +154,7 @@ const MATERIAL_TYPES: MaterialTypeConfig[] = [
     ],
     styleGuide: {
       colors: ['#6C5CE7', '#FFFFFF', '#2D3436'],
-      fonts: ['PingFang SC'],
+      fonts: ['Alibaba PuHuiTi'],
       keywords: ['视觉冲击', '信息清晰', '仪式感']
     },
     custom: { eventType: '线下活动' }
@@ -174,7 +174,7 @@ const MATERIAL_TYPES: MaterialTypeConfig[] = [
     ],
     styleGuide: {
       colors: ['#0066FF', '#FFFFFF', '#1A1A1A'],
-      fonts: ['PingFang SC'],
+      fonts: ['Alibaba PuHuiTi'],
       keywords: ['高对比', '信息极简', 'CTA 醒目']
     },
     custom: { platform: 'DSP 投放', note: 'IAB 标准尺寸，默认 Medium Rectangle 300×250' }
@@ -193,7 +193,7 @@ const MATERIAL_TYPES: MaterialTypeConfig[] = [
     ],
     styleGuide: {
       colors: ['#0A0A0A', '#FFFFFF', '#C9A96E'],
-      fonts: ['PingFang SC'],
+      fonts: ['Alibaba PuHuiTi'],
       keywords: ['高级感', '叙事感', '品质']
     },
     custom: { tone: '高端叙事' }
@@ -219,7 +219,7 @@ export function makeCustomMaterialType(width: number, height: number): MaterialT
     ],
     styleGuide: {
       colors: ['#FF6B35', '#FFFFFF', '#1A1A1A'],
-      fonts: ['PingFang SC'],
+      fonts: ['Alibaba PuHuiTi'],
       keywords: ['清晰', '促销', '直接']
     },
     custom: { note: '用户自定义尺寸，无平台预设约束' }

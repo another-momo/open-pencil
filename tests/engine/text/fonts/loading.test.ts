@@ -61,6 +61,12 @@ describe('weightToStyle', () => {
     expect(weightToStyle(900)).toBe('Black')
   })
 
+  test('handles non-CSS-standard weights (阿里巴巴普惠体 1000)', () => {
+    // 1000 = PuHuiTi Black usWeightClass (was falling back to 'Regular' before fix)
+    expect(weightToStyle(1000)).toBe('Black')
+    expect(weightToStyle(1100)).toBe('Black')
+  })
+
   test('appends Italic suffix', () => {
     expect(weightToStyle(400, true)).toBe('Regular Italic')
     expect(weightToStyle(700, true)).toBe('Bold Italic')
@@ -189,6 +195,26 @@ describe('FontManager loaded font cache', () => {
     const data = await manager.loadFont('LocalPriority', 'Regular')
     expect(data?.byteLength).toBe(20)
     expect(cacheReads).toBe(0)
+  })
+
+  test('loads Alibaba PuHuiTi via host font loader (营销 Agent 默认字体)', async () => {
+    // PuHuiTi is in BUNDLED_FONTS but in test env we mock the host font loader to
+    // simulate the desktop case where the font is loaded from app assets.
+    // The key assertion: family+style combos that marketing Agent writes
+    // (Alibaba PuHuiTi + Regular/Medium/Bold/etc) all resolve to a non-null buffer.
+    const manager = new FontManager()
+    const recording = createRecordingProvider()
+    manager.attachProvider({} as CanvasKit, recording.provider)
+    manager.setHostFontLoader(async (family, style) => {
+      if (family === 'Alibaba PuHuiTi') return new ArrayBuffer(8192)
+      return null
+    })
+
+    for (const style of ['Thin', 'Light', 'Regular', 'Medium', 'SemiBold', 'Bold', 'ExtraBold', 'Heavy', 'Black']) {
+      const data = await manager.loadFont('Alibaba PuHuiTi', style)
+      expect(data?.byteLength).toBe(8192)
+      expect(recording.registrations.find((r) => r.family === 'Alibaba PuHuiTi' && r.byteLength === 8192)).toBeDefined()
+    }
   })
 
   test('loads downloaded cache when local sources are unavailable', async () => {

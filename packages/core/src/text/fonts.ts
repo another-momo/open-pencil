@@ -34,7 +34,18 @@ const BUNDLED_FONTS: Record<string, string> = {
   'Inter|SemiBold': '/Inter-SemiBold.ttf',
   'Inter|Bold': '/Inter-Bold.ttf',
   'Inter|ExtraBold': '/Inter-ExtraBold.ttf',
-  'Noto Naskh Arabic|Regular': '/NotoNaskhArabic-Regular.ttf'
+  'Noto Naskh Arabic|Regular': '/NotoNaskhArabic-Regular.ttf',
+  // 阿里巴巴普惠体 3.0 — 中英双语字体，覆盖营销 Agent CJK 场景
+  // Heavy/Black 是子集字体（只 33% 字形），罕用汉字走 CJK fallback
+  'Alibaba PuHuiTi|Thin': '/AlibabaPuHuiTi-Thin.ttf',
+  'Alibaba PuHuiTi|Light': '/AlibabaPuHuiTi-Light.ttf',
+  'Alibaba PuHuiTi|Regular': '/AlibabaPuHuiTi-Regular.ttf',
+  'Alibaba PuHuiTi|Medium': '/AlibabaPuHuiTi-Medium.ttf',
+  'Alibaba PuHuiTi|SemiBold': '/AlibabaPuHuiTi-SemiBold.ttf',
+  'Alibaba PuHuiTi|Bold': '/AlibabaPuHuiTi-Bold.ttf',
+  'Alibaba PuHuiTi|ExtraBold': '/AlibabaPuHuiTi-ExtraBold.ttf',
+  'Alibaba PuHuiTi|Heavy': '/AlibabaPuHuiTi-Heavy.ttf',
+  'Alibaba PuHuiTi|Black': '/AlibabaPuHuiTi-Black.ttf'
 }
 
 export class FontManager {

@@ -401,15 +401,18 @@ fonts: ['Alibaba PuHuiTi'],
 
 ### 误诊修正（重要）
 
-实施过程中**两次误诊**已记录在案，避免后续误读：
+实施过程中**三次误诊**已记录在案，避免后续误读：
 
 1. **scene-graph plugin-data.test.ts 失败**：原以为是 .fig 解析 pre-existing 问题，**实际是 test pollution**（marketing/kiwi/scene-graph 一起跑时发生）。单独跑 scene-graph（210 tests）全部通过。
 
-2. **Playwright 画布文字不显示**：原以为与 PuHuiTi bundle 有关，**实际是 pre-existing CanvasKit/Vite dev 渲染问题**。`git stash` 暂存所有改动后，原始代码（无 PuHuiTi）下文字同样不显示。涉及 `ParagraphBuilder.MakeFromFontProvider` shape 不到 glyph 的根因排查，**不在本任务范围**——后续单独 issue 跟进。
+2. **Playwright 画布文字不显示（第一轮）**：原以为是 pre-existing CanvasKit/Vite 渲染问题。**实际是 Playwright 测试 API 用错了**——用了 `store.updateNode(id, { characters: '...' })`，但 `updateNode` 接受的是 raw 字段名 `text`，不是 Figma proxy 的 `characters`。正确的 API 是 `proxy.characters = '...'`。改正后 PuHuiTi 和 Inter 文字均正常渲染。
+
+3. **Playwright 画布文字不显示（git stash 验证）**：基于错误 #2 的二次验证，**不成立**。改用正确 API 后，即使在原始代码（无 PuHuiTi）下 Inter 文字也能正常显示。
+
+**教训**：写 Playwright 测试时必须用 Figma proxy API，不能直接调 `store.updateNode`。两套 API 字段名不同（proxy `characters/fontName/fontSize` ↔ raw `text/fontFamily/fontSize`）。
 
 ### 待办（不在本次 commit 范围）
 
-- ❌ Playwright 画布文字不显示（pre-existing CanvasKit 渲染问题）
 - ❌ 字体双份存储同步脚本（项目已有模式，长期改进）
 - ❌ marketing 3 个套件一起跑时的 test pollution 隔离
 - ❌ Cloudflare Pages 部署后冒烟测试（待生产环境）

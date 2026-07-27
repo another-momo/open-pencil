@@ -205,7 +205,14 @@ export class FontManager {
       }))
     )
     const byFamily = new Map<string, FontFamilyOption>()
-    byFamily.set(DEFAULT_FONT_FAMILY, { family: DEFAULT_FONT_FAMILY, source: 'bundled' })
+    // Surface every family we bundle (Inter + Alibaba PuHuiTi + Noto Naskh Arabic),
+    // not just DEFAULT_FONT_FAMILY — otherwise the font picker hides bundled families
+    // that aren't the default.
+    for (const cacheKey of Object.keys(BUNDLED_FONTS)) {
+      const sep = cacheKey.indexOf('|')
+      const family = sep === -1 ? cacheKey : cacheKey.slice(0, sep)
+      if (!byFamily.has(family)) byFamily.set(family, { family, source: 'bundled' })
+    }
     for (const { provider, families } of webFontFamilies) {
       for (const family of families) {
         if (!byFamily.has(family)) byFamily.set(family, { family, source: provider })

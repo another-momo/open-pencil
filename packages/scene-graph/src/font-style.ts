@@ -17,9 +17,7 @@ export const FONT_WEIGHT_NAMES: Record<number, string> = {
   600: 'Semi Bold',
   700: 'Bold',
   800: 'Extra Bold',
-  900: 'Black',
-  1000: 'Black',
-  1100: 'Black'
+  900: 'Black'
 }
 
 const FONT_WEIGHT_ALIASES = [
@@ -73,7 +71,10 @@ export function styleToVariant(style: string): string {
 }
 
 export function weightToStyle(weight: number, italic = false): string {
-  const rounded = Math.round(weight / 100) * 100
+  // Clamp out-of-range weights (e.g. 阿里巴巴普惠体 Black usWeightClass=1000) to the
+  // closest standard CSS weight so the dictionary lookup stays bounded and
+  // the UI dropdown doesn't show duplicate labels.
+  const rounded = Math.max(100, Math.min(900, Math.round(weight / 100) * 100))
   const label = (FONT_WEIGHT_NAMES[rounded] ?? 'Regular').replace(/ /g, '')
   return italic ? `${label} Italic` : label
 }

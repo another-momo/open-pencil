@@ -1,6 +1,6 @@
 # 营销工作台规划：文档地图与状态面板
 
-> 最后更新 2026-07-27。本文档是所有规划文档的**唯一状态来源**。规则：
+> 最后更新 2026-07-28。本文档是所有规划文档的**唯一状态来源**。规则：
 >
 > 1. **状态只在本文件维护**——设计文档不写任务进度，只描述"当前正确的设计"；
 > 2. 知识库（`knowledge/`）只追加不修改；
@@ -11,8 +11,10 @@
 | 文档 | 内容 | 保质期 |
 |---|---|---|
 | `00-overview.md` | 产品定位、三层架构、落地顺序、源码参考 | 易变，随进展更新 |
+| `l1-image-gen-optimize.md` | L1 子规划：生图工具优化——references 解耦模型、尺寸规范化、超时/错误处理、非 IMAGE 节点渲染参考 | 半持久 |
 | `l2-agent-mode.md` | L2 主设计：理念、工作流、素材类型、资源体系、校验 | 半持久 |
 | `l2-context-engineering.md` | L2 子规划：上下文工程——media elision、跨 session 恢复、类型关键词下沉（问题 → 方案 → 实施顺序） | 半持久 |
+| `l2-ai-undo-snapshot.md` | L2 子规划：AI undo snapshot 累积（嫌疑 1 修复：拆分 AI undo 栈 + chronological 优先级） | 半持久 |
 | `l2-visual-loop.md` | L2 子规划：视觉回路——多模态看图、look 工具、与上下文工程的顺序约定 | 半持久 |
 | `l3-workbench.md` | L3 工作台交互：三类信息模型、需求单、类型显性化、制作清单 | 半持久 |
 | `knowledge/error-catalog.md` | 冒烟测试错误目录（实测驱动迭代的核心资产，持续追加） | 只增不改 |
@@ -25,12 +27,13 @@
 
 | 模块 | 状态 | 下一步 |
 |---|---|---|
-| L1 生图工具 | ✅ 完成 | —— |
+| L1 生图工具 | ✅ MVP 完成；📋 优化方案已收敛（2026-07-28） | 实施 P0：references 解耦 + 尺寸规范化 + 超时（方案见 `l1-image-gen-optimize.md`） |
 | L2 Phase 0 模式切换 | ✅ 完成 | —— |
 | L2 Phase 1 核心链路 | ✅ 代码完成 | —— |
 | L2 Phase 2 安全护栏 | ✅ 代码完成 | 护栏场景随第 4 轮回归验证 |
 | L2 Phase 3 实测迭代 | 🔄 3 轮冒烟完成 | **第 4 轮回归**（用例见 `knowledge/error-catalog.md` §待验证场景） |
 | L2 上下文工程（子规划） | 📋 已收敛重写（2026-07-27） | 4 项任务：media elision → prompt 清理 → per-rootFrame 键控 → 画布推导恢复（任务表见 `l2-context-engineering.md` §5） |
+| L2 AI undo coalesce（子规划） | 📋 设计完成（2026-07-27） | 待启动实施：按 burst 分组 coalesce——burstId 从 ChatInput.send 触发，AI 同 burstId 自动合并——见 `l2-ai-undo-snapshot.md`；预期 1 次 burst undo 内存 7.5 MB → 150 KB |
 | L2 视觉回路（子规划） | 🔄 V0 实测通过 + 首轮优化完成（2026-07-27） | hero 叠字改造 ✅、R4-1 尺寸回填 bug ✅、look **去重已撤销**（2026-07-27：与 media elision 的悬挂引用 bug 冲突；详见 `l2-context-engineering.md`）✅、快照降噪 ✅——待下轮冒烟验证（护栏回归 + 叠字产出 + look 行为变更新版） |
 | L2 营销字体：普惠体（子规划） | ✅ 已实施（2026-07-27） | 9 字重 PuHuiTi bundle（62MB）+ 8 素材类型改 `['Alibaba PuHuiTi']` + prompt 强约束 + _headers TTF MIME—`l2-marketing-font-puhuiti.md` |
 | L3 需求单节点 | ✅ V1 已实现 | —— |
@@ -45,10 +48,12 @@
 
 1. **L2 视觉回路 V0 优化迭代** ✅（2026-07-27 完成）：hero 叠字改造（图片工具填 Frame 背景）、R4-1 尺寸回填 bug、look 工具内去重、debug log 快照降噪
 2. **L2 营销字体：普惠体** ✅（2026-07-27 完成）：9 字重 PuHuiTi bundle + 修 weightToStyle 上限 bug + 8 素材类型改 font + _headers MIME + prompt 强约束——详见 `l2-marketing-font-puhuiti.md`
-3. **L2 第 4 轮护栏场景回归**（待跑）：护栏修改/删除/有意修改/类型切换 + CP3 图片来源 + 用户素材识别 + 叠字 hero 产出 + look 去重行为（用例见 `knowledge/error-catalog.md`）
-4. **L2 上下文工程（收敛版 4 项任务）**：media elision（P0，R4-3 实证）→ prompt 清理 → per-rootFrame 键控（L3 制作清单前置）→ 画布推导恢复
-5. **L2 视觉回路 V1/V2**：通道 B、素材理解、两级截图
-6. **L3 制作清单**：注册表键控就绪后启动
+3. **L2 第 4 轮护栏场景回归**（待跑）：护栏修改/删除/有意修改/类型切换 + CP3 图片来源 + 用户素材识别 + 叠字 hero 产出 + look 行为变更新版（用例见 `knowledge/error-catalog.md`）
+4. **L2 上下文工程（收敛版 4 项任务）**：media elision（chat history K=2 + 取消 dedup）→ prompt 清理 → per-rootFrame 键控（L3 制作清单前置）→ 画布推导恢复
+5. **L2 AI undo coalesce**（待启动）：按 burst 分组 coalesce：burstId 从 ChatInput.send 触发，同 burstId AI op 自动合并成单条 entry（~11 LOC 改动 + ~100 LOC 测试；预期 1 次 burst undo 内存 7.5 MB → 150 KB）
+6. **L2 视觉回路 V1/V2**：通道 B、素材理解、两级截图
+7. **L3 制作清单**：注册表键控就绪后启动
+8. **L1 生图工具优化**（方案已收敛，待排期）：P0 references 解耦（references = 唯一输入入口，id = 输出目标）+ 尺寸规范化（16px 对齐 + 约束裁剪）+ ofetch 超时；P1 错误信息解析 + `export: true` 渲染参考——见 `l1-image-gen-optimize.md`
 
 ## 待决事项汇总
 

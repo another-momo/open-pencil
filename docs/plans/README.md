@@ -31,7 +31,7 @@
 | L2 Phase 2 安全护栏 | ✅ 代码完成 | 护栏场景随第 4 轮回归验证 |
 | L2 Phase 3 实测迭代 | 🔄 3 轮冒烟完成 | **第 4 轮回归**（用例见 `knowledge/error-catalog.md` §待验证场景） |
 | L2 上下文工程（子规划） | 📋 已收敛重写（2026-07-27） | 4 项任务：media elision → prompt 清理 → per-rootFrame 键控 → 画布推导恢复（任务表见 `l2-context-engineering.md` §5） |
-| L2 视觉回路（子规划） | 🔄 V0 实测通过 + 首轮优化完成（2026-07-27） | hero 叠字改造 ✅、R4-1 尺寸回填 bug ✅、look 去重 ✅、快照降噪 ✅——待下轮冒烟验证（护栏回归 + 叠字产出 + look 去重行为） |
+| L2 视觉回路（子规划） | 🔄 V0 实测通过 + 首轮优化完成（2026-07-27） | hero 叠字改造 ✅、R4-1 尺寸回填 bug ✅、look **去重已撤销**（2026-07-27：与 media elision 的悬挂引用 bug 冲突；详见 `l2-context-engineering.md`）✅、快照降噪 ✅——待下轮冒烟验证（护栏回归 + 叠字产出 + look 行为变更新版） |
 | L2 营销字体：普惠体（子规划） | ✅ 已实施（2026-07-27） | 9 字重 PuHuiTi bundle（62MB）+ 8 素材类型改 `['Alibaba PuHuiTi']` + prompt 强约束 + _headers TTF MIME—`l2-marketing-font-puhuiti.md` |
 | L3 需求单节点 | ✅ V1 已实现 | —— |
 | L3 类型显性化 | ✅ 已实现（chips + 预推断 + 自定义尺寸兜底） | —— |

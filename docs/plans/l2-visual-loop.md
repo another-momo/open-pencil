@@ -57,11 +57,18 @@ look({ id?, focus? })
 
 理由：750×4000 的长图压到 1024 长边后文字全糊，可读性检查必须用 section 级 zoom；但每 section 都 zoom 太贵，overview 负责"哪些 section 有问题"，zoom 负责确认。
 
-### 去重与上下文控制
+### 去重与上下文控制（2026-07-27 重写）
 
-- 截图按 `nodeId + sceneVersion` 哈希，同一节点未变时复用上次结论，返回"未变化"文本，不重复发图
-- 历史窗口化：同一节点只保留最新一张图，更早的 tool result 在裁剪时替换为文字占位（`[section A 截图已省略，结论：...]`）——**此语义依赖上下文工程 Phase C 的 media elision 设计，见 §7**
-- 预算硬约束：每 section 最多 2 次 zoom look（与"修复 2 次失败删掉重来"对齐）
+**dedup 机制已被撤销**——原计划让 `look` 截图按 `nodeId + sceneVersion` 哈希复用、未变时返回"未变化"文本。**该机制在 2026-07-27 OOM 排查讨论中被取消**，原因：
+- dedup 仅节省 ~300KB / 命中率 <10%，ROI 太低
+- dedup 返回的"unchanged: true refer to your previous inspection"假设历史图存在，与 chat history 媒体 elision（必须丢弃旧图）根本冲突，产生悬挂引用
+- 实现复杂度不值收益
+
+**`look` 现在永远返回完整 base64 图**（删除 `lastLookHashes` WeakMap、`fnv1a` 哈希、`unchanged: true` 分支）。
+
+**token 成本控制完全由上下文工程的 `media elision` 负责**：chat messages 中只保留最新 K=2 张 `look` 图 base64，老的图被替换为文本占位（保留 note 文本和 meta 段）。详见 [l2-context-engineering.md §方案 1](./l2-context-engineering.md#方案-1图片-media-elision解决问题-1)。
+
+**预算硬约束**：每 section 最多 2 次 zoom look（与"修复 2 次失败删掉重来"对齐）。agent 想精确看老图 → 重 look（dedup 已取消，永远返回当前图），无成本阻力。
 
 ## 5. 触发时机（prompt 规则）
 
@@ -76,7 +83,7 @@ look({ id?, focus? })
 |---|---|---|---|
 | **V0** ✅ 代码完成（2026-07-27） | `look` 工具（`packages/core/src/tools/marketing/look.ts`）+ 通道 A（ai-adapter media 工具集合 `MEDIA_OUTPUT_TOOLS`，note 作为文本部分随图投递，debug log 省略 base64）+ prompt 规则（CP2/CP4 前置门禁、生图验收、look 纪律） | 仅 prompt + 一个工具，复用 export_image 管线；实现时发现 ai-adapter 已有 `toModelOutput` 媒体投递先例（export_image），通道 A 基础设施比预估更现成 | 第 4 轮回归后用 kimi/minimax 多模态模型跑朋友圈广告 |
 | **V1** | 通道 B（独立视觉模型配置）+ 素材理解 + 两级截图 | 设置面板 section、hash 缓存 | 文本模型 + 视觉模型组合跑长图 |
-| **V2** | 截图去重/窗口化接入上下文工程管线 + lint 降噪 + overview 一致性替代盲规则 | 上下文工程 Phase C 落地 | token 基线对比 |
+| **V2** | 窗口化（chat history K=2）接入上下文工程管线 + lint 降噪 + overview 一致性替代盲规则 | 上下文工程 Phase C 落地 | token 基线对比 |
 
 **V0 先做通道 A 的理由**：零配置、零新基础设施，最快验证"视觉回路到底提升多少"。若 V0 发现多模态模型对设计稿的判断质量差（设计审美是多模态弱项，很可能），视觉回路定位收缩为"素材理解 + 文字压图检测"两个确定性较强的用途，V1/V2 重排。
 
@@ -87,7 +94,7 @@ look({ id?, focus? })
 视觉回路是纯增量 token 消耗特性，与上下文工程（`l2-context-engineering.md`）的依赖关系：
 
 1. **token 基线在 Phase C 开工当天量**（A0 已解散，2026-07-27 讨论）：现有 debug log 的观测能力够用；基线会随 prompt/工具修改过期，提前量无意义。视觉回路的 look 开销届时一并在基线中计量。
-2. **Phase C 窗口化必须预留 media elision 语义**：裁剪时 image part 替换为文字占位，而非丢整条消息或把 base64 留在历史里。此要求应写入 `l2-context-engineering.md` Layer 3（评审意见，见 `../review/2026-07-27-context-engineering-review.md`）。
+2. **Phase C 窗口化（chat history K=2 媒体 elision）必须预留 base64 字节丢弃语义**：裁剪时 image part 替换为文本占位（保留 note 文本和 meta 段），而非丢整条消息或把 base64 留在历史里。**当前设计已收敛**：[l2-context-engineering.md §方案 1](./l2-context-engineering.md#方案-1图片-media-elision解决问题-1)（2026-07-27 重写）——保留最新 K=2 张 `look` 图 base64 + 取消 dedup + 占位保留 note 文本。
 3. **V0 结论反向决定 Phase C 设计**：视觉判断可靠 → media elision 作为一等公民 + manifest sections 加 visualCheck 字段；不可靠 → 收缩用途，Phase C 不为图片做特殊设计。
 
 顺序全景（与 `README.md` §当前执行顺序 一致）：第 4 轮回归 → 视觉 V0 → Phase B → Phase C（开工当天量基线）→ Phase A/D → 视觉 V1/V2。
@@ -103,6 +110,6 @@ look({ id?, focus? })
 | 风险 | 缓解 |
 |---|---|
 | 多模态模型审美判断不可靠 | advisory 定位 + focus 收窄问题域（"文字是否可读"比"好不好看"可靠得多）+ V0 先实测 |
-| 成本失控（每张图几百到几千 token） | 去重、窗口化 elision、每 section 预算上限；Phase C 基线中单独计量 look 开销 |
+| 成本失控（每张图几百到几千 token） | chat history 媒体 elision（K=2）+ 每 section 预算上限；Phase C 基线中单独计量 look 开销 |
 | 延迟叠加（截图 + 视觉推理每次数秒） | CP 前置门禁每轮多 5-10 秒，对"生图 60 秒"现状可接受；制作清单场景另算总账 |
 | 隐私（画布内容发第三方视觉 API） | 与现有 LLM 调用同级；视觉模型配置独立，用户可选 |

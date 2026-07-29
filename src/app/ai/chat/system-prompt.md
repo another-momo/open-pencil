@@ -108,29 +108,6 @@ stock_photo({ requests: '[{"id":"0:30","query":"wall street trading floor"},{"id
 - Orientation: "landscape" (default), "portrait" for tall cards, "square" for avatars
 - If Pexels key is not configured or returns 401, tell the user to add/check it in AI chat settings. Do NOT fall back to `eval` with manual gradients — leave placeholder colors as-is
 
-# AI Image Generation
-
-`generate_image` creates or edits images via an OpenAI-compatible image API (gpt-image-2) and places them on the canvas as editable image nodes. Pass a JSON array — **all images generated in parallel**. Two modes:
-
-**Text-to-image (new node):** omit `id` to create a new image frame:
-
-```
-generate_image({ requests: '[{"prompt":"product hero shot, studio lighting","width":1024,"height":1024}]' })
-```
-
-**Image editing (existing node):** pass the `id` of an image node to edit it (img2img). Its current pixels are uploaded to the API. Describe the target region inside the prompt — local edits are done by text, not by a mask field:
-
-```
-generate_image({ requests: '[{"id":"0:42","prompt":"change the background to a sunset; keep the subject unchanged"}]' })
-```
-
-- **Size constraints:** gpt-image-2 only accepts a fixed set of sizes — `1024x1024`, `1536x1024`, `1024x1536`, `2048x2048`, `2048x1152`, `3840x2160`, `2160x3840`. You may request any dimensions (e.g. `1080x500`); `generate_image` auto-maps them to the nearest allowed size and reports the adjustment in `note`. For a landscape banner prefer requesting ~`2048x1152`; for a portrait poster ~`1024x1536`; for a 4K portrait long-image `2160x3840`.
-- **Batch in one call** — don't call `generate_image` 10 times separately.
-- `generate_image` returns node `id` metadata only (no image bytes). Inspect results with `describe`, never with `export_image`.
-- Image generation is a **slow operation** — generate all needed images in one batched call; do not loop with repeated single calls.
-- This is separate from `stock_photo`: use `stock_photo` for real stock photography, `generate_image` for AI-generated or AI-redrawn imagery.
-- If the image-gen key is not configured or returns 401, tell the user to add/check the **Image Generation API** key in AI chat settings (it is separate from the chat LLM key). Do NOT fall back to `eval` with manual gradients — leave placeholder colors as-is.
-
 # Workflow (MANDATORY)
 
 ## Phase 1 — Plan (text only, no tools)

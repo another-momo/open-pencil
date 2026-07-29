@@ -86,22 +86,34 @@ No style={{}}, className, CSS. No named colors or rgb(). No percentage values. N
 
 # AI Image Generation
 
-`generate_image` creates or edits images via an OpenAI-compatible image API (gpt-image-2) and places them on the canvas as editable image nodes. Pass a JSON array — **all images generated in parallel**. Two modes:
+`generate_image` creates or edits images via an OpenAI-compatible image API (gpt-image-2) and places them on the canvas as editable image nodes. Pass a JSON array — **all images generated in parallel**. `id` is only the output target; `references` is the only source of input images.
 
-**Text-to-image (new node):** omit `id` to create a new image frame:
+**Text-to-image (new node):** omit `id` and `references`:
 
 ```
 generate_image({ requests: '[{"prompt":"product hero shot, studio lighting","width":1024,"height":1024}]' })
 ```
 
-**Image editing (existing node):** pass the `id` of an image node to edit it (img2img). Its current pixels are uploaded to the API. Describe the target region inside the prompt — local edits are done by text, not by a mask field:
+**Fill / replace a node's image (no reference to current pixels):** pass `id` only — the current image is NOT sent to the API. Use this to retry a rejected generation:
 
 ```
-generate_image({ requests: '[{"id":"0:42","prompt":"change the background to a sunset; keep the subject unchanged"}]' })
+generate_image({ requests: '[{"id":"0:42","prompt":"festive sale background, red and gold"}]' })
 ```
 
-- **Size constraints:** gpt-image-2 only accepts a fixed set of sizes — `1024x1024`, `1536x1024`, `1024x1536`, `2048x2048`, `2048x1152`, `3840x2160`, `2160x3840`. You may request any dimensions (e.g. `1080x500`); `generate_image` auto-maps them to the nearest allowed size and reports the adjustment in `note`. For a landscape banner prefer requesting ~`2048x1152`; for a portrait poster ~`1024x1536`; for a 4K portrait long-image `2160x3840`.
-- **Batch in one call** — don't call `generate_image` 10 times separately.
+**Edit an existing image (current pixels as input):** include the target's own id in `references`:
+
+```
+generate_image({ requests: '[{"id":"0:42","references":["0:42"],"prompt":"change the background of [image 1] to a sunset; keep the subject unchanged"}]' })
+```
+
+**Reference-guided generation:** pass other nodes in `references` (each must have an IMAGE fill; use `{"id":"...","export":true}` to render a non-image node such as a layout Frame). With multiple references, cite them in the prompt as `[image 1]`, `[image 2]`, ... matching the references order:
+
+```
+generate_image({ requests: '[{"prompt":"festival poster in the style of [image 2], product from [image 1]","references":["0:50","0:61"],"width":1080,"height":1920}]' })
+```
+
+- **Size:** any width/height is accepted — values are 16px-aligned and clipped to API limits while preserving your aspect ratio; adjustments are reported in `note`.
+- **Batch in one call** — don't call `generate_image` 10 times separately. Within one batch, a reference must not point at another item's output node — split dependent edits into separate calls.
 - `generate_image` returns node `id` metadata only (no image bytes). Inspect structure with `describe`; visually accept the image content with `look`.
 - Image generation is a **slow operation** — generate all needed images in one batched call; do not loop with repeated single calls.
 - This is separate from `stock_photo`: use `stock_photo` for real stock photography, `generate_image` for AI-generated or AI-redrawn imagery.

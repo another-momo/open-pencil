@@ -1,24 +1,52 @@
 import type { FigmaAPI } from '#core/figma-api'
 import { createImageFill } from '#core/tools/image-fill'
 
-import type { ImageGenProvider, ImageGenRequest } from './providers'
+import type { ImageGenProvider, ImageGenReference, ImageGenRequest } from './providers'
 import { normalizeSize } from './requests'
 
 export interface ImageGenExecuteResult {
   id: string
   width: number
   height: number
+  canvasWidth: number
+  canvasHeight: number
   provider: string
+  note?: string
   error?: string
 }
 
+const IMAGE_MARKER_RE = /\[image\s+\d+\]/i
+
+async function extractNodeImage(figma: FigmaAPI, nodeId: string): Promise<Uint8Array | null> {
+  const node = figma.getNodeById(nodeId)
+  if (!node) return null
+  const imgFill = node.fills.find((fill) => fill.type === 'IMAGE') as
+    | { imageHash?: string }
+    | undefined
+  if (!imgFill?.imageHash) return null
+  return figma.graph.images.get(imgFill.imageHash) ?? null
+}
+
+async function extractReferenceImage(
+  figma: FigmaAPI,
+  ref: ImageGenReference
+): Promise<Uint8Array | null> {
+  if (ref.export) {
+    if (!figma.exportImage) return null
+    return figma.exportImage([ref.id], { scale: 1, format: 'PNG' })
+  }
+  return extractNodeImage(figma, ref.id)
+}
+
 /**
- * Generate or edit an image and place it on the canvas.
+ * Generate an image and place it on the canvas.
  *
- * - No `id`: create a new FRAME sized to the request and fill it with the image.
- * - With `id`: target an existing node. If it already holds an IMAGE fill, its
- *   bytes are pulled from `graph.images` and sent to the edits endpoint (image
- *   editing). Otherwise the node receives a fresh IMAGE fill.
+ * `references` is the ONLY source of input images — the target node (`id`) is
+ * just the output destination and never contributes its pixels implicitly:
+ * - No `id`: create a new FRAME sized to the request and fill it.
+ * - With `id`: overwrite that node's fill (leaf shape or frame background).
+ * - To EDIT an existing image, the agent includes the target's own id in
+ *   `references`; to REGENERATE without the current image, it leaves it out.
  */
 export async function generateOne(
   figma: FigmaAPI,
@@ -26,26 +54,41 @@ export async function generateOne(
   req: ImageGenRequest
 ): Promise<ImageGenExecuteResult> {
   let target = req.id ? figma.getNodeById(req.id) : null
-  let baseImage: Uint8Array | undefined
 
-  if (target && req.id) {
-    const imgFill = target.fills.find((fill) => fill.type === 'IMAGE') as
-      | { imageHash?: string }
-      | undefined
-    if (imgFill?.imageHash) {
-      const bytes = figma.graph.images.get(imgFill.imageHash)
-      if (bytes) baseImage = bytes
+  const references = req.references ?? []
+  const images: Uint8Array[] = []
+  const skipped: string[] = []
+  for (const ref of references) {
+    const bytes = await extractReferenceImage(figma, ref)
+    if (bytes) images.push(bytes)
+    else skipped.push(ref.id)
+  }
+
+  if (references.length > 0) {
+    // A prompt with [image N] markers misaligns silently when any image drops
+    // out — fail loudly instead of letting the model edit the wrong image.
+    if (skipped.length > 0 && IMAGE_MARKER_RE.test(req.prompt)) {
+      throw new Error(
+        `Failed to extract reference image(s): ${skipped.join(', ')} — the prompt contains [image N] markers that would misalign; fix the references and retry`
+      )
+    }
+    if (images.length === 0) {
+      throw new Error(`Failed to extract all reference image(s): ${skipped.join(', ')}`)
     }
   }
+  const note =
+    skipped.length > 0
+      ? `Used ${images.length}/${references.length} reference image(s); skipped: ${skipped.join(', ')}`
+      : undefined
 
   if (!target) {
     target = figma.createFrame()
     target.resize(req.width ?? 1024, req.height ?? 1024)
     target.name = req.prompt.slice(0, 40) || 'Generated image'
   } else if (req.id && (req.width === undefined || req.height === undefined)) {
-    // Editing/filling without an explicit size: inherit the target node's real
-    // dimensions for the API size — mapped to the allowed enum, otherwise
-    // gpt-image-2 returns 400. Explicit width/height always win.
+    // Targeted request without an explicit size: inherit the target node's
+    // real dimensions for the API size (16px-aligned + constraint-clipped).
+    // Explicit width/height always win.
     const normalized = normalizeSize(Math.round(target.width), Math.round(target.height))
     if (!('error' in normalized)) {
       req.width = normalized.width
@@ -53,9 +96,17 @@ export async function generateOne(
     }
   }
 
-  const gen = await provider.generate(req, baseImage)
+  const gen = await provider.generate(req, images.length > 0 ? images : undefined)
 
   target.fills = [createImageFill(figma, gen.bytes)]
 
-  return { id: target.id, width: gen.width, height: gen.height, provider: provider.name }
+  return {
+    id: target.id,
+    width: gen.width,
+    height: gen.height,
+    canvasWidth: Math.round(target.width),
+    canvasHeight: Math.round(target.height),
+    provider: provider.name,
+    ...(note ? { note } : {})
+  }
 }

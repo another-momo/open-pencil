@@ -1,67 +1,112 @@
 import { parseJsonArrayParam } from '#core/tools/json-array'
 
-import type { ImageGenRequest } from './providers'
+import type { ImageGenReference, ImageGenRequest } from './providers'
+
+const SIZE_MULTIPLE = 16
+const MAX_EDGE = 3840
+const MAX_ASPECT_RATIO = 3
+const MIN_PIXELS = 655_360
+const MAX_PIXELS = 8_294_400
+
+function roundToMultiple(value: number, multiple: number) {
+  return Math.max(multiple, Math.round(value / multiple) * multiple)
+}
+
+function floorToMultiple(value: number, multiple: number) {
+  return Math.max(multiple, Math.floor(value / multiple) * multiple)
+}
+
+function ceilToMultiple(value: number, multiple: number) {
+  return Math.max(multiple, Math.ceil(value / multiple) * multiple)
+}
 
 /**
- * gpt-image-2 only accepts this enumerated set of sizes. Any other value
- * (including arbitrary 16-multiples) returns HTTP 400.
+ * Ported from gpt_image_playground/src/lib/size.ts — preserves the requested
+ * aspect ratio and only clips to platform constraints. The loop converges
+ * because constraints can conflict (e.g. ratio clipping can drop below the
+ * pixel floor, which then re-triggers the ratio constraint).
  */
-const ALLOWED_SIZES: ReadonlyArray<{ width: number; height: number; label: string }> = [
-  { width: 1024, height: 1024, label: '1024x1024' },
-  { width: 1536, height: 1024, label: '1536x1024' },
-  { width: 1024, height: 1536, label: '1024x1536' },
-  { width: 2048, height: 2048, label: '2048x2048' },
-  { width: 2048, height: 1152, label: '2048x1152' },
-  { width: 3840, height: 2160, label: '3840x2160' },
-  { width: 2160, height: 3840, label: '2160x3840' }
-]
+export function normalizeDimensions(width: number, height: number) {
+  let normalizedWidth = roundToMultiple(width, SIZE_MULTIPLE)
+  let normalizedHeight = roundToMultiple(height, SIZE_MULTIPLE)
+
+  const scaleToFit = (scale: number) => {
+    normalizedWidth = floorToMultiple(normalizedWidth * scale, SIZE_MULTIPLE)
+    normalizedHeight = floorToMultiple(normalizedHeight * scale, SIZE_MULTIPLE)
+  }
+
+  const scaleToFill = (scale: number) => {
+    normalizedWidth = ceilToMultiple(normalizedWidth * scale, SIZE_MULTIPLE)
+    normalizedHeight = ceilToMultiple(normalizedHeight * scale, SIZE_MULTIPLE)
+  }
+
+  for (let i = 0; i < 4; i++) {
+    const maxEdge = Math.max(normalizedWidth, normalizedHeight)
+    if (maxEdge > MAX_EDGE) {
+      scaleToFit(MAX_EDGE / maxEdge)
+    }
+
+    if (normalizedWidth / normalizedHeight > MAX_ASPECT_RATIO) {
+      normalizedWidth = floorToMultiple(normalizedHeight * MAX_ASPECT_RATIO, SIZE_MULTIPLE)
+    } else if (normalizedHeight / normalizedWidth > MAX_ASPECT_RATIO) {
+      normalizedHeight = floorToMultiple(normalizedWidth * MAX_ASPECT_RATIO, SIZE_MULTIPLE)
+    }
+
+    const pixels = normalizedWidth * normalizedHeight
+    if (pixels > MAX_PIXELS) {
+      scaleToFit(Math.sqrt(MAX_PIXELS / pixels))
+    } else if (pixels < MIN_PIXELS) {
+      scaleToFill(Math.sqrt(MIN_PIXELS / pixels))
+    }
+  }
+
+  return { width: normalizedWidth, height: normalizedHeight }
+}
 
 interface NormalizedSize {
   width: number
   height: number
-  label: string
   adjusted: boolean
 }
 
-/**
- * Map a requested size to the nearest allowed enumerated size. We score each
- * candidate by absolute area delta and aspect-ratio delta so a 1080x500 banner
- * lands on 2048x1152 (landscape 16:9) rather than a square.
- */
-export function normalizeSize(
-  width: number,
-  height: number
-): NormalizedSize | { error: string } {
+export function normalizeSize(width: number, height: number): NormalizedSize | { error: string } {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     return { error: `Invalid size ${width}x${height}` }
   }
-
-  const reqArea = width * height
-  const reqRatio = Math.max(width, height) / Math.min(width, height)
-
-  let best = ALLOWED_SIZES[0]
-  let bestScore = Number.POSITIVE_INFINITY
-  for (const candidate of ALLOWED_SIZES) {
-    const candArea = candidate.width * candidate.height
-    const candRatio =
-      Math.max(candidate.width, candidate.height) / Math.min(candidate.width, candidate.height)
-    const areaScore = Math.abs(candArea - reqArea) / reqArea
-    const ratioScore = Math.abs(candRatio - reqRatio) / reqRatio
-    const score = areaScore + ratioScore
-    if (score < bestScore) {
-      bestScore = score
-      best = candidate
-    }
-  }
-
-  const adjusted = best.width !== Math.round(width) || best.height !== Math.round(height)
-  return { width: best.width, height: best.height, label: best.label, adjusted }
+  const normalized = normalizeDimensions(width, height)
+  const adjusted = normalized.width !== Math.round(width) || normalized.height !== Math.round(height)
+  return { width: normalized.width, height: normalized.height, adjusted }
 }
 
 export interface ParsedImageGenRequests {
   requests: ImageGenRequest[]
   sizeNote?: string
   warning?: string
+}
+
+function parseReferences(value: unknown): ImageGenReference[] | { error: string } {
+  if (value === undefined || value === null) return []
+  if (!Array.isArray(value)) return { error: '"references" must be an array of node ids' }
+  interface RawReference {
+    id?: unknown
+    export?: unknown
+  }
+  const out: ImageGenReference[] = []
+  for (const item of value) {
+    if (typeof item === 'string' && item.trim().length > 0) {
+      out.push({ id: item })
+      continue
+    }
+    if (item && typeof item === 'object') {
+      const raw = item as RawReference
+      if (typeof raw.id === 'string' && raw.id.trim().length > 0) {
+        out.push({ id: raw.id, export: raw.export === true ? true : undefined })
+        continue
+      }
+    }
+    return { error: 'Each reference must be a node id string or { "id": "...", "export"?: true }' }
+  }
+  return out
 }
 
 export function parseImageGenRequests(value: unknown): ParsedImageGenRequests | { error: string } {
@@ -77,6 +122,7 @@ export function parseImageGenRequests(value: unknown): ParsedImageGenRequests | 
     output_format?: unknown
     output_compression?: unknown
     background?: unknown
+    references?: unknown
   }
 
   const requests = parsed.items as RawRequest[]
@@ -91,10 +137,10 @@ export function parseImageGenRequests(value: unknown): ParsedImageGenRequests | 
     if (typeof prompt !== 'string' || !prompt.trim()) {
       return { error: 'Each request needs a non-empty "prompt"' }
     }
-    // Edits (id present) may omit width/height — apply.ts reads them from the
+    // Requests with an id may omit width/height — apply.ts reads them from the
     // target node, and the provider falls back to size "auto".
     const rawId = typeof raw.id === 'string' ? raw.id : undefined
-    const isEdit = !!rawId && rawId.trim().length > 0
+    const hasTarget = !!rawId && rawId.trim().length > 0
     const hasDims = Number.isFinite(width) && Number.isFinite(height)
 
     let outWidth: number | undefined
@@ -105,14 +151,17 @@ export function parseImageGenRequests(value: unknown): ParsedImageGenRequests | 
       outWidth = normalized.width
       outHeight = normalized.height
       if (normalized.adjusted) {
-        sizeNotes.push(`${width}x${height} → ${normalized.label}`)
+        sizeNotes.push(`${width}x${height} → ${normalized.width}x${normalized.height}`)
       }
-    } else if (!isEdit) {
+    } else if (!hasTarget) {
       return { error: 'New images need numeric "width" and "height"' }
     }
 
+    const references = parseReferences(raw.references)
+    if ('error' in references) return references
+
     out.push({
-      id: isEdit ? rawId : undefined,
+      id: hasTarget ? rawId : undefined,
       prompt,
       width: outWidth,
       height: outHeight,
@@ -120,7 +169,8 @@ export function parseImageGenRequests(value: unknown): ParsedImageGenRequests | 
       outputFormat: raw.output_format as ImageGenRequest['outputFormat'],
       outputCompression:
         typeof raw.output_compression === 'number' ? raw.output_compression : undefined,
-      background: raw.background as ImageGenRequest['background']
+      background: raw.background as ImageGenRequest['background'],
+      references: references.length > 0 ? references : undefined
     })
   }
 
@@ -128,7 +178,7 @@ export function parseImageGenRequests(value: unknown): ParsedImageGenRequests | 
     requests: out
   }
   if (sizeNotes.length > 0) {
-    result.sizeNote = `Mapped to allowed gpt-image-2 sizes: ${sizeNotes.join(', ')}`
+    result.sizeNote = `Adjusted to API constraints (16px alignment, edge/ratio/pixel limits): ${sizeNotes.join(', ')}`
   }
   if (parsed.warning) result.warning = parsed.warning
   return result

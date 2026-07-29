@@ -4,6 +4,7 @@
 
 ### Added
 
+- Generate reference-guided images in `generate_image` with a new `references` parameter: pass node ids as style/content references (use `{"id":"...","export":true}` to render non-image nodes such as layout frames), cite them in the prompt as `[image 1]`, `[image 2]`, and edit an existing image by referencing the target node itself. Requested sizes now keep their aspect ratio (16px-aligned, clipped to API limits) instead of being mapped to a fixed size set.
 - Let marketing-mode AI visually inspect designs with a new `look` tool: renders any node (defaulting to the design root frame) to an image the model can see, used for generated-image acceptance and pre-checkpoint visual review. Repeated looks at an unchanged node return a text note instead of a duplicate image.
 - Fill frames with images as their background in `generate_image` and `stock_photo`, keeping children intact — enables text-over-image hero layouts in marketing designs.
 - Import HTML, CSS, Tailwind, and JSX as editable documents from the app, CLI, and SDK, and export standalone browser-ready HTML with compiled CSS and optional external assets.
@@ -29,6 +30,7 @@
 
 ### Fixed
 
+- Add a 120s timeout to image generation API calls, surface the API's actual error message (e.g. "moderation blocked") instead of a bare HTTP status, and send `moderation`/`background`/`output_compression` consistently on both generation and edit paths.
 - Honor explicit width/height in `generate_image` when filling an existing node — target-node size is now only inherited when no size is given (previously an explicit 2048×1152 request could be silently replaced by 1024×1024).
 - Keep desktop text visible across the scene and overlay canvases, refresh it after local fonts load, and preserve rendering when a requested italic face is unavailable (#395).
 - Honor node-scoped variable modes in `.fig` files so light and dark component examples keep their intended colors.

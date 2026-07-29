@@ -64,7 +64,7 @@ look({ id?, focus? })
 - dedup 返回的"unchanged: true refer to your previous inspection"假设历史图存在，与 chat history 媒体 elision（必须丢弃旧图）根本冲突，产生悬挂引用
 - 实现复杂度不值收益
 
-**`look` 现在永远返回完整 base64 图**（删除 `lastLookHashes` WeakMap、`fnv1a` 哈希、`unchanged: true` 分支）。
+**`look` 将永远返回完整 base64 图**（删除 `lastLookHashes` WeakMap、`fnv1a` 哈希、`unchanged: true` 分支；落地见 l2-context-engineering.md 任务 1，当前代码中 dedup 仍在）。
 
 **token 成本控制完全由上下文工程的 `media elision` 负责**：chat messages 中只保留最新 K=2 张 `look` 图 base64，老的图被替换为文本占位（保留 note 文本和 meta 段）。详见 [l2-context-engineering.md §方案 1](./l2-context-engineering.md#方案-1图片-media-elision解决问题-1)。
 

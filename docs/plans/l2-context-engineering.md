@@ -19,7 +19,7 @@
 
 ### 方案 1：图片 media elision（解决问题 1，2026-07-27 重写）
 
-**核心规则**：chat messages 中**只保留最新 K=2 次 `look` 工具调用的图片 base64**，其余 `look` 结果的 image 段被替换为文本占位。
+**核心规则**：每次 LLM 调用发送前，对本次请求的 messages 做纯函数变换——**所有 media tool-result（`look` + `export_image`，即 `MEDIA_OUTPUT_TOOLS` 集合）中只保留最新 K=2 张图片 base64**，其余 image 段被替换为文本占位。不只滤 `look`：`export_image` 同样返回 base64 图，agent 反复 export 会走同一条膨胀路径。
 
 **两条前置改动**：
 
@@ -28,11 +28,12 @@
    - `look` 永远返回完整 base64 图（不允许出现"指代上一张图"的"unchanged"语义）
    - 理由：dedup 文本"refer to your previous inspection"假设历史图存在，与 elision 设计根本冲突；dedup 仅省 ~300KB 字节，不值其引入的悬挂引用 bug
 
-2. **chat history 中只留最新 K=2 张 `look` 图 base64**：
-   - 每次 LLM 调用发送前（`transports.ts prepareCall`）扫描所有 `look` tool-result 消息
-   - 按消息顺序保留最新的 K=2 个
-   - 其余 `look` 消息的 content 数组中 `image/jpeg` media part 被替换为文本占位
+2. **请求级 elision：只留最新 K=2 张图 base64**：
+   - 每次 LLM 调用发送前（`transports.ts prepareCall`）扫描 `options.messages` 中所有 media tool-result 消息
+   - 按消息顺序保留最新的 K=2 个 media part
+   - 其余消息的 content 数组中 `media` part 被替换为文本占位
    - 占位**保留 note 文本和 meta 段**，只删除 base64 字节
+   - **纯函数变换，不 mutate `chat.messages`**：UI 展示态与会话持久化不受影响；prepareCall 每个 step 都会执行，变换必须幂等（已 elide 的消息再变换结果不变）
 
 **占位文本设计**：
 
@@ -47,7 +48,9 @@ agent 看到这段会自然判断：
 - 任务不需要图 → 跳过（基于 note 文字足够）
 - 任务必须看图 → 重新调 `look`（dedup 已取消，永远拿到当前图）
 
-**实现位置**：[`src/app/ai/chat/transports.ts:99 prepareCall`](open-pencil/src/app/ai/chat/transports.ts#L99)，每个 LLM 发送前 mutate `chat.messages` 数组。
+**实现位置**：[`src/app/ai/chat/transports.ts:99 prepareCall`](open-pencil/src/app/ai/chat/transports.ts#L99)，返回浅拷贝后的 messages，store 中原始消息保持不变。
+
+**Anthropic prompt cache 影响**（已知、有界）：elision 修改历史消息内容会使 cache prefix 从被改消息处失效一次。elision 对每条消息是单调一次性的，失效点只随新图产生前移，不会反复抖动；上线后观察到 cache write 随新 look 调用小幅上升属预期。
 
 **为什么不选其他方案**（已 rejected）：
 - ~~per-nodeId latest + byte budget + aging degradation~~：过度工程；byte budget 假设需要预算和跟踪，复杂度不值
@@ -61,9 +64,10 @@ agent 看到这段会自然判断：
 - 用户在 settings 面板可调
 
 **验收**：
-- 单元测试：`tests/engine/chat/elision.test.ts`（新）覆盖 5 个 case（0 张 / 1 张 / 5 张 / 跨 turn / 占位文本完整）
-- 冒烟回归：朋友圈广告冒烟重跑，单步输入峰值 <30K tokens（look 字节贡献永远 ≤ 600KB / ~60K tokens）
+- 单元测试：`tests/engine/chat/elision.test.ts`（新）覆盖 7 个 case（0 张 / 1 张 / 5 张 / 跨 turn / 占位文本完整 / `export_image` 图同样被 elide / 变换幂等且不 mutate 原数组）
+- 冒烟回归：朋友圈广告冒烟重跑，单步输入峰值从 428K 降至 **<100K tokens**（图片贡献 ≤ K=2 张 × ~30-40K tokens；<30K 的指标与 K=2 自相矛盾，已修正）
 - 取消 dedup 后既有 `picker.spec.ts` 和 `look` 调用方不变（unchanged 字段从不被设置）
+- CHANGELOG 更新：`look` 取消"未变化时返回文本"的 dedup 行为是用户可见变更（CHANGELOG.md 第 7 行记录了该特性）
 
 **为什么不担心 elision 后 agent 失去"看老图"能力**：
 - agent 的实际视觉工作记忆只需 1-2 张图（同一时刻只需看当前任务相关的几个节点）
@@ -80,11 +84,16 @@ agent 看到这段会自然判断：
 
 **键控改造**：注册表从 `WeakMap<SceneGraph, state>` 改为 `SceneGraph → Map<rootFrameId, state>`，一份文档多设计各自独立。
 
-**验收**：重开文档后 validate 可用、AI 可基于需求单结论继续设计；引擎单测验证同文档两个 root frame 状态隔离。
+**默认根 frame 消歧**：`look`/`validate` 等工具在省略 id 时目前默认取"唯一营销根 frame"（`look.ts:41-45`）。多设计并存后策略改为：
+- 文档只有 1 个活跃设计 → 保持现状，默认取它
+- 多个设计 → 默认取**最近活跃**的 root frame（注册表记录 lastActiveAt，setup/look/validate 调用时刷新）
+- 最近活跃不可用（如对应 frame 已删）→ 返回错误并列出候选设计（label + rootFrameId），要求 agent 显式传 id
+
+**验收**：重开文档后 validate 可用、AI 可基于需求单结论继续设计；引擎单测验证同文档两个 root frame 状态隔离、默认根 frame 消歧三种情况（单设计 / 多设计取最近活跃 / 多设计无活跃报候选错误）。
 
 ### 方案 3：类型关键词下沉注册表（解决问题 3）
 
-`material-types.ts` 增加 `keywords` 字段（如 `['小红书', 'xiaohongshu', '种草']`）。`setup_material_type` 工具描述从 `id (label)` 升级为 `id (label, 关键词)`——模型在决定调用 setup 之前经工具描述即可看到推断依据（tool schema 与 prompt 同等可见）。
+`material-types.ts` 在 `MaterialTypeConfig` 顶层增加 `matchKeywords` 字段（如 `['小红书', 'xiaohongshu', '种草']`）。**注意命名**：注册表已有 `StyleGuide.keywords`（风格关键词，如 '促销'），语义完全不同，不能用同名字段。`setup_material_type` 工具描述从 `id (label)` 升级为 `id (label, matchKeywords)`——模型在决定调用 setup 之前经工具描述即可看到推断依据（tool schema 与 prompt 同等可见）。
 
 prompt 删除 7 行类型映射和 ~35 行图片工具 API 细节（尺寸枚举已在 `generate_image` 的 description 里）。推断**行为规则**（变体默认+声明、不确定就问、用户锁定优先）保留在 prompt——它们是策略不是数据。
 
@@ -94,9 +103,9 @@ prompt 删除 7 行类型映射和 ~35 行图片工具 API 细节（尺寸枚举
 
 | # | 任务 | 产出物 | 依赖 |
 |---|---|---|---|
-| 1 | 取消 look dedup + 实现 chat media elision（K=2） | `look.ts` 改、`src/app/ai/chat/elision.ts`（新）、`transports.ts prepareCall`、localStorage 配置 | 无 |
-| 2 | prompt 清理：keywords 字段 + 工具描述升级 + 删冗余段落 | `material-types.ts`、`marketing.ts`、`system-prompt-marketing.md` | 无 |
-| 3 | 注册表 per-rootFrame 键控 | `marketing/registry.ts` 改造 + setup/validate 适配 | 无 |
+| 1 | 取消 look dedup + 请求级 media elision（K=2，覆盖 `MEDIA_OUTPUT_TOOLS` 全部工具） | `look.ts` 改、`src/app/ai/chat/elision.ts`（新）、`transports.ts prepareCall`、localStorage 配置、CHANGELOG | 无 |
+| 2 | prompt 清理：`matchKeywords` 字段 + 工具描述升级 + 删冗余段落 | `material-types.ts`、`marketing.ts`、`system-prompt-marketing.md` | 无 |
+| 3 | 注册表 per-rootFrame 键控 + 默认根 frame 消歧（lastActiveAt） | `marketing/registry.ts` 改造 + setup/validate/look/describe 适配 | 无 |
 | 4 | 画布推导恢复 `restoreStateFromCanvas()` | 根 frame/锚点/readonly 注册表重建 | 3 |
 
 建议顺序 1 → 2 → 3 → 4。
@@ -123,11 +132,20 @@ prompt 删除 7 行类型映射和 ~35 行图片工具 API 细节（尺寸枚举
 
 **重写版**（本次采用）：
 - **取消 dedup**：dedup 节省 ~300KB / 次（命中率 <10%），引入悬挂引用 bug、agent 行为不一致。ROI 太低，直接取消
-- **chat history 永远只留最新 K=2 张 `look` 图 base64**：用 `msg.toolName === 'look'` 过滤所有 look tool-result，按消息顺序保留最新 K=2 个
+- **请求级 elision：永远只留最新 K=2 张图 base64**：过滤所有 media tool-result（`MEDIA_OUTPUT_TOOLS`：look + export_image），按消息顺序保留最新 K=2 个，纯函数变换不碰 store
 - **elision 占位保留 note 文本 + meta 段**：删除 base64 字节（500-700MB → 几 KB 字节消息），但保留所有文本上下文
 - **agent 想精确看老图 → 重 look**（dedup 已取消，永远返回当前图）：0 阻力
 
 **实现量**：~120 行（`look.ts` 改 ~30 行，`elision.ts` 新 ~50 行，配置/接线 ~30 行，测试 ~50 行）
+
+### 2026-07-28 review 修正（实施前）
+
+1. **elision 范围从 `look` 扩到全部 media tool-result**：`export_image` 同样返回 base64 图（ai-adapter 的 `MEDIA_OUTPUT_TOOLS` 含两者），只滤 look 会漏掉 export 膨胀路径
+2. **验收指标修正**：原"单步峰值 <30K"与 K=2 × 30-40K tokens/张 自相矛盾，改为 <100K（较 428K 降 >75%）
+3. **不 mutate `chat.messages`**：改为 prepareCall 纯函数变换，避免污染 UI 展示态与会话持久化；补充幂等要求与 Anthropic cache 影响说明
+4. **`matchKeywords` 命名**：避免与已有 `StyleGuide.keywords`（风格关键词）冲突
+5. **补默认根 frame 消歧策略**：per-rootFrame 键控后 look/validate 省略 id 的默认行为必须定义（最近活跃 + 候选报错）
+6. **测试 case 扩到 7 个**：补 export_image elide、幂等/不变异原数组两条
 
 ### 2026-07-27 误诊修正（实施前讨论）
 

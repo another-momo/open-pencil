@@ -61,6 +61,7 @@ Property-panel anatomy in `packages/vue/src/primitives/PropertySection/`, `Segme
 - `bun run test:unit` — engine/unit tests (**do not run on dev machines — see "Unit test scope" below**)
 - `bun run test` — Playwright E2E and visual regression tests
 - `bun run tauri dev` — desktop app with hot reload
+- `bun open-pencil --help` — list CLI commands. Common commands include `info`, `tree`, `find`, `node`, `pages`, `variables`, `export`, `import`, `convert`, `lint`, `query`, `selection`, `formats`, `analyze ...`, and `eval` for Figma Plugin API scripting.
 
 ### Unit test scope
 
@@ -86,7 +87,6 @@ Environment-dependent failures policy:
 - Network-dependent tests must self-skip with a loud warning (see the `networkTest` guard in `tests/engine/icons/iconify.test.ts`); never weaken assertions to make an env failure pass, and never silently delete the test.
 - Heavy tests assume LFS fixtures are pulled (`git lfs pull`); if fixtures are missing the failure is environmental, not a product bug — pull LFS or skip the heavy file.
 - A test that fails locally but passes in CI is an environment issue: guard it (skip with warning) or fix the environment. Report patterns of such failures instead of working around them one by one.
-- `bun open-pencil --help` — list CLI commands. Common commands include `info`, `tree`, `find`, `node`, `pages`, `variables`, `export`, `import`, `convert`, `lint`, `query`, `selection`, `formats`, `analyze ...`, and `eval` for Figma Plugin API scripting.
 
 ## Releases & CI
 

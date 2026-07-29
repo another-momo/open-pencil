@@ -32,7 +32,7 @@
 | L2 Phase 1 核心链路 | ✅ 代码完成 | —— |
 | L2 Phase 2 安全护栏 | ✅ 代码完成 | 护栏场景随第 4 轮回归验证 |
 | L2 Phase 3 实测迭代 | 🔄 3 轮冒烟完成 | **第 4 轮回归**（用例见 `knowledge/error-catalog.md` §待验证场景） |
-| L2 上下文工程（子规划） | 📋 已收敛重写（2026-07-27） | 4 项任务：media elision → prompt 清理 → per-rootFrame 键控 → 画布推导恢复（任务表见 `l2-context-engineering.md` §5） |
+| L2 上下文工程（子规划） | 🔄 任务 1/2 已实施（2026-07-28） | 任务 3：注册表 per-rootFrame 键控 + 默认根 frame 消歧（lastActiveAt 持久化策略待决）→ 任务 4：画布推导恢复（任务表见 `l2-context-engineering.md` §5） |
 | L2 AI undo coalesce（子规划） | ✅ 已实施（2026-07-28） | 随第 4 轮回归做冒烟验证：DevTools memory（1 次 burst 后 undo ≤ 200 KB）+ Ctrl+Z 撤销整段 burst 行为 |
 | L2 视觉回路（子规划） | 🔄 V0 实测通过 + 首轮优化完成（2026-07-27） | hero 叠字改造 ✅、R4-1 尺寸回填 bug ✅、look **去重已撤销**（2026-07-27：与 media elision 的悬挂引用 bug 冲突；详见 `l2-context-engineering.md`）✅、快照降噪 ✅——待下轮冒烟验证（护栏回归 + 叠字产出 + look 行为变更新版） |
 | L2 营销字体：普惠体（子规划） | ✅ 已实施（2026-07-27） | 9 字重 PuHuiTi bundle（62MB）+ 8 素材类型改 `['Alibaba PuHuiTi']` + prompt 强约束 + _headers TTF MIME—`l2-marketing-font-puhuiti.md` |
@@ -49,7 +49,7 @@
 1. **L2 视觉回路 V0 优化迭代** ✅（2026-07-27 完成）：hero 叠字改造（图片工具填 Frame 背景）、R4-1 尺寸回填 bug、look 工具内去重、debug log 快照降噪
 2. **L2 营销字体：普惠体** ✅（2026-07-27 完成）：9 字重 PuHuiTi bundle + 修 weightToStyle 上限 bug + 8 素材类型改 font + _headers MIME + prompt 强约束——详见 `l2-marketing-font-puhuiti.md`
 3. **L2 第 4 轮护栏场景回归**（待跑）：护栏修改/删除/有意修改/类型切换 + CP3 图片来源 + 用户素材识别 + 叠字 hero 产出 + look 行为变更新版（用例见 `knowledge/error-catalog.md`）
-4. **L2 上下文工程（收敛版 4 项任务）**：media elision（chat history K=2 + 取消 dedup）→ prompt 清理 → per-rootFrame 键控（L3 制作清单前置）→ 画布推导恢复
+4. **L2 上下文工程**：任务 1 ✅ media elision（K=2 请求级变换 + 取消 dedup，2026-07-28）、任务 2 ✅ matchKeywords 下沉（2026-07-28）→ 任务 3 per-rootFrame 键控（L3 制作清单前置）→ 任务 4 画布推导恢复
 5. **L2 AI undo coalesce** ✅（2026-07-28 实施完成）：burstId + coalesceKey 合并 AI undo entry；冒烟验证（内存 + 撤销行为）随第 4 轮回归
 6. **L2 视觉回路 V1/V2**：通道 B、素材理解、两级截图
 7. **L3 制作清单**：注册表键控就绪后启动

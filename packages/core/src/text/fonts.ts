@@ -2,7 +2,7 @@ import type { CanvasKit, TypefaceFontProvider } from 'canvaskit-wasm'
 
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
-import { DEFAULT_FONT_FAMILY, IS_BROWSER } from '#core/constants'
+import { IS_BROWSER } from '#core/constants'
 import {
   chooseLocalFontMatch,
   isVariableFont,

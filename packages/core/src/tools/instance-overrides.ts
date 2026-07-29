@@ -9,7 +9,7 @@ import { INSTANCE_SYNC_PROPS, INSTANCE_SYNC_TEXT_PROPS } from '@open-pencil/scen
 
 const SYNCED_PROPS = new Set<string>([...INSTANCE_SYNC_PROPS, ...INSTANCE_SYNC_TEXT_PROPS])
 
-function findEnclosingInstance(graph: SceneGraph, nodeId: string): SceneNode | undefined {
+export function findEnclosingInstance(graph: SceneGraph, nodeId: string): SceneNode | undefined {
   let cursor = graph.getNode(nodeId)
   while (cursor) {
     if (cursor.type === 'INSTANCE') return cursor
@@ -41,5 +41,36 @@ export function recordInstanceOverrides(
 
   graph.updateNode(instance.id, {
     overrides: { ...instance.overrides, ...additions }
+  })
+}
+
+/**
+ * Preserve the component-child mapping when a tool replaces a node inside an
+ * INSTANCE with newly rendered content (render replace_id, node_replace_with).
+ * Without this the replacement loses its `componentId` mapping, so the next
+ * component sync clones the original component child back in alongside it and
+ * the rendered content appears reverted.
+ *
+ * The new node keeps the old mapping, but all synced props are frozen as
+ * overrides and child-sync recursion is stopped (`<id>:componentId`): a
+ * rendered replacement is wholesale — its entire subtree is managed by the
+ * new content, not by the component.
+ */
+export function preserveInstanceChildReplacement(
+  graph: SceneGraph,
+  replacedNode: Pick<SceneNode, 'type' | 'componentId'>,
+  newNodeId: string
+): void {
+  if (replacedNode.type === 'INSTANCE' || !replacedNode.componentId) return
+  const instance = findEnclosingInstance(graph, newNodeId)
+  if (!instance) return
+
+  graph.updateNode(newNodeId, { componentId: replacedNode.componentId })
+  recordInstanceOverrides(graph, newNodeId, SYNCED_PROPS)
+
+  const current = graph.getNode(instance.id)
+  if (!current) return
+  graph.updateNode(instance.id, {
+    overrides: { ...current.overrides, [`${newNodeId}:componentId`]: true }
   })
 }

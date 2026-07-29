@@ -93,4 +93,48 @@ describe('render', () => {
     expect(result.fontWeight).toBe(700)
     expect(result.textAlignHorizontal).toBe('CENTER')
   })
+
+  test('replace_id on instance child preserves mapping and survives component sync', async () => {
+    const { graph, figma } = setupToolTest()
+    const pageId = graph.getPages()[0].id
+    const component = graph.createNode('COMPONENT', pageId, { name: 'CTA', width: 200, height: 48 })
+    const label = graph.createNode('TEXT', component.id, { name: 'label', text: 'Buy' })
+    const instance = expectDefined(graph.createInstance(component.id, pageId))
+    const childId = expectDefined(instance.childIds[0])
+
+    const render = getTool('render')
+    const result = (await render.execute(figma, {
+      replace_id: childId,
+      jsx: '<Text name="label" size={20} color="#00F">Shop now</Text>'
+    })) as ToolResult
+    const newId = expectDefined(result.id)
+
+    expect(graph.getNode(newId)?.componentId).toBe(label.id)
+    const synced = expectDefined(graph.getNode(instance.id))
+    expect(synced.overrides[`${newId}:text`]).toBe(true)
+    expect(synced.overrides[`${newId}:componentId`]).toBe(true)
+
+    graph.updateNode(label.id, { text: 'Buy today' })
+    graph.syncInstances(component.id)
+
+    const after = expectDefined(graph.getNode(instance.id))
+    expect(after.childIds).toHaveLength(1)
+    expect(graph.getNode(expectDefined(after.childIds[0]))?.text).toBe('Shop now')
+  })
+
+  test('replace_id on plain node records no overrides', async () => {
+    const { graph, figma } = setupToolTest()
+    const pageId = graph.getPages()[0].id
+    const frame = graph.createNode('FRAME', pageId, { name: 'Card', width: 200, height: 100 })
+    const text = graph.createNode('TEXT', frame.id, { name: 'label', text: 'Old' })
+
+    const render = getTool('render')
+    const result = (await render.execute(figma, {
+      replace_id: text.id,
+      jsx: '<Text name="label">New</Text>'
+    })) as ToolResult
+
+    expect(graph.getNode(expectDefined(result.id))?.text).toBe('New')
+    expect(Object.keys(expectDefined(graph.getNode(frame.id)).overrides)).toHaveLength(0)
+  })
 })

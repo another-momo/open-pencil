@@ -80,3 +80,37 @@ describe('group_nodes', () => {
     expect(group.children.length).toBe(2)
   })
 })
+
+describe('node_replace_with', () => {
+  test('replacing an instance child preserves mapping and survives component sync', async () => {
+    const { graph, figma } = setupToolTest()
+    const pageId = graph.getPages()[0].id
+    const component = graph.createNode('COMPONENT', pageId, {
+      name: 'CTA',
+      width: 200,
+      height: 48
+    })
+    const label = graph.createNode('TEXT', component.id, { name: 'label', text: 'Buy' })
+    const instance = expectDefined(graph.createInstance(component.id, pageId))
+    const childId = expectDefined(instance.childIds[0])
+
+    const tool = getTool('node_replace_with')
+    const result = (await tool.execute(figma, {
+      id: childId,
+      jsx: '<Text name="label" size={20} color="#00F">Shop now</Text>'
+    })) as ToolResult
+    const newId = expectDefined(result.id)
+
+    expect(graph.getNode(newId)?.componentId).toBe(label.id)
+    const synced = expectDefined(graph.getNode(instance.id))
+    expect(synced.overrides[`${newId}:text`]).toBe(true)
+    expect(synced.overrides[`${newId}:componentId`]).toBe(true)
+
+    graph.updateNode(label.id, { text: 'Buy today' })
+    graph.syncInstances(component.id)
+
+    const after = expectDefined(graph.getNode(instance.id))
+    expect(after.childIds).toHaveLength(1)
+    expect(graph.getNode(expectDefined(after.childIds[0]))?.text).toBe('Shop now')
+  })
+})

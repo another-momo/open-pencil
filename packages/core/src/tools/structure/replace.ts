@@ -1,3 +1,6 @@
+import type { SceneNode } from '@open-pencil/scene-graph'
+
+import { preserveInstanceChildReplacement } from '#core/tools/instance-overrides'
 import { defineTool } from '#core/tools/schema'
 
 export const nodeReplaceWith = defineTool({
@@ -14,10 +17,15 @@ export const nodeReplaceWith = defineTool({
     const parentId = node.parent?.id ?? figma.currentPageId
     const x = node.x
     const y = node.y
+    const target = figma.graph.getNode(args.id)
+    const replaced: Pick<SceneNode, 'type' | 'componentId'> | undefined = target
+      ? { type: target.type, componentId: target.componentId }
+      : undefined
     node.remove()
     const { renderJSX } = await import('#core/design-jsx/render.js')
     const results = await renderJSX(figma.graph, args.jsx, { parentId, x, y })
     const result = results[0]
+    if (replaced) preserveInstanceChildReplacement(figma.graph, replaced, result.id)
     return {
       id: result.id,
       name: result.name,

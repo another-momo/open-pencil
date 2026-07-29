@@ -1,3 +1,6 @@
+import type { SceneNode } from '@open-pencil/scene-graph'
+
+import { preserveInstanceChildReplacement } from '#core/tools/instance-overrides'
 import { defineTool } from '#core/tools/schema'
 
 export const render = defineTool({
@@ -24,9 +27,11 @@ export const render = defineTool({
 
     let parentId = args.parent_id ?? figma.currentPageId
     let replaceIndex = -1
+    let replaced: Pick<SceneNode, 'type' | 'componentId'> | undefined
 
     if (args.replace_id) {
       const target = figma.graph.getNode(args.replace_id)
+      if (target) replaced = { type: target.type, componentId: target.componentId }
       if (target?.parentId) {
         parentId = target.parentId
         const parent = figma.graph.getNode(parentId)
@@ -46,6 +51,7 @@ export const render = defineTool({
     if (args.replace_id && replaceIndex >= 0) {
       figma.graph.reorderChild(result.id, parentId, replaceIndex)
       figma.graph.deleteNode(args.replace_id)
+      if (replaced) preserveInstanceChildReplacement(figma.graph, replaced, result.id)
     } else if (args.insert_index !== undefined) {
       figma.graph.reorderChild(result.id, parentId, args.insert_index)
     }

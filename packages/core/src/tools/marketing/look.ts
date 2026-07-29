@@ -1,21 +1,8 @@
-import type { SceneGraph } from '@open-pencil/scene-graph'
-
 import { defineTool } from '#core/tools/schema'
 import { getMarketingState } from '#core/tools/marketing/registry'
 import { uint8ArrayToBase64 } from '#core/tools/vector/export'
 
 const MAX_LONG_EDGE = 1024
-
-const lastLookHashes = new WeakMap<SceneGraph, Map<string, number>>()
-
-function fnv1a(bytes: Uint8Array): number {
-  let hash = 0x811c9dc5
-  for (const byte of bytes) {
-    hash ^= byte
-    hash = Math.imul(hash, 0x01000193)
-  }
-  return hash >>> 0
-}
 
 export const lookTool = defineTool({
   name: 'look',
@@ -51,21 +38,6 @@ export const lookTool = defineTool({
     const scale = longEdge > 0 ? Math.max(0.1, Math.min(1, MAX_LONG_EDGE / longEdge)) : 1
     const data = await figma.exportImage([targetId], { scale, format: 'JPG' })
     if (!data || data.length === 0) return { error: 'Nothing visible to inspect' }
-
-    const hash = fnv1a(data)
-    let graphHashes = lastLookHashes.get(figma.graph)
-    if (!graphHashes) {
-      graphHashes = new Map()
-      lastLookHashes.set(figma.graph, graphHashes)
-    }
-    if (graphHashes.get(targetId) === hash) {
-      return {
-        unchanged: true,
-        node: { id: targetId, name: node.name, width: node.width, height: node.height },
-        note: `"${node.name}" is visually unchanged since your last look — refer to that inspection instead of re-evaluating. If you believe something changed, use describe to verify structure.`
-      }
-    }
-    graphHashes.set(targetId, hash)
 
     return {
       base64: uint8ArrayToBase64(data),

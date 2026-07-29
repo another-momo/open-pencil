@@ -70,6 +70,7 @@
   "baseURL": "ベースURL",
   "modelID": "モデルID",
   "maxOutputTokens": "最大出力トークン数",
+  "lookImagesKept": "コンテキストに保持する画像数",
   "clear": "クリア",
   "keySavedReplace": "キーが保存されました - 上書きするには新しいキーを入力してください",
   "getAPIKeyGeneric": "APIキーを取得 →",

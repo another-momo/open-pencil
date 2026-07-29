@@ -13,6 +13,7 @@ import {
   imageGenModel,
   isACPProvider,
   isConfigured,
+  lookImagesKept,
   maxOutputTokens,
   modelID,
   pexelsApiKey,
@@ -69,6 +70,7 @@ export function useAIChat() {
     chatMode,
     activeTab,
     isConfigured,
+    lookImagesKept,
     ensureChat: chatSession.ensureChat,
     resetChat: chatSession.resetChat
   }

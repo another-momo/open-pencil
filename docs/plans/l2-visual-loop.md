@@ -57,16 +57,15 @@ look({ id?, focus? })
 
 理由：750×4000 的长图压到 1024 长边后文字全糊，可读性检查必须用 section 级 zoom；但每 section 都 zoom 太贵，overview 负责"哪些 section 有问题"，zoom 负责确认。
 
-### 去重与上下文控制（2026-07-27 重写）
+### 去重与上下文控制（2026-07-28 更新）
 
-**dedup 机制已被撤销**——原计划让 `look` 截图按 `nodeId + sceneVersion` 哈希复用、未变时返回"未变化"文本。**该机制在 2026-07-27 OOM 排查讨论中被取消**，原因：
+**dedup 机制已取消并落地**（2026-07-28）：`look` 永远返回完整 base64 图，`lastLookHashes`/`fnv1a`/`unchanged: true` 分支已从 `look.ts` 删除。取消原因：
+
 - dedup 仅节省 ~300KB / 命中率 <10%，ROI 太低
 - dedup 返回的"unchanged: true refer to your previous inspection"假设历史图存在，与 chat history 媒体 elision（必须丢弃旧图）根本冲突，产生悬挂引用
 - 实现复杂度不值收益
 
-**`look` 将永远返回完整 base64 图**（删除 `lastLookHashes` WeakMap、`fnv1a` 哈希、`unchanged: true` 分支；落地见 l2-context-engineering.md 任务 1，当前代码中 dedup 仍在）。
-
-**token 成本控制完全由上下文工程的 `media elision` 负责**：chat messages 中只保留最新 K=2 张 `look` 图 base64，老的图被替换为文本占位（保留 note 文本和 meta 段）。详见 [l2-context-engineering.md §方案 1](./l2-context-engineering.md#方案-1图片-media-elision解决问题-1)。
+**token 成本控制由请求级 media elision 负责**（2026-07-28 已落地）：每次 LLM 调用前对请求 messages 做纯函数变换，只保留最新 K=2 张 media 图 base64（覆盖 `look` + `export_image`），老的图被替换为文本占位（保留 note 文本）。K 值可在设置面板调整（1-3）。详见 [l2-context-engineering.md §方案 1](./l2-context-engineering.md#方案-1图片-media-elision解决问题-1)。
 
 **预算硬约束**：每 section 最多 2 次 zoom look（与"修复 2 次失败删掉重来"对齐）。agent 想精确看老图 → 重 look（dedup 已取消，永远返回当前图），无成本阻力。
 

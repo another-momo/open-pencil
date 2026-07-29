@@ -70,6 +70,7 @@
   "baseURL": "URL base",
   "modelID": "ID Modelo",
   "maxOutputTokens": "Tokens de salida máx.",
+  "lookImagesKept": "Imágenes conservadas en el contexto",
   "clear": "Limpiar",
   "keySavedReplace": "Clave guardada - introduce una nueva para reemplazarla",
   "getAPIKeyGeneric": "Obtener clave API →",

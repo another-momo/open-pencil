@@ -5,7 +5,7 @@
 ### Added
 
 - Generate reference-guided images in `generate_image` with a new `references` parameter: pass node ids as style/content references (use `{"id":"...","export":true}` to render non-image nodes such as layout frames), cite them in the prompt as `[image 1]`, `[image 2]`, and edit an existing image by referencing the target node itself. Requested sizes now keep their aspect ratio (16px-aligned, clipped to API limits) instead of being mapped to a fixed size set.
-- Let marketing-mode AI visually inspect designs with a new `look` tool: renders any node (defaulting to the design root frame) to an image the model can see, used for generated-image acceptance and pre-checkpoint visual review. Repeated looks at an unchanged node return a text note instead of a duplicate image.
+- Let marketing-mode AI visually inspect designs with a new `look` tool: renders any node (defaulting to the design root frame) to an image the model can see, used for generated-image acceptance and pre-checkpoint visual review.
 - Fill frames with images as their background in `generate_image` and `stock_photo`, keeping children intact — enables text-over-image hero layouts in marketing designs.
 - Import HTML, CSS, Tailwind, and JSX as editable documents from the app, CLI, and SDK, and export standalone browser-ready HTML with compiled CSS and optional external assets.
 - Author richer Design JSX with components, instances, variables, gradients, structured fills, shadows, and blur effects.
@@ -21,6 +21,7 @@
 
 ### Changed
 
+- Keep only the 2 most recent tool-result images (from `look`/`export_image`) in each AI request — older screenshots become text placeholders that preserve their notes, cutting runaway context growth in long marketing sessions (configurable 1–3 in AI settings).
 - Coalesce AI tool undo entries per chat message (burst): one Ctrl+Z now reverts the whole AI run for a message instead of a single tool call, cutting undo memory for a 50-step AI session from ~7.5 MB to ~150 KB.
 - Redesign the editor chrome and Design panel with denser aligned controls, clearer selection and section states, improved menus and overlays, consistent light/dark theming, and better keyboard and screen-reader behavior.
 - Scale the Layers panel to documents with thousands of nodes through virtualized rows, faster incremental updates, stable expansion, range selection, and scroll-to-selection.

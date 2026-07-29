@@ -7,6 +7,7 @@ import ApiKeySection from '@/components/chat/ProviderSettings/ApiKeySection.vue'
 import ApiTypeSection from '@/components/chat/ProviderSettings/ApiTypeSection.vue'
 import ChatModeSection from '@/components/chat/ProviderSettings/ChatModeSection.vue'
 import CustomEndpointSection from '@/components/chat/ProviderSettings/CustomEndpointSection.vue'
+import LookImagesKeptSection from '@/components/chat/ProviderSettings/LookImagesKeptSection.vue'
 import MaxTokensSection from '@/components/chat/ProviderSettings/MaxTokensSection.vue'
 import ProviderSelectField from '@/components/chat/ProviderSelect/ProviderSelectField.vue'
 import StockPhotoKeysSection from '@/components/chat/ProviderSettings/StockPhotoKeysSection.vue'
@@ -64,6 +65,7 @@ function onInteractOutside(e: Event) {
               <CustomEndpointSection />
               <ApiKeySection />
               <MaxTokensSection />
+              <LookImagesKeptSection />
               <ApiTypeSection />
               <TestConnectionSection />
             </div>

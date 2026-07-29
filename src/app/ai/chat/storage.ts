@@ -51,6 +51,9 @@ export const customAPIType = useLocalStorage<'completions' | 'responses'>(
   'completions'
 )
 export const maxOutputTokens = useLocalStorage(`${STORAGE_PREFIX}ai-max-output-tokens`, 16384)
+// Media elision: how many recent tool-result images (look/export_image) are
+// kept as base64 in each LLM request; older ones become text placeholders.
+export const lookImagesKept = useLocalStorage(`${STORAGE_PREFIX}ai-look-images-kept`, 2)
 export const pexelsApiKey = useLocalStorage(`${STORAGE_PREFIX}pexels-api-key`, '')
 export const unsplashAccessKey = useLocalStorage(`${STORAGE_PREFIX}unsplash-access-key`, '')
 // Image-generation credentials — independent from the chat LLM key/base URL.

@@ -7,6 +7,8 @@ import { ACP_AGENTS } from '@open-pencil/core/constants'
 import type { ACPAgentID, AIProviderID } from '@open-pencil/core/constants'
 
 import { createLanguageModel, resolveLanguageModelID } from '@/app/ai/chat/model'
+import { elideMediaToolResults } from '@/app/ai/chat/elision'
+import { lookImagesKept } from '@/app/ai/chat/storage'
 import type { ChatMode } from '@/app/ai/chat/storage'
 import SYSTEM_PROMPT_MARKETING from '@/app/ai/chat/system-prompt-marketing.md?raw'
 import SYSTEM_PROMPT from '@/app/ai/chat/system-prompt.md?raw'
@@ -98,8 +100,12 @@ export function createToolLoopTransport({
     providerOptions: cacheProviderOptions,
     prepareCall: (options) => {
       resetRunSteps(store)
+      const keep = Math.min(3, Math.max(1, Math.round(lookImagesKept.value) || 2))
       return {
         ...options,
+        ...(options.messages
+          ? { messages: elideMediaToolResults(options.messages, keep) }
+          : {}),
         maxOutputTokens,
         providerOptions: cacheProviderOptions
       }

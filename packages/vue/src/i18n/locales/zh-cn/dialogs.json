@@ -70,6 +70,7 @@
   "baseURL": "Base URL",
   "modelID": "模型 ID",
   "maxOutputTokens": "最大输出 token 数",
+  "lookImagesKept": "上下文中保留的图片数",
   "clear": "清除",
   "keySavedReplace": "密钥已保存，输入新密钥以替换",
   "getAPIKeyGeneric": "获取 API 密钥 →",

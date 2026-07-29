@@ -124,6 +124,7 @@ export const dialogMessageDefaults = {
   baseURL: 'Base URL',
   modelID: 'Model ID',
   maxOutputTokens: 'Max output tokens',
+  lookImagesKept: 'Images kept in context',
   clear: 'Clear',
   keySavedReplace: 'Key saved — enter new to replace',
   getAPIKeyGeneric: 'Get API key →',

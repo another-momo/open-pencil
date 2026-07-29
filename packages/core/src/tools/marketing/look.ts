@@ -1,5 +1,9 @@
 import { defineTool } from '#core/tools/schema'
-import { getMarketingState } from '#core/tools/marketing/registry'
+import {
+  getMarketingState,
+  listMarketingDesigns,
+  touchMarketingState
+} from '#core/tools/marketing/registry'
 import { uint8ArrayToBase64 } from '#core/tools/vector/export'
 
 const MAX_LONG_EDGE = 1024
@@ -27,8 +31,15 @@ export const lookTool = defineTool({
     if (!targetId) {
       const state = getMarketingState(figma.graph)
       if (!state) {
+        const designs = listMarketingDesigns(figma.graph)
+        if (designs.length > 1) {
+          return {
+            error: `Multiple marketing designs — pass an explicit id. Candidates: ${designs.map((design) => `"${design.rootFrameId}" (${design.materialTypeId})`).join(', ')}`
+          }
+        }
         return { error: 'No id given and no marketing session root frame — pass an explicit node id' }
       }
+      touchMarketingState(figma.graph, state.rootFrameId)
       targetId = state.rootFrameId
     }
     const node = figma.graph.getNode(targetId)

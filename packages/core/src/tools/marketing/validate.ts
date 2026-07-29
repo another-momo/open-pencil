@@ -10,7 +10,12 @@ import type { SceneNode } from '@open-pencil/scene-graph'
 
 import type { FigmaAPI } from '#core/figma-api'
 import { getMaterialType } from '#core/tools/marketing/material-types'
-import { getMarketingState } from '#core/tools/marketing/registry'
+import {
+  getMarketingState,
+  listMarketingDesigns,
+  touchMarketingState,
+  type MarketingDocumentState
+} from '#core/tools/marketing/registry'
 
 export interface ValidateViolation {
   type:
@@ -38,10 +43,12 @@ function sameValue(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b)
 }
 
-function checkReadonly(figma: FigmaAPI, violations: ValidateViolation[]): number {
+function checkReadonly(
+  figma: FigmaAPI,
+  state: MarketingDocumentState,
+  violations: ValidateViolation[]
+): number {
   const graph = figma.graph
-  const state = getMarketingState(graph)
-  if (!state) return 0
 
   let modified = 0
   for (const [nodeId, info] of state.readonly) {
@@ -73,10 +80,12 @@ function checkReadonly(figma: FigmaAPI, violations: ValidateViolation[]): number
   return modified
 }
 
-function checkStructure(figma: FigmaAPI, violations: ValidateViolation[]): void {
+function checkStructure(
+  figma: FigmaAPI,
+  state: MarketingDocumentState,
+  violations: ValidateViolation[]
+): void {
   const graph = figma.graph
-  const state = getMarketingState(graph)
-  if (!state) return
 
   const config = getMaterialType(state.materialTypeId)
   const rootFrame = graph.getNode(state.rootFrameId)
@@ -121,25 +130,35 @@ function checkStructure(figma: FigmaAPI, violations: ValidateViolation[]): void 
   }
 }
 
-export function validateMarketingDesign(figma: FigmaAPI, accept: boolean): ValidateResult {
+export function validateMarketingDesign(
+  figma: FigmaAPI,
+  accept: boolean,
+  rootFrameId?: string
+): ValidateResult {
   const graph = figma.graph
-  const state = getMarketingState(graph)
+  const state = getMarketingState(graph, rootFrameId)
   if (!state) {
+    const designs = listMarketingDesigns(graph)
+    const message =
+      !rootFrameId && designs.length > 1
+        ? `Multiple marketing designs — pass an explicit id. Candidates: ${designs.map((design) => `"${design.rootFrameId}" (${design.materialTypeId})`).join(', ')}`
+        : 'No marketing design state found'
     return {
       valid: false,
       violations: [
         {
           type: 'readonly_deleted',
-          message: 'No marketing design state found',
+          message,
           fix: 'Call setup_material_type first to set up a marketing design.'
         }
       ]
     }
   }
+  touchMarketingState(graph, state.rootFrameId)
 
   const violations: ValidateViolation[] = []
-  checkReadonly(figma, violations)
-  checkStructure(figma, violations)
+  checkReadonly(figma, state, violations)
+  checkStructure(figma, state, violations)
 
   if (accept) {
     let accepted = 0

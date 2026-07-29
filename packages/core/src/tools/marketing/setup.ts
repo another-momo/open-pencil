@@ -29,9 +29,10 @@ import {
 } from '#core/tools/marketing/material-types'
 import {
   clearMarketingState,
-  getMarketingState,
+  listMarketingDesigns,
   setMarketingState,
-  type AnchorRecord
+  type AnchorRecord,
+  type MarketingDocumentState
 } from '#core/tools/marketing/registry'
 
 const COMPONENTS_PAGE_NAME = 'Components'
@@ -239,7 +240,7 @@ function rebuildAnchorInstance(
 function resolveAnchors(
   figma: FigmaAPI,
   config: MaterialTypeConfig,
-  existing: ReturnType<typeof getMarketingState>,
+  existing: MarketingDocumentState | undefined,
   isRepair: boolean,
   componentsPageId: string,
   rootFrameId: string
@@ -307,23 +308,46 @@ export function setupMaterialType(
   }
 
   const graph = figma.graph
-  const existing = getMarketingState(graph)
+  const designs = listMarketingDesigns(graph)
+
+  // Repair targets the design of the SAME type; otherwise adopt the root
+  // frame named after this type's label (if any) and continue that design.
+  // Other designs in the same document are never touched.
+  const sameType = designs.find((design) => design.materialTypeId === id)
+  if (sameType && !graph.getNode(sameType.rootFrameId)) {
+    clearMarketingState(graph, sameType.rootFrameId)
+  }
+
+  let existing: MarketingDocumentState | undefined
+  let rootFrameId: string | undefined
+  if (sameType && graph.getNode(sameType.rootFrameId)) {
+    existing = sameType
+    rootFrameId = sameType.rootFrameId
+  } else {
+    const found = findRootFrame(graph, config)
+    rootFrameId = found?.id
+    existing = rootFrameId ? designs.find((design) => design.rootFrameId === rootFrameId) : undefined
+  }
+
   const isRepair = existing?.materialTypeId === id
 
+  // Type switch on an adopted root frame: replace only that design's
+  // anchors and registry entry — sibling designs stay intact.
   if (existing && !isRepair) {
     for (const anchor of existing.anchors) {
       if (graph.getNode(anchor.instanceId)) graph.deleteNode(anchor.instanceId)
     }
-    clearMarketingState(graph)
+    clearMarketingState(graph, existing.rootFrameId)
   }
 
-  let rootFrameId = isRepair ? existing.rootFrameId : undefined
   if (!rootFrameId || !graph.getNode(rootFrameId)) {
-    const found = findRootFrame(graph, config)
-    rootFrameId = found?.id ?? createRootFrame(figma, config)
+    rootFrameId = createRootFrame(figma, config)
   }
 
-  const componentsPageId = ensureComponentsPage(figma, existing?.componentsPageId)
+  const componentsPageId = ensureComponentsPage(
+    figma,
+    existing?.componentsPageId ?? designs[0]?.componentsPageId
+  )
 
   const resolved = resolveAnchors(figma, config, existing, isRepair, componentsPageId, rootFrameId)
   if ('error' in resolved) return resolved

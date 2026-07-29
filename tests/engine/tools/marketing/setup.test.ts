@@ -149,7 +149,7 @@ test('repair mode re-materializes an anchor with missing readonly children', () 
   expect(stale).toEqual([])
 })
 
-test('switching material type clears previous anchors', () => {
+test('setting up a second type creates a coexisting design and preserves the first', () => {
   const { graph, figma } = setupToolTest()
   const first = getTool('setup_material_type').execute(figma, {
     id: 'product_long'
@@ -160,13 +160,21 @@ test('switching material type clears previous anchors', () => {
     id: 'wechat_moments'
   }) as SetupToolResult
   expect(second.error).toBeUndefined()
+  expect(second.rootFrameId).not.toBe(first.rootFrameId)
+
   for (const instanceId of oldInstanceIds) {
-    expect(graph.getNode(instanceId)).toBeUndefined()
+    expect(graph.getNode(instanceId)).toBeDefined()
   }
 
+  // Default resolution returns the most recently active design
   const state = expectDefined(getMarketingState(graph))
   expect(state.materialTypeId).toBe('wechat_moments')
   expect(state.anchors.length).toBe(0)
+
+  // The first design is still registered under its own root frame
+  const firstState = expectDefined(getMarketingState(graph, first.rootFrameId as string))
+  expect(firstState.materialTypeId).toBe('product_long')
+  expect(firstState.anchors.length).toBe(2)
 })
 
 test('custom material type creates root frame at the given size', () => {

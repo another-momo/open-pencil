@@ -23,7 +23,7 @@ export const setupMaterialTypeTool = defineTool({
   name: 'setup_material_type',
   mutates: true,
   description:
-    'Set up a marketing design from a material type. Creates the root frame at the design size, instantiates anchor components (brand bar / CTA bar) with readonly protection, and returns the material type configuration (section plan, style guide, custom fields) to guide the design. Call again with the same id to repair missing anchors, or with a different id to switch material types. Available types (id — label — match keywords): ' +
+    'Set up a marketing design from a material type. Creates the root frame at the design size, instantiates anchor components (brand bar / CTA bar) with readonly protection, and returns the material type configuration (section plan, style guide, custom fields) to guide the design. Call again with the same id to repair missing anchors; a different id creates an additional design alongside existing ones — one document can host multiple designs. Available types (id — label — match keywords): ' +
     listMaterialTypes()
       .map((type) => `${type.id} (${type.label}: ${type.matchKeywords.join(', ')})`)
       .join(', '),
@@ -60,7 +60,13 @@ export const validateTool = defineTool({
       type: 'boolean',
       description:
         'Update readonly baselines to current values (use after user confirms intentional change)'
+    },
+    id: {
+      type: 'string',
+      description:
+        'Root frame id of the design to validate. Omit to use the most recently active design.'
     }
   },
-  execute: (figma, { accept }) => validateMarketingDesign(figma, accept === true)
+  execute: (figma, { accept, id }) =>
+    validateMarketingDesign(figma, accept === true, typeof id === 'string' ? id : undefined)
 })

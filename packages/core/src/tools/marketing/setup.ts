@@ -28,6 +28,11 @@ import {
   type MaterialTypeConfig
 } from '#core/tools/marketing/material-types'
 import {
+  markMarketingAnchor,
+  markMarketingRoot,
+  marketingRootType
+} from '#core/tools/marketing/restore'
+import {
   clearMarketingState,
   listMarketingDesigns,
   setMarketingState,
@@ -65,6 +70,17 @@ function findRootFrame(
   config: MaterialTypeConfig
 ): SceneNode | undefined {
   const pages = graph.getPages()
+  // Marker first (rename-proof), but only adopt a root frame marked for
+  // THIS type — frames of other types are sibling designs, not candidates.
+  // Fall back to the label naming convention for designs created before
+  // markers existed.
+  for (const page of pages) {
+    if (page.name === COMPONENTS_PAGE_NAME) continue
+    for (const childId of page.childIds) {
+      const child = graph.getNode(childId)
+      if (marketingRootType(child) === config.id) return child
+    }
+  }
   for (const page of pages) {
     if (page.name === COMPONENTS_PAGE_NAME) continue
     for (const childId of page.childIds) {
@@ -100,6 +116,7 @@ function createRootFrame(figma: FigmaAPI, config: MaterialTypeConfig): string {
     clipsContent: true,
     fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 }, opacity: 1, visible: true }]
   })
+  markMarketingRoot(graph, frame.id, config.id)
   return frame.id
 }
 
@@ -119,6 +136,8 @@ function collectComponentReadonlyIds(
   return ids
 }
 
+export { collectComponentReadonlyIds }
+
 function registerInstanceReadonly(
   graph: FigmaAPI['graph'],
   instanceId: string,
@@ -135,6 +154,8 @@ function registerInstanceReadonly(
   }
   walk(instanceId)
 }
+
+export { registerInstanceReadonly }
 
 function materializeAnchor(
   figma: FigmaAPI,
@@ -169,6 +190,11 @@ function materializeAnchor(
   }
 
   registerInstanceReadonly(graph, instance.id, componentReadonlyIds, readonly)
+  markMarketingAnchor(graph, instance.id, {
+    templateId: anchorRef.template,
+    position: anchorRef.position,
+    componentId
+  })
 
   return {
     templateId: anchorRef.template,
@@ -187,6 +213,8 @@ function deriveTemplateReadonlyNames(template: ComponentTemplate): string[] {
   walk(template.root)
   return names
 }
+
+export { deriveTemplateReadonlyNames }
 
 /**
  * Re-materialize an anchor whose instance is alive but damaged (readonly
@@ -233,6 +261,11 @@ function rebuildAnchorInstance(
     deriveTemplateReadonlyNames(template)
   )
   registerInstanceReadonly(graph, instance.id, componentReadonlyIds, readonly)
+  markMarketingAnchor(graph, instance.id, {
+    templateId: prev.templateId,
+    position: prev.position,
+    componentId: prev.componentId
+  })
 
   return { ...prev, instanceId: instance.id }
 }

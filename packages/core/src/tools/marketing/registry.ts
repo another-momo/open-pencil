@@ -10,6 +10,7 @@
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
 import type { ReadonlyNodeInfo } from '#core/tools/marketing/builder'
+import { restoreStateFromCanvas } from '#core/tools/marketing/restore'
 
 export interface AnchorRecord {
   templateId: string
@@ -30,7 +31,20 @@ export interface MarketingDocumentState {
 }
 
 const states = new WeakMap<SceneGraph, Map<string, MarketingDocumentState>>()
+const restoredGraphs = new WeakSet<SceneGraph>()
 let activityClock = 0
+
+/**
+ * First access per graph: rebuild state from canvas markers so reopened
+ * documents recover their marketing designs without any app-level wiring
+ * (covers chat, MCP, and CLI entry points).
+ */
+function ensureRestored(graph: SceneGraph): void {
+  if (restoredGraphs.has(graph)) return
+  restoredGraphs.add(graph)
+  if (states.get(graph)?.size) return
+  restoreStateFromCanvas(graph)
+}
 
 function designsOf(graph: SceneGraph): Map<string, MarketingDocumentState> {
   let designs = states.get(graph)
@@ -52,6 +66,7 @@ export function getMarketingState(
   graph: SceneGraph,
   rootFrameId?: string
 ): MarketingDocumentState | undefined {
+  ensureRestored(graph)
   const designs = states.get(graph)
   if (!designs || designs.size === 0) return undefined
   if (rootFrameId) return designs.get(rootFrameId)
@@ -65,6 +80,7 @@ export function getMarketingState(
 }
 
 export function listMarketingDesigns(graph: SceneGraph): MarketingDocumentState[] {
+  ensureRestored(graph)
   return [...(states.get(graph)?.values() ?? [])]
 }
 
@@ -83,6 +99,8 @@ export function touchMarketingState(graph: SceneGraph, rootFrameId: string): voi
 export function clearMarketingState(graph: SceneGraph, rootFrameId?: string): void {
   if (!rootFrameId) {
     states.delete(graph)
+    // Allow a later access to re-restore from canvas markers
+    restoredGraphs.delete(graph)
     return
   }
   const designs = states.get(graph)

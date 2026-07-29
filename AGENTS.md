@@ -58,9 +58,34 @@ Property-panel anatomy in `packages/vue/src/primitives/PropertySection/`, `Segme
 - `bun run test:dupes` — jscpd copy-paste detection across product TS sources
 - `bun run test:tools` — tests for private repo tooling under `tools/*`
 - `bun run format` — oxfmt with import sorting
-- `bun run test:unit` — engine/unit tests
+- `bun run test:unit` — engine/unit tests (**do not run on dev machines — see "Unit test scope" below**)
 - `bun run test` — Playwright E2E and visual regression tests
 - `bun run tauri dev` — desktop app with hot reload
+
+### Unit test scope
+
+`bun test ./tests/engine` (= `test:unit`) runs 350+ files plus all heavy tests in a **single bun process**: heavy tests load CanvasKit WASM and parse 57–85 MB LFS `.fig` fixtures sequentially, the heap accumulates, and RAM-tight machines swap/freeze. Interrupted runs also leave zombie `bun` processes that compound the next run. CI never runs the whole tree in one process — `ci.yml` shards non-heavy tests by group (app/dom/editor/fig/render/scene/vue), and `heavy-tests.yml` runs heavy tests separately (daily cron, 30 min timeout). Mirror that locally.
+
+Choose scope by change:
+
+| Change type | What to run |
+|---|---|
+| Fix/feature in one domain | Only related test files: `bun test tests/engine/tools/create.test.ts ...` |
+| Cross-cutting core change (scene-graph, tools infra, shared helpers, FigmaAPI) | Non-heavy suite, one group at a time (see command below) |
+| Touches fig IO roundtrip / clipboard fixtures / CanvasKit raster / text measurement | Non-heavy suite **plus** the specific related heavy files (list via `bun tools/unit-tests/src/list.ts all --heavy-only`) |
+| Pre-release validation | Full heavy suite, one file per process, or defer to `heavy-tests.yml` CI |
+
+Windows notes:
+
+- The npm `bun.ps1` shim mangles array arguments into one string — call `bun.exe` directly when passing file lists: `& "$env:USERPROFILE\AppData\Roaming\npm\node_modules\bun\bin\bun.exe" test $files`
+- Non-heavy suite per group: `$files = (& $bun tools/unit-tests/src/list.ts <group>) -split "\`n" | Where-Object { $_.Trim() -ne '' }; & $bun test $files`
+- After any interrupted/frozen test run, kill leftover processes before retrying: `Get-Process bun -ErrorAction SilentlyContinue | Stop-Process -Force`
+
+Environment-dependent failures policy:
+
+- Network-dependent tests must self-skip with a loud warning (see the `networkTest` guard in `tests/engine/icons/iconify.test.ts`); never weaken assertions to make an env failure pass, and never silently delete the test.
+- Heavy tests assume LFS fixtures are pulled (`git lfs pull`); if fixtures are missing the failure is environmental, not a product bug — pull LFS or skip the heavy file.
+- A test that fails locally but passes in CI is an environment issue: guard it (skip with warning) or fix the environment. Report patterns of such failures instead of working around them one by one.
 - `bun open-pencil --help` — list CLI commands. Common commands include `info`, `tree`, `find`, `node`, `pages`, `variables`, `export`, `import`, `convert`, `lint`, `query`, `selection`, `formats`, `analyze ...`, and `eval` for Figma Plugin API scripting.
 
 ## Releases & CI

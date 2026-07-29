@@ -7,7 +7,7 @@
 营销 Agent 的上下文供给存在三个问题：
 
 **问题 1：图片 tool result 撑爆上下文。**
-`look` 工具返回的图片以 media part 常驻对话历史，每张 ~30-40K tokens。实测一次朋友圈广告设计中，4 张图后单步输入从 37K 膨胀到 428K。同一节点被反复检查时，旧图已无信息价值但仍在每轮请求中重复发送。这是 **2026-07-27 OOM 崩溃的嫌疑 2**（render process gone: oom）。
+`look` 工具返回的图片以 media part 常驻对话历史。实测一次朋友圈广告设计中，4 张图后单步输入从 37K 膨胀到 428K。同一节点被反复检查时，旧图已无信息价值但仍在每轮请求中重复发送。这是 **2026-07-27 OOM 崩溃的嫌疑 2**（render process gone: oom）。（2026-07-29 两次修正：① 归因——428K 是 base64 以 JSON 文本形态发送的结果（每图 ~50-100K tokens），因为 `@ai-sdk/openai` chat completions 把 media tool-result 整段 `JSON.stringify`；走通 media part 的 provider（Anthropic/OpenRouter/Google）每图仅 ~1.4k tokens，膨胀量级完全不同，详见 `l2-visual-loop.md` §3.1。② 评审 §4.2——elision 是纯函数，只削请求路径的瞬时分配；UIMessage / chat UI DOM / debug log 中的常驻 base64 副本不受影响，若 OOM 根因是常驻内存，elision 并未打中根因，见文末 2026-07-29 实施记录的待定事项。）
 
 **问题 2：营销状态无法跨 session 恢复。**
 设计状态（根 frame、锚点、readonly 基线、锁定方向、活动事实）存在内存注册表里，文档重开即丢失。用户中断后无法"继续未完成的设计"。同时注册表按 SceneGraph 键控（一份文档一个设计），无法支持一份文档多设计并存（制作清单的前置条件）。
@@ -29,19 +29,19 @@
    - 理由：dedup 文本"refer to your previous inspection"假设历史图存在，与 elision 设计根本冲突；dedup 仅省 ~300KB 字节，不值其引入的悬挂引用 bug
 
 2. **请求级 elision：只留最新 K=2 张图 base64**：
-   - 每次 LLM 调用发送前（`transports.ts prepareCall`）扫描 `options.messages` 中所有 media tool-result 消息
+   - 每轮 agent 调用入口（`transports.ts prepareCall`，per-turn 一次）扫描 `options.messages` 中所有 media tool-result 消息
    - 按消息顺序保留最新的 K=2 个 media part
    - 其余消息的 content 数组中 `media` part 被替换为文本占位
-   - 占位**保留 note 文本和 meta 段**，只删除 base64 字节
-   - **纯函数变换，不 mutate `chat.messages`**：UI 展示态与会话持久化不受影响；prepareCall 每个 step 都会执行，变换必须幂等（已 elide 的消息再变换结果不变）
+   - 占位**保留 note 文本**，只删除 base64 字节（2026-07-29 修正：原设计的 `[op-media-meta]` meta 段未实现也不需要——`toModelOutput` 只向模型投递 note + media，byteLength/node/focus 等 meta 本就到不了模型侧；2026-07-29 起 focus 已并入 note，note 承载了 meta 段想表达的全部信息）
+   - **纯函数变换，不 mutate `chat.messages`**：UI 展示态与会话持久化不受影响；变换幂等（已 elide 的消息再变换结果不变）
+   - **触发时机为 per-turn**（2026-07-29 评审 §4.3 修正原文"prepareCall 每个 step 都会执行"的误述）：`prepareCall` 只在每轮 agent 入口执行一次，50 步 tool loop 内部不回调——轮内新产生的 look 图不受 K 约束，峰值 = 历史 K 张 + 本轮全部图，且每步全量重发；下一轮入口才裁回 K 张
 
-**占位文本设计**：
+**占位文本设计**（实施简化版，2026-07-29 修正——原设计的 `[op-media-meta]` 段未实现，见上条）：
 
 ```
-[op-media-meta]{...nodeId, byteLength, tool: 'look', focus...}  ← 保留
-Visual inspection of "Banner" (1440×600, JPG). ... (note 文本)    ← 保留
-[op-media-elided] 截图已省略 (~280KB)。文字描述见上方 note；  ← 占位
-如需完整图片，请再次调用 look 工具。                          ← 占位
+Visual inspection of "Banner" (1440×600, JPG). Focus: ... (note 文本)   ← 保留
+[image omitted from history to save context — the note above still      ← 占位
+ describes it; call the tool again if you need to see it]
 ```
 
 agent 看到这段会自然判断：
@@ -50,7 +50,7 @@ agent 看到这段会自然判断：
 
 **实现位置**：[`src/app/ai/chat/transports.ts:99 prepareCall`](open-pencil/src/app/ai/chat/transports.ts#L99)，返回浅拷贝后的 messages，store 中原始消息保持不变。
 
-**Anthropic prompt cache 影响**（已知、有界）：elision 修改历史消息内容会使 cache prefix 从被改消息处失效一次。elision 对每条消息是单调一次性的，失效点只随新图产生前移，不会反复抖动；上线后观察到 cache write 随新 look 调用小幅上升属预期。
+**Anthropic prompt cache 影响**（已知、有界）：elision 修改历史消息内容会使 cache prefix 从被改消息处失效一次。失效频率 = 每轮一次（per-turn 触发，仅当轮内有新 look 图时发生），多轮会话首轮后即稳定；轮内 50 步循环不改历史，不会逐步打穿。（2026-07-29 补充：debug log 已改为逐步同时显示 cache_read 与 cache_write，失效点可从 cache_write 尖峰直接观察。）注意 `export_image` 不在 chat 的 CORE_TOOLS 中，实际仅 `look` 的图会被 elide（评审 #9）。
 
 **为什么不选其他方案**（已 rejected）：
 - ~~per-nodeId latest + byte budget + aging degradation~~：过度工程；byte budget 假设需要预算和跟踪，复杂度不值
@@ -64,10 +64,10 @@ agent 看到这段会自然判断：
 - 用户在 settings 面板可调
 
 **验收**：
-- 单元测试：`tests/engine/chat/elision.test.ts`（新）覆盖 7 个 case（0 张 / 1 张 / 5 张 / 跨 turn / 占位文本完整 / `export_image` 图同样被 elide / 变换幂等且不 mutate 原数组）
+- 单元测试：`tests/engine/chat/elision.test.ts` 覆盖 9 个 case（0 张 / 1 张 / 5 张 / 跨 turn / 占位文本完整 / `export_image` 图同样被 elide / 变换幂等且不 mutate 原数组 + 2026-07-29 补的 2 个端到端接线 case：UIMessage 经 `convertToModelMessages` + tools 转换后确实产出 media part 而非 JSON 兜底、转换后 elision 生效）
 - 冒烟回归：朋友圈广告冒烟重跑，单步输入峰值从 428K 降至 **<100K tokens**（图片贡献 ≤ K=2 张 × ~30-40K tokens；<30K 的指标与 K=2 自相矛盾，已修正）
 - 取消 dedup 后既有 `picker.spec.ts` 和 `look` 调用方不变（unchanged 字段从不被设置）
-- CHANGELOG 更新：`look` 取消"未变化时返回文本"的 dedup 行为是用户可见变更（CHANGELOG.md 第 7 行记录了该特性）
+- CHANGELOG 更新：`look` 取消"未变化时返回文本"的 dedup 行为是用户可见变更（已记录于 CHANGELOG Unreleased 的 elision 条目）
 
 **为什么不担心 elision 后 agent 失去"看老图"能力**：
 - agent 的实际视觉工作记忆只需 1-2 张图（同一时刻只需看当前任务相关的几个节点）
@@ -84,7 +84,7 @@ agent 看到这段会自然判断：
 
 **键控改造**：注册表从 `WeakMap<SceneGraph, state>` 改为 `SceneGraph → Map<rootFrameId, state>`，一份文档多设计各自独立。
 
-**默认根 frame 消歧**：`look`/`validate` 等工具在省略 id 时目前默认取"唯一营销根 frame"（`look.ts:41-45`）。多设计并存后策略改为：
+**默认根 frame 消歧**：`look`/`validate` 等工具在省略 id 时原先默认取"唯一营销根 frame"。多设计并存后策略改为（✅ 已实现，`registry.ts getMarketingState`）：
 - 文档只有 1 个活跃设计 → 保持现状，默认取它
 - 多个设计 → 默认取**最近活跃**的 root frame（注册表记录 lastActiveAt，setup/look/validate 调用时刷新）
 - 最近活跃不可用（如对应 frame 已删）→ 返回错误并列出候选设计（label + rootFrameId），要求 agent 显式传 id
@@ -101,14 +101,15 @@ prompt 删除 7 行类型映射和 ~35 行图片工具 API 细节（尺寸枚举
 
 ## 实施顺序
 
-| # | 任务 | 产出物 | 依赖 |
-|---|---|---|---|
-| 1 | 取消 look dedup + 请求级 media elision（K=2，覆盖 `MEDIA_OUTPUT_TOOLS` 全部工具） | `look.ts` 改、`src/app/ai/chat/elision.ts`（新）、`transports.ts prepareCall`、localStorage 配置、CHANGELOG | 无 |
-| 2 | prompt 清理：`matchKeywords` 字段 + 工具描述升级 + 删冗余段落 | `material-types.ts`、`marketing.ts`、`system-prompt-marketing.md` | 无 |
-| 3 | 注册表 per-rootFrame 键控 + 默认根 frame 消歧（lastActiveAt） | `marketing/registry.ts` 改造 + setup/validate/look/describe 适配 | 无 |
-| 4 | 画布推导恢复 `restoreStateFromCanvas()` | 根 frame/锚点/readonly 注册表重建 | 3 |
+| # | 任务 | 状态 | 产出物 | 依赖 |
+|---|---|---|---|---|
+| 1 | 取消 look dedup + 请求级 media elision（K=2，覆盖 `MEDIA_OUTPUT_TOOLS` 全部工具） | ✅ 2026-07-28（`d310ceae`） | `look.ts` 改、`src/app/ai/chat/elision.ts`（新）、`transports.ts prepareCall`、localStorage 配置、CHANGELOG | 无 |
+| 2 | prompt 清理：`matchKeywords` 字段 + 工具描述升级 + 删冗余段落 | ✅ 2026-07-28（`f237e2b0`） | `material-types.ts`、`marketing.ts`、`system-prompt-marketing.md` | 无 |
+| 3 | 注册表 per-rootFrame 键控 + 默认根 frame 消歧（lastActiveAt） | ✅ 2026-07-28（`9264e4d5`） | `marketing/registry.ts` 改造 + setup/validate/look 适配（describe 经评估无需适配） | 无 |
+| 4 | 画布推导恢复 `restoreStateFromCanvas()` | ✅ 2026-07-28（`34555e0a`） | 根 frame/锚点/readonly 注册表重建 | 3 |
+| 5 | elision 演进：OOM 根因验证 → 轮末永久裁剪 或 prepareStep + 阈值触发 | ⬜ 待定（前置验证未做） | 见文末 2026-07-29 实施记录待定事项 1/2 | 1 |
 
-建议顺序 1 → 2 → 3 → 4。
+**未完成验收**：任务 1 的"<100K tokens 冒烟指标"与任务 2 的"类型推断准确率"待第 4 轮回归实测。注意 <100K 指标建立在 base64 文本计费口径上（见问题 1 的 2026-07-29 归因修正）；若回归时通道 A 已走通 media part，每图成本降至 ~1.4k tokens，该指标应随口径重定。
 
 ## 扩展触发条件
 
@@ -133,7 +134,7 @@ prompt 删除 7 行类型映射和 ~35 行图片工具 API 细节（尺寸枚举
 **重写版**（本次采用）：
 - **取消 dedup**：dedup 节省 ~300KB / 次（命中率 <10%），引入悬挂引用 bug、agent 行为不一致。ROI 太低，直接取消
 - **请求级 elision：永远只留最新 K=2 张图 base64**：过滤所有 media tool-result（`MEDIA_OUTPUT_TOOLS`：look + export_image），按消息顺序保留最新 K=2 个，纯函数变换不碰 store
-- **elision 占位保留 note 文本 + meta 段**：删除 base64 字节（500-700MB → 几 KB 字节消息），但保留所有文本上下文
+- **elision 占位保留 note 文本**：删除 base64 字节，但保留全部文本上下文（原设计的 meta 段未实现亦不需要，见方案 1 的 2026-07-29 修正）
 - **agent 想精确看老图 → 重 look**（dedup 已取消，永远返回当前图）：0 阻力
 
 **实现量**：~120 行（`look.ts` 改 ~30 行，`elision.ts` 新 ~50 行，配置/接线 ~30 行，测试 ~50 行）
@@ -165,4 +166,25 @@ prompt 删除 7 行类型映射和 ~35 行图片工具 API 细节（尺寸枚举
 1. **scen-graph plugin-data.test.ts 失败**：原以为是 .fig 解析 pre-existing 问题，实际是 test pollution（marketing/kiwi/scene-graph 一起跑时发生）。单独跑 scene-graph（210 tests）全部通过。
 2. **Playwright 文字不显示（第一轮）**：原以为是 pre-existing CanvasKit bug，实际是 Playwright 测试 API 用错了——用了 `store.updateNode(id, { characters: '...' })`，但 `updateNode` 接受的是 raw 字段名 `text`，不是 Figma proxy 的 `characters`。正确 API 是 `proxy.characters = '...'`。
 3. **Playwright 文字不显示（git stash 验证）**：基于错误 #2 的二次误判，已撤回。
+
+### 2026-07-29 视觉回路评审衍生：elision 三目标重新定性 + 待定事项
+
+来源：`../review/2026-07-29-visual-loop-implementation-review.md` §4（问题 3）。该评审确认 elision 实际服务的是三个独立目标，而单一 per-turn 机制只对其中一个有效：
+
+| 目标 | 当前 elision（per-turn 固定 K） | 判定 |
+|---|---|---|
+| 常驻内存（OOM 嫌疑） | 不解决——纯函数只改请求副本，UIMessage / chat UI DOM / debug log 各留完整 base64 | ❌ |
+| 上下文长度 | 轮间裁回 K 张，但轮内 50 步循环的峰值（历史 K + 本轮全部图，逐步重发）不受约束 | ⚠️ 保护了不需要保护的，放过了危险的 |
+| prompt cache 命中 | 失效频率 = 每轮一次（仅轮内有新图时），属意外受益 | ✅ |
+
+**已随评审落地**（2026-07-29，视觉回路评审问题 1）：debug log CONVERSATION 段与 MESSAGE STATS 的 part 级媒体脱敏（stats 单列 `Media payload (excluded from request after elision)` 行，token 估算不再被 base64 污染）、chat UI 工具卡片渲染缩略图替代 base64 JSON、debug log 逐步同时显示 cache_read 与 cache_write。**token 基线必须在此修复之后量**（修复前口径每图虚高 150-400 KB）。
+
+**待定事项 1：OOM 崩溃根因验证**（前置，决定下面的分支）：DevTools Memory 跑一个含 4-6 次 look 的会话，看 heap 中 string 保留量与 detached DOM。注意 2026-07-29 的 UI/日志脱敏本身已削掉两个常驻源，验证结论可能因此变化。
+
+**待定事项 2：按根因结果二选一**：
+
+- 根因是常驻内存 → 做**轮末永久裁剪 UIMessage**（base64 永久换占位、保留缩略图 blob）：缓存行为与现状相同（仍每轮一次历史改写），但 base64 真正释放，请求路径连纯函数变换都不再需要——prepareStep 版 elision 在此分支下不必做。副作用：UI 显示缩略图（反而更好）；K 设置语义变化（历史不可恢复地裁掉）需同步处理
+- 根因是请求路径瞬时分配，或第 4 轮回归实测轮内撞窗口 → 仅把 elision 从 `prepareCall` 移到 **`prepareStep`**（AI SDK v6 已支持）并改为**阈值触发**：估算本次请求媒体 token 总量（1024 长边 JPEG ≈ 1.0–1.4k tokens/张），超过媒体预算（建议默认 ~8k tokens，可配）才从最老的图开始裁、裁到预算内为止——而非固定 K 张。理由：固定 K 的 per-step 会在轮内每次 look 都改写历史中部一条消息，缓存失效频率劣于现状；阈值触发则"不超预算不动历史，不动就不失效"。阈值只是粗 guard（图片 token 公式 provider 相关），不追求精确。K=2 设置保留为轮间稳态上限
+
+**技术前提（实施前需验证）**：`ToolLoopAgent` 的 `prepareStep` 允许逐步改写 messages 且不回写持久历史；elision 是纯函数、无新图时输出与上一步逐字节相同，前缀稳定则缓存不失效——需用真实 provider 跑一次确认（可从 debug log 的 cache_write 尖峰直接判读）。
 

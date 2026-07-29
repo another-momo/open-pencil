@@ -42,6 +42,8 @@ export interface StyleGuide {
 export interface MaterialTypeConfig {
   id: string
   label: string
+  /** Keywords the AI matches against the user request to infer this type */
+  matchKeywords: string[]
   size: MaterialTypeSize
   anchors: AnchorComponentRef[]
   structure: StructuralConstraints
@@ -65,6 +67,7 @@ const MATERIAL_TYPES: MaterialTypeConfig[] = [
   {
     id: 'wechat_moments',
     label: '朋友圈广告',
+    matchKeywords: ['朋友圈', '朋友圈广告', 'wechat moments'],
     size: { width: 1080, height: 1080 },
     anchors: [],
     structure: { anchors: [], minSections: 2, maxSections: 4 },
@@ -83,6 +86,7 @@ const MATERIAL_TYPES: MaterialTypeConfig[] = [
   {
     id: 'wechat_article_cover',
     label: '公众号封面',
+    matchKeywords: ['公众号', '公众号封面', 'article cover'],
     size: { width: 900, height: 500 },
     anchors: [],
     structure: { anchors: [], minSections: 1, maxSections: 2 },
@@ -99,6 +103,7 @@ const MATERIAL_TYPES: MaterialTypeConfig[] = [
   {
     id: 'xiaohongshu',
     label: '小红书图',
+    matchKeywords: ['小红书', 'xiaohongshu', '种草', 'rednote'],
     size: { width: 1080, height: 1440 },
     anchors: [{ template: 'BrandBar', position: 'bottom' }],
     structure: {
@@ -121,6 +126,7 @@ const MATERIAL_TYPES: MaterialTypeConfig[] = [
   {
     id: 'ecommerce_detail',
     label: '电商详情页',
+    matchKeywords: ['电商详情', '详情页', '宝贝详情', 'ecommerce'],
     size: { width: 750, height: null },
     anchors: BRAND_CTA_ANCHORS,
     structure: { anchors: BRAND_CTA_STRUCTURE_ANCHORS, minSections: 3, maxSections: 10 },
@@ -144,6 +150,7 @@ const MATERIAL_TYPES: MaterialTypeConfig[] = [
   {
     id: 'event_poster',
     label: '活动海报',
+    matchKeywords: ['活动海报', '海报', 'event poster'],
     size: { width: 1080, height: 1920 },
     anchors: [],
     structure: { anchors: [], minSections: 2, maxSections: 4 },
@@ -162,6 +169,7 @@ const MATERIAL_TYPES: MaterialTypeConfig[] = [
   {
     id: 'dsp_banner',
     label: 'DSP 广告',
+    matchKeywords: ['DSP', 'banner', 'banner广告', 'IAB'],
     size: { width: 300, height: 250 },
     anchors: [],
     structure: { anchors: [], minSections: 1, maxSections: 2 },
@@ -182,6 +190,7 @@ const MATERIAL_TYPES: MaterialTypeConfig[] = [
   {
     id: 'product_long',
     label: '产品长图',
+    matchKeywords: ['产品长图', '详情长图', '长图', 'product long'],
     size: { width: 750, height: null },
     anchors: BRAND_CTA_ANCHORS,
     structure: { anchors: BRAND_CTA_STRUCTURE_ANCHORS, minSections: 3, maxSections: 8 },
@@ -209,6 +218,7 @@ export function makeCustomMaterialType(width: number, height: number): MaterialT
   return {
     id: 'custom',
     label: `自定义 ${width}×${height}`,
+    matchKeywords: [],
     size: { width, height },
     anchors: [],
     structure: { anchors: [], minSections: 1, maxSections: 10 },
@@ -226,6 +236,10 @@ export function makeCustomMaterialType(width: number, height: number): MaterialT
   }
 }
 
-export function listMaterialTypes(): { id: string; label: string }[] {
-  return MATERIAL_TYPES.map((type) => ({ id: type.id, label: type.label }))
+export function listMaterialTypes(): { id: string; label: string; matchKeywords: string[] }[] {
+  return MATERIAL_TYPES.map((type) => ({
+    id: type.id,
+    label: type.label,
+    matchKeywords: type.matchKeywords
+  }))
 }

@@ -151,16 +151,7 @@ Marketing design is **constraint-driven**, not free-form creation. You work in 4
 
 ## Phase 0 — Material Type Setup (REQUIRED FIRST STEP)
 
-Every marketing design starts by calling `setup_material_type` with the inferred material type id:
-
-- "朋友圈广告/WeChat moments ad" → `wechat_moments`
-- "公众号封面" → `wechat_article_cover`
-- "小红书" → `xiaohongshu`
-- "电商详情页" → `ecommerce_detail`
-- "活动海报" → `event_poster`
-- "DSP/banner 广告" → `dsp_banner`
-- "产品长图/详情长图" → `product_long`
-- 无预设覆盖的尺寸 → `custom` + `width`/`height` 参数（如 `setup_material_type({id: "custom", width: 640, height: 960})`）
+Every marketing design starts by calling `setup_material_type` with the inferred material type id. Infer the type from the user's request — each type in the tool description carries its match keywords. 无预设覆盖的尺寸 → `custom` + `width`/`height` 参数（如 `setup_material_type({id: "custom", width: 640, height: 960})`）。
 
 **Variant types (with size variants):** when the user names a variant type without a size, pick the most common default and **declare it with an easy switch**: `dsp_banner` → 300×250 ("默认 300×250，需要其他 IAB 尺寸告诉我")；`event_poster` → 1080×1920。Do NOT silently pick without declaring.
 

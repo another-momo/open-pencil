@@ -23,9 +23,9 @@ export const setupMaterialTypeTool = defineTool({
   name: 'setup_material_type',
   mutates: true,
   description:
-    'Set up a marketing design from a material type. Creates the root frame at the design size, instantiates anchor components (brand bar / CTA bar) with readonly protection, and returns the material type configuration (section plan, style guide, custom fields) to guide the design. Call again with the same id to repair missing anchors, or with a different id to switch material types. Available types: ' +
+    'Set up a marketing design from a material type. Creates the root frame at the design size, instantiates anchor components (brand bar / CTA bar) with readonly protection, and returns the material type configuration (section plan, style guide, custom fields) to guide the design. Call again with the same id to repair missing anchors, or with a different id to switch material types. Available types (id — label — match keywords): ' +
     listMaterialTypes()
-      .map((type) => `${type.id} (${type.label})`)
+      .map((type) => `${type.id} (${type.label}: ${type.matchKeywords.join(', ')})`)
       .join(', '),
   params: {
     id: {

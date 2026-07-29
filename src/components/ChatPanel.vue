@@ -5,7 +5,7 @@ import { computed, markRaw, nextTick, ref, watch } from 'vue'
 
 import { getAcpDebugText, clearAcpDebugLog, hasAcpDebugEntries } from '@/app/ai/acp/transport'
 import { copyChatLog } from '@/app/ai/debug'
-import { clearToolLogEntries, didHitStepLimit } from '@/app/ai/tools'
+import { clearToolLogEntries, didHitStepLimit, beginNewBurst } from '@/app/ai/tools'
 import { materialTypeSelection } from '@/app/ai/chat/storage'
 import { activeTab } from '@/app/tabs'
 import AcpPermissionDialog from '@/components/chat/AcpPermissionDialog.vue'
@@ -119,6 +119,7 @@ async function handleSubmit(text: string) {
     toast.error(e instanceof Error ? e.message : String(e))
     return
   }
+  beginNewBurst()
   chat.value?.sendMessage({ text: withSelectionContext(text) }).catch((e: unknown) => {
     console.error('Chat error:', e)
     toast.error(e instanceof Error ? e.message : String(e))

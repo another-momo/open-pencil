@@ -20,6 +20,7 @@
 
 ### Changed
 
+- Coalesce AI tool undo entries per chat message (burst): one Ctrl+Z now reverts the whole AI run for a message instead of a single tool call, cutting undo memory for a 50-step AI session from ~7.5 MB to ~150 KB.
 - Redesign the editor chrome and Design panel with denser aligned controls, clearer selection and section states, improved menus and overlays, consistent light/dark theming, and better keyboard and screen-reader behavior.
 - Scale the Layers panel to documents with thousands of nodes through virtualized rows, faster incremental updates, stable expansion, range selection, and scroll-to-selection.
 - Resolve fonts before text appears, with language-aware CJK and Arabic fallback, character-specific remote subsets, and more reliable rendering as fonts load.

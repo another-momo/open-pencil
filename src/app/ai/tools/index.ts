@@ -27,6 +27,7 @@ class RunState {
   toolLog: ToolLogEntry[] = []
   stepUsages: StepUsage[] = []
   currentSteps = 0
+  burstId = 0
 
   recordStep(usage: StepUsage): void {
     this.stepUsages.push(usage)
@@ -83,6 +84,10 @@ export function clearToolLogEntries(store?: EditorStore): void {
   getRunState(store).clear()
 }
 
+export function beginNewBurst(store?: EditorStore): void {
+  getRunState(store).burstId++
+}
+
 export function createAITools(store: EditorStore) {
   let beforeSnapshot: Map<string, SceneNode> | null = null
   const runState = getRunState(store)
@@ -112,6 +117,7 @@ export function createAITools(store: EditorStore) {
             const after = store.snapshotPage()
             store.pushUndoEntry({
               label: `AI: ${def.name}`,
+              coalesceKey: `ai-burst-${runState.burstId}`,
               forward: () => store.restorePageFromSnapshot(after),
               inverse: () => store.restorePageFromSnapshot(before)
             })

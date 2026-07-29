@@ -4,6 +4,7 @@
 
 ### Added
 
+- Host multiple independent marketing designs in one document — the AI registry is keyed per root frame, and marketing session state (anchors, readonly baselines) is rebuilt from canvas markers after reopening a document, so validation and visual inspection keep working across sessions.
 - Generate reference-guided images in `generate_image` with a new `references` parameter: pass node ids as style/content references (use `{"id":"...","export":true}` to render non-image nodes such as layout frames), cite them in the prompt as `[image 1]`, `[image 2]`, and edit an existing image by referencing the target node itself. Requested sizes now keep their aspect ratio (16px-aligned, clipped to API limits) instead of being mapped to a fixed size set.
 - Let marketing-mode AI visually inspect designs with a new `look` tool: renders any node (defaulting to the design root frame) to an image the model can see, used for generated-image acceptance and pre-checkpoint visual review.
 - Fill frames with images as their background in `generate_image` and `stock_photo`, keeping children intact — enables text-over-image hero layouts in marketing designs.

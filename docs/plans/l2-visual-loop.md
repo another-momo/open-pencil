@@ -82,7 +82,7 @@ look({ id?, focus? })
 |---|---|---|---|
 | **V0** ✅ 代码完成（2026-07-27） | `look` 工具（`packages/core/src/tools/marketing/look.ts`）+ 通道 A（ai-adapter media 工具集合 `MEDIA_OUTPUT_TOOLS`，note 作为文本部分随图投递，debug log 省略 base64）+ prompt 规则（CP2/CP4 前置门禁、生图验收、look 纪律） | 仅 prompt + 一个工具，复用 export_image 管线；实现时发现 ai-adapter 已有 `toModelOutput` 媒体投递先例（export_image），通道 A 基础设施比预估更现成 | 第 4 轮回归后用 kimi/minimax 多模态模型跑朋友圈广告 |
 | **V1** | 通道 B（独立视觉模型配置）+ 素材理解 + 两级截图 | 设置面板 section、hash 缓存 | 文本模型 + 视觉模型组合跑长图 |
-| **V2** | 窗口化（chat history K=2）接入上下文工程管线 + lint 降噪 + overview 一致性替代盲规则 | 上下文工程 Phase C 落地 | token 基线对比 |
+| **V2** | ~~窗口化（chat history K=2）~~ ✅ 已落地（2026-07-28，请求级 elision，见 §4）+ lint 降噪 + overview 一致性替代盲规则 | lint 降噪、overview 一致性规则 | token 基线对比 |
 
 **V0 先做通道 A 的理由**：零配置、零新基础设施，最快验证"视觉回路到底提升多少"。若 V0 发现多模态模型对设计稿的判断质量差（设计审美是多模态弱项，很可能），视觉回路定位收缩为"素材理解 + 文字压图检测"两个确定性较强的用途，V1/V2 重排。
 
@@ -93,7 +93,7 @@ look({ id?, focus? })
 视觉回路是纯增量 token 消耗特性，与上下文工程（`l2-context-engineering.md`）的依赖关系：
 
 1. **token 基线在 Phase C 开工当天量**（A0 已解散，2026-07-27 讨论）：现有 debug log 的观测能力够用；基线会随 prompt/工具修改过期，提前量无意义。视觉回路的 look 开销届时一并在基线中计量。
-2. **Phase C 窗口化（chat history K=2 媒体 elision）必须预留 base64 字节丢弃语义**：裁剪时 image part 替换为文本占位（保留 note 文本和 meta 段），而非丢整条消息或把 base64 留在历史里。**当前设计已收敛**：[l2-context-engineering.md §方案 1](./l2-context-engineering.md#方案-1图片-media-elision解决问题-1)（2026-07-27 重写）——保留最新 K=2 张 `look` 图 base64 + 取消 dedup + 占位保留 note 文本。
+2. **Phase C 窗口化（chat history K=2 媒体 elision）必须预留 base64 字节丢弃语义**：裁剪时 image part 替换为文本占位（保留 note 文本和 meta 段），而非丢整条消息或把 base64 留在历史里。**已落地（2026-07-28）**：请求级 K=2 elision（覆盖 `look` + `export_image`）+ 取消 dedup，见 [l2-context-engineering.md §方案 1](./l2-context-engineering.md#方案-1图片-media-elision解决问题-1)。
 3. **V0 结论反向决定 Phase C 设计**：视觉判断可靠 → media elision 作为一等公民 + manifest sections 加 visualCheck 字段；不可靠 → 收缩用途，Phase C 不为图片做特殊设计。
 
 顺序全景（与 `README.md` §当前执行顺序 一致）：第 4 轮回归 → 视觉 V0 → Phase B → Phase C（开工当天量基线）→ Phase A/D → 视觉 V1/V2。

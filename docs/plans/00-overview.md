@@ -28,12 +28,12 @@
 ```
 packages/core/src/tools/image-gen.ts          # defineTool('generate_image') + 导出 setter
 packages/core/src/tools/image-gen/
-  providers.ts   # ImageGenProvider 接口 + DMXAPI(gpt-image-2) 实现 + 独立注册表
-  apply.ts       # 取画布图字节（edit 用）/ 调 provider / createImage / 新建或填充节点
-  requests.ts    # 解析 JSON 数组 + size 枚举映射
+  providers.ts   # ImageGenProvider 接口 + DMXAPI(gpt-image-2) 实现 + 独立注册表 + 超时/错误解析
+  apply.ts       # references 图片收集（含 export:true 渲染）/ 调 provider / 新建或填充节点
+  requests.ts    # 解析 JSON 数组 + references + 尺寸 16px 对齐与约束裁剪
 ```
 
-语义：**省略 `id` → 新建 frame 承载底图；传入 `id` → 编辑/填充该图片节点**（edit 时从 `graph.images` 取原图字节，multipart 上传）。
+语义（2026-07-28 重构，详见 `l1-image-gen-optimize.md`）：**`references` 是唯一图片输入入口，`id` 只决定输出目标**。省略 `id` → 新建 frame；传入 `id` → 覆盖该节点 fill。编辑 = references 引用目标节点自身；重新生成（不参考旧图）= references 不含目标节点；多张参考图经 `image[]` 走 edits 端点，prompt 里用 `[image N]` 按声明顺序指代；非 IMAGE 节点用 `{ id, export: true }` 渲染为参考。
 
 配置**完全独立于 LLM**：
 - `src/app/ai/chat/storage.ts`：`imageGenApiKey` / `imageGenBaseURL` / `imageGenModel`
@@ -41,8 +41,8 @@ packages/core/src/tools/image-gen/
 
 ### 3.2 实测踩过的坑（已修复，留存为约束）
 
-1. **`size` 是枚举而非自由值**：gpt-image-2 仅接受固定尺寸枚举，任意尺寸都会 400。→ 映射到最近枚举值。
-2. **edit 缺尺寸 → `NaNxNaN` 400**：→ 尺寸可选，缺省时从目标节点读真实宽高回填（经 normalizeSize 映射）。
+1. ~~**`size` 是枚举而非自由值**~~：**2026-07-28 已被推翻**——实测 dmxapi 支持任意尺寸，枚举映射反而丢失比例（9:16 → 2:3 偏差 18.5%）。现为 16px 对齐 + 约束裁剪（最大边 3840、比例 ≤3:1、像素 655,360-8,294,400）。
+2. **edit 缺尺寸 → `NaNxNaN` 400**：→ 尺寸可选，缺省时从目标节点读真实宽高回填（经 normalizeSize 约束裁剪）。
 3. **`mask_prompt` 不被支持**：→ 彻底移除，局部编辑靠 prompt 描述区域。
 4. **配置页 Base URL / Model 曾被密码掩码隐藏**：→ 支持 `type="text"`，仅 API Key 掩码。
 
@@ -61,7 +61,7 @@ packages/core/src/tools/image-gen/
 | 营销图 section = 底图 + 几个文字节点 | 长图 section 内部结构高度异构 | 按 section 类型选择不同工作流 |
 | 长图 = 分段生图 + 自动拼版编排 Agent | 长图主体是排版问题不是生图问题 | 长图 = 纵向 auto-layout frame 内含 N 区块 |
 | 生图可做像素级精修（inpaint/mask） | edits 不支持文本 mask | 生图适合"大区域替换/风格化" |
-| size 约束是"16 倍数 + ≤3840 + 比例≤3:1" | 实际是固定枚举 + 像素总数窗口 | 映射到允许枚举集 |
+| size 约束是"16 倍数 + ≤3840 + 比例≤3:1" | 实际是固定枚举 + 像素总数窗口 | ~~映射到允许枚举集~~ 2026-07-28 再推翻：dmxapi 支持任意尺寸 → 16px 对齐 + 约束裁剪 |
 | 生图配置可复用 LLM key | 完全独立 | 独立 key/baseURL/model |
 
 ## 5. 落地顺序

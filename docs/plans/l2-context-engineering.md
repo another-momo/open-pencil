@@ -138,6 +138,17 @@ prompt 删除 7 行类型映射和 ~35 行图片工具 API 细节（尺寸枚举
 
 **实现量**：~120 行（`look.ts` 改 ~30 行，`elision.ts` 新 ~50 行，配置/接线 ~30 行，测试 ~50 行）
 
+### 2026-07-28 实施记录（任务 1-4 全部落地）
+
+四项任务已全部实施（commits: `d310ceae` 任务 1、`f237e2b0` 任务 2、`9264e4d5` 任务 3、`34555e0a` 任务 4）。与原文档的偏差与决策：
+
+1. **任务 4 改为懒恢复**：原文写"会话开始 / 文档重开时执行 `restoreStateFromCanvas()`"——实施为 registry 首次访问时按需恢复（`ensureRestored`，WeakSet 每 graph 一次），覆盖 chat/MCP/CLI 全入口且无需 app 层接线；full clear 会重新武装恢复。
+2. **lastActiveAt 不持久化**：采用内存单调计数器（非墙钟时间，测试确定性）。文档重开后多设计的默认值由恢复扫描顺序决定，agent 首次 look/validate/setup 触达后按活跃排序。评审曾建议 pluginData 持久化，判断为过度——候选报错兜底已覆盖。
+3. **setup 语义变更（任务 3 衍生）**：不同类型 id 的 setup 从"销毁旧设计"改为"共存新建"（制作清单前置的真正含义）；类型替换仅在收养到**同类型**标记 frame 时发生。工具描述同步改写。findRootFrame 收养规则：pluginData 标记 + 同类型优先，旧的命名约定兜底。
+4. **已知限制**：同类型多设计（如同文档两张朋友圈广告）setup 仍会收养第一个 root frame——随 L3 制作清单启动再评估。
+
+验收状态：任务 1 的 7 个 elision case、任务 3 的消歧三情况、任务 4 的重开恢复均已落地为引擎单测（`tests/engine/chat/elision.test.ts`、`tests/engine/tools/marketing/registry.test.ts`、`restore.test.ts`）。<100K tokens 冒烟指标与类型推断准确率待第 4 轮回归实测。
+
 ### 2026-07-28 review 修正（实施前）
 
 1. **elision 范围从 `look` 扩到全部 media tool-result**：`export_image` 同样返回 base64 图（ai-adapter 的 `MEDIA_OUTPUT_TOOLS` 含两者），只滤 look 会漏掉 export 膨胀路径

@@ -296,10 +296,10 @@ store.pushUndoEntry({
 
 ## 验收 checklist
 
-- [ ] Step 1-3 实施完成
-- [ ] Step 4 单元测试通过（5 个 case）
-- [ ] 既有 `tests/engine/editor/undo.test.ts` 不变通过
+- [x] Step 1-3 实施完成
+- [x] Step 4 单元测试通过（5 个 case）
+- [x] 既有 `tests/engine/editor/undo.test.ts` 不变通过
 - [ ] 第 4 轮护栏冒烟 + 朋友圈广告冒烟通过
 - [ ] DevTools memory：1 次 burst 后 undo ≤ 200 KB
 - [ ] 行为：Ctrl+Z 撤销整段 burst 符合预期
-- [ ] 实施记录记入 `README.md`
+- [x] 实施记录记入 `README.md`

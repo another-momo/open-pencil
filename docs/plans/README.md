@@ -34,7 +34,7 @@
 | L2 Phase 3 实测迭代 | 🔄 3 轮冒烟完成 | **第 4 轮回归**（用例见 `knowledge/error-catalog.md` §待验证场景） |
 | L2 上下文工程（子规划） | ✅ 4 项任务全部实施（2026-07-28） | 冒烟回归：朋友圈/小红书/DSP 各一（类型推断准确率 + 单步输入峰值 <100K + 重开文档 validate 可用）；多设计同类型并存（制作清单）未支持，随 L3 启动再评估 |
 | L2 AI undo coalesce（子规划） | ✅ 已实施（2026-07-28） | 随第 4 轮回归做冒烟验证：DevTools memory（1 次 burst 后 undo ≤ 200 KB）+ Ctrl+Z 撤销整段 burst 行为 |
-| L2 视觉回路（子规划） | 🔄 V0 实测通过 + 首轮优化完成（2026-07-27） | hero 叠字改造 ✅、R4-1 尺寸回填 bug ✅、look **去重已撤销**（2026-07-27：与 media elision 的悬挂引用 bug 冲突；详见 `l2-context-engineering.md`）✅、快照降噪 ✅——待下轮冒烟验证（护栏回归 + 叠字产出 + look 行为变更新版） |
+| L2 视觉回路（子规划） | 🔄 V0 实测通过 + elision 已落地（2026-07-28） | hero 叠字改造 ✅、R4-1 尺寸回填 bug ✅、look **去重已取消并落地**（2026-07-28，连同请求级 K=2 media elision）✅、快照降噪 ✅——待下轮冒烟验证（护栏回归 + 叠字产出 + elision 后 token 峰值 <100K） |
 | L2 营销字体：普惠体（子规划） | ✅ 已实施（2026-07-27） | 9 字重 PuHuiTi bundle（62MB）+ 8 素材类型改 `['Alibaba PuHuiTi']` + prompt 强约束 + _headers TTF MIME—`l2-marketing-font-puhuiti.md` |
 | L3 需求单节点 | ✅ V1 已实现 | —— |
 | L3 类型显性化 | ✅ 已实现（chips + 预推断 + 自定义尺寸兜底） | —— |

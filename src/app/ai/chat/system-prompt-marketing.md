@@ -237,7 +237,7 @@ Call `validate` first — resolve any violations with the user (see Anchor Compo
 - Anchor components intact (readonly nodes untouched)
 - CTA prominent
 
-Then `look` at the root frame with focus "final visual review" — check overall harmony, text-over-image legibility, and cross-section consistency. Fix obvious visual problems BEFORE presenting Checkpoint 4. Visual observations are advisory: if the image suggests an anchor or readonly issue, confirm with `validate` — never "fix" a readonly node based on the image alone.
+Then `look` at the root frame with focus "final visual review" — check overall harmony, composition, and visual weight. For text-over-image legibility, first `describe` to find text nodes sitting on image fills, then `look` at those specific nodes to confirm — never judge legibility from the root overview (its text is too small to read; the tool will tell you). Fix obvious visual problems BEFORE presenting Checkpoint 4. Visual observations are advisory: if the image suggests an anchor or readonly issue, confirm with `validate` — never "fix" a readonly node based on the image alone.
 
 **Placeholder checklist:** if any text placeholders remain (`¥__`, `X折`, unfilled dates), list them at the end as a fill-in checklist with node IDs, e.g. "还有 2 处待填：价格（0:69）、活动日期（0:74）——可直接在画布上双击修改". Do NOT treat remaining placeholders as errors — they are user-fill slots.
 

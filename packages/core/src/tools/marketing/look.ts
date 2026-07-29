@@ -1,17 +1,37 @@
-import { defineTool } from '#core/tools/schema'
+import type { SceneGraph } from '@open-pencil/scene-graph'
+
 import {
   getMarketingState,
   listMarketingDesigns,
   touchMarketingState
 } from '#core/tools/marketing/registry'
+import { defineTool } from '#core/tools/schema'
 import { uint8ArrayToBase64 } from '#core/tools/vector/export'
 
 const MAX_LONG_EDGE = 1024
+const MIN_LEGIBLE_TEXT_PX = 12
+const JPEG_QUALITY = 80
+
+function minFontSizeInSubtree(graph: SceneGraph, rootId: string): number | undefined {
+  let min: number | undefined
+  const stack: string[] = [rootId]
+  while (stack.length > 0) {
+    const id = stack.pop()
+    if (id === undefined) break
+    const node = graph.getNode(id)
+    if (!node) continue
+    if (node.type === 'TEXT' && (min === undefined || node.fontSize < min)) {
+      min = node.fontSize
+    }
+    for (const childId of node.childIds) stack.push(childId)
+  }
+  return min
+}
 
 export const lookTool = defineTool({
   name: 'look',
   description:
-    'Visually inspect a node by rendering it to an image you can actually see. Use for questions describe cannot answer: text over busy backgrounds, visual style consistency, generated-image content (e.g. garbled text in AI images), or what a user-provided image shows. Omit id to inspect the marketing design root frame. Observations are advisory — confirm structural or readonly concerns with validate, never from the image alone.',
+    'Visually inspect a node by rendering it to an image you can actually see. Use for questions describe cannot answer: text over busy backgrounds, visual style consistency, generated-image content (e.g. garbled text in AI images), or what a user-provided image shows. Omit id to inspect the marketing design root frame. For text legibility on a large design, look at the section or text-bearing child node, not the root — the tool tells you when text is too small to read and lists child node ids to drill into. Observations are advisory — confirm structural or readonly concerns with validate, never from the image alone.',
   params: {
     id: {
       type: 'string',
@@ -37,7 +57,9 @@ export const lookTool = defineTool({
             error: `Multiple marketing designs — pass an explicit id. Candidates: ${designs.map((design) => `"${design.rootFrameId}" (${design.materialTypeId})`).join(', ')}`
           }
         }
-        return { error: 'No id given and no marketing session root frame — pass an explicit node id' }
+        return {
+          error: 'No id given and no marketing session root frame — pass an explicit node id'
+        }
       }
       touchMarketingState(figma.graph, state.rootFrameId)
       targetId = state.rootFrameId
@@ -47,8 +69,40 @@ export const lookTool = defineTool({
 
     const longEdge = Math.max(node.width, node.height)
     const scale = longEdge > 0 ? Math.max(0.1, Math.min(1, MAX_LONG_EDGE / longEdge)) : 1
-    const data = await figma.exportImage([targetId], { scale, format: 'JPG' })
+    const data = await figma.exportImage([targetId], {
+      scale,
+      format: 'JPG',
+      quality: JPEG_QUALITY
+    })
     if (!data || data.length === 0) return { error: 'Nothing visible to inspect' }
+
+    const noteParts = [
+      `Visual inspection of "${node.name}" (${node.width}×${node.height}, exported at ${Math.round(scale * 100)}%).`
+    ]
+    if (focus) noteParts.push(`Focus: ${focus}.`)
+
+    const minFontSize = minFontSizeInSubtree(figma.graph, targetId)
+    if (minFontSize !== undefined) {
+      const minTextPx = minFontSize * scale
+      if (minTextPx < MIN_LEGIBLE_TEXT_PX) {
+        noteParts.push(
+          `You can judge layout proportions, visual weight, and color distribution from this image. ⚠ Text renders at ~${Math.round(minTextPx)}px here — too small to read; do not judge text content or legibility from it.`
+        )
+        const drillTargets = figma.graph
+          .getChildren(targetId)
+          .filter((child) => child.childIds.length > 0 || child.type === 'TEXT')
+          .map((child) => `${child.id} (${child.name})`)
+        if (drillTargets.length > 0) {
+          noteParts.push(
+            `To inspect text, look at child nodes individually: ${drillTargets.join(' / ')}.`
+          )
+        }
+      }
+    }
+
+    noteParts.push(
+      'Judge against the locked direction and section plan. Observations are advisory — confirm structural or readonly concerns with validate.'
+    )
 
     return {
       base64: uint8ArrayToBase64(data),
@@ -56,7 +110,7 @@ export const lookTool = defineTool({
       byteLength: data.length,
       node: { id: targetId, name: node.name, width: node.width, height: node.height },
       ...(focus ? { focus } : {}),
-      note: `Visual inspection of "${node.name}" (${node.width}×${node.height}, exported at ${Math.round(scale * 100)}%). Judge against the locked direction and section plan. Observations are advisory — confirm structural or readonly concerns with validate.`
+      note: noteParts.join(' ')
     }
   }
 })

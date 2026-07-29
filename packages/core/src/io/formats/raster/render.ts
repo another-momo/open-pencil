@@ -265,7 +265,7 @@ export function renderNodesToImage(
     options.format,
     quality,
     (canvas) => {
-      canvas.clear(ck.TRANSPARENT)
+      canvas.clear(options.format === 'JPG' ? ck.WHITE : ck.TRANSPARENT)
       canvas.scale(options.scale, options.scale)
       canvas.translate(-bounds.minX, -bounds.minY)
     },

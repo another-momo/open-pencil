@@ -6,6 +6,41 @@ import type { JsonObject } from '@open-pencil/scene-graph/primitives'
 
 import { getStepUsages, getToolLogEntries } from '@/app/ai/tools'
 
+interface MediaOutputShape {
+  base64: string
+  mimeType: string
+}
+
+function asMediaOutput(value: unknown): MediaOutputShape | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const record = value as Record<string, unknown>
+  if (
+    typeof record.base64 === 'string' &&
+    typeof record.mimeType === 'string' &&
+    record.mimeType.startsWith('image/')
+  ) {
+    return record as unknown as MediaOutputShape
+  }
+  return undefined
+}
+
+function sanitizeMediaOutput(value: unknown): unknown {
+  const media = asMediaOutput(value)
+  if (!media) return value
+  const { base64, ...rest } = value as Record<string, unknown>
+  return { ...rest, base64: `[omitted ${media.base64.length} chars]` }
+}
+
+function sanitizeToolPart(part: JsonObject): JsonObject {
+  const clone: JsonObject = { ...part }
+  if ('output' in clone) clone.output = sanitizeMediaOutput(clone.output)
+  const inv = clone.toolInvocation as JsonObject | undefined
+  if (inv && 'result' in inv) {
+    clone.toolInvocation = { ...inv, result: sanitizeMediaOutput(inv.result) }
+  }
+  return clone
+}
+
 export function formatTokenUsage(): string {
   const steps = getStepUsages()
   if (steps.length === 0) return '  (no usage data — provider may not report it)'
@@ -23,13 +58,12 @@ export function formatTokenUsage(): string {
     totalCacheRead += s.cacheReadTokens
     totalCacheWrite += s.cacheWriteTokens
 
-    let cacheInfo = ' NO CACHE'
-    if (s.cacheReadTokens > 0) {
-      cacheInfo = ` cache_read=${s.cacheReadTokens}`
-    } else if (s.cacheWriteTokens > 0) {
-      cacheInfo = ` cache_write=${s.cacheWriteTokens}`
-    }
-    lines.push(`  Step ${i + 1}: in=${s.inputTokens} out=${s.outputTokens}${cacheInfo}`)
+    const cacheInfo: string[] = []
+    if (s.cacheReadTokens > 0) cacheInfo.push(`cache_read=${s.cacheReadTokens}`)
+    if (s.cacheWriteTokens > 0) cacheInfo.push(`cache_write=${s.cacheWriteTokens}`)
+    lines.push(
+      `  Step ${i + 1}: in=${s.inputTokens} out=${s.outputTokens}${cacheInfo.length > 0 ? ` ${cacheInfo.join(' ')}` : ' NO CACHE'}`
+    )
   }
 
   const cacheHitRate = totalInput > 0 ? ((totalCacheRead / totalInput) * 100).toFixed(1) : '0.0'
@@ -159,7 +193,8 @@ function formatToolPart(part: Record<string, unknown>): string {
   if (inv) {
     const lines = [`  [tool] ${String(inv.toolName)} (${String(inv.state)})`]
     if (inv.args) lines.push(`    args: ${JSON.stringify(inv.args)}`)
-    if (inv.result !== undefined) lines.push(`    result: ${JSON.stringify(inv.result)}`)
+    if (inv.result !== undefined)
+      lines.push(`    result: ${JSON.stringify(sanitizeMediaOutput(inv.result))}`)
     return lines.join('\n')
   }
 
@@ -167,7 +202,8 @@ function formatToolPart(part: Record<string, unknown>): string {
   const state = typeof part.state === 'string' ? part.state : '?'
   const lines = [`  [tool] ${name} (${state})`]
   if (part.input) lines.push(`    input: ${JSON.stringify(part.input)}`)
-  if (part.output !== undefined) lines.push(`    output: ${JSON.stringify(part.output)}`)
+  if (part.output !== undefined)
+    lines.push(`    output: ${JSON.stringify(sanitizeMediaOutput(part.output))}`)
   if (part.errorText) lines.push(`    error: ${part.errorText as string}`)
   return lines.join('\n')
 }
@@ -177,6 +213,8 @@ function formatMessageStats(messages: UIMessage[]): string {
   let assistantMessages = 0
   let toolCalls = 0
   let totalTextLength = 0
+  let mediaImages = 0
+  let mediaChars = 0
 
   for (const msg of messages) {
     if (msg.role === 'user') userMessages++
@@ -192,7 +230,16 @@ function formatMessageStats(messages: UIMessage[]): string {
         (typeof p.type === 'string' && p.type.startsWith('tool-'))
       ) {
         toolCalls++
-        totalTextLength += JSON.stringify(p).length
+        const inv = p.toolInvocation as JsonObject | undefined
+        const output = inv ? inv.result : p.output
+        const media = asMediaOutput(output)
+        if (media) {
+          mediaImages++
+          mediaChars += media.base64.length
+          totalTextLength += JSON.stringify(sanitizeToolPart(p)).length
+        } else {
+          totalTextLength += JSON.stringify(p).length
+        }
       }
     }
   }
@@ -202,6 +249,11 @@ function formatMessageStats(messages: UIMessage[]): string {
     `Tool invocations in messages: ${toolCalls}`,
     `Total text content: ${(totalTextLength / 1024).toFixed(1)} KB (~${Math.ceil(totalTextLength / 4)} tokens approx)`
   ]
+  if (mediaImages > 0) {
+    lines.push(
+      `Media payload (excluded from request after elision): ${mediaImages} images / ${(mediaChars / 1024).toFixed(1)} KB`
+    )
+  }
   return lines.join('\n')
 }
 
@@ -260,7 +312,9 @@ export function serializeChatLog(messages: UIMessage[]): string {
       ) {
         parts.push(formatToolPart(p))
       } else {
-        parts.push(`  [${typeof p.type === 'string' ? p.type : 'unknown'}] ${JSON.stringify(p)}`)
+        parts.push(
+          `  [${typeof p.type === 'string' ? p.type : 'unknown'}] ${JSON.stringify(sanitizeToolPart(p))}`
+        )
       }
     }
 

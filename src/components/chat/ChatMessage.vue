@@ -27,6 +27,31 @@ function hasErrorOutput(part: ToolPart): boolean {
   )
 }
 
+function mediaOutput(part: ToolPart): { base64: string; mimeType: string } | undefined {
+  if (part.state !== 'output-available') return undefined
+  const output = part.output as Record<string, unknown> | undefined
+  if (!output || typeof output !== 'object') return undefined
+  if (typeof output.base64 !== 'string' || typeof output.mimeType !== 'string') return undefined
+  if (!output.mimeType.startsWith('image/')) return undefined
+  return { base64: output.base64, mimeType: output.mimeType }
+}
+
+function mediaImageSrc(part: ToolPart): string | undefined {
+  const media = mediaOutput(part)
+  return media ? `data:${media.mimeType};base64,${media.base64}` : undefined
+}
+
+function displayOutput(part: ToolPart): string {
+  if (part.state === 'output-error' && part.errorText) return part.errorText
+  if (hasErrorOutput(part)) return (part.output as { error: string }).error
+  const media = mediaOutput(part)
+  if (media) {
+    const { base64: _base64, ...rest } = part.output as Record<string, unknown>
+    return JSON.stringify({ ...rest, base64: `[omitted ${media.base64.length} chars]` }, null, 2)
+  }
+  return JSON.stringify(part.output, null, 2)
+}
+
 function toolState(part: ToolPart): 'pending' | 'done' | 'error' {
   if (part.state === 'output-error' || hasErrorOutput(part)) return 'error'
   if (part.state === 'output-available') return 'done'
@@ -89,12 +114,14 @@ function partKey(part: UIMessagePart<UIDataTypes, UITools>, index: number): stri
                 v-if="toolState(part) !== 'pending'"
                 class="data-[state=closed]:collapsible-up data-[state=open]:collapsible-down overflow-hidden text-[10px]"
               >
+                <img
+                  v-if="mediaImageSrc(part)"
+                  :src="mediaImageSrc(part)"
+                  :alt="toolDisplayName(part)"
+                  class="mt-1 max-h-48 rounded border border-border"
+                />
                 <pre class="mt-1 overflow-x-auto rounded bg-input p-2 text-muted">{{
-                  part.state === 'output-error' && part.errorText
-                    ? part.errorText
-                    : hasErrorOutput(part)
-                      ? (part.output as { error: string }).error
-                      : JSON.stringify(part.output, null, 2)
+                  displayOutput(part)
                 }}</pre>
               </CollapsibleContent>
             </CollapsibleRoot>

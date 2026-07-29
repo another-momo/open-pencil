@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 
-import type { ModelMessage } from 'ai'
+import { valibotSchema } from '@ai-sdk/valibot'
+import { convertToModelMessages, tool } from 'ai'
+import type { ModelMessage, UIMessage } from 'ai'
+import * as v from 'valibot'
+
+import { CORE_TOOLS, FigmaAPI, SceneGraph, toolsToAI } from '@open-pencil/core'
 
 import { elideMediaToolResults } from '@/app/ai/chat/elision'
 
@@ -147,5 +152,82 @@ describe('elideMediaToolResults', () => {
 
     const twice = elideMediaToolResults(once, 2)
     expect(twice).toEqual(once)
+  })
+})
+
+describe('UIMessage → ModelMessage wiring (toModelOutput + elision)', () => {
+  function lookOutput(tag: string) {
+    return {
+      base64: `BASE64-${tag}`,
+      mimeType: 'image/jpeg',
+      byteLength: 100,
+      node: { id: '0:1', name: 'Root', width: 750, height: 4000 },
+      note: `note-${tag}`
+    }
+  }
+
+  function lookUIMessage(tags: string[]): UIMessage[] {
+    return [
+      {
+        id: 'msg-1',
+        role: 'assistant',
+        parts: tags.map((tag, i) => ({
+          type: 'tool-look',
+          toolCallId: `call-${tag}`,
+          state: 'output-available',
+          input: {},
+          output: lookOutput(tag)
+        }))
+      }
+    ] as unknown as UIMessage[]
+  }
+
+  function chatTools() {
+    const figma = new FigmaAPI(new SceneGraph())
+    return toolsToAI(CORE_TOOLS, { getFigma: () => figma }, { v, valibotSchema, tool })
+  }
+
+  function toolResultOutputs(messages: ModelMessage[]) {
+    const outputs: Array<{ type: string; value?: Array<{ type: string; data?: string }> }> = []
+    for (const message of messages) {
+      if (message.role !== 'tool' || !Array.isArray(message.content)) continue
+      for (const part of message.content) {
+        const candidate = part as {
+          type: string
+          output?: { type: string; value?: Array<{ type: string; data?: string }> }
+        }
+        if (candidate.type === 'tool-result' && candidate.output) outputs.push(candidate.output)
+      }
+    }
+    return outputs
+  }
+
+  test('look output reaches the model as media content parts, not JSON', async () => {
+    const modelMessages = await convertToModelMessages(lookUIMessage(['A']), {
+      tools: chatTools()
+    })
+
+    const outputs = toolResultOutputs(modelMessages)
+    expect(outputs).toHaveLength(1)
+    expect(outputs[0].type).toBe('content')
+    const value = outputs[0].value ?? []
+    expect(value.map((item) => item.type)).toEqual(['text', 'media'])
+    expect(value[1].data).toBe('BASE64-A')
+  })
+
+  test('end-to-end: conversion then elision keeps only the newest K images', async () => {
+    const modelMessages = await convertToModelMessages(lookUIMessage(['1', '2', '3']), {
+      tools: chatTools()
+    })
+
+    const elided = elideMediaToolResults(modelMessages, 2)
+    const outputs = toolResultOutputs(elided)
+
+    const first = outputs[0].value ?? []
+    expect(first[0]).toEqual({ type: 'text', text: 'note-1' })
+    expect(first[1].type).toBe('text')
+    expect(JSON.stringify(elided)).not.toContain('BASE64-1')
+    expect(JSON.stringify(elided)).toContain('BASE64-2')
+    expect(JSON.stringify(elided)).toContain('BASE64-3')
   })
 })

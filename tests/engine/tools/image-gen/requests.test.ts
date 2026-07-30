@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 
-import { normalizeDimensions, normalizeSize, parseImageGenRequests } from '#core/tools/image-gen/requests'
+import {
+  normalizeDimensions,
+  normalizeSize,
+  parseImageGenRequests
+} from '#core/tools/image-gen/requests'
 
 describe('normalizeDimensions', () => {
   test('aligns to 16px while preserving aspect ratio', () => {
@@ -57,14 +61,14 @@ describe('parseImageGenRequests', () => {
     })
   })
 
-  test('parses references with export flag', () => {
+  test('parses references with asImage flag', () => {
     const result = parseImageGenRequests(
-      '[{"prompt":"bg","width":1080,"height":1920,"references":[{"id":"0:9","export":true}]}]'
+      '[{"prompt":"bg","width":1080,"height":1920,"references":[{"id":"0:9","asImage":true}]}]'
     )
     expect(result).toEqual({
       requests: [
         expect.objectContaining({
-          references: [{ id: '0:9', export: true }]
+          references: [{ id: '0:9', asImage: true }]
         })
       ],
       sizeNote: expect.stringContaining('1080x1920 → 1088x1920')
@@ -86,10 +90,14 @@ describe('parseImageGenRequests', () => {
     ).toEqual({ error: '"references" must be an array of node ids' })
     expect(
       parseImageGenRequests('[{"prompt":"x","width":100,"height":100,"references":[42]}]')
-    ).toEqual({ error: 'Each reference must be a node id string or { "id": "...", "export"?: true }' })
+    ).toEqual({
+      error: 'Each reference must be a node id string or { "id": "...", "asImage"?: true }'
+    })
     expect(
       parseImageGenRequests('[{"prompt":"x","width":100,"height":100,"references":[{}]}]')
-    ).toEqual({ error: 'Each reference must be a node id string or { "id": "...", "export"?: true }' })
+    ).toEqual({
+      error: 'Each reference must be a node id string or { "id": "...", "asImage"?: true }'
+    })
   })
 
   test('new images require width and height', () => {

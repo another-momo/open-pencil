@@ -17,6 +17,18 @@ export interface ImageGenExecuteResult {
 
 const IMAGE_MARKER_RE = /\[image\s+\d+\]/i
 
+function allReferencesFailedError(figma: FigmaAPI, skipped: string[]): Error {
+  // Distinguish "node not found" from "node has no IMAGE fill" — the latter
+  // is fixable on the spot with {"id":"...","asImage":true}.
+  const noFill = skipped.filter((id) => figma.getNodeById(id) !== null)
+  let hint = ''
+  if (noFill.length > 0) {
+    const plural = noFill.length > 1
+    hint = ` — tip: ${plural ? 'these nodes have' : 'this node has'} no IMAGE fill; pass {"id":"<id>","asImage":true} to render ${plural ? 'them' : 'it'} as a reference`
+  }
+  return new Error(`Failed to extract all reference image(s): ${skipped.join(', ')}${hint}`)
+}
+
 async function extractNodeImage(figma: FigmaAPI, nodeId: string): Promise<Uint8Array | null> {
   const node = figma.getNodeById(nodeId)
   if (!node) return null
@@ -31,7 +43,7 @@ async function extractReferenceImage(
   figma: FigmaAPI,
   ref: ImageGenReference
 ): Promise<Uint8Array | null> {
-  if (ref.export) {
+  if (ref.asImage) {
     if (!figma.exportImage) return null
     return figma.exportImage([ref.id], { scale: 1, format: 'PNG' })
   }
@@ -73,7 +85,7 @@ export async function generateOne(
       )
     }
     if (images.length === 0) {
-      throw new Error(`Failed to extract all reference image(s): ${skipped.join(', ')}`)
+      throw allReferencesFailedError(figma, skipped)
     }
   }
   const note =
@@ -81,6 +93,7 @@ export async function generateOne(
       ? `Used ${images.length}/${references.length} reference image(s); skipped: ${skipped.join(', ')}`
       : undefined
 
+  let finalReq = req
   if (!target) {
     target = figma.createFrame()
     target.resize(req.width ?? 1024, req.height ?? 1024)
@@ -91,12 +104,11 @@ export async function generateOne(
     // Explicit width/height always win.
     const normalized = normalizeSize(Math.round(target.width), Math.round(target.height))
     if (!('error' in normalized)) {
-      req.width = normalized.width
-      req.height = normalized.height
+      finalReq = { ...req, width: normalized.width, height: normalized.height }
     }
   }
 
-  const gen = await provider.generate(req, images.length > 0 ? images : undefined)
+  const gen = await provider.generate(finalReq, images.length > 0 ? images : undefined)
 
   target.fills = [createImageFill(figma, gen.bytes)]
 

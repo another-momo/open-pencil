@@ -6,8 +6,8 @@ export type ImageGenBackground = 'auto' | 'opaque'
 
 export interface ImageGenReference {
   id: string
-  /** Render the node via figma.exportImage instead of reading its IMAGE fill. */
-  export?: boolean
+  /** Treat the node as an image: render it via figma.exportImage instead of reading its IMAGE fill. */
+  asImage?: boolean
 }
 
 export interface ImageGenRequest {
@@ -154,7 +154,8 @@ const dmxImageProvider: ImageGenProvider = {
         (req.outputFormat === 'jpeg' || req.outputFormat === 'webp') &&
         req.outputCompression != null
       ) {
-        if (target instanceof FormData) target.append('output_compression', String(req.outputCompression))
+        if (target instanceof FormData)
+          target.append('output_compression', String(req.outputCompression))
         else target.output_compression = req.outputCompression
       }
     }
@@ -202,19 +203,16 @@ const dmxImageProvider: ImageGenProvider = {
       }
       withCompression(body)
 
-      const response = await ofetch.raw<ImageApiResponse>(
-        `${imageGenBaseURL}/images/generations`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${imageGenKey}`,
-            'Content-Type': 'application/json'
-          },
-          body,
-          retry: 0,
-          timeout: imageGenTimeoutMs
-        }
-      )
+      const response = await ofetch.raw<ImageApiResponse>(`${imageGenBaseURL}/images/generations`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${imageGenKey}`,
+          'Content-Type': 'application/json'
+        },
+        body,
+        retry: 0,
+        timeout: imageGenTimeoutMs
+      })
       const bytes = await extractImageBytes(response._data as ImageApiResponse)
       return { bytes, width: resultWidth, height: resultHeight }
     } catch (err) {

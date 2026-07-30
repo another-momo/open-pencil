@@ -29,11 +29,11 @@
 packages/core/src/tools/image-gen.ts          # defineTool('generate_image') + 导出 setter
 packages/core/src/tools/image-gen/
   providers.ts   # ImageGenProvider 接口 + DMXAPI(gpt-image-2) 实现 + 独立注册表 + 超时/错误解析
-  apply.ts       # references 图片收集（含 export:true 渲染）/ 调 provider / 新建或填充节点
+  apply.ts       # references 图片收集（含 asImage:true 渲染）/ 调 provider / 新建或填充节点
   requests.ts    # 解析 JSON 数组 + references + 尺寸 16px 对齐与约束裁剪
 ```
 
-语义（2026-07-28 重构，详见 `l1-image-gen-optimize.md`）：**`references` 是唯一图片输入入口，`id` 只决定输出目标**。省略 `id` → 新建 frame；传入 `id` → 覆盖该节点 fill。编辑 = references 引用目标节点自身；重新生成（不参考旧图）= references 不含目标节点；多张参考图经 `image[]` 走 edits 端点，prompt 里用 `[image N]` 按声明顺序指代；非 IMAGE 节点用 `{ id, export: true }` 渲染为参考。
+语义（2026-07-28 重构，详见 `l1-image-gen-optimize.md`）：**`references` 是唯一图片输入入口，`id` 只决定输出目标**。省略 `id` → 新建 frame；传入 `id` → 覆盖该节点 fill（leaf 节点直接覆盖 fill；Frame 作为背景填充，children 保留——text-over-image hero 的标准做法）。编辑 = references 引用目标节点自身；重新生成（不参考旧图）= references 不含目标节点；多张参考图经 `image[]` 走 edits 端点，prompt 里用 `[image N]` 按声明顺序指代；非 IMAGE 节点用 `{ id, asImage: true }` 渲染为参考。
 
 配置**完全独立于 LLM**：
 - `src/app/ai/chat/storage.ts`：`imageGenApiKey` / `imageGenBaseURL` / `imageGenModel`

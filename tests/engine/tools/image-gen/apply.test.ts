@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 
 import { FigmaAPI, SceneGraph } from '@open-pencil/core'
+
+import { createImageFill } from '#core/tools/image-fill'
 import { generateOne } from '#core/tools/image-gen/apply'
 import type { ImageGenProvider, ImageGenRequest } from '#core/tools/image-gen/providers'
-import { createImageFill } from '#core/tools/image-fill'
 
 const PNG_MAGIC = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
@@ -113,6 +114,22 @@ describe('generateOne', () => {
     ).rejects.toThrow('missing-a')
   })
 
+  test('all references failing on existing nodes without IMAGE fill → hint suggests asImage', async () => {
+    const { figma } = setup()
+    const layout = figma.createFrame()
+    layout.name = 'layout'
+    const { provider } = fakeProvider()
+
+    await expect(
+      generateOne(figma, provider, {
+        prompt: 'background for the layout',
+        width: 1024,
+        height: 1024,
+        references: [{ id: layout.id }]
+      })
+    ).rejects.toThrow('"asImage":true')
+  })
+
   test('any extraction failure with [image N] markers → throws to avoid misalignment', async () => {
     const { figma } = setup()
     const good = createImageNode(figma, 'good', PNG_MAGIC)
@@ -128,7 +145,7 @@ describe('generateOne', () => {
     ).rejects.toThrow('misalign')
   })
 
-  test('export:true renders via figma.exportImage', async () => {
+  test('asImage:true renders via figma.exportImage', async () => {
     const { figma } = setup()
     const layout = figma.createFrame()
     layout.name = 'layout'
@@ -141,13 +158,13 @@ describe('generateOne', () => {
       prompt: 'background for [image 1]',
       width: 1024,
       height: 1024,
-      references: [{ id: layout.id, export: true }]
+      references: [{ id: layout.id, asImage: true }]
     })
 
     expect(calls[0].images?.[0]).toEqual(rendered)
   })
 
-  test('export:true without exportImage capability → extraction failure', async () => {
+  test('asImage:true without exportImage capability → extraction failure', async () => {
     const { figma } = setup()
     const layout = figma.createFrame()
     layout.name = 'layout'
@@ -158,7 +175,7 @@ describe('generateOne', () => {
         prompt: 'background',
         width: 1024,
         height: 1024,
-        references: [{ id: layout.id, export: true }]
+        references: [{ id: layout.id, asImage: true }]
       })
     ).rejects.toThrow('Failed to extract all reference')
   })

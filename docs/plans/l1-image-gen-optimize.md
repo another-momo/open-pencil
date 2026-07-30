@@ -23,7 +23,7 @@
 | 尺寸规范化：枚举映射 → 16px 对齐 + 约束裁剪 | `packages/core/src/tools/image-gen/requests.ts` | P0 |
 | 超时：ofetch `timeout` 选项，可配置 | `packages/core/src/tools/image-gen/providers.ts` | P0 |
 | 错误信息：捕获 FetchError 解析 `err.data` | `packages/core/src/tools/image-gen/providers.ts` | P1 |
-| 非 IMAGE 节点渲染参考（`export: true`） | `apply.ts` / `requests.ts` | P1 |
+| 非 IMAGE 节点渲染参考（`asImage: true`） | `apply.ts` / `requests.ts` | P1 |
 | 加 `moderation: 'auto'`；两端参数对齐（background / output_compression） | `packages/core/src/tools/image-gen/providers.ts` | P2 |
 | 更新三处 generate_image 文档（tool description + 两个 system prompt） | `packages/core/src/tools/image-gen.ts` / `src/app/ai/chat/system-prompt.md` / `system-prompt-marketing.md` | P2 |
 | 返回值增加 canvasWidth/canvasHeight | `packages/core/src/tools/image-gen/apply.ts` | P2 |
@@ -168,7 +168,7 @@ export interface ImageGenProvider {
 | 替换已有图（不参考旧图/重试） | 无 | 有 | 空 | generations | 同一节点 |
 | 编辑节点 | 含目标节点自己 | 有 | 目标节点图, …（按声明顺序） | edits | 同一节点 |
 | 参考+编辑 | 目标节点 + 其他参考 | 有 | 按声明顺序 | edits | 同一节点 |
-| 渲染参考（P1） | 有（`export: true`） | 有/无 | 渲染图1, 渲染图2, … | edits | 新节点或已有节点 |
+| 渲染参考（P1） | 有（`asImage: true`） | 有/无 | 渲染图1, 渲染图2, … | edits | 新节点或已有节点 |
 
 ### 改动量
 
@@ -263,9 +263,9 @@ const response = await ofetch.raw(url, { /* ... */, retry: 0, timeout: imageGenT
 
 基础版 references 只能引用有 IMAGE fill 的节点。文字、形状、Group/Frame 等非图片节点无法作为参考图传给 API。
 
-### 方案：references 声明 `export: true`，工具内部渲染
+### 方案：references 声明 `asImage: true`，工具内部渲染
 
-Agent 在 references 中用 `{ id, export: true }` 显式声明"这个节点需要渲染成图片"。工具内部对该节点调用 `figma.exportImage`（可选能力，已存在）渲染为 PNG bytes，与其他参考图一起进入 `images[]` 列表。
+Agent 在 references 中用 `{ id, asImage: true }` 显式声明"这个节点需要渲染成图片"。工具内部对该节点调用 `figma.exportImage`（可选能力，已存在）渲染为 PNG bytes，与其他参考图一起进入 `images[]` 列表。
 
 **工作流示例**：
 
@@ -273,7 +273,7 @@ Agent 在 references 中用 `{ id, export: true }` 显式声明"这个节点需�
 Agent 调 generate_image:
 {
   prompt: "为 [image 1] 生成合适的背景图，画面主题：春节促销",
-  references: [{ id: "frame-layout", export: true }],
+  references: [{ id: "frame-layout", asImage: true }],
   width: 1080, height: 1920
 }
 → 工具内部渲染 frame-layout 为 PNG bytes，作为 image[1] 发给 API
@@ -281,12 +281,12 @@ Agent 调 generate_image:
 
 **需要的改动**：
 
-- `requests.ts` 的 references 项类型从 `string` 扩展为 `string | { id, export?: boolean }`
-- `apply.ts` 的图片收集逻辑：声明 `export: true` 的节点调 `figma.exportImage([id], { scale: 1, format: 'PNG' })` 取 bytes；未声明 export 的节点走原有 IMAGE fill 提取路径
+- `requests.ts` 的 references 项类型从 `string` 扩展为 `string | { id, asImage?: boolean }`
+- `apply.ts` 的图片收集逻辑：声明 `asImage: true` 的节点调 `figma.exportImage([id], { scale: 1, format: 'PNG' })` 取 bytes；未声明 asImage 的节点走原有 IMAGE fill 提取路径
 - `figma.exportImage` 未注入的环境（headless CLI）：该项按提取失败处理，原因记为 "render not available in this environment"
-- System prompt 引导 agent：引用非 IMAGE 节点时加 `export: true`
+- System prompt 引导 agent：引用非 IMAGE 节点时加 `asImage: true`
 
-**为什么不在 P0 一起做**：`export` 标记依赖渲染能力，失败模式更多（空渲染、超大节点、无渲染能力的环境），先把 IMAGE 节点引用跑稳再加。
+**为什么不在 P0 一起做**：`asImage` 标记依赖渲染能力，失败模式更多（空渲染、超大节点、无渲染能力的环境），先把 IMAGE 节点引用跑稳再加。
 
 ### 备选方案 A：export_image + 文件路径编排（未选择）
 
@@ -308,7 +308,7 @@ Playground 始终发送 `moderation: 'auto'`。在 `dmxImageProvider` 的 JSON b
 
 1. **`packages/core/src/tools/image-gen.ts` 的 ToolDef description**（模型直接看到的工具文档，最重要）：更新为解耦模型——references 是唯一输入入口、id 只是输出目标、编辑 = references 引用目标自身；写明 `[image N]` 位置引用约定（N = references 声明顺序）；删除枚举尺寸列表。
 2. **`src/app/ai/chat/system-prompt.md`**：删除为 generate_image 新增的 23 行文档。Marketing 模式的 agent 使用独立的 `system-prompt-marketing.md`，原始 prompt 里不需要。
-3. **`src/app/ai/chat/system-prompt-marketing.md`**（§Size constraints，约 line 103）：删除枚举尺寸说明，改为"任意尺寸，16px 对齐 + 平台约束裁剪"；补充 references 用法（编辑 = 引用目标自身、`[image N]` 位置引用、`export: true` 渲染引用）；重试指引改为"references 不含目标节点即重新生成、不参考旧图"。
+3. **`src/app/ai/chat/system-prompt-marketing.md`**（§Size constraints，约 line 103）：删除枚举尺寸说明，改为"任意尺寸，16px 对齐 + 平台约束裁剪"；补充 references 用法（编辑 = 引用目标自身、`[image N]` 位置引用、`asImage: true` 渲染引用）；重试指引改为"references 不含目标节点即重新生成、不参考旧图"。
 
 同时更新 `requests.ts` 中 `sizeNote` 的文案——"Mapped to allowed gpt-image-2 sizes" 随枚举删除改为描述约束裁剪（仅在实际调整了尺寸时出现）。
 
@@ -350,7 +350,7 @@ Playground 始终发送 `moderation: 'auto'`。在 `dmxImageProvider` 的 JSON b
 
 ### 非 IMAGE 节点作为参考：工具内部渲染，不经文件
 
-**选定方案（方案 B）**：references 用 `{ id, export: true }` 声明渲染意图，工具内部调 `figma.exportImage` 渲染为 PNG bytes。
+**选定方案（方案 B）**：references 用 `{ id, asImage: true }` 声明渲染意图，工具内部调 `figma.exportImage` 渲染为 PNG bytes。
 - 零新增能力——`figma.exportImage` 可选能力已存在，环境注入模式成熟
 - 单次工具调用，agent 工作流简单；无临时文件管理
 - 覆盖全环境（含纯浏览器）——文件方案在浏览器不可用
@@ -377,12 +377,38 @@ playground 的 `normalizeDimensions` 经过大量实际 API 测试验证（支�
 
 1. **单元测试**（`tests/engine/tools/image-gen/`，沿用现有 tools 测试布局）：
    - `normalizeDimensions`：移植 playground 的用例 + 本文"效果验证"表的全部输入（含 400x3000 → 480x1408 这类连锁约束用例）
-   - `parseImageGenRequests`：`references` 形态（string / `{id,export:true}`）的解析与报错
+   - `parseImageGenRequests`：`references` 形态（string / `{id,asImage:true}`）的解析与报错
    - 提取失败规则：prompt 无标记部分失败 → note；全部失败 → 报错；prompt 含 `[image N]` 标记 + 任何失败 → 报错
    - 解耦语义：`id` 有 IMAGE fill 但 references 为空 → images 为空走 generations（替换语义，不收集目标节点图片）
-2. **联调验证**：dmxapi 多图 `image[]` 已在 gpt_image_playground 实测通过；落地后仍需在 app 内跑一遍场景验证表的 7 个场景（重点：编辑含目标自身、替换不带旧图、`export: true` 渲染参考）。
+2. **联调验证**：dmxapi 多图 `image[]` 已在 gpt_image_playground 实测通过；落地后仍需在 app 内跑一遍场景验证表的 7 个场景（重点：编辑含目标自身、替换不带旧图、`asImage: true` 渲染参考）。
 3. **文档**：更新 `CHANGELOG.md`（Unreleased）；tool description 与两个 system prompt 的更新见 P2。
 
 ## 回滚方案
 
-核心改动集中在 `packages/core/src/tools/image-gen/` 内；`export: true` 渲染复用已有的 `figma.exportImage` 可选能力，无新增环境依赖。回滚 = git revert 相关 commit。
+核心改动集中在 `packages/core/src/tools/image-gen/` 内；`asImage: true` 渲染复用已有的 `figma.exportImage` 可选能力，无新增环境依赖。回滚 = git revert 相关 commit。
+
+## 评审后续修正（2026-07-29，见 `docs/review/2026-07-29-l1-image-gen-optimize-review.md`）
+
+P0/P1/P2 全部落地后经评审 + 二次走查确认的发布前修正批次，均已逐条对照代码核实：
+
+### 命名修正：`export: true` → `asImage: true`
+
+`export` 与 `export_image` 工具"导出到文件"的语义冲突，agent 容易误联想；`asImage` 读作"把这个节点当作图片用"。纯字段名改写，零逻辑变更、零数据迁移（参数仅存在于 prompt 串，无持久化历史调用）。涉及 `providers.ts`（`ImageGenReference.asImage`）、`apply.ts`、`requests.ts`（解析 + 报错文案）、`image-gen.ts` tool description、`system-prompt-marketing.md`、测试 fixture，本文档已同步改写。
+
+### prompt 触发引导（agent 知道怎么写、不知道什么时候写）
+
+1. **marketing reference section**：在 "Reference-guided generation" 示例后补"非 IMAGE 节点"段——引用 Frame/排版组合时必须 `asImage: true`，否则提取失败。
+2. **Phase 3 工作流**：步骤 1 前补触发条件——placeholder 是 Frame 且生成背景时，若用户未说"忽略现有排版"，应把 hero Frame 以 `asImage: true` 作为参考传给 API。
+3. **tool-level 错误 hint**：`apply.ts` 全失败分支区分"节点不存在"与"节点无 IMAGE fill"，后者报错信息直接提示改用 `{"id":"<id>","asImage":true}`——对 UI / marketing / MCP / CLI 四种模式同时生效，不依赖 prompt 措辞。
+4. **顺带修复**：`system-prompt-marketing.md` §Stock Photos "NOT to Frames with children" 与 37f434fc 放开的 Frame 背景填充行为（及同文件 Phase 3 步骤 1、`stock-photo.ts` 工具描述）矛盾，同步改为一致口径。
+
+### 代码与测试补全
+
+- `apply.ts` 尺寸继承改为不可变：构造 `finalReq` 传给 provider，不再 mutate 入参 `req`。
+- 补三类单测：`apiErrorMessage` FetchError 解析（stub fetch 返回错误 body 端到端覆盖）、`withCompression` FormData/JSON 两路径、edits 端点 FormData 字段名 `image[]`（dmxapi 对 `image` 字段会拒，防未来重构改坏）。
+- `00-overview.md` §3.1 补"Frame 填充为背景时保留 children"的行为描述。
+
+### 暂不处理（评审列为低优/可选）
+
+- timeout 第 4 参的 UI 入口与持久化（默认 120s 已覆盖绝大多数场景，需要时再加设置项）。
+- 批次内 reference → 同批输出节点的运行时显式检测（当前降级路径已优雅：提取失败 → 按三规则报错，不静默错位）。

@@ -74,7 +74,8 @@ export function normalizeSize(width: number, height: number): NormalizedSize | {
     return { error: `Invalid size ${width}x${height}` }
   }
   const normalized = normalizeDimensions(width, height)
-  const adjusted = normalized.width !== Math.round(width) || normalized.height !== Math.round(height)
+  const adjusted =
+    normalized.width !== Math.round(width) || normalized.height !== Math.round(height)
   return { width: normalized.width, height: normalized.height, adjusted }
 }
 
@@ -89,7 +90,7 @@ function parseReferences(value: unknown): ImageGenReference[] | { error: string 
   if (!Array.isArray(value)) return { error: '"references" must be an array of node ids' }
   interface RawReference {
     id?: unknown
-    export?: unknown
+    asImage?: unknown
   }
   const out: ImageGenReference[] = []
   for (const item of value) {
@@ -100,11 +101,11 @@ function parseReferences(value: unknown): ImageGenReference[] | { error: string 
     if (item && typeof item === 'object') {
       const raw = item as RawReference
       if (typeof raw.id === 'string' && raw.id.trim().length > 0) {
-        out.push({ id: raw.id, export: raw.export === true ? true : undefined })
+        out.push({ id: raw.id, asImage: raw.asImage === true ? true : undefined })
         continue
       }
     }
-    return { error: 'Each reference must be a node id string or { "id": "...", "export"?: true }' }
+    return { error: 'Each reference must be a node id string or { "id": "...", "asImage"?: true }' }
   }
   return out
 }

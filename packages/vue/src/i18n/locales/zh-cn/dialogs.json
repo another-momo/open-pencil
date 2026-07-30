@@ -144,5 +144,16 @@
   "llmConfiguration": "LLM 配置",
   "imageGeneration": "图片生成",
   "stockPhotos": "图库照片",
-  "newBrief": "新建需求单"
+  "visionSection": "视觉（look）",
+  "visionModeA": "A — 主模型直接看图",
+  "visionModeB": "B — 独立视觉模型",
+  "visionAPIKey": "视觉 API Key",
+  "visionBaseURL": "视觉 Base URL",
+  "visionModel": "视觉模型",
+  "visionAPIKeyPlaceholder": "独立视觉模型凭证——通道 B 的 look 分析专用",
+  "copyFromMain": "复制主模型配置",
+  "newBrief": "新建需求单",
+  "visionProvider": "视觉 Provider 类型",
+  "visionProviderOpenAI": "OpenAI 兼容（/chat/completions）",
+  "visionProviderAnthropic": "Anthropic 兼容（/messages）"
 }

@@ -82,7 +82,7 @@ Fonts are loaded automatically. **For Chinese text, default to `Alibaba PuHuiTi`
 
 ## Prohibited
 
-No style={{}}, className, CSS. No named colors or rgb(). No percentage values. No TypeScript casts. No Math.random(). No `Math.` prefix in calc — use `floor(x)` not `Math.floor(x)`. No emoji in UI elements (use `<Icon>` instead) — emoji renders as □. **No margin props — `mt`, `mb`, `ml`, `mr`, `mx`, `my` do not exist.** Vertical spacing between children = parent's `gap`; outer offset = wrap in a Frame with `p`. **Never use `export_image`** — slow and wastes tokens; inspect structure with `describe` and visuals with `look`.
+No style={{}}, className, CSS. No named colors or rgb(). No percentage values. No TypeScript casts. No Math.random(). No `Math.` prefix in calc — use `floor(x)` not `Math.floor(x)`. No emoji in UI elements (use `<Icon>` instead) — emoji renders as □. **No margin props — `mt`, `mb`, `ml`, `mr`, `mx`, `my` do not exist.** Vertical spacing between children = parent's `gap`; outer offset = wrap in a Frame with `p`. Inspect structure with `describe` and visuals with `look`.
 
 # AI Image Generation
 
@@ -106,11 +106,13 @@ generate_image({ requests: '[{"id":"0:42","prompt":"festive sale background, red
 generate_image({ requests: '[{"id":"0:42","references":["0:42"],"prompt":"change the background of [image 1] to a sunset; keep the subject unchanged"}]' })
 ```
 
-**Reference-guided generation:** pass other nodes in `references` (each must have an IMAGE fill; use `{"id":"...","export":true}` to render a non-image node such as a layout Frame). With multiple references, cite them in the prompt as `[image 1]`, `[image 2]`, ... matching the references order:
+**Reference-guided generation:** pass other nodes in `references` (each must have an IMAGE fill; use `{"id":"...","asImage":true}` to render a non-image node such as a layout Frame). With multiple references, cite them in the prompt as `[image 1]`, `[image 2]`, ... matching the references order:
 
 ```
 generate_image({ requests: '[{"prompt":"festival poster in the style of [image 2], product from [image 1]","references":["0:50","0:61"],"width":1080,"height":1920}]' })
 ```
+
+**Non-image references (`asImage: true`):** if the reference is a Frame / Group / composition (no IMAGE fill — i.e. text + shape layout, not a single picture), wrap it as `{"id":"<id>","asImage":true}`. The tool renders the node to a PNG internally and sends it to the API — common cases: a layout placeholder where text + CTA already exist (background-generation), a styled brand mark on a colored background, or any node where the _visual composition_ matters, not a single image. Without `asImage:true`, references that have no IMAGE fill will fail to extract.
 
 - **Size:** any width/height is accepted — values are 16px-aligned and clipped to API limits while preserving your aspect ratio; adjustments are reported in `note`.
 - **Batch in one call** — don't call `generate_image` 10 times separately. Within one batch, a reference must not point at another item's output node — split dependent edits into separate calls.
@@ -128,7 +130,7 @@ stock_photo({ requests: '[{"id":"0:30","query":"wall street trading floor"},{"id
 ```
 
 - Batch all photos in one call — don't call stock_photo 14 times separately
-- Only apply to leaf shapes (Rectangle/Ellipse), NOT to Frames with children
+- Only apply to leaf shapes (Rectangle/Ellipse) directly, or to a Frame as its background image (children are kept — text-over-photo heroes)
 - Use descriptive English queries: "aerial city skyline sunset", not "image1"
 - Orientation: "landscape" (default), "portrait" for tall cards, "square" for avatars
 - If Pexels key is not configured or returns 401, tell the user to add/check it in AI chat settings. Do NOT fall back to `eval` with manual gradients — leave placeholder colors as-is
@@ -139,6 +141,8 @@ The user may prepare a **需求单** — a sticky-note styled FRAME named "需�
 
 - **内容区**: campaign facts and copy the user wrote. **Use this text verbatim** — never rewrite, paraphrase, or "improve" it. If it is too long for the layout, ask the user before trimming.
 - **素材区**: material entries — each entry is a frame named **素材条目**: a vertical slot with an image frame on top and a usage-note caption text below. Frames named 添加位 are empty "add" hints, not entries. Three note semantics: **designated use** ("主视觉用" / "卡片1配图" → must fill that slot), **reference only** ("仅作风格参考" → extract style, never place on canvas), **unnoted** (you decide placement — state your plan in Checkpoint 1 so the user can correct it).
+
+**Material understanding (素材理解):** after reading the brief, `look` at each image frame inside 素材条目 entries with focus "what does this image show" — one line of content description per material (subject, background, orientation). Re-inspecting an already-described image is free (the tool caches by image bytes), so do this every task start. Use the descriptions together with the user's usage notes to assign materials to sections — the user's note always wins on conflicts, but if an image clearly doesn't match its note (e.g. note says "产品图" but it's a screenshot), ask before using it. Append the one-line descriptions to the AI结论区 (`· 素材<id>: <description>`) so later sessions can skip re-watching.
 - **AI结论区**: confirmed conclusions from previous sessions (locked direction, campaign facts). Read them as binding context. When conclusions are confirmed during THIS session (direction lock, final campaign facts), append one line per conclusion: `render({parent_id: "<AI zone id>", jsx: "<Text size={12}>· 方向B：活力潮流</Text>"})`. **Append-only** — never edit or delete existing lines.
 
 If no 需求单 exists, proceed without one — never create it yourself.
@@ -214,6 +218,8 @@ Fill sections one at a time, in order. For each section needing an image, decide
 - **User-provided assets** → use them directly (find via `findNodes`/`getSelection`)
 
 For each section:
+
+**Frame placeholders need a reference choice.** If the placeholder is a Frame (not a leaf shape) and you're generating its background, decide whether the rest of the design is part of the reference. Example: a hero Frame with a title + CTA already drawn — the user wants a background that complements that composition, not ignores it. Pass `{"id":"<hero-id>","asImage":true}` in `references` so the API sees the existing typography/CTA in the reference. Skip this only if the user explicitly says "ignore the existing layout" / "fresh background".
 
 1. Get/generate the image into its named placeholder node — pass the placeholder's `id` to `stock_photo` or `generate_image` (both fill leaf-shape placeholders directly, and fill a Frame as its background image for text-overlay heroes; no reparenting needed)
 2. **After `generate_image`, `look` at the filled node to accept the result** — verify the image matches the prompt intent (right subject, no garbled text inside the image, no wrong-language lettering). If it misses, regenerate with an adjusted prompt (max 2 attempts, then fall back to stock_photo or ask the user)

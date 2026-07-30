@@ -52,9 +52,7 @@ function detectStructuralIssues(
     // absolute-positioned children and nodes outside auto-layout parents.
     const parent = node.parentId ? graph.getNode(node.parentId) : undefined
     const layoutComputed =
-      parent !== undefined &&
-      parent.layoutMode !== 'NONE' &&
-      node.layoutPositioning !== 'ABSOLUTE'
+      parent !== undefined && parent.layoutMode !== 'NONE' && node.layoutPositioning !== 'ABSOLUTE'
     if (!layoutComputed) {
       issues.push({
         message: `Subpixel position (${node.x}, ${node.y})`,
@@ -417,6 +415,11 @@ const ERROR_PATTERNS = [
   /Touch target too small/i,
   /Nested Text/i
 ]
+// Visual-judgment heuristics are downgraded to info (l2-visual-loop.md §8
+// lint 降噪, error catalog R3-4/R4-5): whether a subpixel offset, off-grid
+// gap, low contrast, or near-invisible fill actually LOOKS wrong is answered
+// by `look`, not by numeric rules. Lint keeps only deterministic structural
+// errors as hard gates.
 const INFO_PATTERNS = [
   /children named/i,
   /uppercase at/i,
@@ -424,12 +427,21 @@ const INFO_PATTERNS = [
   /radius.*should be/i,
   /width while siblings/i,
   /height while siblings/i,
-  /icon.*width/i
+  /icon.*width/i,
+  /Subpixel position/i,
+  /not on \d+px grid/i,
+  /Low contrast/i,
+  /Near-invisible/i,
+  />> padding/i
 ]
 
+// Info patterns win over error patterns: "Near-invisible" contains
+// "invisible" and would otherwise be escalated to error by keyword match
+// (the same trap as error catalog R3-4). No error-level message matches an
+// info pattern, so checking info first is safe.
 function classifySeverity(message: string): IssueSeverity {
-  if (ERROR_PATTERNS.some((p) => p.test(message))) return 'error'
   if (INFO_PATTERNS.some((p) => p.test(message))) return 'info'
+  if (ERROR_PATTERNS.some((p) => p.test(message))) return 'error'
   return 'warning'
 }
 

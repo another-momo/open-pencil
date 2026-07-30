@@ -5,6 +5,7 @@ import {
   testProviderConnection,
   type ProviderConnectionTestFailureReason
 } from '@/app/ai/chat/connection-test'
+import { resolveProviderApiFormat, resolveProviderBaseURL } from '@/app/ai/chat/model'
 import type { ChatMode } from '@/app/ai/chat/storage'
 import { useAIChat } from '@/app/ai/chat/use'
 
@@ -25,6 +26,11 @@ function createProviderSettingsContext() {
     imageGenApiKey,
     imageGenBaseURL,
     imageGenModel,
+    visionMode,
+    visionApiKey,
+    visionBaseURL,
+    visionModel,
+    visionProvider,
     chatMode,
     resetChat
   } = useAIChat()
@@ -42,6 +48,17 @@ function createProviderSettingsContext() {
   const imageGenBaseURLInput = ref(imageGenBaseURL.value)
   const imageGenModelInput = ref(imageGenModel.value)
   const hasExistingImageGenKey = ref(!!imageGenApiKey.value)
+  const visionKeyInput = ref('')
+  const visionBaseURLInput = ref(visionBaseURL.value)
+  const visionModelInput = ref(visionModel.value)
+  const hasExistingVisionKey = ref(!!visionApiKey.value)
+  const mainModelValue = computed(() => customModelID.value.trim() || modelID.value)
+  const mainBaseURLValue = computed(() =>
+    resolveProviderBaseURL(providerID.value, customBaseURL.value)
+  )
+  const canCopyMainKey = computed(() => !!apiKey.value)
+  const canCopyMainBaseURL = computed(() => !!mainBaseURLValue.value)
+  const canCopyMainModel = computed(() => !!mainModelValue.value)
   const connectionTestStatus = ref<'idle' | 'testing' | 'success' | 'error'>('idle')
   const connectionTestReason = ref<ProviderConnectionTestFailureReason | null>(null)
 
@@ -99,6 +116,17 @@ function createProviderSettingsContext() {
     if (imageGenModelInput.value.trim()) {
       imageGenModel.value = imageGenModelInput.value.trim()
     }
+    if (visionKeyInput.value.trim()) {
+      visionApiKey.value = visionKeyInput.value.trim()
+      hasExistingVisionKey.value = true
+      visionKeyInput.value = ''
+    }
+    if (visionBaseURLInput.value.trim()) {
+      visionBaseURL.value = visionBaseURLInput.value.trim()
+    }
+    if (visionModelInput.value.trim()) {
+      visionModel.value = visionModelInput.value.trim()
+    }
     if (providerDef.value.supportsCustomBaseURL) {
       customBaseURL.value = baseURLInput.value.trim()
     }
@@ -129,6 +157,34 @@ function createProviderSettingsContext() {
     imageGenApiKey.value = ''
     imageGenKeyInput.value = ''
     hasExistingImageGenKey.value = false
+  }
+
+  function clearVisionKey() {
+    visionApiKey.value = ''
+    visionKeyInput.value = ''
+    hasExistingVisionKey.value = false
+  }
+
+  // Copy-from-main buttons only fill the inputs — nothing is persisted until
+  // save() runs, matching every other field in this popover.
+  function copyMainKeyToVision() {
+    if (!canCopyMainKey.value) return
+    visionKeyInput.value = apiKey.value
+  }
+
+  function copyMainBaseURLToVision() {
+    const baseURL = mainBaseURLValue.value
+    if (!baseURL) return
+    visionBaseURLInput.value = baseURL
+    // Align the provider type with the endpoint's request format when known,
+    // so the copied URL isn't combined with a mismatched format.
+    const format = resolveProviderApiFormat(providerID.value)
+    if (format) visionProvider.value = format
+  }
+
+  function copyMainModelToVision() {
+    if (!canCopyMainModel.value) return
+    visionModelInput.value = mainModelValue.value
   }
 
   function setCustomAPIType(value: string) {
@@ -184,6 +240,11 @@ function createProviderSettingsContext() {
     imageGenApiKey,
     imageGenBaseURL,
     imageGenModel,
+    visionMode,
+    visionApiKey,
+    visionBaseURL,
+    visionModel,
+    visionProvider,
     chatMode,
     isACP,
     keyInput,
@@ -192,6 +253,13 @@ function createProviderSettingsContext() {
     imageGenKeyInput,
     imageGenBaseURLInput,
     imageGenModelInput,
+    visionKeyInput,
+    visionBaseURLInput,
+    visionModelInput,
+    hasExistingVisionKey,
+    canCopyMainKey,
+    canCopyMainBaseURL,
+    canCopyMainModel,
     baseURLInput,
     customModelInput,
     hasExistingKey,
@@ -207,6 +275,10 @@ function createProviderSettingsContext() {
     clearPexelsKey,
     clearUnsplashKey,
     clearImageGenKey,
+    clearVisionKey,
+    copyMainKeyToVision,
+    copyMainBaseURLToVision,
+    copyMainModelToVision,
     setCustomAPIType,
     setChatMode,
     testConnection

@@ -22,6 +22,17 @@ export {
   setActiveImageGenProvider,
   getImageGenProviders
 } from './image-gen'
+export {
+  setVisionMode,
+  setVisionProvider,
+  setVisionCredentials,
+  setVisionAnalyzer,
+  getVisionMode,
+  isVisionChannelBReady,
+  getCachedMaterialDescription,
+  cacheMaterialDescription
+} from './marketing/vision'
+export type { VisionMode, VisionProvider, VisionAnalyzer } from './marketing/vision'
 export { getMarketingState } from './marketing'
 export { listMaterialTypes } from './marketing'
 export {

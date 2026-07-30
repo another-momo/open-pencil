@@ -144,5 +144,16 @@
   "llmConfiguration": "Konfiguracja LLM",
   "imageGeneration": "Generowanie obrazów",
   "stockPhotos": "Zdjęcia stockowe",
-  "newBrief": "Nowy brief projektu"
+  "newBrief": "Nowy brief projektu",
+  "visionSection": "Vision (look)",
+  "visionModeA": "A — main model sees images",
+  "visionModeB": "B — independent vision model",
+  "visionAPIKey": "Vision API Key",
+  "visionBaseURL": "Vision Base URL",
+  "visionModel": "Vision Model",
+  "visionAPIKeyPlaceholder": "Independent vision credentials — used by look in channel B",
+  "copyFromMain": "Copy from main",
+  "visionProvider": "Vision provider type",
+  "visionProviderOpenAI": "OpenAI-compatible (/chat/completions)",
+  "visionProviderAnthropic": "Anthropic-compatible (/messages)"
 }

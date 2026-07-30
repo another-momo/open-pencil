@@ -12,8 +12,12 @@ import type { AIProviderID } from '@open-pencil/core/constants'
 import {
   setPexelsApiKey,
   setUnsplashAccessKey,
-  setImageGenCredentials
+  setImageGenCredentials,
+  setVisionCredentials,
+  setVisionMode,
+  setVisionProvider
 } from '@open-pencil/core/tools'
+import type { VisionMode, VisionProvider } from '@open-pencil/core/tools'
 
 const STORAGE_PREFIX = 'open-pencil:'
 
@@ -67,6 +71,18 @@ export const imageGenModel = useLocalStorage(
   'gpt-image-2-ssvip'
 )
 
+// Vision channel (l2-visual-loop.md §3): 'A' = main model sees images directly;
+// 'B' = look calls an independent vision model and returns text only.
+// Credentials are independent — empty means channel B stays unavailable.
+export const visionMode = useLocalStorage<VisionMode>(`${STORAGE_PREFIX}ai-vision-mode`, 'A')
+export const visionProvider = useLocalStorage<VisionProvider>(
+  `${STORAGE_PREFIX}vision-provider`,
+  'openai-compatible'
+)
+export const visionApiKey = useLocalStorage(`${STORAGE_PREFIX}vision-api-key`, '')
+export const visionBaseURL = useLocalStorage(`${STORAGE_PREFIX}vision-base-url`, '')
+export const visionModel = useLocalStorage(`${STORAGE_PREFIX}vision-model`, '')
+
 // Chat mode: 'ui' (default) or 'marketing'
 export const chatMode = useLocalStorage<ChatMode>(`${STORAGE_PREFIX}chat-mode`, 'ui')
 
@@ -79,9 +95,7 @@ export const chatMode = useLocalStorage<ChatMode>(`${STORAGE_PREFIX}chat-mode`, 
  * - 'ai': synced from the AI's setup_material_type call
  */
 export type MaterialTypeSource = 'user' | 'inferred' | 'ai'
-export const materialTypeSelection = ref<{ id: string; source: MaterialTypeSource } | null>(
-  null
-)
+export const materialTypeSelection = ref<{ id: string; source: MaterialTypeSource } | null>(null)
 
 export function toggleMaterialTypeLock(id: string): void {
   const current = materialTypeSelection.value
@@ -138,6 +152,30 @@ export function registerAIChatEffects(markTransportDirty: () => void) {
     [imageGenApiKey, imageGenBaseURL, imageGenModel],
     ([key, baseURL, model]) => {
       setImageGenCredentials(key || null, baseURL || undefined, model || undefined)
+    },
+    { immediate: true }
+  )
+
+  watch(
+    visionMode,
+    (mode) => {
+      setVisionMode(mode)
+    },
+    { immediate: true }
+  )
+
+  watch(
+    visionProvider,
+    (provider) => {
+      setVisionProvider(provider)
+    },
+    { immediate: true }
+  )
+
+  watch(
+    [visionApiKey, visionBaseURL, visionModel],
+    ([key, baseURL, model]) => {
+      setVisionCredentials(key || null, baseURL, model)
     },
     { immediate: true }
   )

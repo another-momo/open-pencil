@@ -5,8 +5,10 @@
 ### Added
 
 - Host multiple independent marketing designs in one document — the AI registry is keyed per root frame, and marketing session state (anchors, readonly baselines) is rebuilt from canvas markers after reopening a document, so validation and visual inspection keep working across sessions.
-- Generate reference-guided images in `generate_image` with a new `references` parameter: pass node ids as style/content references (use `{"id":"...","export":true}` to render non-image nodes such as layout frames), cite them in the prompt as `[image 1]`, `[image 2]`, and edit an existing image by referencing the target node itself. Requested sizes now keep their aspect ratio (16px-aligned, clipped to API limits) instead of being mapped to a fixed size set.
+- Generate reference-guided images in `generate_image` with a new `references` parameter: pass node ids as style/content references (use `{"id":"...","asImage":true}` to render non-image nodes such as layout frames), cite them in the prompt as `[image 1]`, `[image 2]`, and edit an existing image by referencing the target node itself. Requested sizes now keep their aspect ratio (16px-aligned, clipped to API limits) instead of being mapped to a fixed size set.
 - Let marketing-mode AI visually inspect designs with a new `look` tool: renders any node (defaulting to the design root frame) to an image the model can see, used for generated-image acceptance and pre-checkpoint visual review. When text would render too small to read at overview scale, the tool says so and names the child nodes to inspect individually instead of letting the model guess at illegible text.
+- Choose how `look` delivers images with a new Vision mode in AI settings: channel A (default) lets the main model see images directly; channel B sends them to an independent vision model (OpenAI-compatible or Anthropic-compatible endpoint with its own key/base URL/model, copyable from the main model config) and returns only its text analysis, keeping images out of the main conversation entirely.
+- Understand user-provided materials: at task start the agent inspects images in the 需求单 materials zone, writes one-line content descriptions into the AI-conclusions zone, and reuses them across sessions — re-inspecting an already-described image is free (cached by image hash). User usage notes still win, but the agent asks before using an image that clearly doesn't match its note.
 - Fill frames with images as their background in `generate_image` and `stock_photo`, keeping children intact — enables text-over-image hero layouts in marketing designs.
 - Import HTML, CSS, Tailwind, and JSX as editable documents from the app, CLI, and SDK, and export standalone browser-ready HTML with compiled CSS and optional external assets.
 - Author richer Design JSX with components, instances, variables, gradients, structured fills, shadows, and blur effects.
@@ -22,7 +24,9 @@
 
 ### Changed
 
+- Rename `references[*].export` to `references[*].asImage` in `generate_image` — `export` collided with the `export_image` tool's "save to file" semantics; `asImage` reads as "treat this node as an image". Reference-extraction errors now say when a node simply has no IMAGE fill and point at `asImage:true` as the fix, and the marketing prompt spells out when to use it (layout-frame backgrounds, text-over-image heroes).
 - Keep only the 2 most recent tool-result images (from `look`/`export_image`) in each AI request — older screenshots become text placeholders that preserve their notes, cutting runaway context growth in long marketing sessions (configurable 1–3 in AI settings).
+- Reduce lint noise in `describe`: subpixel positions, off-grid gaps, low-contrast and near-invisible estimates, and gap-vs-padding heuristics are downgraded from warning to info — whether they actually look wrong is answered visually by `look`, while deterministic structural errors (overflow, zero-size, invisible) stay hard gates.
 - Show tool-result images as thumbnails in the chat panel instead of raw JSON, and keep base64 image payloads out of the AI debug log — media sizes are reported as a separate stat (no longer inflating the token estimate), and every step now shows both cache reads and cache writes.
 - Coalesce AI tool undo entries per chat message (burst): one Ctrl+Z now reverts the whole AI run for a message instead of a single tool call, cutting undo memory for a 50-step AI session from ~7.5 MB to ~150 KB.
 - Redesign the editor chrome and Design panel with denser aligned controls, clearer selection and section states, improved menus and overlays, consistent light/dark theming, and better keyboard and screen-reader behavior.
@@ -33,6 +37,8 @@
 
 ### Fixed
 
+- Hide the marketing-only tools (`look`, `setup_material_type`, `validate`) in UI mode — calling `look` without an id there always failed for lack of a marketing session.
+- Deliver `look` tool images to the model on OpenAI-style chat-completions providers (OpenAI, MiniMax, DeepSeek, and custom OpenAI-compatible endpoints) — their SDK silently serialized screenshots as base64 JSON text inside tool messages, so the model never actually saw the image; media tool-results are now rewritten into image-bearing user messages on those providers while Anthropic, OpenRouter, and Google keep native tool-result images.
 - Add a 120s timeout to image generation API calls, surface the API's actual error message (e.g. "moderation blocked") instead of a bare HTTP status, and send `moderation`/`background`/`output_compression` consistently on both generation and edit paths.
 - Honor explicit width/height in `generate_image` when filling an existing node — target-node size is now only inherited when no size is given (previously an explicit 2048×1152 request could be silently replaced by 1024×1024).
 - Keep desktop text visible across the scene and overlay canvases, refresh it after local fonts load, and preserve rendering when a requested italic face is unavailable (#395).

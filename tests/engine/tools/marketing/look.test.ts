@@ -1,8 +1,13 @@
-import { describe, expect, test } from 'bun:test'
+import { afterEach, describe, expect, test } from 'bun:test'
 
 import type { FigmaAPI } from '@open-pencil/core'
 
 import { setMarketingState } from '#core/tools/marketing/registry'
+import {
+  setVisionAnalyzer,
+  setVisionCredentials,
+  setVisionMode
+} from '#core/tools/marketing/vision'
 
 import { expectDefined } from '#tests/helpers/assert'
 import { getTool, setupToolTest } from '#tests/helpers/tools'
@@ -17,6 +22,8 @@ interface LookResult {
   base64?: string
   mimeType?: string
   note?: string
+  analysis?: string
+  cached?: boolean
   node?: { id: string; name: string; width: number; height: number }
 }
 
@@ -30,6 +37,12 @@ function mockExportImage(figma: FigmaAPI, calls: ExportCall[]) {
 async function runLook(figma: FigmaAPI, args: Record<string, unknown>): Promise<LookResult> {
   return (await getTool('look').execute(figma, args)) as LookResult
 }
+
+afterEach(() => {
+  setVisionMode('A')
+  setVisionCredentials(null, '', '')
+  setVisionAnalyzer(null)
+})
 
 describe('look tool', () => {
   test('errors when exportImage is unavailable', async () => {
@@ -155,5 +168,85 @@ describe('look tool', () => {
     const result = await runLook(figma, { id: frame.id, focus: 'text readability' })
 
     expect(result.note).toContain('Focus: text readability.')
+  })
+})
+
+describe('look tool — vision channel B', () => {
+  function setupChannelB(analyzer: (input: { prompt: string }) => Promise<string>) {
+    setVisionMode('B')
+    setVisionCredentials('sk-test', 'https://vision.example/v1', 'vision-model')
+    setVisionAnalyzer(analyzer)
+  }
+
+  test('errors when channel B is selected but credentials are incomplete', async () => {
+    const { graph, figma } = setupToolTest()
+    mockExportImage(figma, [])
+    const pageId = graph.getPages()[0].id
+    const frame = graph.createNode('FRAME', pageId, { name: 'Card', width: 300, height: 250 })
+    setVisionMode('B')
+    setVisionCredentials(null, '', '')
+
+    const result = await runLook(figma, { id: frame.id })
+
+    expect(result.error).toContain('channel B')
+  })
+
+  test('returns analysis without base64 and passes note + focus to the vision model', async () => {
+    const { graph, figma } = setupToolTest()
+    mockExportImage(figma, [])
+    const pageId = graph.getPages()[0].id
+    const frame = graph.createNode('FRAME', pageId, { name: 'Card', width: 300, height: 250 })
+    let seenPrompt = ''
+    setupChannelB((input) => {
+      seenPrompt = input.prompt
+      return Promise.resolve('a white mug on a wooden table')
+    })
+
+    const result = await runLook(figma, { id: frame.id, focus: 'what does this image show' })
+
+    expect(result.error).toBeUndefined()
+    expect(result.analysis).toBe('a white mug on a wooden table')
+    expect(result.base64).toBeUndefined()
+    expect(result.cached).toBe(false)
+    expect(seenPrompt).toContain('Visual inspection of "Card"')
+    expect(seenPrompt).toContain('Focus: what does this image show.')
+  })
+
+  test('material descriptions are cached by image hash — second look skips the vision call', async () => {
+    const { graph, figma } = setupToolTest()
+    const calls: ExportCall[] = []
+    mockExportImage(figma, calls)
+    const pageId = graph.getPages()[0].id
+    const makeImageRect = (name: string) =>
+      graph.createNode('RECTANGLE', pageId, {
+        name,
+        width: 300,
+        height: 250,
+        fills: [
+          {
+            type: 'IMAGE',
+            imageHash: 'hash-1',
+            color: { r: 1, g: 1, b: 1, a: 1 },
+            opacity: 1,
+            visible: true
+          }
+        ]
+      })
+    const rectA = makeImageRect('Material A')
+    const rectB = makeImageRect('Material B')
+    let visionCalls = 0
+    setupChannelB(() => {
+      visionCalls++
+      return Promise.resolve('description of the material')
+    })
+
+    const first = await runLook(figma, { id: rectA.id })
+    const second = await runLook(figma, { id: rectB.id })
+
+    expect(first.cached).toBe(false)
+    expect(visionCalls).toBe(1)
+    expect(second.cached).toBe(true)
+    expect(second.analysis).toBe('description of the material')
+    expect(calls).toHaveLength(1)
   })
 })

@@ -13,6 +13,7 @@ import ProviderSelectField from '@/components/chat/ProviderSelect/ProviderSelect
 import StockPhotoKeysSection from '@/components/chat/ProviderSettings/StockPhotoKeysSection.vue'
 import ImageGenKeysSection from '@/components/chat/ProviderSettings/ImageGenKeysSection.vue'
 import TestConnectionSection from '@/components/chat/ProviderSettings/TestConnectionSection.vue'
+import VisionKeysSection from '@/components/chat/ProviderSettings/VisionKeysSection.vue'
 import { provideProviderSettings } from '@/components/chat/ProviderSettings/context'
 import { usePopoverUI } from '@/components/ui/popover'
 import Tip from '@/components/ui/Tip.vue'
@@ -71,6 +72,9 @@ function onInteractOutside(e: Event) {
             </div>
 
             <div class="flex flex-col gap-2.5">
+              <h3 class="text-[11px] font-semibold text-surface">{{ dialogs.visionSection }}</h3>
+              <VisionKeysSection />
+
               <h3 class="text-[11px] font-semibold text-surface">{{ dialogs.imageGeneration }}</h3>
               <ImageGenKeysSection />
 

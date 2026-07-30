@@ -30,6 +30,48 @@ export function resolveLanguageModelID(
   return config.modelID
 }
 
+/**
+ * The base URL a provider effectively talks to, when knowable — used by the
+ * vision settings "copy from main" buttons. Undefined for providers whose
+ * endpoint is the vendor default (openai/anthropic/google/deepseek/openrouter)
+ * since copying those is meaningless for a custom vision endpoint.
+ */
+export function resolveProviderBaseURL(
+  providerID: AIProviderID,
+  customBaseURL: string
+): string | undefined {
+  switch (providerID) {
+    case 'openai-compatible':
+    case 'anthropic-compatible':
+      return customBaseURL.trim() || undefined
+    case 'minimax':
+      return 'https://api.minimax.io/v1'
+    case 'zai':
+      return 'https://api.z.ai/api/anthropic'
+    default:
+      return undefined
+  }
+}
+
+/** Which request format a provider speaks — for aligning the vision provider type. */
+export function resolveProviderApiFormat(
+  providerID: AIProviderID
+): 'openai-compatible' | 'anthropic-compatible' | undefined {
+  switch (providerID) {
+    case 'openai':
+    case 'minimax':
+    case 'deepseek':
+    case 'openai-compatible':
+      return 'openai-compatible'
+    case 'anthropic':
+    case 'anthropic-compatible':
+    case 'zai':
+      return 'anthropic-compatible'
+    default:
+      return undefined
+  }
+}
+
 function desktopFetch(): typeof fetch | undefined {
   return isTauri() ? tauriFetch : undefined
 }

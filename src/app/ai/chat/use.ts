@@ -21,7 +21,12 @@ import {
   providerID,
   registerAIChatEffects,
   setAPIKey,
-  unsplashAccessKey
+  unsplashAccessKey,
+  visionApiKey,
+  visionBaseURL,
+  visionMode,
+  visionModel,
+  visionProvider
 } from '@/app/ai/chat/storage'
 import { createChatSessionManager } from '@/app/ai/chat/transports'
 import { exposeChatTransportOverride } from '@/app/browser-bridge'
@@ -67,6 +72,11 @@ export function useAIChat() {
     imageGenApiKey,
     imageGenBaseURL,
     imageGenModel,
+    visionMode,
+    visionApiKey,
+    visionBaseURL,
+    visionModel,
+    visionProvider,
     chatMode,
     activeTab,
     isConfigured,

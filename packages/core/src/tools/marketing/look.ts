@@ -1,10 +1,17 @@
-import type { SceneGraph } from '@open-pencil/scene-graph'
+import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
 import {
   getMarketingState,
   listMarketingDesigns,
   touchMarketingState
 } from '#core/tools/marketing/registry'
+import {
+  analyzeImageWithVisionModel,
+  cacheMaterialDescription,
+  getCachedMaterialDescription,
+  getVisionMode,
+  isVisionChannelBReady
+} from '#core/tools/marketing/vision'
 import { defineTool } from '#core/tools/schema'
 import { uint8ArrayToBase64 } from '#core/tools/vector/export'
 
@@ -26,6 +33,10 @@ function minFontSizeInSubtree(graph: SceneGraph, rootId: string): number | undef
     for (const childId of node.childIds) stack.push(childId)
   }
   return min
+}
+
+function imageHashOf(node: SceneNode): string | undefined {
+  return node.fills.find((fill) => fill.imageHash)?.imageHash
 }
 
 export const lookTool = defineTool({
@@ -67,14 +78,9 @@ export const lookTool = defineTool({
     const node = figma.graph.getNode(targetId)
     if (!node) return { error: `Node "${targetId}" not found` }
 
+    const nodeInfo = { id: targetId, name: node.name, width: node.width, height: node.height }
     const longEdge = Math.max(node.width, node.height)
     const scale = longEdge > 0 ? Math.max(0.1, Math.min(1, MAX_LONG_EDGE / longEdge)) : 1
-    const data = await figma.exportImage([targetId], {
-      scale,
-      format: 'JPG',
-      quality: JPEG_QUALITY
-    })
-    if (!data || data.length === 0) return { error: 'Nothing visible to inspect' }
 
     const noteParts = [
       `Visual inspection of "${node.name}" (${node.width}×${node.height}, exported at ${Math.round(scale * 100)}%).`
@@ -100,6 +106,61 @@ export const lookTool = defineTool({
       }
     }
 
+    // Channel B: an independent vision model analyzes the image and returns
+    // text — no base64 enters the main conversation (l2-visual-loop.md §3).
+    if (getVisionMode() === 'B') {
+      if (!isVisionChannelBReady()) {
+        return {
+          error:
+            'Vision channel B is selected but credentials are incomplete — set vision API key, base URL, and model in AI settings, or switch the vision mode back to A'
+        }
+      }
+      const imageHash = imageHashOf(node)
+      if (imageHash) {
+        const cached = getCachedMaterialDescription(figma.graph, imageHash)
+        if (cached) {
+          return {
+            analysis: cached,
+            cached: true,
+            node: nodeInfo,
+            ...(focus ? { focus } : {}),
+            note: `${noteParts.join(' ')} (Cached analysis from the independent vision model — treat it as a secondary judgment.)`
+          }
+        }
+      }
+      const data = await figma.exportImage([targetId], {
+        scale,
+        format: 'JPG',
+        quality: JPEG_QUALITY
+      })
+      if (!data || data.length === 0) return { error: 'Nothing visible to inspect' }
+
+      const analysis = await analyzeImageWithVisionModel({
+        base64: uint8ArrayToBase64(data),
+        mimeType: 'image/jpeg',
+        prompt: [
+          'You are the vision subsystem of a design agent. Analyze this design screenshot factually and answer concisely.',
+          ...noteParts,
+          'If text is too small to read, say so explicitly instead of guessing its content.'
+        ].join('\n')
+      })
+      if (imageHash) cacheMaterialDescription(figma.graph, imageHash, analysis)
+      return {
+        analysis,
+        cached: false,
+        node: nodeInfo,
+        ...(focus ? { focus } : {}),
+        note: `${noteParts.join(' ')} (Analysis from the independent vision model — treat it as a secondary judgment.)`
+      }
+    }
+
+    const data = await figma.exportImage([targetId], {
+      scale,
+      format: 'JPG',
+      quality: JPEG_QUALITY
+    })
+    if (!data || data.length === 0) return { error: 'Nothing visible to inspect' }
+
     noteParts.push(
       'Judge against the locked direction and section plan. Observations are advisory — confirm structural or readonly concerns with validate.'
     )
@@ -108,7 +169,7 @@ export const lookTool = defineTool({
       base64: uint8ArrayToBase64(data),
       mimeType: 'image/jpeg',
       byteLength: data.length,
-      node: { id: targetId, name: node.name, width: node.width, height: node.height },
+      node: nodeInfo,
       ...(focus ? { focus } : {}),
       note: noteParts.join(' ')
     }

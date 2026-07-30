@@ -139,7 +139,7 @@ for w in 35-Thin 45-Light 55-Regular 65-Medium 75-SemiBold 85-Bold 95-ExtraBold;
 done
 ```
 
-**验证脚本**（已验证可读 name 表，存为 `scripts/verify-font-name.mjs` 后续可复用）：
+**验证脚本**（一次性 TTF name 表检查工具，已完成使命后于 2026-07-29 删除——`scripts/` 按规范只放入口 shim）：
 
 ```js
 // 读 TTF name table，打印 nameID 1/2/16/17 + usWeightClass
@@ -396,7 +396,7 @@ fonts: ['Alibaba PuHuiTi'],
 - ✅ 8 个素材类型 styleGuide.fonts 改为 `['Alibaba PuHuiTi']`（完全丢弃 PingFang SC）
 - ✅ public/_headers 加 `/*.ttf` MIME type
 - ✅ marketing system prompt L71 + L191 更新
-- ✅ scripts/verify-font-name.mjs（可复用的 TTF name 表验证工具）
+- ✅ TTF name 表验证（一次性脚本，2026-07-29 已删除）
 - ✅ tests/engine/text/fonts/loading.test.ts 加 2 个测试
 
 ### 误诊修正（重要）

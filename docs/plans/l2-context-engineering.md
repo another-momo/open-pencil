@@ -188,3 +188,13 @@ prompt 删除 7 行类型映射和 ~35 行图片工具 API 细节（尺寸枚举
 
 **技术前提（实施前需验证）**：`ToolLoopAgent` 的 `prepareStep` 允许逐步改写 messages 且不回写持久历史；elision 是纯函数、无新图时输出与上一步逐字节相同，前缀稳定则缓存不失效——需用真实 provider 跑一次确认（可从 debug log 的 cache_write 尖峰直接判读）。
 
+### 2026-07-29 晚间：elision 自落地以来从未生效（prompt vs messages）+ 修复
+
+**发现**（用户实测 + debug log 新 MEDIA DELIVERY 段确认为空）：`DirectChatTransport.sendMessages` 把转换后的历史以 **`prompt`（ModelMessage 数组）** 传给 `agent.stream`（`ai/dist/index.mjs:13346-13350`），`standardizePrompt` 对数组形态 `prompt` 按 messages 处理（`ai/dist/index.mjs:2070-2071`）——因此 `prepareCall` 的 `options.messages` **恒为 undefined**，而 elision 与 chat-completions 改写都挂在 `options.messages` 上：**2026-07-28 落地的 elision 在真实路径从未执行过一次**，此前的"per-turn 生效"分析（评审 §4.3）随之作废——不是"每轮裁一次"，是"从未裁过"。所有历史实测（含 428K 膨胀、缓存行为）都是在无 elision 状态下测得的，评审 §4 的失焦分析中涉及"elision 实际行为"的部分需要等修复后的真实数据重新评估。
+
+**修复**（2026-07-29）：`prepareCall` 改为同时处理 `options.messages` 与数组形态 `options.prompt`，按原字段返回变换结果；`prepareCall` 内新增 MEDIA DELIVERY 埋点（provider、content-form/degraded 计数、rewrite 是否应用），写入 debug log 新段落——此后这类"机制空转"故障可以直接从日志判读，不再需要逐层读代码。
+
+**教训**：请求路径上的机制测试不能只测纯函数本身（当时 7 个 elision case 全过但从未触及真实调用点），必须有一个从 transport 入口出发的接线验证。本次已通过 MEDIA DELIVERY 埋点补上运行时观测；`prepareCall` 的 prompt/messages 双形态分支属薄壳，暂未加单测。
+
+**同日第三次实测补充**（openai-compatible / MiniMax-M3）：prompt/messages 修复后 Step 2 仍 ~60K tokens——`prepareCall` 只在轮入口执行，而 look 的图在 50 步循环中途产生，轮入口时根本不存在。**chat-completions 改写必须同时在 `prepareStep`（逐步）执行**（新图在历史尾部，不扰缓存前缀）；elision 的轮内峰值同理（评审 §4.3 的曲线在"elision 从未生效"修正后依然成立，现为 prepareCall 轮间裁剪 + 待定事项 2 的 prepareStep 阈值触发）。MEDIA DELIVERY 埋点同步区分轮入口普查与轮内逐步改写计数。
+

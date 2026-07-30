@@ -57,11 +57,17 @@ Property-panel anatomy in `packages/vue/src/primitives/PropertySection/`, `Segme
 - `bun run check:vue` — vue-tsc type-check for app and Vue SDK .vue files
 - `bun run test:dupes` — jscpd copy-paste detection across product TS sources
 - `bun run test:tools` — tests for private repo tooling under `tools/*`
-- `bun run format` — oxfmt with import sorting
+- `bun run format` — oxfmt with import sorting (**do not run repo-wide on dev machines** — see "Format scope" below)
 - `bun run test:unit` — engine/unit tests (**do not run on dev machines — see "Unit test scope" below**)
 - `bun run test` — Playwright E2E and visual regression tests
 - `bun run tauri dev` — desktop app with hot reload
 - `bun open-pencil --help` — list CLI commands. Common commands include `info`, `tree`, `find`, `node`, `pages`, `variables`, `export`, `import`, `convert`, `lint`, `query`, `selection`, `formats`, `analyze ...`, and `eval` for Figma Plugin API scripting.
+
+### Format scope
+
+Do **not** run bare `bun run format` on dev machines: it rewrites the whole tree, and a local oxfmt version drift (plus CRLF→LF line-ending churn on Windows) can reformat hundreds of untouched files. Recovery is painful — the rewritten files often match HEAD byte-for-byte yet still show as modified in `git status` (stale stat cache), and cleanup requires `git add` on the phantom entries to refresh the index.
+
+Instead, format only the files you touched: `bunx oxfmt --write <paths...>`. Repo-wide formatting belongs to CI/maintainer runs with the pinned toolchain.
 
 ### Unit test scope
 
@@ -224,7 +230,7 @@ Before submitting a PR, run the full quality gate and do a self-review:
 
 ```sh
 bun run check          # oxlint + tsgo type-aware lint & typecheck — zero errors required
-bun run format         # oxfmt with import sorting
+bun run format         # oxfmt with import sorting — touched files only, see "Format scope"
 bun run test:dupes     # jscpd — zero clones required
 bun run test:tools     # private repo tooling tests
 bun run test:unit      # bun:test

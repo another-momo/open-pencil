@@ -36,7 +36,7 @@
 ```
 
 - **通道 A（默认）**：`look` 执行时导出 JPEG，通过 AI SDK v6 的 `toModelOutput` 返回 media 内容部分，主模型直接"看到"。信息无损，质量上限最高。
-- **通道 B（显式可选，V1，未实现）**：`look` 内部用独立配置的视觉模型做一次 `generateText`（图 + focus 作为分析 prompt），文字结论返回主模型。配置复用 imageGen 先例：`visionApiKey / visionBaseURL / visionModel`，设置面板加独立 section，默认留空 = 视觉回路关闭；配套"复制主模型配置"按钮（逐项独立，不自动全填、不做运行期回退推断）。
+- **通道 B（✅ 已实现，V1）**：`look` 内部用独立配置的视觉模型做一次分析（图 + focus 作为分析 prompt），文字结论返回主模型。配置复用 imageGen 先例：`visionProvider`（openai-compatible `/chat/completions` 或 anthropic-compatible `/messages` 两种端点格式）+ `visionApiKey / visionBaseURL / visionModel`，设置面板加独立 section，默认留空 = 通道 B 不可用（look 报错并提示配置或切回 A）；配套"复制主模型配置"按钮（逐项独立，不自动全填、不做运行期回退推断）。实现：`packages/core/src/tools/marketing/vision.ts`（ofetch 直连，`setVisionAnalyzer` 测试钩子）+ `look.ts` 内部分支。
 - **显式选择，而非能力探测**（2026-07-29 评审 §4.9 推翻原"能力探测 + A 失败自动降级 B"方案）：能力探测是隐式变量，失败模式跨 `用户模型能力 → transport 选择 → 工具形态` 三层联动难调试；显式二选一的失败模式只有"凭证未填"和"凭证错"。通道 B 必须与 A 平起平坐，不是兜底。
 
 | 维度 | 通道 A（默认） | 通道 B |
@@ -49,7 +49,7 @@
 
 两通道对 prompt 透明——prompt 只写"什么时候该 look、看什么都检查什么"，不关心投递方式。`look({ id?, focus? })` 接口两通道一字不改，仅返回值形态不同：A 返回 `{ base64, mimeType, note }`，B 返回 `{ analysis, note }`（无 base64——"图片不进上下文"是字面意义）。通道 B 下 media elision 自然跳过（无 `type:'media'` 项），K 设置仅对通道 A 生效。
 
-### 3.1 通道 A 的 provider 兼容性（2026-07-29 实测发现，**阻塞 V0 实测**）
+### 3.1 通道 A 的 provider 兼容性（2026-07-29 实测发现并修复）
 
 投递链路 `toModelOutput → ai 核心 mapToolResultOutput → provider 转换` 的最后一公里按 provider 分叉（读各 provider 转换代码确认）：
 
@@ -67,11 +67,18 @@
 - **428K 膨胀归因修正**：2026-07-27 实测的单步 37K→428K（每图 ~50-100K tokens）正是 base64 以 JSON 文本形态发送的结果，与 Anthropic 图片计费（~1.4k tokens/张）相差两个数量级。
 - **V0 回归指定的 kimi/minimax 全在断线路径上**（`src/app/ai/chat/model.ts:78-84` 走 `createOpenAI().chat()`）——不修复则 V0 实测必然空转。
 
-**解决方案（待实施）**：OpenAI chat completions 只允许 user 消息携带图片，`image_url` 支持 base64 data URL（SDK 对 user 消息图片本就这么转，`@ai-sdk/openai dist/index.mjs:154-160`）。在 transport 层（`transports.ts prepareCall`，与 elision 同位置、同为纯函数）按 provider 分支：chat-completions 路径把 media tool-result 改写为「tool 消息只留 note 文本 + 紧随其后插一条带 image part 的 user 消息」。连带影响：
+**解决方案（✅ 2026-07-29 已实施，双钩子）**：OpenAI chat completions 只允许 user 消息携带图片，`image_url` 支持 base64 data URL（SDK 对 user 消息图片本就这么转，`@ai-sdk/openai dist/index.mjs:154-160`）。transport 层按 provider 分支（`needsImageAsUserMessage`：`openai` / `minimax` / `deepseek` / `openai-compatible`(completions)），把 media tool-result 改写为「tool 消息只留 note 文本 + 紧随其后插一条带 image part 的 user 消息」（`src/app/ai/chat/media-tool-results.ts`，纯函数、幂等、未改写时原样返回）。两个钩子各管一段（2026-07-29 第三次实测修正）：
 
-- elision 的扫描目标从 tool-result 扩到 user 消息图片，两个机制在同一变换函数里协同
-- 图片进入普通对话历史，cache 失效语义变化，需用 debug log 的逐步 cache_write 观察
-- 代理端（dmxapi 等）对 data URL 请求体大小/图片内容的支持无法读代码确认，改完必须用上述 TEST-1234 方法实测验证
+- **`prepareCall`（轮入口）**：elision（K=2）+ 改写历史存活图。**改写必须同时覆盖轮内**——look 的图在 50 步循环中途产生，`prepareCall` 时还不存在，只在轮入口改写等于不改（第三次实测 Step 2 仍 ~60K tokens 证实）
+- **`prepareStep`（逐步）**：对新产生的 media tool-result 做同一改写。新图总在历史尾部，改写不动缓存前缀
+
+Anthropic / OpenRouter / Google / Responses API 路径不改写——原生 tool-result 图片是最优形态，改写反是降级。测试：`tests/engine/chat/media-tool-results.test.ts`（6 case，含 elide→rewrite 管道顺序）。debug log 的 MEDIA DELIVERY 段区分轮入口普查与轮内逐步改写计数。
+
+**实测结论**（2026-07-29，MiniMax-M3）：
+
+- `openai-compatible`(completions) + MiniMax-M3：**通过**——改写后模型可见图 ✅
+- `openai-compatible`(responses) + MiniMax-M3：**不可用**——端侧报 `invalid params, tool result's tool id not found (2013)`，MiniMax 的 responses 兼容端点对无状态 tool 往返的 call_id 校验不通过，属端侧限制，避开即可
+- `anthropic-compatible` + MiniMax Anthropic 端点：**通过**——原生 tool-result 图片 ✅。浏览器 dev 需经 vite proxy（`/proxy/minimax-anthropic` → `https://api.minimaxi.com/anthropic/v1`，端点 CORS 不允许 `anthropic-version` 头；Tauri 走 tauriFetch 天然免 proxy）
 
 ## 4. `look` 工具设计（✅ 已实现）
 
@@ -113,21 +120,21 @@ look({ id?, focus? })
 | 3 | debug log 媒体脱敏 + stats 单列媒体行 + cache read/write 同显 | V0 | ✅ 2026-07-29 | 评审问题 1；token 基线必须在此之后量 |
 | 4 | chat UI 工具卡片缩略图（替代 base64 JSON） | V0 | ✅ 2026-07-29 | 评审问题 1 |
 | 5 | prompt 规则：CP2/CP4 前置门禁、生图验收、look 纪律 | V0 | ✅ | CP4 可读性已改为"describe 定位候选 → look 确认"（评审 §3.8） |
-| 6 | media elision（K=2，per-turn，可配 1-3） | V0 | ✅ 2026-07-28 | 演进待定事项归 l2-context-engineering.md |
+| 6 | media elision（K=2，per-turn，可配 1-3） | V0 | ✅ 2026-07-28；**2026-07-29 修复后方真正生效** | `prepareCall` 原先只读 `options.messages`，而真实路径传的是 `prompt` 数组——elision 落地后从未执行过一次，2026-07-29 修复双形态读取；演进待定事项归 l2-context-engineering.md |
 | 7 | 端到端接线测试（UIMessage→转换→elision，防 media 静默退化为 JSON）+ look 单测 | V0 | ✅ 2026-07-29 | 评审问题 5 |
-| 8 | **通道 A chat-completions 改写**（media tool-result → user 消息图片） | V0 | ⬜ 待实施 | **阻塞 V0 实测**，方案见 §3.1 |
-| 9 | V0 实测：第 4 轮回归（kimi/minimax 多模态跑朋友圈广告） | V0 | ⬜ 待跑 | 前置依赖 #8；用 TEST-1234 法确认图片可见 |
-| 10 | 通道 B（显式模式 + 独立凭证 + "复制主模型配置"按钮 + look 内部分支） | V1 | ⬜ 未开工 | 设计见 §3 |
-| 11 | 素材理解（需求单素材/拖入图 → 内容描述 + 字节 hash 缓存 + 写设计状态） | V1 | ⬜ 未开工 | §6 规则 1 |
-| 12 | lint 降噪（R3-4 启发式警告降级为"由图回答"） | V2 | ⬜ 未开工 | §8 |
-| 13 | `look` 按 chatMode 隔离（ui 模式省略 id 必然报错） | 小项 | ⬜ 未修 | 评审 #10 |
-| 14 | `export_image` chat 死分支 + prompt "Never use export_image" 清理 | 小项 | ⬜ 未修 | 评审 #9 |
+| 8 | **通道 A chat-completions 改写**（media tool-result → user 消息图片） | V0 | ✅ 2026-07-29 | 方案见 §3.1；MiniMax-M3 completions + Anthropic 端点双路径实测可见图 |
+| 9 | V0 实测：第 4 轮回归（kimi/minimax 多模态跑朋友圈广告） | V0 | ⬜ 待跑 | 投递路径已验证；本轮重点采信视觉判断质量结论 |
+| 10 | 通道 B（显式模式 + 独立凭证 + "复制主模型配置"按钮 + look 内部分支） | V1 | ✅ 2026-07-29 | `marketing/vision.ts` + `look.ts` B 分支（返回 analysis 无 base64）+ 设置面板 Vision section；B 返回走 JSON 不进 media，elision 自然跳过 |
+| 11 | 素材理解（需求单素材/拖入图 → 内容描述 + 字节 hash 缓存 + 写设计状态） | V1 | ✅ 2026-07-29 | B 模式按 imageHash 自动缓存 analysis（命中零成本）；prompt 素材区扫描规则 + 描述写 AI结论区（A 模式同样可用） |
+| 12 | lint 降噪（R3-4 启发式警告降级为"由图回答"） | V2 | ✅ 2026-07-29 | describe `INFO_PATTERNS` 收编 subpixel/grid/Low contrast/Near-invisible/gap≫padding；结构 error 保留 |
+| 13 | `look` 按 chatMode 隔离（ui 模式省略 id 必然报错） | 小项 | ✅ 2026-07-29 | `createAITools(store, chatMode)` 过滤 look/setup_material_type/validate |
+| 14 | `export_image` chat 死分支 + prompt "Never use export_image" 清理 | 小项 | ✅ 2026-07-29 | prompt 死规矩已删（工具仍在 EXTENDED 服务 MCP/CLI） |
 | 15 | eval 工具不兜底视觉 | V0 | ✅ | eval sandbox 不暴露 `exportImage` |
 | 16 | ~~两级截图 / 1568 第二档 / zoom 预算硬约束 / 能力探测自动降级 / overview 替代一致性盲规则 / look dedup~~ | — | ❌ 已撤销 | 依据见 §3、§4、评审 §3.4/§3.7/§4.9 |
 
 ## 6. 触发时机（prompt 规则）
 
-1. **素材理解**（V1，未实现）：用户在需求单素材区/选区/拖入图片时 → look 生成图像内容描述，按图片字节 hash 缓存，写入设计状态。素材角色从"全靠用户命名"变为"AI 看图 + 用户声明仲裁"。
+1. **素材理解**（✅ 已实现 2026-07-29）：任务开始读需求单时 look 素材区每个素材条目的图片（focus "what does this image show"），生成一行内容描述写入 AI结论区。B 模式按 imageHash 自动缓存（重复理解零成本）；用户用法说明永远优先，图与说明明显不符时先问再用。素材角色从"全靠用户命名"变为"AI 看图 + 用户声明仲裁"。
 2. **生图验收**（✅ 已生效）：`generate_image` 落画布后 → look 验证生成结果是否符合 prompt 意图（图内文字乱码是 AI 生图常见病）。
 3. **checkpoint 前置门禁**（✅ 已生效）：展示 CP2/CP4 前必须 overview look。CP4 的文字可读性检查按 §4 修订执行：先 describe 定位候选文字节点，再 look 那几个节点确认，不在 root look 上问局部问题。
 4. ~~**跨 section 一致性**：改为 overview look 执行~~ —— **已撤销**（2026-07-29 评审 §3.4）：色值、字号、间距是确定性数据，describe 给精确数字，视觉只能给"看起来差不多"，改 overview 是降级而非升级。"每 3 个 section 用 describe 分析风格协调"规则保持不变；overview look 若用于此场景，focus 应表述为"整体印象与重心分布"，不是"一致性"。
@@ -142,7 +149,7 @@ look({ id?, focus? })
 
 ## 8. 与现有体系的张力处理
 
-- **lint 降噪**（V2，未做）：R3-4 类启发式警告在视觉回路接入后降级——"看起来有没有问题"由图回答，lint 只保留结构性 error（方法论 §6）。
+- **lint 降噪**（✅ 已实现 2026-07-29）：R3-4 类启发式警告降级——"看起来有没有问题"由图回答，lint 只保留结构性 error（方法论 §6）。describe 的 subpixel / 8px grid / Low contrast / Near-invisible / gap≫padding 已降为 info（`describe/issues.ts INFO_PATTERNS`）；溢出、零尺寸、invisible、dark-on-dark 等结构 error 保留为硬门槛。
 - **错误目录新增"视觉误判"类**：look 报告不存在的问题 / 漏报明显问题，按实测迭代方法论处理，先观察幻觉率再决定是否加 prompt 约束。
 - **eval 工具不兜底视觉**（✅）：look 是视觉的唯一入口，防止 AI 用 eval 手写截图逻辑绕过 elision 与可读性声明机制。
 
@@ -150,7 +157,7 @@ look({ id?, focus? })
 
 | 风险 | 缓解 |
 |---|---|
-| **通道 A 在 chat-completions provider 上静默断线，视觉回路空转且看似正常** | TEST-1234 判别法（§3.1）；端到端接线测试防代码层退化；§3.1 改写修复后实测验证 |
+| **通道 A 在 chat-completions provider 上静默断线，视觉回路空转且看似正常** | ✅ 已修复并实测（§3.1 改写 + MiniMax-M3 双路径验证）；长期防线：端到端接线测试防代码层退化、debug log MEDIA DELIVERY 段运行时判读、TEST-1234 判别法 |
 | 多模态模型审美判断不可靠 | advisory 定位 + focus 收窄问题域 + look 在 note 中声明可读性边界并引导钻取子节点 + V0 先实测 |
 | 上下文窗口压力（每图 token 成本 provider 相关：media part ≈1.4k，base64 文本 ≈50-100K） | chat history 媒体 elision（K=2）+ describe 前置过滤压缩 look 次数（一轮 CP4 全套约 2-3k tokens）；elision 演进归 l2-context-engineering.md 待定事项 |
 | 延迟叠加（截图 + 视觉推理每次数秒） | CP 前置门禁每轮多 5-10 秒，对"生图 60 秒"现状可接受；制作清单场景另算总账 |

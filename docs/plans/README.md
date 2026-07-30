@@ -1,6 +1,6 @@
 # 营销工作台规划：文档地图与状态面板
 
-> 最后更新 2026-07-28。本文档是所有规划文档的**唯一状态来源**。规则：
+> 最后更新 2026-07-30。本文档是所有规划文档的**唯一状态来源**。规则：
 >
 > 1. **状态只在本文件维护**——设计文档不写任务进度，只描述"当前正确的设计"；
 > 2. 知识库（`knowledge/`）只追加不修改；
@@ -16,7 +16,7 @@
 | `l2-context-engineering.md` | L2 子规划：上下文工程——media elision、跨 session 恢复、类型关键词下沉（问题 → 方案 → 实施顺序） | 半持久 |
 | `l2-ai-undo-snapshot.md` | L2 子规划：AI undo snapshot 累积（嫌疑 1 修复：拆分 AI undo 栈 + chronological 优先级） | 半持久 |
 | `l2-visual-loop.md` | L2 子规划：视觉回路——多模态看图、look 工具、与上下文工程的顺序约定 | 半持久 |
-| `l2-resource-library.md` | L2 子规划：素材资源库——type/profile/reference 三关切解耦 + Library .fig 单一来源 + Web-first dialog（依据 2026-07-29 资源评审 §11） | 半持久 |
+| `l2-resource-library.md` | L2 子规划：素材资源库——type/profile/reference 三关切解耦 + Library .fig 单一来源 + reference copy-on-use 注入素材区 + Web-first dialog（依据 2026-07-29 资源评审 §11；2026-07-30 评审修订） | 半持久 |
 | `l3-workbench.md` | L3 工作台交互：三类信息模型、需求单、类型显性化、制作清单 | 半持久 |
 | `knowledge/error-catalog.md` | 冒烟测试错误目录（实测驱动迭代的核心资产，持续追加） | 只增不改 |
 | `knowledge/methodology.md` | 实测沉淀的方法论：注入可靠性排序、可判定性划分等 | 只增不改 |
@@ -28,7 +28,7 @@
 
 | 模块 | 状态 | 下一步 |
 |---|---|---|
-| L1 生图工具 | ✅ 优化已实施（2026-07-28） | 联调验证：场景验证表 7 场景（重点：编辑含目标自身、替换不带旧图、`export: true` 渲染参考）+ 冒烟 |
+| L1 生图工具 | ✅ 优化已实施（2026-07-28）+ 评审后续批次已落地（2026-07-30） | 联调验证：场景验证表 7 场景（重点：编辑含目标自身、替换不带旧图、`asImage: true` 渲染参考）+ 冒烟 |
 | L2 Phase 0 模式切换 | ✅ 完成 | —— |
 | L2 Phase 1 核心链路 | ✅ 代码完成 | —— |
 | L2 Phase 2 安全护栏 | ✅ 代码完成 | 护栏场景随第 4 轮回归验证 |
@@ -43,20 +43,20 @@
 | L3 制作清单 + 派生 | ⬜ 待启动 | 依赖注册表 per-rootFrame 键控（见 `l2-context-engineering.md` 评审） |
 | L3 导出流程 | ⬜ 待启动 | —— |
 | L3 ask 工具 / 生图进度 | ⬜ 待启动 | checkpoint 从对话 → UI 迁移主线（见 `../review/2026-07-27-agent-design-review.md`） |
-| L3 品牌包 | ⏸ 暂缓 | 优先级论证见 review，待重排；Library .fig 形态下与素材库统一载体（见 `l2-resource-library.md` §10） |
-| L2 素材资源库（子规划） | 🔄 v0.5 完成（2026-07-29）：评审落档 + P0 render override 修复 | v1 最小可用待启动：default-library.fig + 扫库解析 + setup 读库 + profile 注入 + validate 精简（任务分解见 `l2-resource-library.md` §9） |
+| L3 品牌包 | ⏸ 暂缓 | 优先级论证见 review，待重排；Library .fig 形态下与素材库统一载体（见 `l2-resource-library.md` §11） |
+| L2 素材资源库（子规划） | 🔄 v0.5 完成（2026-07-29）：评审落档 + P0 render override 修复；2026-07-30 评审修订：reference 定为 copy-on-use 注入素材区（Q8–Q11），补解析契约 / 跨文档克隆 / 默认库分发 | v1 最小可用待启动：default-library.fig + 扫库解析（LibraryIndex + warnings）+ `cloneSubtreeAcrossGraphs` + setup 读库 + profile 注入 + 素材区注入 + validate 精简（任务分解见 `l2-resource-library.md` §10） |
 
 ## 当前执行顺序（2026-07-27 评审后）
 
 1. **L2 视觉回路 V0 优化迭代** ✅（2026-07-27 完成）：hero 叠字改造（图片工具填 Frame 背景）、R4-1 尺寸回填 bug、look 工具内去重、debug log 快照降噪
 2. **L2 营销字体：普惠体** ✅（2026-07-27 完成）：9 字重 PuHuiTi bundle + 修 weightToStyle 上限 bug + 8 素材类型改 font + _headers MIME + prompt 强约束——详见 `l2-marketing-font-puhuiti.md`
-3. **L2 视觉回路：通道 A chat-completions 改写**（待做，阻塞第 4 轮回归）：`@ai-sdk/openai` chat completions 把 media tool-result 整段 JSON 文本化，kimi/minimax/openai-compatible 路径模型看不到图——transport 层改写为 user 消息图片，方案见 `l2-visual-loop.md` §3.1
+3. **L2 视觉回路：通道 A chat-completions 改写** ✅（2026-07-29 完成并实测通过）：`@ai-sdk/openai` chat completions 把 media tool-result 整段 JSON 文本化，kimi/minimax/openai-compatible 路径模型看不到图——已在 transport 层按 provider 分支改写为 user 消息图片（`src/app/ai/chat/media-tool-results.ts`，prepareCall + prepareStep 双钩子）。MiniMax-M3 双路径实测均可见图：completions（改写）与 Anthropic 端点（原生，浏览器 dev 走 vite proxy）；其 responses 兼容端点不可用（端侧 call_id 校验）——详见 `l2-visual-loop.md` §3.1
 4. **L2 第 4 轮护栏场景回归**（待跑）：护栏修改/删除/有意修改/类型切换 + CP3 图片来源 + 用户素材识别 + 叠字 hero 产出 + look 行为变更新版（用例见 `knowledge/error-catalog.md`）；跑前用 TEST-1234 法确认图片对模型可见（`l2-visual-loop.md` §3.1）
 5. **L2 上下文工程** ✅（2026-07-28 全部实施）：任务 1 media elision、任务 2 matchKeywords、任务 3 per-rootFrame 键控、任务 4 画布推导恢复（pluginData 标记 + 懒恢复）；elision 演进待定事项（OOM 根因 → 轮末永久裁剪 或 prepareStep 阈值触发）见 `l2-context-engineering.md` 文末
 6. **L2 AI undo coalesce** ✅（2026-07-28 实施完成）：burstId + coalesceKey 合并 AI undo entry；冒烟验证（内存 + 撤销行为）随第 4 轮回归
-7. **L2 视觉回路 V1/V2**：通道 B（显式模式 + 独立凭证）、素材理解（~~两级截图~~已按 2026-07-29 评审撤销，见 `l2-visual-loop.md` §5 总览表）
+7. **L2 视觉回路 V1/V2** ✅（2026-07-29 完成）：通道 B（显式模式 + 独立凭证 + 复制按钮 + look 内部分支）、素材理解（imageHash 缓存 + prompt 素材区扫描）、lint 降噪（describe 视觉类 warning 降 info）、look 按 chatMode 隔离、export_image 死规矩清理——见 `l2-visual-loop.md` §5 总览表
 8. **L3 制作清单**：注册表键控就绪后启动
-9. **L1 生图工具优化** ✅（2026-07-28 实施完成）：references 解耦 + 尺寸规范化 + 超时/错误处理 + `export: true` 渲染参考，22 个单元测试通过；联调验证 7 场景待跑——见 `l1-image-gen-optimize.md`
+9. **L1 生图工具优化** ✅（2026-07-28 实施完成）：references 解耦 + 尺寸规范化 + 超时/错误处理 + `asImage: true` 渲染参考；评审后续批次（2026-07-30）：`export` → `asImage` 改名、marketing prompt 触发引导三处、提取失败错误 hint、不可变 finalReq、补 3 类 provider 单测——28 个单元测试通过；联调验证 7 场景待跑——见 `l1-image-gen-optimize.md`
 
 ## 待决事项汇总
 

@@ -12,7 +12,7 @@ import type { ModelMessage } from 'ai'
  * idempotent (already-elided messages contain no media parts).
  */
 
-const MEDIA_OUTPUT_TOOLS = new Set(['export_image', 'look'])
+export const MEDIA_OUTPUT_TOOLS = new Set(['export_image', 'look'])
 
 const ELIDED_PLACEHOLDER =
   '[image omitted from history to save context — the note above still describes it; call the tool again if you need to see it]'

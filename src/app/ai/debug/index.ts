@@ -4,7 +4,7 @@ import { buildDebugLog } from '@open-pencil/core/tools'
 import type { ToolDebugLog, ToolLogEntry } from '@open-pencil/core/tools'
 import type { JsonObject } from '@open-pencil/scene-graph/primitives'
 
-import { getStepUsages, getToolLogEntries } from '@/app/ai/tools'
+import { getPrepareCallDebug, getStepUsages, getToolLogEntries } from '@/app/ai/tools'
 
 interface MediaOutputShape {
   base64: string
@@ -79,6 +79,26 @@ export function formatTokenUsage(): string {
   )
 
   return lines.filter(Boolean).join('\n')
+}
+
+function formatMediaDelivery(): string {
+  const debug = getPrepareCallDebug()
+  if (!debug) return '  (no prepareCall recorded yet)'
+  const verdict =
+    debug.degradedOutputs > 0
+      ? '⚠ media tool-result outputs are NOT in content form — the image was serialized as JSON text (toModelOutput wiring broken)'
+      : debug.rewriteToUserMessage
+        ? 'chat-completions path: images are rewritten to user-message image parts (turn entry + per step)'
+        : 'images delivered natively inside tool results'
+  const lines = [
+    `  Provider: ${debug.providerID} / ${debug.modelID} (api: ${debug.customAPIType})`,
+    `  Turn-entry history: ${debug.contentOutputs} content-form media tool-result(s), ${debug.degradedOutputs} degraded, ${debug.mediaParts} image part(s)`,
+    `  Delivery: ${verdict}`
+  ]
+  if (debug.rewriteToUserMessage) {
+    lines.push(`  Intra-turn: ${debug.stepInlinedImages} image part(s) inlined per-step so far`)
+  }
+  return lines.join('\n')
 }
 
 export function formatLogEntry(entry: ToolLogEntry, index: number): string {
@@ -271,6 +291,10 @@ export function serializeChatLog(messages: UIMessage[]): string {
 
   sections.push('=== TOKEN USAGE & CACHING ===')
   sections.push(formatTokenUsage())
+  sections.push('')
+
+  sections.push('=== MEDIA DELIVERY (last prepareCall) ===')
+  sections.push(formatMediaDelivery())
   sections.push('')
 
   sections.push('=== DIAGNOSTICS ===')

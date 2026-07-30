@@ -8,6 +8,7 @@ import type { StepBudget, ToolLogEntry } from '@open-pencil/core/tools'
 import type { SceneNode } from '@open-pencil/scene-graph'
 
 import { syncMaterialTypeFromAI } from '@/app/ai/chat/storage'
+import type { ChatMode } from '@/app/ai/chat/storage'
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
 import { getActiveEditorStore } from '@/app/editor/active-store'
 import type { EditorStore } from '@/app/editor/active-store'
@@ -23,11 +24,24 @@ export interface StepUsage {
   timestamp: number
 }
 
+export interface PrepareCallDebug {
+  providerID: string
+  modelID: string
+  customAPIType: string
+  rewriteToUserMessage: boolean
+  contentOutputs: number
+  degradedOutputs: number
+  mediaParts: number
+  stepInlinedImages: number
+  timestamp: number
+}
+
 class RunState {
   toolLog: ToolLogEntry[] = []
   stepUsages: StepUsage[] = []
   currentSteps = 0
   burstId = 0
+  prepareCallDebug: PrepareCallDebug | null = null
 
   recordStep(usage: StepUsage): void {
     this.stepUsages.push(usage)
@@ -76,6 +90,19 @@ export function resetRunSteps(store?: EditorStore): void {
   getRunState(store).resetSteps()
 }
 
+export function recordPrepareCallDebug(debug: PrepareCallDebug, store?: EditorStore): void {
+  getRunState(store).prepareCallDebug = debug
+}
+
+export function recordStepInlinedImages(count: number, store?: EditorStore): void {
+  const debug = getRunState(store).prepareCallDebug
+  if (debug) debug.stepInlinedImages += count
+}
+
+export function getPrepareCallDebug(store?: EditorStore): PrepareCallDebug | null {
+  return getRunState(store).prepareCallDebug
+}
+
 export function didHitStepLimit(store?: EditorStore): boolean {
   return getRunState(store).hitLimit()
 }
@@ -88,12 +115,19 @@ export function beginNewBurst(store?: EditorStore): void {
   getRunState(store).burstId++
 }
 
-export function createAITools(store: EditorStore) {
+/** Marketing-only tools — hidden in ui mode where no marketing state exists. */
+const MARKETING_ONLY_TOOLS = new Set(['look', 'setup_material_type', 'validate'])
+
+export function createAITools(store: EditorStore, chatMode: ChatMode = 'ui') {
   let beforeSnapshot: Map<string, SceneNode> | null = null
   const runState = getRunState(store)
+  const tools =
+    chatMode === 'marketing'
+      ? CORE_TOOLS
+      : CORE_TOOLS.filter((def) => !MARKETING_ONLY_TOOLS.has(def.name))
 
   return toolsToAI(
-    CORE_TOOLS,
+    tools,
     {
       getFigma: () => makeFigmaFromStore(store),
       onBeforeExecute: (def) => {

@@ -25,6 +25,17 @@ export function createDevServerOptions(host: string | undefined): ServerOptions 
     port: 1420,
     strictPort: true,
     host: host || false,
+    proxy: {
+      // Dev-only CORS bypass for the MiniMax Anthropic-compatible endpoint
+      // (its preflight does not allow the anthropic-version header from
+      // browser origins; Tauri uses tauriFetch and never needs this).
+      // Settings baseURL: http://localhost:1420/proxy/minimax-anthropic
+      '/proxy/minimax-anthropic': {
+        target: 'https://api.minimaxi.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/proxy\/minimax-anthropic/, '/anthropic/v1')
+      }
+    },
     hmr: host
       ? {
           protocol: 'ws',

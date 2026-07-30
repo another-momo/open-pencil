@@ -6,13 +6,24 @@ import type { ComputedRef, Ref } from 'vue'
 import { ACP_AGENTS } from '@open-pencil/core/constants'
 import type { ACPAgentID, AIProviderID } from '@open-pencil/core/constants'
 
-import { createLanguageModel, resolveLanguageModelID } from '@/app/ai/chat/model'
 import { elideMediaToolResults } from '@/app/ai/chat/elision'
+import {
+  censusMediaToolResults,
+  inlineMediaToolResultsAsUserMessages
+} from '@/app/ai/chat/media-tool-results'
+import { createLanguageModel, resolveLanguageModelID } from '@/app/ai/chat/model'
 import { lookImagesKept } from '@/app/ai/chat/storage'
 import type { ChatMode } from '@/app/ai/chat/storage'
 import SYSTEM_PROMPT_MARKETING from '@/app/ai/chat/system-prompt-marketing.md?raw'
 import SYSTEM_PROMPT from '@/app/ai/chat/system-prompt.md?raw'
-import { MAX_AGENT_STEPS, createAITools, recordStepUsage, resetRunSteps } from '@/app/ai/tools'
+import {
+  MAX_AGENT_STEPS,
+  createAITools,
+  recordPrepareCallDebug,
+  recordStepInlinedImages,
+  recordStepUsage,
+  resetRunSteps
+} from '@/app/ai/tools'
 import type { getActiveEditorStore } from '@/app/editor/active-store'
 
 type EditorStore = ReturnType<typeof getActiveEditorStore>
@@ -55,6 +66,20 @@ function supportsAnthropicCaching(providerID: AIProviderID, modelID: string): bo
   )
 }
 
+/**
+ * Chat-completions providers cannot carry images in tool messages — their SDK
+ * converts media tool-results with JSON.stringify, so the model never sees
+ * the image (docs/plans/l2-visual-loop.md §3.1). Anthropic, OpenRouter,
+ * Google, and the OpenAI Responses API handle media tool-results natively.
+ */
+function needsImageAsUserMessage(
+  providerID: AIProviderID,
+  customAPIType: 'completions' | 'responses'
+): boolean {
+  if (providerID === 'openai' || providerID === 'minimax' || providerID === 'deepseek') return true
+  return providerID === 'openai-compatible' && customAPIType === 'completions'
+}
+
 export async function createACPTransport(providerID: AIProviderID) {
   const agentId = providerID.replace('acp:', '') as ACPAgentID
   const agentDef = ACP_AGENTS.find((a) => a.id === agentId)
@@ -76,7 +101,7 @@ export function createToolLoopTransport({
   maxOutputTokens,
   chatMode
 }: ToolLoopTransportOptions) {
-  const tools = createAITools(store)
+  const tools = createAITools(store, chatMode)
   const effectiveModelID = resolveLanguageModelID({ providerID, modelID, customModelID })
   const cacheProviderOptions = supportsAnthropicCaching(providerID, effectiveModelID)
     ? ANTHROPIC_CACHE_CONTROL
@@ -101,14 +126,48 @@ export function createToolLoopTransport({
     prepareCall: (options) => {
       resetRunSteps(store)
       const keep = Math.min(3, Math.max(1, Math.round(lookImagesKept.value) || 2))
+      const rewrite = needsImageAsUserMessage(providerID, customAPIType)
+      // DirectChatTransport passes the converted history as `prompt` (an array
+      // of ModelMessages), not `messages` — handle both shapes.
+      const source =
+        options.messages ?? (Array.isArray(options.prompt) ? options.prompt : undefined)
+      if (!source) {
+        return { ...options, maxOutputTokens, providerOptions: cacheProviderOptions }
+      }
+      recordPrepareCallDebug(
+        {
+          providerID,
+          modelID: effectiveModelID,
+          customAPIType,
+          rewriteToUserMessage: rewrite,
+          ...censusMediaToolResults(source),
+          stepInlinedImages: 0,
+          timestamp: Date.now()
+        },
+        store
+      )
+      // Elide first so only the K surviving images are rewritten below.
+      let messages = elideMediaToolResults(source, keep)
+      if (rewrite) {
+        messages = inlineMediaToolResultsAsUserMessages(messages)
+      }
       return {
         ...options,
-        ...(options.messages
-          ? { messages: elideMediaToolResults(options.messages, keep) }
-          : {}),
+        ...(options.messages ? { messages } : { prompt: messages }),
         maxOutputTokens,
         providerOptions: cacheProviderOptions
       }
+    },
+    // Chat-completions providers also need intra-turn coverage: images created
+    // by look DURING the 50-step loop don't exist at prepareCall time, so the
+    // rewrite must run per step. Fresh images sit at the tail of the history,
+    // so rewriting them does not disturb the cached prefix.
+    prepareStep: ({ messages }) => {
+      if (!needsImageAsUserMessage(providerID, customAPIType)) return {}
+      const census = censusMediaToolResults(messages)
+      if (census.mediaParts === 0) return {}
+      recordStepInlinedImages(census.mediaParts, store)
+      return { messages: inlineMediaToolResultsAsUserMessages(messages) }
     },
     onStepFinish: ({ usage }) => {
       recordStepUsage(

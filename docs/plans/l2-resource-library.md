@@ -27,7 +27,7 @@
 |---|---|---|---|---|
 | **Type**（硬约束） | 库 / 代码兜底 | Library .fig Types 区 | AI 推断，或用户手动选择（L3 类型 chips，已实现） | `setup_material_type` 工具返回 |
 | **Profile**（风格档案） | 用户 / 库 | Library .fig Profiles 区（plain TEXT 节点 = md 内容） | AI 推荐 + CP1 人确认，或用户手动选择（v1 走对话确认，UI 化归 L3） | 首次 setup 调用时灌入 system prompt overlay（仅内置 chat 通道，Q12） |
-| **Reference**（参考样例） | user 主动标记 | Library .fig References 区（plain frame + `for:`/`tag:` 子文本） | **仅用户选择**（session 启动 dialog 勾选） | 勾选后 app 克隆进工作文档「参考区」页；AI 按既有需求单"素材区" zone 流程消费：位图 = `look`、结构 = `describe` + `look`（§5——参考区页 ≠ brief 内的素材区 zone） |
+| **Reference**（参考样例） | user 主动标记 | Library .fig References 区（plain frame + `applicable_to` / `tag` 子文本） | **仅用户选择**（session 启动 dialog 勾选） | 勾选后 app 克隆进工作文档「参考区」页；AI 按既有需求单"素材区" zone 流程消费：位图 = `look`、结构 = `describe` + `look`（§5——参考区页 ≠ brief 内的素材区 zone） |
 
 职责切开：**type 硬、profile 软、reference advisory**。三者独立演化：换风格 = 切 profile，不动 type；加类型 = 库里加 frame，不改代码；参考图 = 用户自己拖进 References 区。
 
@@ -78,7 +78,7 @@
     │   └── CTABar
     └── References 区
         └── ref-product-long-001     ← plain frame
-            ├── "for: product_long"
+            ├── "applicable_to: product_long"
             └── "tag: luxury_v1"
 ```
 
@@ -87,7 +87,7 @@
 - **全部 plain nodes**——只有用户在画布里能直接操作的形态；`role=library` pluginData 已否决（Q1，位置约定已够）
 - 用户编辑 = 正常打开 .fig，无特殊路径（Q2）
 - Components 区是真 COMPONENT 节点，物化时跨文档克隆到目标文档的 Components 页面（替代当前 `component-templates.ts` 的代码模板 + 构建器物化路径）
-- **解析契约**：zone frame 的子 TEXT 节点按 `key: value` 解析，key 枚举化——Types：`id` / `label` / `size` / `description` / `anchor_first` / `anchor_last`；Profiles：`applicable_to` + md 正文；Components：`readonly`；References：`for` / `tag`。未知 key 忽略并记 warning；`size` 支持 `750x` 空高（height null，长图）；anchor 引用按 Components 区 frame name 匹配
+- **解析契约**：zone frame 的子 TEXT 节点按 `key: value` 解析，key 枚举化——Types：`id` / `label` / `size` / `description` / `anchor_first` / `anchor_last`；Profiles：`applicable_to` + md 正文；Components：`readonly`；References：`applicable_to` / `tag`。未知 key 忽略并记 warning；`size` 支持 `750x` 空高（height null，长图）；anchor 引用按 Components 区 frame name 匹配
 - **warnings 通道**：扫库时一次解析产出 `LibraryIndex { types, profiles, components, references, warnings[] }`；畸形 frame、zone 内重名（first-wins）、anchor 引用未命中、组件含 variables / 嵌套实例全部进 warnings，由 setup 返参带出——AI 可转告用户具体修哪一行，而非静默失败
 - **库组件禁用 variables 与嵌套实例**（Q10）——跨文档克隆不迁移变量引用；嵌套实例使 componentId 重映射跨组件依赖化
 - **物化机制**：`cloneSubtreeAcrossGraphs`（v1 任务 3）做跨文档子树克隆——递归建节点 + `cloneNodeProps` 拷属性 + old→new id 映射表 + 子树内 componentId 重映射 + imageHash 内容寻址搬运（`targetGraph.images.set`），收尾 `computeAllLayouts`
@@ -98,14 +98,14 @@
 
 **选定方案：用户在 dialog 勾选，app 注入工作文档"素材区"页**。reference 只能由用户选择（§2），因此注入是用户手势而非 AI 工具调用：
 
-- session 启动 dialog 列出库 References 区（名称 + for + tag，v1 纯文本列表，不渲染缩略图），用户勾选
+- session 启动 dialog 列出库 References 区（名称 + applicable_to + tag，v1 纯文本列表，不渲染缩略图），用户勾选
 - app 用 `cloneSubtreeAcrossGraphs` 把选中 frame 克隆进"参考区"专用页（`ensureComponentsPage` 同模式；页名命名上特意避开 brief 的"素材区" zone 以免画布里两个同名实体）；所有勾选项统一注入（纯文本 reference 也是 frame）
 - AI 零新机制：marketing prompt 既有"素材理解"步骤（`look` 素材区）自动覆盖注入的 reference；位图 = `look`，结构 = `describe` + `look`
 
 约定：
 
 - **落点**：专用"参考区"页（不与 brief 内"素材区" zone 同名），不进设计画布所在页；`look` / `describe` 按 node id 工作，跨页无碍
-- **去重**：session registry 记 `libraryRefId → documentNodeId`；同会话重复勾选返回已有节点，被用户删除后才重新注入
+- **去重**：实际状态存在"参考区"页节点的 `library-ref` pluginData marker 上（`restore.ts:libraryReferenceId`）——天然 per-graph，跨会话与重开文档都生效；同会话重复勾选返回已有节点，被用户删除后才重新注入（实现：`packages/core/src/tools/marketing/library.ts:listInjectedReferenceIds`）
 - **标记**：注入节点写 pluginData marker（`restore.ts` 既有模式；Q1 否决的是库文件上的 pluginData，工作文档内的系统标记是正当用途），供清理与"非设计产出"识别
 - **AI 不修改素材区节点**——它是"参考"不是"素材"；被改后去重失效重新注入即可，容错自然
 - **生命周期**：v1 不自动清理参考区页（持久化 = 可复现性资产）；重开后 reference 作为 plain frame 自然留存，AI 重扫参考区页即可，无跨会话还原工作
@@ -207,9 +207,9 @@ v1 无法根除（跨会话不持久化），做**可检测、可引导**：
   - **参考 dropdown**：（從 dialog 移出）勾选 references → 注入参考区页；已注入未勾选仍保留，提示“已注入的参考不会被移除”。**Dialog 精简**：remaining sections = 库名 + 上传、fetch 错误重试、不匹配警告、解析 warnings、关闭。参数注入与重提交职责下沉到配置项。
 - **render 容错**：观察到 `<X/></X>`（自闭合后紧跟闭合）与 ```<jsx>`/`</jsx>`包裹包裹两种频繁模型错遗漏；`buildComponent` 加 `sanitizeModelJsx`：剥离 ``<jsx>``包裹标签、重复应用 `<X/></X>` → `<X/>` 重写修复。两个 prompt（系统 + 营销）补一句"Output valid JSX only"从源头预防。4 条 render 净化测试验证不同错位修复。
 - **设计实现偏差（**实习生 review 2026-07-30 完成核实**）**：
-  - **采纳**：`restoreStateFromCanvas` 缺存时 `componentsPageId ?? ''` 改 `?? undefined` + 条件性 spread；组件缺失错误者加 custom 兑底提示；`listDocumentLibraryNames` 递归；重复 key 警告；fetch 错误 dialog 表面化；resubmit hint 改为 marker-aware；	revdeps guard、profile 切换锁、重绑定测试补齐；00-overview + AGENTS.md 补生成命令与 look/vision；**l2-agent-mode.md §3/§4/§5 重写——原描述“代码中的 MATERIAL_TYPES + ComponentTemplate + 运行时基线” 全面不准被代码质保**。
+  - **采纳**：`restoreStateFromCanvas` 缺存时 `componentsPageId ?? ''` 改 `?? undefined` + 条件性 spread；组件缺失错误者加 custom 兑底提示；`listDocumentLibraryNames` 递归；重复 key 警告；fetch 错误 dialog 表面化；resubmit hint 改为 marker-aware；revdeps guard、profile 切换锁、重绑定测试补齐；00-overview + AGENTS.md 补生成命令与 look/vision。
   - **驳回**（实习生误读）："P0 resolveExistingDesign 清空别人"（代码本有善）；P0 空串“写不出 Components 页面”（setup 会立即重解析）；“replaceMarketingLibrary 不重 bind”（`bindMarketingLibrary` 以对象 identité 判定本来就重绑，加了重绑定测试为证）；"[素材类型] 未交付"（L3 chips 已完成）；profile “非确定性”（文件顺序恒定）；stripLibraryMarkerTexts 误剥（正则只严匹配 `readonly:`）。
-- **测试**：62 条 marketing 引擎测试 + 2 条生成器回环 + 4 条 render 净化 + 1 条重绑定 = 69 条，全绿；`lint` 无新增错误（修复了一处组件例外话后的复杂度超限与 restore 的重复 import）；`tsgo` / `check:vue` / `check:i18n` / `check:arch`(steiger) / `test:dupes` / `test:tools` 全绿；app 测试组 26/28（`figma-images` / `cli/eval` 两个文件在本机基线上同样卡死，环境存量问题，与本次改动无关）。
+- **测试**：marketing 引擎测试（brief / library / setup / validate / restore / clone / look / registry）、生成器回环测试、render 净化测试、app 层 marketing-library 测试——全绿；`lint` 无新增错误（修复了一处组件例外话后的复杂度超限与 restore 的重复 import）；`tsgo` / `check:vue` / `check:i18n` / `check:arch`(steiger) / `test:dupes` / `test:tools` 全绿；app 测试组 26/28（`figma-images` / `cli/eval` 两个文件在本机基线上同样卡死，环境存量问题，与本次改动无关）。具体条数随每次 commit 浮动，建议直接看 `bun test` 输出而非锁死数字。
 
 ## 10. 阶段路线
 

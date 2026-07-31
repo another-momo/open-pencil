@@ -61,7 +61,7 @@ Checkpoint 交互是纯对话，不消耗步数。AI 在等待用户输入时暂
 
 ## 3. 素材类型体系
 
-> 2026-07-30 修订：素材类型配置已从代码迁入 **Library .fig**（详见 `l2-resource-library.md`）。本章保留概念框架；存储与解析细节以该规划为准。
+> 2026-07-31 重写：素材类型配置全部迁入 **Library .fig**，代码只保留扫库 + 解析（详见 `l2-resource-library.md` §4）。
 
 ### 3.1 为什么需要素材类型
 
@@ -83,7 +83,21 @@ Checkpoint 交互是纯对话，不消耗步数。AI 在等待用户输入时暂
 
 素材类型配置存储在 **Library .fig 的 Types 区**：每个类型一个 frame，配置项是 `key: value` 纯文本子节点（`id` / `label` / `size` / `description` / `anchor_first` / `anchor_last`）。用户新增类型 = 在库文件里加一个 frame，不需要改代码。
 
-### 3.3 预设素材类型
+### 3.3 存储与解析
+
+素材类型配置存储在 **Library .fig 的 Types 区**（独立 page，按页名 `Types` 定位，无 pluginData）：
+
+- 每个类型一个 frame，配置项是 `key: value` 纯文本子节点
+- 已知 key：`id` / `label` / `size` / `description` / `anchor_first` / `anchor_last`
+- `size` 支持 `750x` 空高（height = null，长图）；`anchor_first` / `anchor_last` 引用按 Components 区 frame name 匹配
+- 未知 key 忽略并记 warning；畸形条目不抛错，跳过并写入 `LibraryIndex.warnings`
+- 用户新增类型 = 在库文件里加一个 frame + 文本子节点，**不需要改代码**
+
+代码侧对应实现：`packages/core/src/tools/marketing/library.ts:parseLibraryIndex`（库 → `LibraryIndex.types[]`）。
+
+### 3.4 预设素材类型
+
+默认库 `default-library.fig`（`tools/marketing-library/` 生成，构建期资产 ship-with）收录以下 7 个预设：
 
 | 素材类型 ID | label | 尺寸 | 锚点组件 |
 |---|---|---|---|
@@ -95,21 +109,23 @@ Checkpoint 交互是纯对话，不消耗步数。AI 在等待用户输入时暂
 | `dsp_banner` | DSP 广告 | 300×250（IAB） | 无 |
 | `product_long` | 产品长图 | 750×N | `BrandBar(top)` + `CTABar(bottom)` |
 
-以上 7 个预设收录在随应用分发的 `default-library.fig`（`tools/marketing-library/` 生成）。无预设覆盖的尺寸走 `custom` 兜底（AI 传 width/height）。
+无预设覆盖的尺寸走 `custom` 兜底（AI 传 width/height）。
 
 ## 4. 资源体系
 
-> 2026-07-30 修订：资源体系已统一为 Library .fig 单一载体（详见 `l2-resource-library.md`）。
+> 2026-07-31 重写：资源体系已统一为 Library .fig 单一载体（详见 `l2-resource-library.md`）。
 
 ### 4.1 资源分层
 
-| 层 | 资源 | 说明 | 管理方式 |
+| 层 | 资源 | 存储 | 注入方式 |
 |---|---|---|---|
-| **组件层** | 锚点组件（BrandBar / CTABar）、readonly 声明 | 库 Components 区的真 COMPONENT 节点；readonly 是组件内的 `readonly:` 子文本（声明式） | Library .fig，物化时跨文档克隆 |
-| **类型层** | 尺寸、锚点引用、类型描述 | 库 Types 区的 frame + key-value 文本 | Library .fig，扫库解析为 LibraryIndex |
-| **风格层** | profile Markdown、适用类型 | 库 Profiles 区的 plain TEXT | Library .fig，setup 选中后注入 prompt overlay |
-| **参考层** | 参考样例 frame + `for:`/`tag:` 标注 | 库 References 区；用户勾选后克隆进工作文档「素材区」页 | Library .fig + 工作文档注入 |
-| **执行层** | AI Agent + 运行时工具 | setup_material_type / validate / 内容填充 | 营销 prompt + 工具 |
+| **组件层** | 锚点组件（BrandBar / CTABar）+ `readonly:` 声明 | 库 Components 区的真 COMPONENT 节点 | 跨文档克隆物化到目标文档 Components 页 |
+| **类型层** | 尺寸、锚点引用、类型描述 | 库 Types 区的 frame + key-value 文本 | setup 读库，`LibraryIndex.types` |
+| **风格层** | profile Markdown + `applicable_to` 适用类型 | 库 Profiles 区的 plain TEXT 节点 | setup 选中后由 app 注入 system prompt overlay |
+| **参考层** | 参考样例 frame + `applicable_to` / `tag` 标注 | 库 References 区 | 用户勾选 → app 克隆进工作文档"参考区"页（注入由 `libraryReferenceId` marker 去重） |
+| **执行层** | AI Agent + 运行时工具 | 营销 prompt + 工具 | setup_material_type / validate / 内容填充 |
+
+各库的解析契约与警告通道集中记录在 `l2-resource-library.md` §4 与 §9.3。
 
 ### 4.2 组件资产与物化
 

@@ -71,7 +71,7 @@ packages/core/src/tools/image-gen/
 ## 6. 源码参考
 
 - 生图工具域：`packages/core/src/tools/image-gen*`
-- 营销工具域：`packages/core/src/tools/marketing/`（material-types / assets / component-templates / builder / registry / setup / validate / brief）+ 入口 `packages/core/src/tools/marketing.ts`
+- 营销工具域：`packages/core/src/tools/marketing/`（library / clone / registry / setup / validate / restore / brief / look / vision）+ 入口 `packages/core/src/tools/marketing.ts`；默认库资产生成：`tools/marketing-library/`
 - override 自动记录：`packages/core/src/tools/instance-overrides.ts`（接入 `batch.ts` / `update.ts`）
 - 共享图片填充：`packages/core/src/tools/image-fill.ts`（image-gen / stock-photo / builder 三方复用）
 - 工具注册：`packages/core/src/tools/registry-core.ts`

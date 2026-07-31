@@ -8,11 +8,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import Tip from '@/components/ui/Tip.vue'
 import { useButtonUI } from '@/components/ui/button'
 import { inferMaterialTypeFromText } from '@/app/ai/chat/material-type-infer'
-import {
-  materialTypeSelection,
-  setInferredMaterialType,
-  toggleMaterialTypeLock
-} from '@/app/ai/chat/storage'
+import { setInferredMaterialType } from '@/app/ai/chat/storage'
 import { useAIChat } from '@/app/ai/chat/use'
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
 import { getActiveEditorStore } from '@/app/editor/active-store'
@@ -20,7 +16,16 @@ import { useI18n } from '@open-pencil/vue'
 
 import { ACP_AGENTS } from '@open-pencil/core/constants'
 import { computeAllLayouts } from '@open-pencil/core/layout'
-import { createBrief, listMaterialTypes } from '@open-pencil/core/tools'
+import { createBrief } from '@open-pencil/core/tools'
+
+import {
+  bindMarketingLibrary,
+  ensureMarketingLibrary,
+  maybeAutoOpenLibraryDialog,
+  openLibraryDialog
+} from '@/app/ai/marketing/library'
+import MarketingConfigBar from '@/components/chat/MarketingConfigBar.vue'
+import MarketingLibraryDialog from '@/components/chat/MarketingLibraryDialog.vue'
 
 const { providerID, providerDef, modelID, customModelID, chatMode } = useAIChat()
 const { dialogs } = useI18n()
@@ -72,26 +77,27 @@ const modeLabel = computed(() =>
   chatMode.value === 'marketing' ? 'Marketing Design' : 'UI Design'
 )
 
-const materialTypes = listMaterialTypes()
+watch(
+  chatMode,
+  async (mode) => {
+    if (mode !== 'marketing') return
+    await maybeAutoOpenLibraryDialog(getActiveEditorStore().graph)
+  },
+  { immediate: true }
+)
 
 watch(input, (text) => {
   if (chatMode.value !== 'marketing') return
   setInferredMaterialType(inferMaterialTypeFromText(text))
 })
 
-function materialTypeChipClass(id: string): string {
-  const selected = materialTypeSelection.value?.id === id
-  const locked = selected && materialTypeSelection.value?.source === 'user'
-  const base = 'shrink-0 rounded-full border px-2 py-0.5 text-[10px] transition-colors'
-  if (locked) return `${base} border-accent bg-accent/15 font-medium text-accent`
-  if (selected) return `${base} border-dashed border-accent/60 bg-accent/5 text-accent`
-  return `${base} border-border text-muted hover:border-accent/40 hover:text-surface`
-}
-
 function handleSubmit(e: Event) {
   e.preventDefault()
   const text = input.value.trim()
   if (!text) return
+  if (chatMode.value === 'marketing') {
+    void ensureMarketingLibrary().then(() => bindMarketingLibrary(getActiveEditorStore().graph))
+  }
   emit('submit', text)
   input.value = ''
 }
@@ -143,6 +149,16 @@ function handleNewBrief() {
         </ProviderModelSelect>
 
         <div class="ml-auto flex items-center gap-1">
+          <Tip v-if="chatMode === 'marketing'" :label="dialogs.materialLibrary">
+            <button
+              type="button"
+              data-test-id="library-dialog-button"
+              class="rounded p-0.5 text-muted hover:bg-hover hover:text-surface"
+              @click="openLibraryDialog"
+            >
+              <icon-lucide-library-big class="size-3" />
+            </button>
+          </Tip>
           <Tip v-if="chatMode === 'marketing'" :label="dialogs.newBrief">
             <button
               type="button"
@@ -157,23 +173,8 @@ function handleNewBrief() {
         </div>
       </div>
 
-      <!-- Material type chips (marketing mode) -->
-      <div
-        v-if="chatMode === 'marketing'"
-        class="mb-1.5 flex items-center gap-1 overflow-x-auto"
-        data-test-id="material-type-chips"
-      >
-        <button
-          v-for="type in materialTypes"
-          :key="type.id"
-          type="button"
-          :class="materialTypeChipClass(type.id)"
-          :data-type-id="type.id"
-          @click="toggleMaterialTypeLock(type.id)"
-        >
-          {{ type.label }}
-        </button>
-      </div>
+      <!-- Marketing config bar (type / profile / references) -->
+      <MarketingConfigBar v-if="chatMode === 'marketing'" />
 
       <!-- Input form -->
       <form class="flex gap-1.5" @submit="handleSubmit">
@@ -208,6 +209,8 @@ function handleNewBrief() {
           </button>
         </Tip>
       </form>
+
+      <MarketingLibraryDialog v-if="chatMode === 'marketing'" />
     </div>
   </TooltipProvider>
 </template>

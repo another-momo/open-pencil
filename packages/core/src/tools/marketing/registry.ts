@@ -9,7 +9,6 @@
 
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
-import type { ReadonlyNodeInfo } from '#core/tools/marketing/builder'
 import { restoreStateFromCanvas } from '#core/tools/marketing/restore'
 
 export interface AnchorRecord {
@@ -22,10 +21,9 @@ export interface AnchorRecord {
 export interface MarketingDocumentState {
   materialTypeId: string
   rootFrameId: string
-  componentsPageId: string
+  /** Resolved lazily by setup when absent (restore may run before a Components page exists) */
+  componentsPageId?: string
   anchors: AnchorRecord[]
-  /** Instance-child nodeId → readonly baseline (used by validate) */
-  readonly: Map<string, ReadonlyNodeInfo>
   /** Monotonic sequence — higher = more recently active (not wall time) */
   lastActiveAt: number
 }
@@ -33,6 +31,25 @@ export interface MarketingDocumentState {
 const states = new WeakMap<SceneGraph, Map<string, MarketingDocumentState>>()
 const restoredGraphs = new WeakSet<SceneGraph>()
 let activityClock = 0
+
+/**
+ * Per-graph user preferences (set via the config bar, not the AI): a locked
+ * profile always wins over setup's auto-pick, so an explicit user choice
+ * survives re-setup calls (docs/plans/l2-resource-library.md §2).
+ */
+export interface MarketingPrefs {
+  profileId?: string
+}
+
+const prefs = new WeakMap<SceneGraph, MarketingPrefs>()
+
+export function setMarketingPrefs(graph: SceneGraph, update: MarketingPrefs): void {
+  prefs.set(graph, { ...prefs.get(graph), ...update })
+}
+
+export function getMarketingPrefs(graph: SceneGraph): MarketingPrefs {
+  return prefs.get(graph) ?? {}
+}
 
 /**
  * First access per graph: rebuild state from canvas markers so reopened

@@ -1,8 +1,14 @@
 import { expect, test } from 'bun:test'
 
-import { getMarketingState } from '@open-pencil/core/tools'
+import { SceneGraph } from '@open-pencil/core'
+import {
+  getMarketingState,
+  listDocumentLibraryNames,
+  setLibrarySession
+} from '@open-pencil/core/tools'
 
 import { expectDefined } from '#tests/helpers/assert'
+import { attachMiniLibrary } from '#tests/helpers/marketing-library'
 import { getTool, setupToolTest } from '#tests/helpers/tools'
 
 interface AnchorResult {
@@ -15,11 +21,13 @@ interface SetupToolResult {
   error?: string
   rootFrameId?: string
   anchors?: AnchorResult[]
+  activeProfileId?: string
   repaired?: string[]
 }
 
 function run(id: string) {
   const { graph, figma } = setupToolTest()
+  attachMiniLibrary(graph)
   const result = getTool('setup_material_type').execute(figma, { id }) as SetupToolResult
   return { graph, figma, result }
 }
@@ -57,19 +65,6 @@ test('setup_material_type creates shared Components page with component definiti
   expect(componentNodes.map((node) => node.name).sort()).toEqual(['BrandBar', 'CTABar'])
 })
 
-test('setup_material_type registers readonly baseline for instance children', () => {
-  const { graph } = run('product_long')
-  const state = expectDefined(getMarketingState(graph))
-  expect(state.readonly.size).toBeGreaterThan(0)
-
-  for (const [nodeId, info] of state.readonly) {
-    const node = expectDefined(graph.getNode(nodeId))
-    expect(info.props).toContain('fills')
-    expect(info.originalValues.fills).toBeDefined()
-    expect(node.type === 'TEXT' ? info.props.includes('text') : true).toBe(true)
-  }
-})
-
 test('setup_material_type with anchorless type creates only the root frame', () => {
   const { graph, result } = run('wechat_moments')
   expect(result.error).toBeUndefined()
@@ -81,7 +76,8 @@ test('setup_material_type with anchorless type creates only the root frame', () 
 })
 
 test('repeat call is a no-op when anchors are intact', () => {
-  const { figma } = setupToolTest()
+  const { graph, figma } = setupToolTest()
+  attachMiniLibrary(graph)
   const first = getTool('setup_material_type').execute(figma, {
     id: 'product_long'
   }) as SetupToolResult
@@ -97,6 +93,7 @@ test('repeat call is a no-op when anchors are intact', () => {
 
 test('repair mode re-materializes a deleted anchor instance', () => {
   const { graph, figma } = setupToolTest()
+  attachMiniLibrary(graph)
   const first = getTool('setup_material_type').execute(figma, {
     id: 'product_long'
   }) as SetupToolResult
@@ -113,44 +110,9 @@ test('repair mode re-materializes a deleted anchor instance', () => {
   expect(graph.getNode(ctaAnchor.instanceId)).toBeDefined()
 })
 
-test('repair mode re-materializes an anchor with missing readonly children', () => {
-  const { graph, figma } = setupToolTest()
-  const first = getTool('setup_material_type').execute(figma, {
-    id: 'product_long'
-  }) as SetupToolResult
-  const brandBar = expectDefined((first.anchors ?? []).find((a) => a.template === 'BrandBar'))
-
-  const stateBefore = expectDefined(getMarketingState(graph))
-  const entry = expectDefined(
-    [...stateBefore.readonly.entries()].find(
-      ([, info]) => info.anchorInstanceId === brandBar.instanceId
-    )
-  )
-  const [readonlyNodeId] = entry
-  graph.deleteNode(readonlyNodeId)
-
-  const second = getTool('setup_material_type').execute(figma, {
-    id: 'product_long'
-  }) as SetupToolResult
-  expect(second.repaired).toEqual(['BrandBar'])
-
-  const stateAfter = expectDefined(getMarketingState(graph))
-  const brandBarAfter = expectDefined(stateAfter.anchors.find((a) => a.templateId === 'BrandBar'))
-  expect(brandBarAfter.instanceId).not.toBe(brandBar.instanceId)
-  expect(graph.getNode(brandBarAfter.instanceId)).toBeDefined()
-
-  const reregistered = [...stateAfter.readonly.values()].filter(
-    (info) => info.anchorInstanceId === brandBarAfter.instanceId
-  )
-  expect(reregistered.length).toBeGreaterThan(0)
-  const stale = [...stateAfter.readonly.values()].filter(
-    (info) => info.anchorInstanceId === brandBar.instanceId
-  )
-  expect(stale).toEqual([])
-})
-
 test('setting up a second type creates a coexisting design and preserves the first', () => {
   const { graph, figma } = setupToolTest()
+  attachMiniLibrary(graph)
   const first = getTool('setup_material_type').execute(figma, {
     id: 'product_long'
   }) as SetupToolResult
@@ -192,7 +154,8 @@ test('custom material type creates root frame at the given size', () => {
 })
 
 test('custom material type without dimensions returns an error', () => {
-  const { figma } = setupToolTest()
+  const { graph, figma } = setupToolTest()
+  attachMiniLibrary(graph)
   const result = getTool('setup_material_type').execute(figma, { id: 'custom' }) as SetupToolResult
   expect(result.error).toContain('width and height')
 })
@@ -201,4 +164,67 @@ test('unknown material type returns error with available ids', () => {
   const { result } = run('nonexistent')
   expect(result.error).toBeDefined()
   expect(result.error as string).toContain('wechat_moments')
+})
+
+test('unknown id for a design present in the document gets the re-submit hint (§6.1)', () => {
+  const { graph, figma } = setupToolTest()
+  attachMiniLibrary(graph)
+  const first = getTool('setup_material_type').execute(figma, {
+    id: 'product_long'
+  }) as SetupToolResult
+  expect(first.error).toBeUndefined()
+
+  // Swap in a library that does not contain product_long
+  const empty = new SceneGraph()
+  setLibrarySession(graph, {
+    name: 'other-library.fig',
+    graph: empty,
+    index: { types: [], profiles: [], components: [], references: [], warnings: [] },
+    refInjections: new Map()
+  })
+
+  const second = getTool('setup_material_type').execute(figma, {
+    id: 'product_long'
+  }) as SetupToolResult
+  expect(second.error).toContain('re-submit that library')
+  expect(second.error).toContain('other-library.fig')
+})
+
+test('setup returns activeProfileId and rejects unknown profiles', () => {
+  const { figma, result } = run('product_long')
+  expect(result.error).toBeUndefined()
+  expect(result.activeProfileId).toBe('casual_v1')
+
+  const bad = getTool('setup_material_type').execute(figma, {
+    id: 'product_long',
+    profile: 'nonexistent'
+  }) as SetupToolResult
+  expect(bad.error).toContain('Unknown profile')
+  expect(bad.error).toContain('casual_v1')
+})
+
+test('switching profiles via re-setup keeps the design intact', () => {
+  const { figma } = setupToolTest()
+  attachMiniLibrary(figma.graph)
+  const first = getTool('setup_material_type').execute(figma, {
+    id: 'product_long'
+  }) as SetupToolResult
+  expect(first.activeProfileId).toBe('casual_v1')
+
+  const second = getTool('setup_material_type').execute(figma, {
+    id: 'product_long',
+    profile: 'luxury_v1'
+  }) as SetupToolResult
+  expect(second.error).toBeUndefined()
+  expect(second.activeProfileId).toBe('luxury_v1')
+  expect(second.rootFrameId).toBe(first.rootFrameId)
+  expect((second.anchors ?? []).map((a) => a.instanceId)).toEqual(
+    (first.anchors ?? []).map((a) => a.instanceId)
+  )
+  expect(second.repaired).toBeUndefined()
+})
+
+test('setup stamps the library name on the root frame marker', () => {
+  const { graph } = run('product_long')
+  expect(listDocumentLibraryNames(graph)).toEqual(['test-library.fig'])
 })

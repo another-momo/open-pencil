@@ -10,16 +10,8 @@
  * the 需求单 AI结论区 and is re-read by the agent.
  */
 
-import type { PluginDataEntry, SceneNode } from '@open-pencil/scene-graph'
-import type { SceneGraph } from '@open-pencil/scene-graph'
+import type { PluginDataEntry, SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
-import type { ReadonlyNodeInfo } from '#core/tools/marketing/builder'
-import { getComponentTemplate } from '#core/tools/marketing/component-templates'
-import {
-  collectComponentReadonlyIds,
-  deriveTemplateReadonlyNames,
-  registerInstanceReadonly
-} from '#core/tools/marketing/setup'
 import { setMarketingState, type AnchorRecord } from '#core/tools/marketing/registry'
 
 const MARKETING_PLUGIN_ID = 'open-pencil-marketing'
@@ -30,6 +22,9 @@ const TYPE_KEY = 'material-type'
 const TEMPLATE_KEY = 'anchor-template'
 const POSITION_KEY = 'anchor-position'
 const COMPONENT_KEY = 'anchor-component'
+const LIBRARY_KEY = 'library'
+const ROLE_LIBRARY_REFERENCE = 'library-reference'
+const LIBRARY_REF_KEY = 'library-ref'
 
 function markerValue(node: SceneNode, key: string): string | undefined {
   return node.pluginData.find(
@@ -56,10 +51,16 @@ function upsertMarker(
   })
 }
 
-export function markMarketingRoot(graph: SceneGraph, nodeId: string, materialTypeId: string): void {
+export function markMarketingRoot(
+  graph: SceneGraph,
+  nodeId: string,
+  materialTypeId: string,
+  libraryName?: string
+): void {
   upsertMarker(graph, nodeId, [
     { key: ROLE_KEY, value: ROLE_ROOT },
-    { key: TYPE_KEY, value: materialTypeId }
+    { key: TYPE_KEY, value: materialTypeId },
+    ...(libraryName ? [{ key: LIBRARY_KEY, value: libraryName }] : [])
   ])
 }
 
@@ -80,35 +81,66 @@ export function isMarketingRoot(node: SceneNode | undefined): node is SceneNode 
   return !!node && node.type === 'FRAME' && markerValue(node, ROLE_KEY) === ROLE_ROOT
 }
 
+/**
+ * Mark a node cloned from the library References zone into this document
+ * (§5): identifies it as a library-provided reference — not design output —
+ * so it can be recognized and cleaned up later.
+ */
+export function markLibraryReference(graph: SceneGraph, nodeId: string, refId: string): void {
+  upsertMarker(graph, nodeId, [
+    { key: ROLE_KEY, value: ROLE_LIBRARY_REFERENCE },
+    { key: LIBRARY_REF_KEY, value: refId }
+  ])
+}
+
+/** The library reference id a marked node came from (undefined if not a library reference) */
+export function libraryReferenceId(node: SceneNode | undefined): string | undefined {
+  if (!node || markerValue(node, ROLE_KEY) !== ROLE_LIBRARY_REFERENCE) return undefined
+  return markerValue(node, LIBRARY_REF_KEY)
+}
+
 /** The material type a marked root frame belongs to (undefined if unmarked) */
 export function marketingRootType(node: SceneNode | undefined): string | undefined {
   if (!isMarketingRoot(node)) return undefined
   return markerValue(node, TYPE_KEY)
 }
 
+/** The library a marked root frame was made with (undefined if unmarked/unrecorded) */
+export function marketingRootLibrary(node: SceneNode | undefined): string | undefined {
+  if (!isMarketingRoot(node)) return undefined
+  return markerValue(node, LIBRARY_KEY)
+}
+
+/**
+ * Distinct library names referenced by marketing root frames in the
+ * document — used at session start to detect designs made with a custom
+ * library that is no longer loaded (docs/plans/l2-resource-library.md §6.1).
+ * Recursive: users may nest root frames inside groups.
+ */
+export function listDocumentLibraryNames(graph: SceneGraph): string[] {
+  const names = new Set<string>()
+  const walk = (nodeId: string) => {
+    const node = graph.getNode(nodeId)
+    if (!node) return
+    const name = marketingRootLibrary(node)
+    if (name) names.add(name)
+    for (const childId of node.childIds) walk(childId)
+  }
+  for (const page of graph.getPages()) {
+    for (const childId of page.childIds) walk(childId)
+  }
+  return [...names]
+}
+
 function findComponentsPageId(graph: SceneGraph): string | undefined {
   return graph.getPages().find((page) => page.name === 'Components')?.id
 }
 
-function restoreAnchor(
-  graph: SceneGraph,
-  instance: SceneNode,
-  readonly: Map<string, ReadonlyNodeInfo>
-): AnchorRecord | undefined {
+function restoreAnchor(instance: SceneNode): AnchorRecord | undefined {
   const templateId = markerValue(instance, TEMPLATE_KEY)
   const componentId = markerValue(instance, COMPONENT_KEY)
   const position = markerValue(instance, POSITION_KEY)
   if (!templateId || !componentId) return undefined
-
-  const template = getComponentTemplate(templateId)
-  if (template && graph.getNode(componentId)) {
-    const readonlyIds = collectComponentReadonlyIds(
-      graph,
-      componentId,
-      deriveTemplateReadonlyNames(template)
-    )
-    registerInstanceReadonly(graph, instance.id, readonlyIds, readonly)
-  }
 
   return {
     templateId,
@@ -123,7 +155,7 @@ function restoreAnchor(
  * entries. Returns the number of restored designs.
  */
 export function restoreStateFromCanvas(graph: SceneGraph): number {
-  const componentsPageId = findComponentsPageId(graph) ?? ''
+  const componentsPageId = findComponentsPageId(graph)
   let restored = 0
 
   for (const page of graph.getPages()) {
@@ -134,21 +166,19 @@ export function restoreStateFromCanvas(graph: SceneGraph): number {
       const materialTypeId = markerValue(rootFrame, TYPE_KEY)
       if (!materialTypeId) continue
 
-      const readonly = new Map<string, ReadonlyNodeInfo>()
       const anchors: AnchorRecord[] = []
       for (const instanceId of rootFrame.childIds) {
         const instance = graph.getNode(instanceId)
         if (!instance || markerValue(instance, ROLE_KEY) !== ROLE_ANCHOR) continue
-        const anchor = restoreAnchor(graph, instance, readonly)
+        const anchor = restoreAnchor(instance)
         if (anchor) anchors.push(anchor)
       }
 
       setMarketingState(graph, {
         materialTypeId,
         rootFrameId: rootFrame.id,
-        componentsPageId,
-        anchors,
-        readonly
+        ...(componentsPageId ? { componentsPageId } : {}),
+        anchors
       })
       restored++
     }

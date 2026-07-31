@@ -6,7 +6,7 @@ import { computed, markRaw, nextTick, ref, watch } from 'vue'
 import { getAcpDebugText, clearAcpDebugLog, hasAcpDebugEntries } from '@/app/ai/acp/transport'
 import { copyChatLog } from '@/app/ai/debug'
 import { clearToolLogEntries, didHitStepLimit, beginNewBurst } from '@/app/ai/tools'
-import { materialTypeSelection } from '@/app/ai/chat/storage'
+import { materialTypeSelection, profileSelection } from '@/app/ai/chat/storage'
 import { activeTab } from '@/app/tabs'
 import AcpPermissionDialog from '@/components/chat/AcpPermissionDialog.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
@@ -93,6 +93,9 @@ function withSelectionContext(text: string): string {
   const locked = materialTypeSelection.value
   if (locked?.source === 'user') {
     result += `\n\n[素材类型] 用户已指定：${locked.id} — 请直接使用该类型调用 setup_material_type，不要更改。`
+  }
+  if (profileSelection.value) {
+    result += `\n\n[风格档案] 用户已指定：${profileSelection.value} — setup_material_type 请传 profile: "${profileSelection.value}"，不要更改。`
   }
   const store = getActiveEditorStoreOrNull()
   if (!store) return result

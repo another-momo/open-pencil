@@ -16,6 +16,7 @@ import { lookImagesKept } from '@/app/ai/chat/storage'
 import type { ChatMode } from '@/app/ai/chat/storage'
 import SYSTEM_PROMPT_MARKETING from '@/app/ai/chat/system-prompt-marketing.md?raw'
 import SYSTEM_PROMPT from '@/app/ai/chat/system-prompt.md?raw'
+import { bindMarketingLibrary, buildMarketingOverlay } from '@/app/ai/marketing/library'
 import {
   MAX_AGENT_STEPS,
   createAITools,
@@ -125,6 +126,15 @@ export function createToolLoopTransport({
     providerOptions: cacheProviderOptions,
     prepareCall: (options) => {
       resetRunSteps(store)
+      // Marketing: bind the library session to this document and refresh the
+      // system prompt library context (types list + active profile markdown) per
+      // call — a profile switch via re-setup takes effect on the next turn
+      // (docs/plans/l2-resource-library.md Q6).
+      let instructions: string | undefined
+      if (chatMode === 'marketing') {
+        bindMarketingLibrary(store.graph)
+        instructions = SYSTEM_PROMPT_MARKETING + buildMarketingOverlay(store)
+      }
       const keep = Math.min(3, Math.max(1, Math.round(lookImagesKept.value) || 2))
       const rewrite = needsImageAsUserMessage(providerID, customAPIType)
       // DirectChatTransport passes the converted history as `prompt` (an array
@@ -132,7 +142,12 @@ export function createToolLoopTransport({
       const source =
         options.messages ?? (Array.isArray(options.prompt) ? options.prompt : undefined)
       if (!source) {
-        return { ...options, maxOutputTokens, providerOptions: cacheProviderOptions }
+        return {
+          ...options,
+          ...(instructions ? { instructions } : {}),
+          maxOutputTokens,
+          providerOptions: cacheProviderOptions
+        }
       }
       recordPrepareCallDebug(
         {
@@ -153,6 +168,7 @@ export function createToolLoopTransport({
       }
       return {
         ...options,
+        ...(instructions ? { instructions } : {}),
         ...(options.messages ? { messages } : { prompt: messages }),
         maxOutputTokens,
         providerOptions: cacheProviderOptions

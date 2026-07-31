@@ -62,6 +62,7 @@ Property-panel anatomy in `packages/vue/src/primitives/PropertySection/`, `Segme
 - `bun run test` — Playwright E2E and visual regression tests
 - `bun run tauri dev` — desktop app with hot reload
 - `bun open-pencil --help` — list CLI commands. Common commands include `info`, `tree`, `find`, `node`, `pages`, `variables`, `export`, `import`, `convert`, `lint`, `query`, `selection`, `formats`, `analyze ...`, and `eval` for Figma Plugin API scripting.
+- `bun tools/marketing-library/src/generate.ts` — regenerate `public/default-library.fig` after editing the marketing library generator; round-trip covered by `tools/marketing-library/tests/`
 
 ### Format scope
 

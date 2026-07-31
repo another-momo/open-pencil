@@ -34,7 +34,22 @@ export {
 } from './marketing/vision'
 export type { VisionMode, VisionProvider, VisionAnalyzer } from './marketing/vision'
 export { getMarketingState } from './marketing'
-export { listMaterialTypes } from './marketing'
+export { getMarketingPrefs, setMarketingPrefs } from './marketing'
+export {
+  cloneSubtreeAcrossGraphs,
+  listDocumentLibraryNames,
+  markLibraryReference
+} from './marketing'
+export {
+  getDefaultLibrary,
+  getLibrarySession,
+  injectLibraryReferences,
+  loadLibrary,
+  parseLibraryIndex,
+  setDefaultLibrary,
+  setLibrarySession
+} from './marketing'
+export type { InjectReferencesResult, LibraryIndex, LibrarySession } from './marketing'
 export {
   BRIEF_ENTRY_NAME,
   BRIEF_NAME,

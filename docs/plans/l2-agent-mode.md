@@ -61,6 +61,8 @@ Checkpoint 交互是纯对话，不消耗步数。AI 在等待用户输入时暂
 
 ## 3. 素材类型体系
 
+> 2026-07-30 修订：素材类型配置已从代码迁入 **Library .fig**（详见 `l2-resource-library.md`）。本章保留概念框架；存储与解析细节以该规划为准。
+
 ### 3.1 为什么需要素材类型
 
 素材类型是用户意图到系统配置的映射层。用户说"做一张朋友圈广告"，系统需要知道：设计尺寸（根 frame 宽高）、需要哪些 section、引用哪些锚点组件、风格约束。素材类型封装了这些预设，用户无需手动配置。
@@ -71,17 +73,15 @@ Checkpoint 交互是纯对话，不消耗步数。AI 在等待用户输入时暂
 
 **给 `setup_material_type` 工具执行的（确定性，代码完成）：**
 
-- **尺寸**：固定值或可选范围
-- **锚点组件**：来自组件模板的引用，指定放置位置
-- **结构约束**：期望的节点树结构（组件位置、section 数量范围），供 `validate` 校验
+- **尺寸**：固定值或可变高（长图类型）
+- **锚点组件**：来自库 Components 区的组件引用，指定放置位置（`anchor_first` / `anchor_last`）
 
-**给 AI 用的（由工具返回到对话上下文）：**
+**给 AI 用的（软上下文）：**
 
-- **section 规划**：建议的 section 划分，包含内容指引（contentGuide）
-- **风格指南**：配色方案、字体方案、视觉风格关键词
-- **自定义字段**：每个素材类型的特有信息（如"目标受众"、"产品类别"、"语气风格"等）
+- **风格档案（profile）**：独立的 Markdown 文档（配色、字体、语气、版式），由 setup 选中后注入 system prompt overlay——风格与类型解耦，换风格 = 切 profile（见 `l2-resource-library.md` §2）
+- **类型描述（description）**：一句话说明，供 AI 推断类型时匹配用户意图
 
-素材类型配置是灵活的，不同素材类型可以有不同的字段。通用字段由 marketing prompt 统一解释，自定义字段由 AI 用通用能力理解。
+素材类型配置存储在 **Library .fig 的 Types 区**：每个类型一个 frame，配置项是 `key: value` 纯文本子节点（`id` / `label` / `size` / `description` / `anchor_first` / `anchor_last`）。用户新增类型 = 在库文件里加一个 frame，不需要改代码。
 
 ### 3.3 预设素材类型
 
@@ -91,40 +91,35 @@ Checkpoint 交互是纯对话，不消耗步数。AI 在等待用户输入时暂
 | `wechat_article_cover` | 公众号封面 | 900×500 | 无 |
 | `xiaohongshu` | 小红书图 | 1080×1440 | `BrandBar(bottom)` |
 | `ecommerce_detail` | 电商详情页 | 750×N | `BrandBar(top)` + `CTABar(bottom)` |
-| `event_poster` | 活动海报 | A3/A4/自定义 | 无 |
-| `dsp_banner` | DSP 广告 | IAB 标准 | 无 |
+| `event_poster` | 活动海报 | 1080×1920 | 无 |
+| `dsp_banner` | DSP 广告 | 300×250（IAB） | 无 |
 | `product_long` | 产品长图 | 750×N | `BrandBar(top)` + `CTABar(bottom)` |
 
+以上 7 个预设收录在随应用分发的 `default-library.fig`（`tools/marketing-library/` 生成）。无预设覆盖的尺寸走 `custom` 兜底（AI 传 width/height）。
+
 ## 4. 资源体系
+
+> 2026-07-30 修订：资源体系已统一为 Library .fig 单一载体（详见 `l2-resource-library.md`）。
 
 ### 4.1 资源分层
 
 | 层 | 资源 | 说明 | 管理方式 |
 |---|---|---|---|
-| **组件层** | 节点结构、样式、可编辑槽位、readonly 标记 | 组件模板（节点树数据），物化为 OpenPencil 组件 | 代码中的模板定义 |
-| **配置层** | 尺寸、锚点组件、结构约束、section 规划、风格指南 | 素材类型的参数化定义 | 代码中的注册表数据 |
+| **组件层** | 锚点组件（BrandBar / CTABar）、readonly 声明 | 库 Components 区的真 COMPONENT 节点；readonly 是组件内的 `readonly:` 子文本（声明式） | Library .fig，物化时跨文档克隆 |
+| **类型层** | 尺寸、锚点引用、类型描述 | 库 Types 区的 frame + key-value 文本 | Library .fig，扫库解析为 LibraryIndex |
+| **风格层** | profile Markdown、适用类型 | 库 Profiles 区的 plain TEXT | Library .fig，setup 选中后注入 prompt overlay |
+| **参考层** | 参考样例 frame + `for:`/`tag:` 标注 | 库 References 区；用户勾选后克隆进工作文档「素材区」页 | Library .fig + 工作文档注入 |
 | **执行层** | AI Agent + 运行时工具 | setup_material_type / validate / 内容填充 | 营销 prompt + 工具 |
 
-### 4.2 组件模板
+### 4.2 组件资产与物化
 
-OpenPencil 的组件是文档级的（实例只在当前文档内解析，没有跨文档组件库机制）。因此本规划中的组件资产以**代码中的组件模板**形式存在：以结构化节点树数据定义（直接对应 SceneNode 字段，非 JSX 字符串），`setup_material_type` 执行时由**构建器**（递归 createNode + updateNode，约百行代码）在文档中物化——先创建 COMPONENT 定义节点，再创建 INSTANCE 实例放到指定位置。
+OpenPencil 的组件是文档级的（实例只在当前文档内解析）。库组件以**真 COMPONENT 节点**存在于 Library .fig 的 Components 区，用户可直接在画布上编辑结构、样式和 `readonly:` 声明。
 
-选择结构化数据而非 JSX 字符串的理由：readonly 标记内联在节点上（结构性关联，不依赖 name 匹配，不可能错位）；类型安全（TS 对象，typecheck 可抓结构错误）；表达力无上限（IMAGE fill 等 JSX 方言表达不了的内容可表达）。模板数量少（3-5 个锚点组件）、由开发者维护，结构化数据的可读性代价可接受。
+`setup_material_type` 物化时经 `cloneSubtreeAcrossGraphs` 把组件子树从库 graph 克隆到目标文档的 "Components" 页（图片字节按内容寻址 hash 搬运；`readonly:` 标记文本在克隆后剥离，不进实例），同名组件在页面级复用——多设计共享一份定义，改定义全实例同步。
 
-组件模板定义：
+物化约束（Q10）：库组件禁用 variables 与嵌套实例（跨文档引用无法迁移），扫库时检测进 warnings。
 
-- **节点结构**：有哪些子节点，怎么排列（直接对应 SceneNode 字段）
-- **默认样式**：颜色、字体、间距
-- **readonly 标记**：模板节点上内联 `readonly: true`（如 logo、品牌名），未标记的部分即为可编辑槽位（如 CTA 文案、背景色）。该标记是模板级声明，只被 `setup_material_type` 和 `validate` 消费，不会物化为节点属性（与 UI 选择层的 `SceneNode.locked` 无关）
-
-**模板中的图片有两种角色**：
-
-- **固化图片**（如品牌 logo）：图片字节是模板资产的一部分，通过 `imageRef`（资产 ID）引用，物化时构建器从资产注册表取字节，`figma.createImage()` 创建 IMAGE fill。readonly
-- **占位图片**（如 hero 图槽位）：可编辑槽位，物化时放灰色占位 fill，AI 在工作流中用 generate_image / stock_photo / 用户素材填充
-
-**资产注册表**：资产 ID → 字节的注册与查询。模板只存 `imageRef` 引用不内联字节——模板保持纯数据、同一资产多模板复用，且天然是品牌包的接缝：Phase 1 实现内置默认资产（示例 logo），Phase 4 品牌包只需扩展注册表支持用户配置覆盖，模板零改动。
-
-物化细节：COMPONENT 定义节点放到专门的"Components"页面，避免污染主画布；INSTANCE 放到素材类型配置指定的位置。
+readonly 语义是**声明式**：setup 把 readonly 节点名写进返回 note 和 prompt，约束 AI 不修改；不再做运行时基线校验（Q13，见 `l2-resource-library.md` §3）。
 
 使用真组件（而非普通 frame）的理由：
 
@@ -132,46 +127,18 @@ OpenPencil 的组件是文档级的（实例只在当前文档内解析，没有
 - 实例是不透明容器：单击选中整个实例（不会误选内部元素），天然保护锚点
 - .pen 格式原生支持组件（`reusable` frame + `ref` 节点），保存/加载无问题
 
-**实例内容填充与 override 记录**：OpenPencil 的组件同步是单向的（组件定义 → 实例），靠实例的 `overrides` 记录跳过已覆盖属性，但直接编辑实例子节点不会自动记录 override。如果 AI 往实例里填了文案（未记录 override），用户随后编辑组件定义触发同步，AI 填的内容会被静默冲掉。因此 AI 修改实例子节点后，必须把改过的属性写入实例的 `overrides` 记录——实现上作为 `batch_update` / `update_node` 在实例子节点上执行时的自动行为（不下沉 scene-graph，影响面可控）。
-
-组件模板独立于素材类型体系存在。素材类型配置根据实际需要引用组件模板，也可以完全不引用。
+**实例内容填充与 override 记录**：OpenPencil 的组件同步是单向的（组件定义 → 实例），靠实例的 `overrides` 记录跳过已覆盖属性。AI 工具（`update_node` / `batch_update`）修改实例子节点时自动把改过的属性写入实例的 `overrides`；`render` / `node_replace_with` 替换实例内已映射子节点时，`preserveInstanceChildReplacement` 把旧节点的 componentId 映射转移给新节点并冻结 sync 白名单——AI 填的内容不会被组件同步冲掉。
 
 ### 4.3 校验机制
 
-**readonly 元数据的两层存储**：
+**validate 是纯代码的结构校验（脱库）**，只检查两类违规：
 
-- **定义层**：`readonly: true` 标记内联在组件模板的节点上，与模板同处一处，不需要路径引用
-- **运行时层**：`setup_material_type` 的构建器在物化时天然持有模板节点 → 真实 nodeId 的映射，把 readonly 节点的原始值连同 nodeId 写入**会话级注册表**（core 层 `WeakMap<SceneGraph, ...>`，按文档隔离）：`Map<nodeId, { readonlyProps, originalValues }>`
+- `anchor_deleted`：锚点实例被删——期望位置从锚点记录自身的 position 推导（`top ↔ first`、`bottom ↔ last`）
+- `anchor_misplaced`：锚点不在根 frame 的首/尾位置
 
-readonly 约束是**工作流级的护栏**（防止 AI 在设计过程中破坏锚点），不是文档的永久特性——设计交付后用户可自由修改。因此注册表不持久化到文档格式。重新打开文档后如需继续 AI 设计，重新建立营销上下文时重建注册表即可。
+校验数据全部来自会话注册表中的锚点记录（由 pluginData marker 跨重开恢复），**不读素材类型配置**——库未加载或库错了，validate 照常工作（断裂矩阵见 `l2-resource-library.md` §6.1）。重开文档后 setup 修复模式需要原库（组件定义是修复的物化来源）；根 frame marker 记录库名，session 启动时比对并引导用户重新提交。
 
-**校验执行**：通过 `validate` 工具实现，纯代码检查，不依赖 AI 判断。prompt 要求 AI 主动调用：每完成一个 section 后调用一次，Phase 4 最终检查时再调用一次。
-
-注意区分两种检查：**validate**（代码约束校验，本节内容）每个 section 后执行一次；**视觉一致性检查**（AI 用 describe 分析跨 section 风格协调性，见 §9.3）每完成 3 个 section 执行一次。前者是代码强制，后者是 prompt 规则。
-
-**检查内容**：
-
-- **组件内部校验**：读取会话注册表，对比 readonly 属性的原始值 vs 当前值
-- **结构位置校验**：检查根 frame 的子树是否符合素材类型配置中的结构约束（锚点实例位置、中间 section 数量范围、子节点顺序）
-
-**违规处理 — 修复前询问用户**：
-
-validate 无法区分修改来自 AI 还是用户（用户在 Checkpoint 之间可能有意手动调整，见 §8.2）。因此检测到违规时，AI 不直接修复，而是向用户报告违规内容并询问处理方式：
-
-- 用户确认是误改 → AI 向前修复（恢复数据源都是确定性的，不依赖 AI 记忆）：
-
-  | 违规类型 | 恢复数据源 | 恢复方式 |
-  |---|---|---|
-  | readonly 属性被改 | 注册表 `originalValues`（violation 的 `originalValue` 字段直接带出） | batch_update 写回 |
-  | readonly 子节点被删（锚点还在） | Components 页面的组件定义（完整节点树） | 修复模式：删残缺实例 → 从组件重新 createInstance → 重注册 |
-  | 锚点实例整个被删 | 组件模板 | 修复模式：全量重物化该锚点 |
-  | 锚点位置错位 | 素材类型配置 `structure.anchors` | reorder 移回 |
-
-  实现要点：注册表的 `ReadonlyNodeInfo` 记录 `anchorInstanceId`（readonly 节点所属锚点实例），修复模式据此检测"锚点存活但内部 readonly 子节点缺失"的损伤；组件定义也被删时回退到模板全量重建。注意：注册表只快照 readonly 属性的值（不含几何/子树/兄弟顺序），所以"删除"类违规的恢复数据源是组件定义而非注册表。
-
-- 用户确认是有意修改 → AI 接受当前值，更新注册表中的原始值为当前值（`validate({accept: true})`，后续校验以新值为准）
-
-修复是确定性操作（原始值已知），且走正常 undo 语义，不污染用户的撤销栈。
+**违规处理 — 修复前询问用户**：validate 无法区分修改来自 AI 还是用户。检测到违规时 AI 报告并询问：锚点被删 → 用户确认后重新 setup（修复模式重物化缺失锚点）；锚点错位 → reorder 移回或询问是否有意。
 
 ## 5. 运行时机制
 
@@ -188,16 +155,15 @@ setup_material_type({ id: "wechat_moments" })
 **工具执行（确定性，代码完成）**：
 
 1. 创建根 frame（尺寸由素材类型决定，默认白色底色——避免 describe 报 "Empty frame with no fill" 误导 AI 做无谓修复）——OpenPencil 没有全局画布尺寸，设计都在顶级 FRAME 节点中
-2. 物化组件模板：内部调用 `figma.createPage()` 创建"Components"页面，构建器（递归 createNode）在该页面构建模板节点树（固化图片从资产注册表取字节创建 IMAGE fill），`createComponentFromNode` 转为 COMPONENT，创建 INSTANCE 实例放到素材类型配置指定的位置
-3. 构建器持有的模板节点 → nodeId 映射中，把 readonly 节点的原始值写入会话级注册表
+2. 物化锚点组件：`cloneSubtreeAcrossGraphs` 从库 Components 区克隆组件到 "Components" 页，`createInstance` 放到素材类型配置指定的位置（首/尾）
+3. 选中风格档案：显式 `profile` 参数优先；否则第一个 `applicable_to` 命中当前类型的 profile，再无则第一个 profile
+4. 在根 frame 和锚点实例上写 pluginData marker（type / template / position / component / library 五类键），供跨重开恢复
 
-**工具返回（进入对话上下文，即 prompt 注入）**：
+**工具返回（进入对话上下文）**：
 
-素材类型配置中给 AI 用的内容（见 §3.2）：section 规划、风格指南、自定义字段、锚点组件 readonly 信息。
+`size`、锚点实例 ID、`activeProfileId`（当前生效的 profile——其 Markdown 由 app 层注入后续轮次的 system prompt overlay，见 Q6）、库解析 `warnings`（库里有畸形条目时 AI 转告用户）。
 
-此外 `note` 字段携带**含真实 rootFrameId 的操作硬指令**：`render every section INTO the root frame with render({ parent_id: "<rootFrameId>", jsx: ... })`。冒烟测试证明（见 `knowledge/error-catalog.md` R2-1）：prompt 规则不足以保证 AI 使用 `parent_id`，而工具结果常驻对话上下文、且带着具体 ID，是最可靠的注入位置。
-
-工具返回值留在对话上下文中，AI 后续所有阶段都能引用——不需要额外的 prompt 注入基础设施。
+此外 `note` 字段携带**含真实 rootFrameId 的操作硬指令**：`render every section INTO the root frame with render({ parent_id: "<rootFrameId>", jsx: ... })`。冒烟测试证明（见 `knowledge/error-catalog.md` R2-1）：prompt 规则不足以保证 AI 使用 `parent_id`，而工具结果常驻对话上下文、且带着具体 ID，是最可靠的注入位置。readonly 声明节点名也在 note 中（声明式约束）。
 
 ### 5.2 素材类型切换与修复
 
@@ -205,27 +171,27 @@ setup_material_type({ id: "wechat_moments" })
 
 - **首次**：全量物化（创建根 frame + 所有锚点实例 + 注册表）
 - **切换**：AI 推断错误或用户要求更换素材类型时再次调用——清除旧锚点实例和注册表条目，按新类型重建
-- **修复**：锚点实例被意外删除时调用——检测缺失的锚点，只重物化缺失部分并补写注册表条目
+- **修复**：锚点实例被意外删除时调用——检测缺失的锚点，只重物化缺失部分。修复需要原库（组件定义的物化来源）；类型不在当前库时错误信息引导重新提交对应库文件
 
-"Components"页面幂等：已存在则不重复创建。
+"Components"页面幂等：已存在则不重复创建；同名组件复用不重复克隆。
 
 ### 5.3 运行时流程
 
 ```
 用户描述需求
     │
-    ├─→ AI 推断素材类型（不确定时询问用户）
+    ├─→ AI 推断素材类型（不确定时询问用户；L3 chips 可用户手选锁定）
     │
     ├─→ AI 调用 setup_material_type：
-    │     · 执行：创建根 frame + 物化组件（COMPONENT + INSTANCE）
-    │             + 记录 readonly 属性原始值到会话注册表
-    │     · 返回：section 规划 + 风格指南 + 自定义字段 + readonly 信息（进入上下文）
+    │     · 执行：创建根 frame + 从库克隆物化组件（COMPONENT + INSTANCE）
+    │     · 返回：size + 锚点 ID + activeProfileId + warnings
+    │     · overlay：profile Markdown 注入后续轮次 system prompt
     │
     ├─→ AI 按 prompt 规则执行工作流（Phase 1-4）
     │
     └─→ AI 调用 validate 校验（每完成一个 section + 最终检查）
           · 通过 → 继续
-          · 违规 → 报告用户并询问：误改则向前修复，有意修改则更新注册表基准值
+          · 违规 → 报告用户并询问：误删锚点则修复模式重物化，错位则移回或确认有意
 ```
 
 ## 6. 图片来源策略

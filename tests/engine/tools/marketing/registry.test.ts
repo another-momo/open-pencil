@@ -15,8 +15,7 @@ function design(rootFrameId: string, materialTypeId = 'wechat_moments') {
     materialTypeId,
     rootFrameId,
     componentsPageId: 'components',
-    anchors: [],
-    readonly: new Map()
+    anchors: []
   }
 }
 

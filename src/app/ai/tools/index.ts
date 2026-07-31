@@ -9,6 +9,7 @@ import type { SceneNode } from '@open-pencil/scene-graph'
 
 import { syncMaterialTypeFromAI } from '@/app/ai/chat/storage'
 import type { ChatMode } from '@/app/ai/chat/storage'
+import { setActiveProfile } from '@/app/ai/marketing/library'
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
 import { getActiveEditorStore } from '@/app/editor/active-store'
 import type { EditorStore } from '@/app/editor/active-store'
@@ -166,6 +167,12 @@ export function createAITools(store: EditorStore, chatMode: ChatMode = 'ui') {
         }
       },
       onToolLog: (entry) => {
+        // Q6: record the profile chosen by setup so the transport can inject
+        // its markdown into the system prompt's "Active style profile" section on subsequent turns.
+        if (entry.tool === 'setup_material_type' && !entry.error) {
+          const result = entry.result as { activeProfileId?: string } | undefined
+          if (result?.activeProfileId) setActiveProfile(store, result.activeProfileId)
+        }
         runState.toolLog.push(entry)
       },
       getStepBudget: (): StepBudget => ({

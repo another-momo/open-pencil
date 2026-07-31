@@ -2,13 +2,11 @@ import { describe, expect, test } from 'bun:test'
 
 import { getMarketingState } from '@open-pencil/core/tools'
 
-import {
-  clearMarketingState,
-  listMarketingDesigns
-} from '#core/tools/marketing/registry'
+import { clearMarketingState, listMarketingDesigns } from '#core/tools/marketing/registry'
 import { restoreStateFromCanvas } from '#core/tools/marketing/restore'
 
 import { expectDefined } from '#tests/helpers/assert'
+import { attachMiniLibrary } from '#tests/helpers/marketing-library'
 import { getTool, setupToolTest } from '#tests/helpers/tools'
 
 interface AnchorResult {
@@ -25,6 +23,7 @@ interface SetupToolResult {
 
 function setupDesign(id: string) {
   const env = setupToolTest()
+  attachMiniLibrary(env.graph)
   const result = getTool('setup_material_type').execute(env.figma, { id }) as SetupToolResult
   expect(result.error).toBeUndefined()
   return { ...env, result }
@@ -45,10 +44,9 @@ describe('restoreStateFromCanvas', () => {
     expect(state.materialTypeId).toBe('product_long')
     expect(state.rootFrameId).toBe(rootFrameId)
     expect(state.anchors.map((a) => a.instanceId).sort()).toEqual(anchorInstances.sort())
-    expect(state.readonly.size).toBeGreaterThan(0)
   })
 
-  test('restored readonly baselines make validate work again', () => {
+  test('restored anchors make validate work again', () => {
     const { graph, figma } = setupDesign('product_long')
     clearMarketingState(graph)
 

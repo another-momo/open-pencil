@@ -103,6 +103,22 @@ export function toggleMaterialTypeLock(id: string): void {
     current?.source === 'user' && current.id === id ? null : { id, source: 'user' }
 }
 
+/** Explicitly set or clear the user-locked material type (config bar) */
+export function setUserMaterialType(id: string | null): void {
+  materialTypeSelection.value = id ? { id, source: 'user' } : null
+}
+
+/**
+ * User-locked style profile (config bar). null = auto (setup picks by
+ * applicable_to). Enforced deterministically via core marketing prefs and
+ * injected into the next message as a [风格档案] block.
+ */
+export const profileSelection = ref<string | null>(null)
+
+export function setUserProfile(id: string | null): void {
+  profileSelection.value = id
+}
+
 export function setInferredMaterialType(id: string | null): void {
   if (materialTypeSelection.value?.source === 'user') return
   materialTypeSelection.value = id ? { id, source: 'inferred' } : null

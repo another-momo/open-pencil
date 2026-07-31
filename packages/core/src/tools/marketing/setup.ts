@@ -1,44 +1,38 @@
 /**
- * setup_material_type tool implementation.
+ * setup_material_type tool implementation (library-driven).
+ *
+ * Material type configs come from the loaded Library .fig (Types zone) via
+ * the session LibraryIndex — no code-side seed (Q5). `custom` remains the
+ * always-available escape hatch. Anchor components are cloned from the
+ * library's Components zone (cloneSubtreeAcrossGraphs), not built from code
+ * templates.
  *
  * One tool, three modes:
  * - first call: create root frame, materialize all anchors, write registry
  * - switch: different material type id — clear old anchors, rebuild
  * - repair: same id but anchor instances missing — re-materialize only
- *   the missing ones and re-register their readonly baselines
+ *   the missing ones
  */
 
 import type { SceneNode } from '@open-pencil/scene-graph'
 
 import type { FigmaAPI } from '#core/figma-api'
-import {
-  buildTemplate,
-  snapshotReadonlyValues,
-  type ReadonlyNodeInfo
-} from '#core/tools/marketing/builder'
-import {
-  getComponentTemplate,
-  type ComponentTemplate,
-  type TemplateNode
-} from '#core/tools/marketing/component-templates'
-import {
-  getMaterialType,
-  listMaterialTypes,
-  makeCustomMaterialType,
-  type MaterialTypeConfig
-} from '#core/tools/marketing/material-types'
-import {
-  markMarketingAnchor,
-  markMarketingRoot,
-  marketingRootType
-} from '#core/tools/marketing/restore'
+import { cloneSubtreeAcrossGraphs } from '#core/tools/marketing/clone'
+import { getLibrarySession, type LibrarySession } from '#core/tools/marketing/library'
 import {
   clearMarketingState,
+  getMarketingPrefs,
   listMarketingDesigns,
   setMarketingState,
   type AnchorRecord,
   type MarketingDocumentState
 } from '#core/tools/marketing/registry'
+import {
+  markMarketingAnchor,
+  markMarketingRoot,
+  marketingRootLibrary,
+  marketingRootType
+} from '#core/tools/marketing/restore'
 
 const COMPONENTS_PAGE_NAME = 'Components'
 
@@ -49,11 +43,86 @@ export interface SetupResult {
   /** Root frame size — height is null for HUG (long-image types grow with content) */
   size: { width: number; height: number | null }
   anchors: { template: string; position: string; instanceId: string }[]
-  sectionPlan: { id: string; weight: number; contentGuide: string }[]
-  styleGuide: { colors: string[]; fonts: string[]; keywords: string[] }
-  custom: Record<string, string>
+  /** Profile chosen for this design — the app injects its markdown into the system prompt overlay (Q6) */
+  activeProfileId?: string
+  /** Library scan warnings (malformed entries, duplicates, unresolved anchors) */
+  warnings?: string[]
   repaired?: string[]
   note: string
+}
+
+interface MaterialConfig {
+  id: string
+  label: string
+  size: { width: number; height: number | null }
+  anchors: { template: string; position: 'top' | 'bottom' }[]
+}
+
+function resolveMaterialConfig(
+  session: LibrarySession | undefined,
+  graph: FigmaAPI['graph'],
+  id: string,
+  size?: { width: number; height: number }
+): MaterialConfig | { error: string } {
+  if (id === 'custom') {
+    if (!size || size.width <= 0 || size.height <= 0) {
+      return { error: 'Custom material type requires positive width and height.' }
+    }
+    return {
+      id: 'custom',
+      label: `自定义 ${size.width}×${size.height}`,
+      size: { width: size.width, height: size.height },
+      anchors: []
+    }
+  }
+
+  const type = session?.index.types.find((entry) => entry.id === id)
+  if (type) return { id: type.id, label: type.label, size: type.size, anchors: type.anchors }
+
+  const available = (session?.index.types ?? [])
+    .map((entry) => `${entry.id} (${entry.label})`)
+    .join(', ')
+  // Repair intent with the wrong library loaded: the document has a design
+  // of this type whose marker names a DIFFERENT library — the design was
+  // made with that library, so guide a re-submit (§6.1). When the marker
+  // matches the current library the id is simply wrong — no hint.
+  const designOfType = listMarketingDesigns(graph).find((design) => design.materialTypeId === id)
+  const madeWith = designOfType
+    ? marketingRootLibrary(graph.getNode(designOfType.rootFrameId))
+    : undefined
+  const resubmitHint =
+    madeWith && madeWith !== session?.name
+      ? ` This document has a design of type "${id}" made with library "${madeWith}" — re-submit that library file to repair it (currently loaded: ${session?.name ?? 'none'}).`
+      : ''
+  return {
+    error: `Unknown material type: "${id}". Available: ${available || '(none)'}, custom (needs width+height).${resubmitHint}`
+  }
+}
+
+function resolveProfile(
+  session: LibrarySession | undefined,
+  graph: FigmaAPI['graph'],
+  typeId: string,
+  requested?: string
+): { activeProfileId?: string } | { error: string } {
+  const profiles = session?.index.profiles ?? []
+  if (profiles.length === 0) return {}
+  if (requested) {
+    const found = profiles.find((profile) => profile.id === requested)
+    if (!found) {
+      const available = profiles.map((profile) => profile.id).join(', ')
+      return { error: `Unknown profile: "${requested}". Available: ${available}` }
+    }
+    return { activeProfileId: found.id }
+  }
+  // A user-locked profile (config bar) always wins over auto-pick
+  const locked = getMarketingPrefs(graph).profileId
+  if (locked) {
+    const found = profiles.find((profile) => profile.id === locked)
+    if (found) return { activeProfileId: found.id }
+  }
+  const applicable = profiles.find((profile) => profile.applicableTo.includes(typeId))
+  return { activeProfileId: (applicable ?? profiles[0]).id }
 }
 
 function ensureComponentsPage(figma: FigmaAPI, existingId?: string): string {
@@ -65,10 +134,7 @@ function ensureComponentsPage(figma: FigmaAPI, existingId?: string): string {
   return graph.addPage(COMPONENTS_PAGE_NAME).id
 }
 
-function findRootFrame(
-  graph: FigmaAPI['graph'],
-  config: MaterialTypeConfig
-): SceneNode | undefined {
+function findRootFrame(graph: FigmaAPI['graph'], config: MaterialConfig): SceneNode | undefined {
   const pages = graph.getPages()
   // Marker first (rename-proof), but only adopt a root frame marked for
   // THIS type — frames of other types are sibling designs, not candidates.
@@ -91,7 +157,11 @@ function findRootFrame(
   return undefined
 }
 
-function createRootFrame(figma: FigmaAPI, config: MaterialTypeConfig): string {
+function createRootFrame(
+  figma: FigmaAPI,
+  config: MaterialConfig,
+  libraryName: string | undefined
+): string {
   const graph = figma.graph
   const pageId = figma.currentPage.id
 
@@ -116,67 +186,72 @@ function createRootFrame(figma: FigmaAPI, config: MaterialTypeConfig): string {
     clipsContent: true,
     fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 }, opacity: 1, visible: true }]
   })
-  markMarketingRoot(graph, frame.id, config.id)
+  markMarketingRoot(graph, frame.id, config.id, libraryName)
   return frame.id
 }
 
-function collectComponentReadonlyIds(
-  graph: FigmaAPI['graph'],
-  componentId: string,
-  readonlyNames: string[]
-): Set<string> {
-  const ids = new Set<string>()
+/** Marker texts are scan metadata (Q9) — they must not ship inside cloned components */
+const LIBRARY_MARKER_TEXT_RE = /^readonly\s*:/i
+
+function stripLibraryMarkerTexts(graph: FigmaAPI['graph'], rootId: string): void {
+  const markerIds: string[] = []
   const walk = (nodeId: string) => {
     const node = graph.getNode(nodeId)
     if (!node) return
-    if (readonlyNames.includes(node.name)) ids.add(node.id)
-    for (const childId of node.childIds) walk(childId)
-  }
-  walk(componentId)
-  return ids
-}
-
-export { collectComponentReadonlyIds }
-
-function registerInstanceReadonly(
-  graph: FigmaAPI['graph'],
-  instanceId: string,
-  componentReadonlyIds: Set<string>,
-  readonly: Map<string, ReadonlyNodeInfo>
-): void {
-  const walk = (nodeId: string) => {
-    const node = graph.getNode(nodeId)
-    if (!node) return
-    if (node.componentId && componentReadonlyIds.has(node.componentId)) {
-      readonly.set(node.id, { ...snapshotReadonlyValues(node), anchorInstanceId: instanceId })
+    for (const childId of node.childIds) {
+      const child = graph.getNode(childId)
+      if (!child) continue
+      if (child.type === 'TEXT' && LIBRARY_MARKER_TEXT_RE.test(child.text.trim())) {
+        markerIds.push(childId)
+        continue
+      }
+      walk(childId)
     }
-    for (const childId of node.childIds) walk(childId)
   }
-  walk(instanceId)
+  walk(rootId)
+  for (const id of markerIds) graph.deleteNode(id)
 }
 
-export { registerInstanceReadonly }
+/**
+ * Ensure a COMPONENT named `componentName` exists on the target document's
+ * Components page: reuse by name if present, otherwise clone it from the
+ * library's Components zone.
+ */
+function ensureLibraryComponent(
+  figma: FigmaAPI,
+  session: LibrarySession,
+  componentName: string,
+  componentsPageId: string
+): string | { error: string } {
+  const graph = figma.graph
+  const page = graph.getNode(componentsPageId)
+  for (const childId of page?.childIds ?? []) {
+    const child = graph.getNode(childId)
+    if (child?.type === 'COMPONENT' && child.name === componentName) return child.id
+  }
+
+  const component = session.index.components.find((entry) => entry.name === componentName)
+  if (!component) {
+    return {
+      error: `Component "${componentName}" not found in the Components zone of library "${session.name}" — fix the library, or use custom (width+height) for an anchorless design`
+    }
+  }
+  const clone = cloneSubtreeAcrossGraphs(session.graph, component.nodeId, graph, componentsPageId)
+  if ('error' in clone) return clone
+  stripLibraryMarkerTexts(graph, clone.rootId)
+  return clone.rootId
+}
 
 function materializeAnchor(
   figma: FigmaAPI,
+  session: LibrarySession,
   anchorRef: { template: string; position: 'top' | 'bottom' },
   componentsPageId: string,
-  rootFrameId: string,
-  readonly: Map<string, ReadonlyNodeInfo>
+  rootFrameId: string
 ): AnchorRecord | { error: string } {
   const graph = figma.graph
-  const template = getComponentTemplate(anchorRef.template)
-  if (!template) return { error: `Unknown component template: ${anchorRef.template}` }
-
-  const build = buildTemplate(figma, template, componentsPageId)
-  if ('error' in build) return build
-
-  const builtProxy = figma.getNodeById(build.rootId)
-  if (!builtProxy) return { error: `Built node not found: ${build.rootId}` }
-  const componentProxy = figma.createComponentFromNode(builtProxy)
-  const componentId = componentProxy.id
-
-  const componentReadonlyIds = collectComponentReadonlyIds(graph, componentId, build.readonlyNames)
+  const componentId = ensureLibraryComponent(figma, session, anchorRef.template, componentsPageId)
+  if (typeof componentId !== 'string') return componentId
 
   const instance = graph.createInstance(componentId, rootFrameId, {})
   if (!instance) return { error: `Failed to create instance of ${anchorRef.template}` }
@@ -189,7 +264,6 @@ function materializeAnchor(
     graph.reorderChild(instance.id, rootFrameId, index)
   }
 
-  registerInstanceReadonly(graph, instance.id, componentReadonlyIds, readonly)
   markMarketingAnchor(graph, instance.id, {
     templateId: anchorRef.template,
     position: anchorRef.position,
@@ -204,29 +278,17 @@ function materializeAnchor(
   }
 }
 
-function deriveTemplateReadonlyNames(template: ComponentTemplate): string[] {
-  const names: string[] = []
-  const walk = (node: TemplateNode) => {
-    if (node.readonly) names.push(node.name)
-    for (const child of node.children ?? []) walk(child)
-  }
-  walk(template.root)
-  return names
-}
-
-export { deriveTemplateReadonlyNames }
-
 /**
- * Re-materialize an anchor whose instance is alive but damaged (readonly
- * children missing). Reuses the existing component definition when possible;
- * falls back to a full template rebuild when the component is also gone.
+ * Re-materialize an anchor whose instance was deleted. Reuses the existing
+ * component definition when possible; falls back to cloning from the
+ * library when the component is also gone.
  */
 function rebuildAnchorInstance(
   figma: FigmaAPI,
+  session: LibrarySession,
   prev: AnchorRecord,
   componentsPageId: string,
-  rootFrameId: string,
-  readonly: Map<string, ReadonlyNodeInfo>
+  rootFrameId: string
 ): AnchorRecord | { error: string } {
   const graph = figma.graph
   if (graph.getNode(prev.instanceId)) graph.deleteNode(prev.instanceId)
@@ -234,15 +296,12 @@ function rebuildAnchorInstance(
   if (!graph.getNode(prev.componentId)) {
     return materializeAnchor(
       figma,
+      session,
       { template: prev.templateId, position: prev.position },
       componentsPageId,
-      rootFrameId,
-      readonly
+      rootFrameId
     )
   }
-
-  const template = getComponentTemplate(prev.templateId)
-  if (!template) return { error: `Unknown component template: ${prev.templateId}` }
 
   const instance = graph.createInstance(prev.componentId, rootFrameId, {})
   if (!instance) return { error: `Failed to create instance of ${prev.templateId}` }
@@ -255,12 +314,6 @@ function rebuildAnchorInstance(
     graph.reorderChild(instance.id, rootFrameId, index)
   }
 
-  const componentReadonlyIds = collectComponentReadonlyIds(
-    graph,
-    prev.componentId,
-    deriveTemplateReadonlyNames(template)
-  )
-  registerInstanceReadonly(graph, instance.id, componentReadonlyIds, readonly)
   markMarketingAnchor(graph, instance.id, {
     templateId: prev.templateId,
     position: prev.position,
@@ -272,17 +325,15 @@ function rebuildAnchorInstance(
 
 function resolveAnchors(
   figma: FigmaAPI,
-  config: MaterialTypeConfig,
+  session: LibrarySession,
+  config: MaterialConfig,
   existing: MarketingDocumentState | undefined,
   isRepair: boolean,
   componentsPageId: string,
   rootFrameId: string
-):
-  | { anchors: AnchorRecord[]; readonly: Map<string, ReadonlyNodeInfo>; repaired: string[] }
-  | { error: string } {
+): { anchors: AnchorRecord[]; repaired: string[] } | { error: string } {
   const graph = figma.graph
   const anchors: AnchorRecord[] = []
-  const readonly: Map<string, ReadonlyNodeInfo> = new Map()
   const repaired: string[] = []
 
   for (const anchorRef of config.anchors) {
@@ -290,78 +341,98 @@ function resolveAnchors(
       ? existing?.anchors.find((anchor) => anchor.templateId === anchorRef.template)
       : undefined
 
-    const prevReadonly = [...(existing?.readonly ?? [])].filter(
-      ([, info]) => info.anchorInstanceId === prev?.instanceId
-    )
     const instanceAlive = prev !== undefined && graph.getNode(prev.instanceId) !== undefined
-    const intact = instanceAlive && prevReadonly.every(([nodeId]) => graph.getNode(nodeId))
 
-    if (prev && intact) {
+    if (prev && instanceAlive) {
       anchors.push(prev)
-      for (const [nodeId, info] of prevReadonly) readonly.set(nodeId, info)
       continue
     }
 
-    if (prev && instanceAlive) {
-      const rebuilt = rebuildAnchorInstance(figma, prev, componentsPageId, rootFrameId, readonly)
+    if (prev && graph.getNode(prev.componentId)) {
+      const rebuilt = rebuildAnchorInstance(figma, session, prev, componentsPageId, rootFrameId)
       if ('error' in rebuilt) return rebuilt
       anchors.push(rebuilt)
       repaired.push(anchorRef.template)
       continue
     }
 
-    const result = materializeAnchor(figma, anchorRef, componentsPageId, rootFrameId, readonly)
+    const result = materializeAnchor(figma, session, anchorRef, componentsPageId, rootFrameId)
     if ('error' in result) return result
     anchors.push(result)
     if (prev) repaired.push(anchorRef.template)
   }
 
-  return { anchors, readonly, repaired }
+  return { anchors, repaired }
+}
+
+/**
+ * Repair targets the design of the SAME type; otherwise adopt the root
+ * frame named after this type's label (if any) and continue that design.
+ * Other designs in the same document are never touched.
+ */
+function resolveExistingDesign(
+  graph: FigmaAPI['graph'],
+  designs: MarketingDocumentState[],
+  config: MaterialConfig,
+  id: string
+): { existing: MarketingDocumentState | undefined; rootFrameId: string | undefined } {
+  const sameType = designs.find((design) => design.materialTypeId === id)
+  if (sameType && !graph.getNode(sameType.rootFrameId)) {
+    clearMarketingState(graph, sameType.rootFrameId)
+  }
+  if (sameType && graph.getNode(sameType.rootFrameId)) {
+    return { existing: sameType, rootFrameId: sameType.rootFrameId }
+  }
+  const found = findRootFrame(graph, config)
+  const existing = found ? designs.find((design) => design.rootFrameId === found.id) : undefined
+  return { existing, rootFrameId: found?.id }
+}
+
+function materializeAllAnchors(
+  figma: FigmaAPI,
+  session: LibrarySession | undefined,
+  config: MaterialConfig,
+  existing: MarketingDocumentState | undefined,
+  isRepair: boolean,
+  componentsPageId: string,
+  rootFrameId: string
+): { anchors: AnchorRecord[]; repaired: string[] } | { error: string } {
+  if (config.anchors.length === 0) return { anchors: [], repaired: [] }
+  if (!session) {
+    return {
+      error: `Material type "${config.id}" requires anchor components but no library is loaded. Load a library or use custom (width+height) for an anchorless design.`
+    }
+  }
+  return resolveAnchors(figma, session, config, existing, isRepair, componentsPageId, rootFrameId)
+}
+
+function collectReadonlyNote(session: LibrarySession | undefined, config: MaterialConfig): string {
+  const readonlyNames = new Set<string>()
+  for (const anchorRef of config.anchors) {
+    const component = session?.index.components.find((entry) => entry.name === anchorRef.template)
+    for (const name of component?.readonlyNames ?? []) readonlyNames.add(name)
+  }
+  if (readonlyNames.size === 0) return ''
+  return ` readonly-declared nodes (${[...readonlyNames].join(', ')}) must not be modified — fill only the editable slots.`
 }
 
 export function setupMaterialType(
   figma: FigmaAPI,
   id: string,
-  size?: { width: number; height: number }
+  size?: { width: number; height: number },
+  profileId?: string
 ): SetupResult | { error: string } {
-  let config: MaterialTypeConfig | undefined
-  if (id === 'custom') {
-    if (!size || size.width <= 0 || size.height <= 0) {
-      return { error: 'Custom material type requires positive width and height.' }
-    }
-    config = makeCustomMaterialType(size.width, size.height)
-  } else {
-    config = getMaterialType(id)
-  }
-  if (!config) {
-    const available = listMaterialTypes()
-      .map((type) => `${type.id} (${type.label})`)
-      .join(', ')
-    return { error: `Unknown material type: "${id}". Available: ${available}, custom (needs width+height)` }
-  }
-
   const graph = figma.graph
+  const session = getLibrarySession(graph)
+
+  const config = resolveMaterialConfig(session, graph, id, size)
+  if ('error' in config) return config
+
+  const profile = resolveProfile(session, graph, id, profileId)
+  if ('error' in profile) return profile
+
   const designs = listMarketingDesigns(graph)
-
-  // Repair targets the design of the SAME type; otherwise adopt the root
-  // frame named after this type's label (if any) and continue that design.
-  // Other designs in the same document are never touched.
-  const sameType = designs.find((design) => design.materialTypeId === id)
-  if (sameType && !graph.getNode(sameType.rootFrameId)) {
-    clearMarketingState(graph, sameType.rootFrameId)
-  }
-
-  let existing: MarketingDocumentState | undefined
-  let rootFrameId: string | undefined
-  if (sameType && graph.getNode(sameType.rootFrameId)) {
-    existing = sameType
-    rootFrameId = sameType.rootFrameId
-  } else {
-    const found = findRootFrame(graph, config)
-    rootFrameId = found?.id
-    existing = rootFrameId ? designs.find((design) => design.rootFrameId === rootFrameId) : undefined
-  }
-
+  const { existing, rootFrameId: adoptedId } = resolveExistingDesign(graph, designs, config, id)
   const isRepair = existing?.materialTypeId === id
 
   // Type switch on an adopted root frame: replace only that design's
@@ -373,26 +444,36 @@ export function setupMaterialType(
     clearMarketingState(graph, existing.rootFrameId)
   }
 
-  if (!rootFrameId || !graph.getNode(rootFrameId)) {
-    rootFrameId = createRootFrame(figma, config)
-  }
+  const rootFrameId =
+    adoptedId && graph.getNode(adoptedId)
+      ? adoptedId
+      : createRootFrame(figma, config, session?.name)
 
   const componentsPageId = ensureComponentsPage(
     figma,
     existing?.componentsPageId ?? designs[0]?.componentsPageId
   )
 
-  const resolved = resolveAnchors(figma, config, existing, isRepair, componentsPageId, rootFrameId)
+  const resolved = materializeAllAnchors(
+    figma,
+    session,
+    config,
+    existing,
+    isRepair,
+    componentsPageId,
+    rootFrameId
+  )
   if ('error' in resolved) return resolved
-  const { anchors, readonly, repaired } = resolved
+  const { anchors, repaired } = resolved
 
   setMarketingState(graph, {
     materialTypeId: id,
     rootFrameId,
     componentsPageId,
-    anchors,
-    readonly
+    anchors
   })
+
+  const warnings = session?.index.warnings ?? []
 
   return {
     materialType: id,
@@ -404,10 +485,9 @@ export function setupMaterialType(
       position: anchor.position,
       instanceId: anchor.instanceId
     })),
-    sectionPlan: config.sectionPlan,
-    styleGuide: config.styleGuide,
-    custom: config.custom,
+    ...(profile.activeProfileId ? { activeProfileId: profile.activeProfileId } : {}),
+    ...(warnings.length > 0 ? { warnings } : {}),
     ...(repaired.length > 0 ? { repaired } : {}),
-    note: `Root frame and anchor instances are ready. CRITICAL: render every section INTO the root frame with render({ parent_id: "${rootFrameId}", jsx: ... }) — sections rendered without parent_id land on the page as orphaned siblings and w="fill" collapses. Never pass id as a JSX prop. readonly-marked nodes (logo, brand name, QR code) must not be modified — fill only the editable slots.`
+    note: `Root frame and anchor instances are ready. CRITICAL: render every section INTO the root frame with render({ parent_id: "${rootFrameId}", jsx: ... }) — sections rendered without parent_id land on the page as orphaned siblings and w="fill" collapses. Never pass id as a JSX prop.${collectReadonlyNote(session, config)}`
   }
 }

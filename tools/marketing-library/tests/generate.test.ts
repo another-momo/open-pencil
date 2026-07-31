@@ -40,6 +40,8 @@ describe('default-library.fig round-trip', () => {
     expect(xiaohongshu.anchors).toEqual([{ template: 'BrandBar', position: 'bottom' }])
 
     expect(index.profiles.map((profile) => profile.id)).toEqual(['casual_v1'])
+    expect(index.profiles[0].label).toBe('休闲活泼风格')
+    expect(index.profiles[0].description).toContain('配色')
     expect(index.profiles[0].markdown).toContain('休闲活泼风格')
     expect(index.profiles[0].applicableTo).toContain('xiaohongshu')
 

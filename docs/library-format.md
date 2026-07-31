@@ -126,8 +126,8 @@ priority chain:
 
 虽然 parser 对 Markdown 不挑剔，但**库作者写 profile 时应让它对人和 AI 都可读**。建议结构：
 
-```markdown
-# 休闲活泼风格           ← 第一行 # 标题作为 profile label（仅人类浏览）
+\`\`\`markdown
+# 休闲活泼风格           ← 第一行 # 标题作为 profile label（人类浏览 + UI 卡片标题）
 
 ## 配色                  ← 二级标题作分节
 - 主色 #FF6B35
@@ -138,9 +138,14 @@ priority chain:
 
 ## 语气
 - 年轻、直接、促销感；多用短句和行动词
-```
+\`\`\`
 
-第一行的 `# ...` 同时被 AI overlay 的 `## Profiles in the current library` 段作为 label 使用（卡片 / list 视图统一靠这一行）。
+第一行的 \`# ...\` 由 parser 提取为 \`label\` 字段，用于：
+- UI 卡片标题（Profile Card Gallery）
+- AI overlay 的 \`## Profiles in the current library\` 段
+- setup 提示里的 profile 名称
+
+第一段（非标题、非列表）的纯文本由 parser 截取到 80 字作为 \`description\` 字段，用于卡片预览副标题。如果第一段超过 80 字会自动用 \`…\` 截断。
 
 ## 7. References 页细则
 

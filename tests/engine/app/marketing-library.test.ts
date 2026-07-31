@@ -37,6 +37,7 @@ describe('marketing library service', () => {
     const overlay = buildMarketingOverlay(doc)
     expect(overlay).not.toBe('')
     expect(overlay).toContain('## Material types in the current library')
+    expect(overlay).toContain('## Profiles in the current library')
     expect(overlay).toContain('## Active style profile')
     expect(overlay).toContain('No material types available')
     expect(overlay).toContain('No style profile is active')
@@ -54,6 +55,9 @@ describe('marketing library service', () => {
       const overlay = buildMarketingOverlay(doc)
       expect(overlay).toContain('## Material types in the current library')
       expect(overlay).toContain('wechat_moments')
+      expect(overlay).toContain('## Profiles in the current library')
+      expect(overlay).toContain('casual_v1')
+      expect(overlay).toContain('luxury_v1')
       expect(overlay).toContain('## Active style profile: luxury_v1')
     } finally {
       __resetMarketingLibraryForTest()

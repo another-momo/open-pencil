@@ -170,5 +170,13 @@
   "copyFromMain": "Copy from main",
   "visionProvider": "Vision provider type",
   "visionProviderOpenAI": "OpenAI-compatible (/chat/completions)",
-  "visionProviderAnthropic": "Anthropic-compatible (/messages)"
+  "visionProviderAnthropic": "Anthropic-compatible (/messages)",
+  "profileGalleryTitle": "Profilo di stile",
+  "profileGalleryDescription": "Scegli un profilo di stile — colori, caratteri, tono e layout saranno applicati al design. Bloccarne uno sovrascrive la scelta automatica.",
+  "profileGallerySearch": "Cerca profili",
+  "profileGalleryAutoHint": "Nessun blocco — lascia che setup scelga in base al tipo di materiale",
+  "profileGalleryApplicableTo": "Si applica a",
+  "profileGalleryApplicableToAll": "tutti i tipi",
+  "profileGalleryShowMarkdown": "Mostra markdown completo",
+  "profileGalleryEmpty": "Nessun profilo corrispondente"
 }

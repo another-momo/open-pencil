@@ -14,8 +14,7 @@ import { useI18n } from '@open-pencil/vue'
 import {
   materialTypeSelection,
   profileSelection,
-  setUserMaterialType,
-  setUserProfile
+  setUserMaterialType
 } from '@/app/ai/chat/storage'
 import {
   injectLibraryReferences,
@@ -24,6 +23,7 @@ import {
 } from '@/app/ai/marketing/library'
 import { getActiveEditorStore } from '@/app/editor/active-store'
 import { menuItem, useMenuUI } from '@/components/ui/menu'
+import ProfileGalleryDialog from '@/components/chat/ProfileGalleryDialog.vue'
 
 const { dialogs } = useI18n()
 const library = useMarketingLibrary()
@@ -50,13 +50,16 @@ const typeLabel = computed(() => {
 
 const typeLocked = computed(() => materialTypeSelection.value?.source === 'user')
 
-// --- Profile ---
+// --- Profile (gallery) ---
 
 const profiles = computed(() => library.value?.index.profiles ?? [])
+const profileGalleryOpen = ref(false)
 
 const profileLabel = computed(() => {
   const locked = profileSelection.value
-  return `${dialogs.value.chipProfile}: ${locked ?? dialogs.value.autoOption}`
+  if (!locked) return `${dialogs.value.chipProfile}: ${dialogs.value.autoOption}`
+  const profile = profiles.value.find((entry) => entry.id === locked)
+  return `${dialogs.value.chipProfile}: ${profile?.label || locked}`
 })
 
 // --- References ---
@@ -143,33 +146,15 @@ function chipClass(active: boolean): string {
       </DropdownMenuPortal>
     </DropdownMenuRoot>
 
-    <!-- Profile -->
-    <DropdownMenuRoot>
-      <DropdownMenuTrigger as-child>
-        <button :class="chipClass(!!profileSelection)" data-test-id="config-profile-trigger">
-          {{ profileLabel }}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuPortal>
-        <DropdownMenuContent side="top" :side-offset="4" align="start" :class="menuCls.content">
-          <DropdownMenuItem :class="itemCls" @select="setUserProfile(null)">
-            <icon-lucide-check v-if="!profileSelection" class="absolute left-2 size-3.5" />
-            <span class="flex-1">{{ dialogs.autoOption }}</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator :class="menuCls.separator" />
-          <DropdownMenuItem
-            v-for="profile in profiles"
-            :key="profile.id"
-            :class="itemCls"
-            :data-profile-id="profile.id"
-            @select="setUserProfile(profile.id)"
-          >
-            <icon-lucide-check v-if="profileSelection === profile.id" class="absolute left-2 size-3.5" />
-            <span class="flex-1">{{ profile.id }}</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenuPortal>
-    </DropdownMenuRoot>
+    <!-- Profile (opens gallery dialog) -->
+    <button
+      type="button"
+      :class="chipClass(!!profileSelection)"
+      data-test-id="config-profile-trigger"
+      @click="profileGalleryOpen = true"
+    >
+      {{ profileLabel }}
+    </button>
 
     <!-- References -->
     <DropdownMenuRoot v-model:open="refOpen">
@@ -222,5 +207,7 @@ function chipClass(active: boolean): string {
         </DropdownMenuContent>
       </DropdownMenuPortal>
     </DropdownMenuRoot>
+
+    <ProfileGalleryDialog v-model:open="profileGalleryOpen" />
   </div>
 </template>

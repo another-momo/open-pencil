@@ -39,7 +39,7 @@ function makeLibrary() {
   kv(graph, productLong.id, 'description: 高端叙事')
 
   const casual = graph.createNode('FRAME', profilesPage.id, { name: 'casual_v1' })
-  kv(graph, casual.id, '# 休闲风格\n配色轻松活泼')
+  kv(graph, casual.id, '# 休闲风格\n配色轻松活泼，年轻直接的促销感语言。')
   kv(graph, casual.id, 'applicable_to: wechat_moments, product_long')
 
   const brandBar = graph.createNode('COMPONENT', componentsPage.id, { name: 'BrandBar' })
@@ -75,6 +75,8 @@ describe('parseLibraryIndex', () => {
 
     expect(index.profiles).toHaveLength(1)
     expect(index.profiles[0].id).toBe('casual_v1')
+    expect(index.profiles[0].label).toBe('休闲风格')
+    expect(index.profiles[0].description).toContain('配色轻松活泼')
     expect(index.profiles[0].markdown).toContain('休闲风格')
     expect(index.profiles[0].applicableTo).toEqual(['wechat_moments', 'product_long'])
 
@@ -144,6 +146,33 @@ describe('parseLibraryIndex', () => {
     const index = parseLibraryIndex(graph)
     expect(index.components).toHaveLength(0)
     expect(index.warnings.some((w) => w.includes('not a COMPONENT'))).toBe(true)
+  })
+
+  test('profile label is extracted from the first # heading line and description from the next paragraph', () => {
+    const graph = new SceneGraph()
+    const profiles = graph.addPage('Profiles')
+    const frame = graph.createNode('FRAME', profiles.id, { name: 'long_profile' })
+    kv(
+      graph,
+      frame.id,
+      '# 高端精致\n深底金字，适合奢侈品发布会的克制叙事风格。整体刻意留白传达高级感，背景使用深色纹理与金色细线点缀，文案克制而精准，从不堆砌促销词，所有卖点都通过分章节的视觉构图呈现给用户。\n\n- 配色：#0F0F0F + #C9A66B\n- 字体：serif heavy'
+    )
+    const index = parseLibraryIndex(graph)
+    expect(index.profiles).toHaveLength(1)
+    expect(index.profiles[0].label).toBe('高端精致')
+    expect(index.profiles[0].description).toContain('深底金字')
+    expect(index.profiles[0].description).not.toContain('serif heavy')
+    expect(index.profiles[0].description.endsWith('…')).toBe(true)
+  })
+
+  test('profile without a # heading has empty label and uses raw first paragraph as description', () => {
+    const graph = new SceneGraph()
+    const profiles = graph.addPage('Profiles')
+    const frame = graph.createNode('FRAME', profiles.id, { name: 'no_heading' })
+    kv(graph, frame.id, '第一段简短说明。\n\n第二段细节。')
+    const index = parseLibraryIndex(graph)
+    expect(index.profiles[0].label).toBe('')
+    expect(index.profiles[0].description).toBe('第一段简短说明。')
   })
 })
 

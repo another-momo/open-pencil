@@ -170,5 +170,13 @@
   "copyFromMain": "Copy from main",
   "visionProvider": "Vision provider type",
   "visionProviderOpenAI": "OpenAI-compatible (/chat/completions)",
-  "visionProviderAnthropic": "Anthropic-compatible (/messages)"
+  "visionProviderAnthropic": "Anthropic-compatible (/messages)",
+  "profileGalleryTitle": "スタイルプロファイル",
+  "profileGalleryDescription": "スタイルプロファイルを選択 — 色、フォント、トーン、レイアウトパターンがデザインに適用されます。ロックすると自動選択を上書きします。",
+  "profileGallerySearch": "プロファイルを検索",
+  "profileGalleryAutoHint": "ロックなし — setup に素材タイプで自動選択させる",
+  "profileGalleryApplicableTo": "適用対象",
+  "profileGalleryApplicableToAll": "すべてのタイプ",
+  "profileGalleryShowMarkdown": "完全な Markdown を表示",
+  "profileGalleryEmpty": "一致するプロファイルがありません"
 }

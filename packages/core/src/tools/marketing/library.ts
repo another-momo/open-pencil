@@ -33,6 +33,10 @@ export interface LibraryType {
 
 export interface LibraryProfile {
   id: string
+  /** First `# Title` heading line of the markdown, or "" if absent */
+  label: string
+  /** First non-title paragraph, truncated to ~80 chars for card previews */
+  description: string
   markdown: string
   applicableTo: string[]
   nodeId: string
@@ -202,6 +206,37 @@ function parseTypes(zone: SceneNode, graph: SceneGraph, index: LibraryIndex): vo
   )
 }
 
+const DESCRIPTION_MAX = 80
+const TITLE_RE = /^#\s+(.+?)\s*$/m
+
+function extractLabel(markdown: string): string {
+  const match = TITLE_RE.exec(markdown)
+  return match ? match[1].trim() : ''
+}
+
+function extractDescription(markdown: string): string {
+  // Take the first non-empty paragraph that is not the title line itself.
+  const lines = markdown.split(/\r?\n/)
+  let foundTitle = false
+  const paragraph: string[] = []
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) {
+      if (paragraph.length > 0) break
+      continue
+    }
+    if (!foundTitle && TITLE_RE.test(trimmed)) {
+      foundTitle = true
+      continue
+    }
+    foundTitle = true
+    paragraph.push(trimmed)
+  }
+  const text = paragraph.join(' ').trim()
+  if (text.length <= DESCRIPTION_MAX) return text
+  return text.slice(0, DESCRIPTION_MAX - 1).trimEnd() + '…'
+}
+
 function parseProfiles(zone: SceneNode, graph: SceneGraph, index: LibraryIndex): void {
   forEachZoneEntry(
     zone,
@@ -218,12 +253,17 @@ function parseProfiles(zone: SceneNode, graph: SceneGraph, index: LibraryIndex):
         else if (content.length > 0) markdownParts.push(text.text)
       }
 
-      if (markdownParts.length === 0) {
+      const markdown = markdownParts.join('\n\n')
+      if (markdown.length === 0) {
         index.warnings.push(`Profiles/${frame.name}: no markdown text — profile has no content`)
       }
+      const label = extractLabel(markdown)
+      const description = extractDescription(markdown)
       index.profiles.push({
         id: frame.name,
-        markdown: markdownParts.join('\n\n'),
+        label,
+        description,
+        markdown,
         applicableTo,
         nodeId: frame.id
       })

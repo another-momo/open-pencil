@@ -171,8 +171,23 @@ export function buildMarketingOverlay(store: EditorStore): string {
     parts.push(
       `## Material types in the current library\n` +
         `_No material types available. The default marketing library may have failed to load, ` +
-        `or the bound library has no Types zone. Ask the user to reopen the library dialog ` +
+        `or the bound library has no Types page. Ask the user to reopen the library dialog ` +
         `or use \`setup_material_type\` with \`materialType: "custom"\` and width+height._`
+    )
+  }
+
+  if (profiles.length > 0) {
+    const lines = profiles.map(
+      (profile) =>
+        `- ${profile.id}${profile.label ? ` (${profile.label})` : ''}` +
+        (profile.applicableTo.length > 0 ? ` — applies to: ${profile.applicableTo.join(', ')}` : '')
+    )
+    parts.push(`## Profiles in the current library\n${lines.join('\n')}`)
+  } else {
+    parts.push(
+      `## Profiles in the current library\n` +
+        `_No style profiles available. The library has no Profiles page — ` +
+        `output will use the brief's 风格 section as guidance._`
     )
   }
 

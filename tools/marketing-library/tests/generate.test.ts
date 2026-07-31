@@ -8,6 +8,12 @@ import { expectDefined } from '#tests/helpers/assert'
 import { buildDefaultLibraryGraph } from '../src/generate'
 
 describe('default-library.fig round-trip', () => {
+  test('exports four named pages, one per zone', () => {
+    const graph = buildDefaultLibraryGraph()
+    const pages = graph.getPages().map((page) => page.name).sort()
+    expect(pages).toEqual(['Components', 'Profiles', 'References', 'Types'])
+  })
+
   test('exported .fig re-parses into the expected LibraryIndex', async () => {
     const graph = buildDefaultLibraryGraph()
     const bytes = await exportFigFile(graph)

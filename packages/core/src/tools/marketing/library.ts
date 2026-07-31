@@ -1,13 +1,13 @@
 /**
  * Library .fig scan/parse layer (docs/plans/l2-resource-library.md §4).
  *
- * A library is a plain .fig with four zone frames on its first page —
- * Types / Profiles / Components / References — located by name, no
- * pluginData. Zone entries carry their metadata as plain TEXT children
- * (`key: value` lines; profiles carry one markdown TEXT instead). All
- * parsing happens once at scan time and produces a LibraryIndex plus a
- * warnings list: malformed entries never throw, they are skipped and
- * reported so the agent can tell the user exactly what to fix.
+ * A library is a plain .fig with four top-level pages — Types / Profiles /
+ * Components / References — located by exact name match, no pluginData.
+ * Page entries carry their metadata as plain TEXT children (`key: value`
+ * lines; profiles carry one markdown TEXT instead). All parsing happens
+ * once at scan time and produces a LibraryIndex plus a warnings list:
+ * malformed entries never throw, they are skipped and reported so the
+ * agent can tell the user exactly what to fix.
  *
  * LibrarySession keeps the parsed library (graph + index) alive for a
  * working document's marketing session; the default library ships as
@@ -276,11 +276,8 @@ function parseReferences(zone: SceneNode, graph: SceneGraph, index: LibraryIndex
 }
 
 function findZone(graph: SceneGraph, name: string): SceneNode | undefined {
-  const page = graph.getPages()[0]
-  if (!page) return undefined
-  for (const childId of page.childIds) {
-    const child = graph.getNode(childId)
-    if (child && child.name.trim() === name) return child
+  for (const page of graph.getPages()) {
+    if (page.name.trim() === name) return page
   }
   return undefined
 }
@@ -304,7 +301,7 @@ export function parseLibraryIndex(graph: SceneGraph): LibraryIndex {
   for (const [name, parse] of zones) {
     const zone = findZone(graph, name)
     if (!zone) {
-      index.warnings.push(`Library has no "${name}" zone — treated as empty`)
+      index.warnings.push(`Library has no "${name}" page — treated as empty`)
       continue
     }
     parse(zone, graph, index)
@@ -315,7 +312,7 @@ export function parseLibraryIndex(graph: SceneGraph): LibraryIndex {
     for (const anchor of type.anchors) {
       if (!componentNames.has(anchor.template)) {
         index.warnings.push(
-          `Types/${type.id}: anchor "${anchor.template}" not found in Components zone`
+          `Types/${type.id}: anchor "${anchor.template}" not found in Components page`
         )
       }
     }

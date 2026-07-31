@@ -1,12 +1,12 @@
 /**
  * default-library.fig generator (docs/plans/l2-resource-library.md v1 任务 1).
  *
- * Builds the shipped marketing library as a plain .fig — four zones on the
- * first page (Types / Profiles / Components / References), all plain nodes,
- * metadata as `key: value` TEXT children. Run: `bun run generate` in this
- * folder (or `bun tools/marketing-library/src/generate.ts` from the repo
- * root). Output: public/default-library.fig (served as a build-time asset,
- * Q11 — keep it small).
+ * Builds the shipped marketing library as a plain .fig — four pages
+ * (Types / Profiles / Components / References), each containing plain
+ * frames with metadata as `key: value` TEXT children. Run: `bun run generate`
+ * in this folder (or `bun tools/marketing-library/src/generate.ts` from the
+ * repo root). Output: public/default-library.fig (served as a build-time
+ * asset, Q11 — keep it small).
  */
 
 import { writeFile } from 'node:fs/promises'
@@ -43,21 +43,15 @@ function kv(graph: SceneGraph, parentId: string, line: string): void {
   })
 }
 
-function makeZone(graph: SceneGraph, pageId: string, name: string, x: number): SceneNode {
-  return graph.createNode('FRAME', pageId, {
-    name,
-    x,
-    y: 0,
-    layoutMode: 'VERTICAL',
-    itemSpacing: 24,
-    primaryAxisSizing: 'HUG',
-    counterAxisSizing: 'HUG',
-    fills: []
-  })
+function makeZonePage(graph: SceneGraph, name: string, x: number): SceneNode {
+  const page = graph.addPage(name)
+  page.x = x
+  page.y = 0
+  return page
 }
 
-function makeEntry(graph: SceneGraph, zoneId: string, name: string): SceneNode {
-  return graph.createNode('FRAME', zoneId, {
+function makeEntry(graph: SceneGraph, parentId: string, name: string): SceneNode {
+  return graph.createNode('FRAME', parentId, {
     name,
     layoutMode: 'VERTICAL',
     itemSpacing: 4,
@@ -69,7 +63,7 @@ function makeEntry(graph: SceneGraph, zoneId: string, name: string): SceneNode {
 
 function addType(
   graph: SceneGraph,
-  zoneId: string,
+  parentId: string,
   type: {
     id: string
     label: string
@@ -79,7 +73,7 @@ function addType(
     anchorLast?: string
   }
 ): void {
-  const entry = makeEntry(graph, zoneId, type.id)
+  const entry = makeEntry(graph, parentId, type.id)
   kv(graph, entry.id, `id: ${type.id}`)
   kv(graph, entry.id, `label: ${type.label}`)
   kv(graph, entry.id, `size: ${type.size}`)
@@ -102,8 +96,8 @@ function markerText(graph: SceneGraph, componentId: string, line: string, below:
   })
 }
 
-function buildBrandBar(graph: SceneGraph, zoneId: string, logoHash: string): void {
-  const bar = graph.createNode('COMPONENT', zoneId, {
+function buildBrandBar(graph: SceneGraph, parentId: string, logoHash: string): void {
+  const bar = graph.createNode('COMPONENT', parentId, {
     name: 'BrandBar',
     width: 750,
     layoutMode: 'HORIZONTAL',
@@ -145,8 +139,8 @@ function buildBrandBar(graph: SceneGraph, zoneId: string, logoHash: string): voi
   })
 }
 
-function buildCtaBar(graph: SceneGraph, zoneId: string): void {
-  const bar = graph.createNode('COMPONENT', zoneId, {
+function buildCtaBar(graph: SceneGraph, parentId: string): void {
+  const bar = graph.createNode('COMPONENT', parentId, {
     name: 'CTABar',
     width: 750,
     layoutMode: 'HORIZONTAL',
@@ -182,33 +176,38 @@ function buildCtaBar(graph: SceneGraph, zoneId: string): void {
 
 export function buildDefaultLibraryGraph(): SceneGraph {
   const graph = new SceneGraph()
-  const pageId = graph.getPages()[0].id
+
+  // Drop the auto-created 'Page 1' — zone pages (Types / Profiles / Components / References)
+  // are the only structural pages in a library .fig and we don't want an empty
+  // blank page in the Pages panel.
+  const initialPage = graph.getPages()[0]
+  if (initialPage) graph.deleteNode(initialPage.id)
 
   const logoBytes = Uint8Array.fromBase64(DEFAULT_LOGO_BASE64)
   const logoHash = computeImageHash(logoBytes)
   graph.images.set(logoHash, logoBytes)
 
-  const types = makeZone(graph, pageId, 'Types', 0)
-  addType(graph, types.id, {
+  const typesPage = makeZonePage(graph, 'Types', 0)
+  addType(graph, typesPage.id, {
     id: 'wechat_moments',
     label: '朋友圈广告',
     size: '1080x1080',
     description: '微信朋友圈方形广告图，促销活泼风格'
   })
-  addType(graph, types.id, {
+  addType(graph, typesPage.id, {
     id: 'wechat_article_cover',
     label: '公众号封面',
     size: '900x500',
     description: '微信公众号文章封面横幅，标题醒目'
   })
-  addType(graph, types.id, {
+  addType(graph, typesPage.id, {
     id: 'xiaohongshu',
     label: '小红书图',
     size: '1080x1440',
     description: '小红书种草图，生活化真实感',
     anchorLast: 'BrandBar'
   })
-  addType(graph, types.id, {
+  addType(graph, typesPage.id, {
     id: 'ecommerce_detail',
     label: '电商详情页',
     size: '750x',
@@ -216,19 +215,19 @@ export function buildDefaultLibraryGraph(): SceneGraph {
     anchorFirst: 'BrandBar',
     anchorLast: 'CTABar'
   })
-  addType(graph, types.id, {
+  addType(graph, typesPage.id, {
     id: 'event_poster',
     label: '活动海报',
     size: '1080x1920',
     description: '线下活动海报，视觉冲击力优先'
   })
-  addType(graph, types.id, {
+  addType(graph, typesPage.id, {
     id: 'dsp_banner',
     label: 'DSP 广告',
     size: '300x250',
     description: 'DSP 投放 banner（IAB Medium Rectangle），信息极简'
   })
-  addType(graph, types.id, {
+  addType(graph, typesPage.id, {
     id: 'product_long',
     label: '产品长图',
     size: '750x',
@@ -237,8 +236,8 @@ export function buildDefaultLibraryGraph(): SceneGraph {
     anchorLast: 'CTABar'
   })
 
-  const profiles = makeZone(graph, pageId, 'Profiles', 500)
-  const casual = makeEntry(graph, profiles.id, 'casual_v1')
+  const profilesPage = makeZonePage(graph, 'Profiles', 500)
+  const casual = makeEntry(graph, profilesPage.id, 'casual_v1')
   graph.createNode('TEXT', casual.id, {
     fontFamily: FONT,
     text: [
@@ -255,12 +254,12 @@ export function buildDefaultLibraryGraph(): SceneGraph {
   })
   kv(graph, casual.id, 'applicable_to: wechat_moments, xiaohongshu, dsp_banner')
 
-  const components = makeZone(graph, pageId, 'Components', 1000)
-  buildBrandBar(graph, components.id, logoHash)
-  buildCtaBar(graph, components.id)
+  const componentsPage = makeZonePage(graph, 'Components', 1000)
+  buildBrandBar(graph, componentsPage.id, logoHash)
+  buildCtaBar(graph, componentsPage.id)
 
-  const references = makeZone(graph, pageId, 'References', 1500)
-  const ref = graph.createNode('FRAME', references.id, {
+  const referencesPage = makeZonePage(graph, 'References', 1500)
+  const ref = graph.createNode('FRAME', referencesPage.id, {
     name: 'ref-product-long-001',
     width: 375,
     height: 200,

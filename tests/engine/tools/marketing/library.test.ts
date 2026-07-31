@@ -22,40 +22,39 @@ function kv(graph: SceneGraph, parentId: string, line: string) {
 
 function makeLibrary() {
   const graph = new SceneGraph()
-  const pageId = graph.getPages()[0].id
+  const typesPage = graph.addPage('Types')
+  const profilesPage = graph.addPage('Profiles')
+  const componentsPage = graph.addPage('Components')
+  const referencesPage = graph.addPage('References')
 
-  const types = graph.createNode('FRAME', pageId, { name: 'Types' })
-  const moments = graph.createNode('FRAME', types.id, { name: 'wechat_moments' })
+  const moments = graph.createNode('FRAME', typesPage.id, { name: 'wechat_moments' })
   kv(graph, moments.id, 'id: wechat_moments')
   kv(graph, moments.id, 'label: 朋友圈广告')
   kv(graph, moments.id, 'size: 1080x1080')
-  const productLong = graph.createNode('FRAME', types.id, { name: 'product_long' })
+  const productLong = graph.createNode('FRAME', typesPage.id, { name: 'product_long' })
   kv(graph, productLong.id, 'label: 产品长图')
   kv(graph, productLong.id, 'size: 750x')
   kv(graph, productLong.id, 'anchor_first: BrandBar')
   kv(graph, productLong.id, 'anchor_last: CTABar')
   kv(graph, productLong.id, 'description: 高端叙事')
 
-  const profiles = graph.createNode('FRAME', pageId, { name: 'Profiles' })
-  const casual = graph.createNode('FRAME', profiles.id, { name: 'casual_v1' })
+  const casual = graph.createNode('FRAME', profilesPage.id, { name: 'casual_v1' })
   kv(graph, casual.id, '# 休闲风格\n配色轻松活泼')
   kv(graph, casual.id, 'applicable_to: wechat_moments, product_long')
 
-  const components = graph.createNode('FRAME', pageId, { name: 'Components' })
-  const brandBar = graph.createNode('COMPONENT', components.id, { name: 'BrandBar' })
+  const brandBar = graph.createNode('COMPONENT', componentsPage.id, { name: 'BrandBar' })
   kv(graph, brandBar.id, 'readonly: logo, brandName')
-  graph.createNode('COMPONENT', components.id, { name: 'CTABar' })
+  graph.createNode('COMPONENT', componentsPage.id, { name: 'CTABar' })
 
-  const references = graph.createNode('FRAME', pageId, { name: 'References' })
-  const ref = graph.createNode('FRAME', references.id, { name: 'ref-product-long-001' })
+  const ref = graph.createNode('FRAME', referencesPage.id, { name: 'ref-product-long-001' })
   kv(graph, ref.id, 'for: product_long')
   kv(graph, ref.id, 'tag: luxury_v1, casual_v1')
 
-  return { graph, pageId }
+  return { graph }
 }
 
 describe('parseLibraryIndex', () => {
-  test('parses all four zones into a LibraryIndex', () => {
+  test('parses all four pages into a LibraryIndex', () => {
     const { graph } = makeLibrary()
     const index = parseLibraryIndex(graph)
     expect(index.warnings).toEqual([])
@@ -90,7 +89,7 @@ describe('parseLibraryIndex', () => {
 
   test('malformed size skips the type with a warning', () => {
     const graph = new SceneGraph()
-    const types = graph.createNode('FRAME', graph.getPages()[0].id, { name: 'Types' })
+    const types = graph.addPage('Types')
     const bad = graph.createNode('FRAME', types.id, { name: 'bad' })
     kv(graph, bad.id, 'size: abc')
 
@@ -101,7 +100,7 @@ describe('parseLibraryIndex', () => {
 
   test('duplicate ids keep the first entry with a warning', () => {
     const graph = new SceneGraph()
-    const types = graph.createNode('FRAME', graph.getPages()[0].id, { name: 'Types' })
+    const types = graph.addPage('Types')
     for (const label of ['一', '二']) {
       const frame = graph.createNode('FRAME', types.id, { name: 'dup' })
       kv(graph, frame.id, `label: ${label}`)
@@ -116,7 +115,8 @@ describe('parseLibraryIndex', () => {
 
   test('unknown keys and anchor misses produce warnings', () => {
     const graph = new SceneGraph()
-    const types = graph.createNode('FRAME', graph.getPages()[0].id, { name: 'Types' })
+    const types = graph.addPage('Types')
+    const components = graph.addPage('Components')
     const frame = graph.createNode('FRAME', types.id, { name: 't' })
     kv(graph, frame.id, 'size: 100x100')
     kv(graph, frame.id, 'bogus: 1')
@@ -126,18 +126,19 @@ describe('parseLibraryIndex', () => {
     expect(index.warnings.some((w) => w.includes('unknown key "bogus"'))).toBe(true)
     expect(index.warnings.some((w) => w.includes('"Missing" not found in Components'))).toBe(true)
     expect(index.types[0].anchors).toEqual([{ template: 'Missing', position: 'top' }])
+    void components
   })
 
-  test('missing zones are tolerated with warnings', () => {
+  test('missing pages are tolerated with warnings', () => {
     const graph = new SceneGraph()
     const index = parseLibraryIndex(graph)
     expect(index.types).toEqual([])
     expect(index.warnings.filter((w) => w.includes('no "'))).toHaveLength(4)
   })
 
-  test('non-COMPONENT entries in the Components zone are skipped', () => {
+  test('non-COMPONENT entries in the Components page are skipped', () => {
     const graph = new SceneGraph()
-    const components = graph.createNode('FRAME', graph.getPages()[0].id, { name: 'Components' })
+    const components = graph.addPage('Components')
     graph.createNode('FRAME', components.id, { name: 'NotAComponent' })
 
     const index = parseLibraryIndex(graph)

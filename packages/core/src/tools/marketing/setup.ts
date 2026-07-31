@@ -1,10 +1,10 @@
 /**
  * setup_material_type tool implementation (library-driven).
  *
- * Material type configs come from the loaded Library .fig (Types zone) via
+ * Material type configs come from the loaded Library .fig (Types page) via
  * the session LibraryIndex — no code-side seed (Q5). `custom` remains the
  * always-available escape hatch. Anchor components are cloned from the
- * library's Components zone (cloneSubtreeAcrossGraphs), not built from code
+ * library's Components page (cloneSubtreeAcrossGraphs), not built from code
  * templates.
  *
  * One tool, three modes:
@@ -215,7 +215,7 @@ function stripLibraryMarkerTexts(graph: FigmaAPI['graph'], rootId: string): void
 /**
  * Ensure a COMPONENT named `componentName` exists on the target document's
  * Components page: reuse by name if present, otherwise clone it from the
- * library's Components zone.
+ * library's Components page.
  */
 function ensureLibraryComponent(
   figma: FigmaAPI,
@@ -233,7 +233,7 @@ function ensureLibraryComponent(
   const component = session.index.components.find((entry) => entry.name === componentName)
   if (!component) {
     return {
-      error: `Component "${componentName}" not found in the Components zone of library "${session.name}" — fix the library, or use custom (width+height) for an anchorless design`
+      error: `Component "${componentName}" not found in the Components page of library "${session.name}" — fix the library, or use custom (width+height) for an anchorless design`
     }
   }
   const clone = cloneSubtreeAcrossGraphs(session.graph, component.nodeId, graph, componentsPageId)

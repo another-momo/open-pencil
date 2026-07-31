@@ -82,7 +82,7 @@ export function isMarketingRoot(node: SceneNode | undefined): node is SceneNode 
 }
 
 /**
- * Mark a node cloned from the library References zone into this document
+ * Mark a node cloned from the library References page into this document
  * (§5): identifies it as a library-provided reference — not design output —
  * so it can be recognized and cleaned up later.
  */

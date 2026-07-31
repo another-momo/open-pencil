@@ -9,10 +9,11 @@
 ## 1. TL;DR
 
 - 一个 `.fig` 文件 = 一个营销素材库。
-- 文件顶层只有一个 Page；该 Page 上有四个**按名字识别的 zone frame**（精确匹配名，trim 空白容忍）：
-  - `Types` 区、`Profiles` 区、`Components` 区、`References` 区
-- 每个 zone 内一个 entry frame，metadata 写为该 frame 的**纯 TEXT 子节点**（`key: value` 格式；Profiles 用一段 Markdown 而不是 KV）。
-- **全 plain nodes**——库文件本身不使用 pluginData；位置约定（zone/entry 命名）就是唯一契约。`role=library` 这类库内元信息被**否决**（见 l2-resource-library.md Q1）。
+- 文件的 `Pages` 里包含**四个按名字识别的 page**（精确匹配名，trim 空白容忍）：
+  - `Types` 页、`Profiles` 页、`Components` 页、`References` 页
+- 每个 page 的直接子 frame 是一个 entry；metadata 写为该 frame 的**纯 TEXT 子节点**（`key: value` 格式；Profiles 用一段 Markdown 而不是 KV）。
+- 页缺失 → 该区当作空 + 一条 warning `Library has no "X" page — treated as empty`，不报错（库作者可只关心一两个区）。
+- **全 plain nodes**——库文件本身不使用 pluginData；位置约定（page/entry 命名）就是唯一契约。`role=library` 这类库内元信息被**否决**（见 l2-resource-library.md Q1）。
 - 出错不沉默：解析层的全部畸形 → 一条人话 warning 写进 `LibraryIndex.warnings`，setup 返参的 `warnings` 字段带回对话上下文；用户/AI 能直接修复。
 
 ## 2. 文件 / 节点基本约定
@@ -20,27 +21,34 @@
 | 项 | 规则 | 备注 |
 |---|---|---|
 | 文件类型 | `.fig`（Figma Kiwi 编码） | 兼容 `.pen`（OpenPencil 原生）；`IORegistry(BUILTIN_IO_FORMATS).readDocument` 解析 |
-| 顶层 Page 数 | 1（只读第一个） | 多页会被忽略多余页 |
+| 顶层 Page 数 | 4（Types / Profiles / Components / References）；其他 page 忽略 | 顺序无要求；多 zone 可在同一 page 上一律忽略（必须分 page） |
 | Library 自带 `pluginData` | **禁止** | 库内 marker 系统反对（见 Q1） |
-| Zone frame 的 type | 普通 `FRAME` 即可 | 不需要 `COMPONENT_SET` / `Section` 之类特殊容器 |
-| Entry frame 的 type | 普通 `FRAME`；Components 区要求 `COMPONENT`（具体见 §5） |  |
-| KEY/VALUE 文本 type | `TEXT`；每个 children 是独立 TEXT 行（多行容忍） |  |
+| Entry frame 的 type | 普通 `FRAME`；Components 页要求 `COMPONENT`（具体见 §5） | |
+| KEY/VALUE 文本 type | `TEXT`；每个 children 是独立 TEXT 行（多行容忍） | |
 | `name` 字段 | key 用 ASCII 标识符（`id`/`size`/…）；中文 `label` 等用户可见字符串可放 Node 任意文本字段 | id 必须 ASCII，label 可以是中文 |
 
-## 3. Zones 与每个 entry 的 index 主键
+## 3. Pages 与每个 entry 的 index 主键
 
-| Zone | Frame 识别名 | Entry 主键来源 | 用作 |
+| Page | Page 识别名 | Entry 主键来源 | 用作 |
 |---|---|---|---|
 | **Types**     | `Types`     | 子文本 `id: xxx` → xxx；缺则取 frame 名 | 素材类型 id |
 | **Profiles**  | `Profiles`  | frame 名 | profile id |
 | **Components**| `Components`| frame 名 | 组件 id（与 Types 里的 `anchor_first`/`anchor_last` 关联） |
 | **References**| `References`| frame 名 | reference id |
 
-Zone 缺失 → 该区当作空 + 一条 warning `Library has no "X" zone — treated as empty`，不报错（库可作者只关心一两个区）。
+Page 缺失 → 该区当作空 + 一条 warning `Library has no "X" page — treated as empty`，不报错（库作者可只关心一两个区）。
 
-Entry 主键重复（同 zone 内两 entry 同 id/同名）→ 一条 warning `duplicate id — first entry wins`，保留第一个。
+Entry 主键重复（同 page 内两 entry 同 id/同名）→ 一条 warning `duplicate id — first entry wins`，保留第一个。
 
-## 4. Types 区细则（每个 entry 一个 frame）
+### 为什么是 page 而不是 zone frame？
+
+旧版（v1）所有 zone frame 共享第一个 page 的 children，靠 frame 名区分。v2 拆成独立 page 后的好处：
+
+1. **Pages panel 直接可见** — 不必展开 frame tree 就能看到 4 个区
+2. **编辑体验清晰** — 在 Figma 里可以单独 hide/lock 某个 page（比如只编辑 profiles 时锁住其他 page）
+3. **库作者扩展** — 库作者自己可以加 `Examples` / `Templates` page（被 parser 忽略，不会误识别为 zone）
+
+## 4. Types 页细则（每个 entry 一个 frame）
 
 ### 4.1 Children TEXT 行语法
 
@@ -54,187 +62,199 @@ Entry 主键重复（同 zone 内两 entry 同 id/同名）→ 一条 warning `d
 | `label` | 任意字符串 | 否（缺则用 frame 名） | UI 显示名 |
 | `size` | `<width>x<height>` 或 `<width>x`（高度可变） | **是** | 根 frame 尺寸；单位 px；正则 `/^(\d+(?:\.\d+)?)\s*[x×]\s*(\d*(?:\.\d+)?)$/i`；小数点允许；`×` 与 `x` 等价 |
 | `description` | 字符串 | 否 | 一句话说明；出现在类型 chips tooltip + setup note 拼给 AI |
-| `anchor_first` | 组件名（== Components 区的某个 COMPONENT name） | 否 | 根 frame 第 0 个 child 应为该组件 INSTANCE；不在 Components 区 → warning |
+| `anchor_first` | 组件名（== Components 页的某个 COMPONENT name） | 否 | 根 frame 第 0 个 child 应为该组件 INSTANCE；不在 Components 页 → warning |
 | `anchor_last` | 同上 | 否 | 根 frame 末位 child 应为该组件 INSTANCE |
 
 未知 key → warning `<zone>/<frame>: unknown key "X" ignored`，不影响其他字段。
 
-多行同 key → 每行算一个 value，取第一个（其余当 unknown key 前的 warning 也会出现——新增重复 key warning）。
+### 4.2 size 解析注意事项
 
-### 4.2 一个完整 example
+- `1080x1080` → `{ width: 1080, height: 1080 }`
+- `750x` → `{ width: 750, height: null }`（长图类型，根 frame 高度 HUG）
+- `750 × 920` → 同 `750x920`（中文全角 × 也接受）
+- `abc` → 该 type 被跳过 + warning `missing or malformed size`
 
-```
-Types (FRAME, zone root)
- └── wechat_moments (FRAME, id=wechat_moments)
-      ├── TEXT "id: wechat_moments"
-      ├── TEXT "label: 朋友圈广告"
-      ├── TEXT "size: 1080x1080"
-      └── TEXT "description: 微信朋友圈方形广告图，促销活泼风格"
-```
+### 4.3 anchor 校验
 
-带锚点的：
+`anchor_first` / `anchor_last` 引用的 component name 必须在 Components 页存在；否则 warning `anchor "X" not found in Components page`。warning 不阻断 setup——setup 会用空 instance 占位（让设计仍可继续）。
 
-```
- └── product_long
-      ├── TEXT "size: 750x"          ← 高度 0 或留空 → 长图（HUG）
-      ├── TEXT "anchor_first: BrandBar"
-      ├── TEXT "anchor_last: CTABar"
-      └── TEXT "description: 产品长图（高端叙事路线）"
-```
+## 5. Components 页细则
 
-### 4.3 校验行为
+Components 页要求 entry 是 `COMPONENT` 节点（不是普通 `FRAME`），否则 warning `<zone>/<frame>: not a COMPONENT node — skipped` 并跳过。
 
-| 情况 | 结果 |
-|---|---|
-| size 缺失或 `750xabc` 之类 | warning `Types/{id}: missing or malformed size — type skipped` |
-| size `750x`（高度省略） | 合法 → size.height=null（= HUG / 长图自增长） |
-| anchor_first/last 指向 Components 区不存在的组件名 | warning `Types/{id}: anchor "X" not found in Components zone` |
-| zone 内同 id 重复 | warning `duplicate id — first entry wins`；只取第一份 |
+### 5.1 允许的 key
 
-warning 是软错，不阻塞 setup。setup 返参的 `warnings: string[]` 字段会带回对话上下文，AI 应转告用户具体哪一条要修。
-
-## 5. Components 区细则
-
-- 每个 entry 的 frame **type 必须是 `COMPONENT`**（物化后的标准 Component 节点）；普通 `FRAME` → warning `not a COMPONENT node — skipped`，整条不入库。
-- 组件挂在 Components 区后，由 marketing 工作流的 `setup_material_type` 跨文档克隆到工作文档的 Components 页再 `createInstance`。库内直接编辑 COMPONENT 的结构、样式、readonly 标记，都是普通 OpenPencil 操作。
-- **禁用 variables**——`boundVariables` / `variableModes` 任一非空 → warning `variable-bound node "X"` 并整树拒绝克隆（Q10）。理由：跨文档无法迁移变量引用。
-- **禁用嵌套 instance**——子树任何 `INSTANCE` → warning `nested instance "X"` 并整树拒绝克隆。理由：嵌套 INSTANCE 的 componentId 指向源文档，必须整棵组件链克隆，复杂度与价值不匹配。
-- **readonly 节点标记**：每个 COMPONENT 可选地放一个**子 TEXT 节点**，内容必须为 `readonly: <name1>, <name2>, …`（命名分隔支持中英文逗号；正则 `/^readonly\s*:\s*(.*)$/i` 匹配开头）。该 TEXT 节点的 `layoutPositioning: 'ABSOLUTE'` 推荐（不参与 auto-layout 流），但非强制。**克隆进工作文档时这个 TEXT 会被自动剔除**（`stripLibraryMarkerTexts`），不进任何实例。
-- 组件内的图片 fill：库 `.fig` 的 image bytes 在扫库解析时已注册到 `graph.images`（内容寻址 hash），跨文档克隆按 hash 搬运到目标文档的图片注册表——无需 UI 重新贴图。
-
-### 5.1 example
-
-```
-Components (FRAME)
- └── BrandBar (COMPONENT)
-      ├── TEXT "readonly: logo, brandName"     ← 声明式 readonly 元数据，标记用
-      ├── RECTANGLE "logo" 40x40 cornerRadius=8 IMAGE fill
-      └── TEXT "brandName" characters="品牌名" fontSize=20 weight=700
-```
-
-## 6. Profiles 区细则
-
-每个 entry = profile id（=frame 名）+ **一段 Markdown 全文**（一个或多个 TEXT 子节点）+ 可选 `applicable_to: type1, type2, …` meta TEXT。
-
-Markdown 子节点聚合策略：
-- 第一个内容匹配 `/^applicable_to\s*:\s*(.*)$/i` 的 TEXT → 解析为类型列表（仅适用于该 profile 的素材类型），用于 setup 的"自动选择"通道。
-- 其余 TEXT 子节点 → 按出现顺序拼成 markdown 字符串（多节点时 `\n\n` 分隔）。允许多行 TEXT。
-
-不在 Components 区也不影响 profile。setup 的 `resolveProfile` 顺序：用户传入 `profile` 参数 > 用户在 UI 锁定（核心 `MarketingPrefs`）> applicable_to 命中当前类型 > 第一个 profile。
-
-### 6.1 example
-
-```
-Profiles (FRAME)
- └── casual_v1 (FRAME)
-      ├── TEXT "# 休闲活泼风格"
-      │       ""
-      │       - 配色：主色 #FF6B35，配白色与深灰，整体明快
-      │       - 字体：Alibaba PuHuiTi
-      └── TEXT "applicable_to: wechat_moments, xiaohongshu, dsp_banner"
-```
-
-## 7. References 区细则
-
-每个 entry = reference id（=frame 名）；结构可以是 `FRAME`（位图参考）或 `RECTANGLE` / 多个子节点构成的复杂 layout（结构参考，纯文字也算 frame）。
-
-子文本 metadata（多行）：
-- `for: <typeId>` — 该参考适用于哪个素材类型；只有一个（多行 later overwrite）。
-- `tag: <label1>, <label2>` — 标签；允许多 TEXT 节点（多 tag 合并去重）。
-
-UI 注入：用户从 dialog 勾选要看的 references，app 把它们克隆进工作文档的「参考区」页（顶部页，与 brief 的需求单 frame 内部的"素材区" zone **不**重名，故意分开）。
-
-### 7.1 example
-
-```
-References (FRAME)
- └── ref-product-long-001 (FRAME, 375x200)
-      ├── RECTANGLE grey fill  ← 占位图
-      ├── TEXT "示例参考：高端产品长图（深底金字）"
-      ├── TEXT "for: product_long"
-      └── TEXT "tag: luxury_v1"
-```
-
-## 8. Warnings 总表（解析层产生 → 透传给 setup 返参）
-
-| Warning | 触发条件 | 影响 | 处理建议 |
+| key | 值格式 | 必填 | 说明 |
 |---|---|---|---|
-| `Library has no "X" zone — treated as empty` | zone frame 缺失 | 该区为空 | 想要用那个区就加 frame |
-| `Types/frame: unknown key "X" ignored` | 大小写敏感后的未知 key | 该行忽略 | 检查拼写；查 §4.1 允许的 key |
-| `Types/id: duplicate key "X" — later lines win` | 一个 entry 内 `id:` 多次 | 取首条 + warning | 把后写的 `id:` 删掉 |
-| `Types/{id}: missing or malformed size (expected "size: 1080x1080" or "size: 750x" for variable height) — type skipped` | size 缺失/不匹配 §4.1 正则 | 该 type 不入库 | 修 `size:` 格式 |
-| `Types/{id}: anchor "X" not found in Components zone` | anchor 引用了 Components 区不存在的名字 | 该 anchor 物化时将报错 | 在 Components 区加同名 COMPONENT 或改 anchor 名 |
-| `Profiles/{id}: no markdown text — profile has no content` | profile 没有 markdown TEXT | profile 入库但内容空 | 加 markdown 内容 |
-| `Profiles/{id}: duplicate id — first entry wins` | zone 内 frame 名重复 | 取第一条 | frame 重命名 |
-| `Components/{name}: not a COMPONENT node — skipped` | entry 不是 `COMPONENT` 类型 | 不入库 | 在画布里 convert to component 或删掉 |
-| `Components/{name} contains {error} — variables and nested instances are not supported in library assets` | 子树有 `boundVariables` / `variableModes` 非空 或 INSTANCE 子节点 | 整树拒绝克隆 | 删 variables / 拆嵌套 instance |
-| `References/{id}: unknown key "X" ignored` | for/tag 之外 | 该行忽略 | 检查 |
-| `References/{id}: duplicate id — first entry wins` | frame 名重复 | 取第一条 | 重命名 |
+| `readonly` | 逗号分隔的子节点 name 列表 | 否 | 该组件在 INSTANCE 中不可改的子节点名（如 logo, brandName）；AI 修改时 setup 会阻止写 |
 
-被 skipped 的 entry 不在 `index` 出现，等于"空提交"。
+未知 key → warning `<zone>/<frame>: unknown key "X" ignored`。
 
-## 9. 编辑 / 扩展示例教程
+### 5.2 Component 结构
 
-### 9.1 加一个自己的素材类型（例：`coupon_card`，800x600，CTA 在底部）
+- 根 COMPONENT 节点本身 = 组件 body；其子节点就是模板
+- 子节点 name 是 INSTANCE 端 override 时使用的 key
+- 库作者在 Figma 里可以给 COMPONENT 加 `# readonly` 之类的纯文本注释，parser 不读取
+- 库作者希望 AI 引用该组件时，调用 `setup_material_type` 自动按 anchor 注入 INSTANCE，不需要手动 INSTANCE 创建
 
-1. 在 OpenPencil 打开 `default-library.fig`（或在上传替换后打开你的库）
-2. 在顶部页找到 `Types` zone frame（已存在），双击进入
-3. 新建子 frame `coupon_card`
-4. 加 TEXT 子节点（每个一行）：
-   ```
-   id: coupon_card
-   label: 优惠券卡片
-   size: 800x600
-   anchor_last: CTABar
-   description: 平台优惠券方形卡片
-   ```
-5. 保存。setup 时 AI 推断 + types chips 中即出现 `coupon_card`。
+## 6. Profiles 页细则
 
-### 9.2 加一个品牌包（profile + 替换 component + 新 references）
+Profiles page 同样以 frame 为 entry，但 metadata 解析规则不同——**整个 frame 的 TEXT 子节点要么是 Markdown 正文，要么是 meta 行 `applicable_to: ...`**。
 
-1. **Profiles**：在 `Profiles` 区加一个 `BRAND_v1` frame，加 TEXT 写你品牌的配色 / 字体 / 语气（Markdown），可加 `applicable_to: wechat_moments, xiaohongshu` 让 setup 自动选中。
-2. **Components**：在 `Components` 区加/改 COMPONENT。建议建一个新的（如 `BrandBar_BRAND_v1`）而不是改默认的，避免和默认库冲突。在 `Types` 里把 `anchor_first/anchor_last` 指向你的组件名。
-3. **References**：在 `References` 区加一个 frame 包含你想 AI 参考的品牌成例，加 `tag: BRAND_v1`、`for: product_long` 等。
-4. **品牌 logo**：如果 BrandBar 的 IMAGE fill 想换图，打开 BrandBar → 选中 logo RECTANGLE → 替换 fill 字节（OpenPencil 支持拖图/右键覆盖）；新图的 hash 自动被 `figma.graph.images` 记录，跨文档克隆自动搬运。
+### 6.1 解析规则
 
-### 9.3 版本演进
+对每个 entry frame 的 TEXT children：
+1. 匹配 `/^applicable_to\s*:\s*(.*)$/i` → 视为 meta，记录 `applicableTo`（逗号分隔的 type id 列表）
+2. 其他非空 TEXT → 视为 Markdown 正文，串接（多 TEXT 之间 `\n\n` 分隔）
+3. 正文为空 → warning `Profiles/<frame>: no markdown text — profile has no content`
 
-- v1 库可随时加 key（解析忽略未识别 key），用户升级零破坏。
-- 同一字段值格式变化（例：size `WxH` 改为 `W x H` 带单位）需要 bump 库 spec 主版本；引擎侧要同步升级。当前 v1 字段规则是 stable contract。
-- Components 区允许保留旧 component，删 Types 里对它的 anchor 引用即可——组件仍是 Components 区一个孤立 COMPONENT，不参与物化。
+### 6.2 applicable_to 语义
 
-## 10. 引擎如何消费（实现索引）
+`applicable_to` 决定 setup 的 profile auto-pick：
 
-| 阶段 | 文件 | 入口 |
+```
+priority chain:
+1. 用户在 setup_material_type 调用中显式传 profile 参数
+2. 用户在 config bar 锁定 profile（核心 MarketingPrefs）
+3. applicable_to 命中当前 type 的第一个 profile
+4. 第一个 profile（兜底）
+```
+
+`applicable_to: wechat_moments, xiaohongshu` 表示该 profile 适用于这两个 type。
+
+### 6.3 Markdown 内容格式建议
+
+虽然 parser 对 Markdown 不挑剔，但**库作者写 profile 时应让它对人和 AI 都可读**。建议结构：
+
+```markdown
+# 休闲活泼风格           ← 第一行 # 标题作为 profile label（仅人类浏览）
+
+## 配色                  ← 二级标题作分节
+- 主色 #FF6B35
+- 配白色与深灰
+
+## 字体
+- Alibaba PuHuiTi；标题加粗，正文 Regular
+
+## 语气
+- 年轻、直接、促销感；多用短句和行动词
+```
+
+第一行的 `# ...` 同时被 AI overlay 的 `## Profiles in the current library` 段作为 label 使用（卡片 / list 视图统一靠这一行）。
+
+## 7. References 页细则
+
+Reference 是用户**可选注入**进工作文档 `参考区` page 的视觉参考材料（design `for` type + AI `look` 工具消费）。
+
+### 7.1 允许的 key
+
+| key | 值格式 | 必填 | 说明 |
+|---|---|---|---|
+| `for` | 单个 type id | 否 | 该 reference 适用的素材类型；如果用户当前 design 的 type 与 `for` 不一致，UI 默认隐藏但仍可手动展开（"Show all" toggle） |
+| `tag` | 字符串（逗号分隔可重复） | 否 | 自由形式的标记，可重复；用于跨 type 分组或 brand 归属；UI 默认按 tag 折叠 |
+
+未知 key → warning `<zone>/<frame>: unknown key "X" ignored`。
+
+### 7.2 Reference 内容
+
+Reference frame 本身可以是任何形式——位图、layout 帧、文字注释。AI 用 `look` 工具看到注入后的节点时，识别方式与看待画布其他节点一致。
+
+`for` 与 `applicable_to` 的语义对齐：两者都表示 "X 适用于哪些 type"。命名不一致是历史遗留——`applicable_to` 是 profile-side 多值声明，`for` 是 reference-side 单值声明。parser 接受两种写法，warning 不强制统一。
+
+## 8. Warnings 目录（parser 触发）
+
+| Warning 文本 | 触发条件 | 用户/AI 怎么修 |
 |---|---|---|
-| 文件 I/O | `packages/core/src/io/index.ts`（`IORegistry.readDocument`） | `loadLibrary(bytes, name)` |
-| 解析 | `packages/core/src/tools/marketing/library.ts`：`findZone` / `parseKeyValueLines` / `parseTypes` / `parseProfiles` / `parseComponents` / `parseReferences` | `parseLibraryIndex(graph)` |
-| 跨文档克隆 | `packages/core/src/tools/marketing/clone.ts` | `cloneSubtreeAcrossGraphs(source, id, target, parentId)` |
-| Readonly 标记清洗 | `packages/core/src/tools/marketing/setup.ts` | `stripLibraryMarkerTexts` |
-| 注入参考进工作文档 | `packages/core/src/tools/marketing/library.ts` → `injectLibraryReferences` | App `src/app/ai/marketing/library.ts` 包 undo/render |
+| `Library has no "X" page — treated as empty` | 缺一个 zone page | 新建一个 name 匹配的 page |
+| `duplicate id — first entry wins` | 同 page 内 id 重复 | 改名其中一个 entry |
+| `Types/<id>: missing or malformed size` | size 字段缺失或格式错 | 加 `size: WxH` 或 `size: Wx` |
+| `Types/<id>: anchor "X" not found in Components page` | anchor 引用的组件不存在 | 改 `anchor_first`/`anchor_last` 或在 Components page 加组件 |
+| `Components/<name>: not a COMPONENT node — skipped` | entry 不是 COMPONENT 类型 | 在 Figma 里转为 COMPONENT |
+| `Profiles/<frame>: no markdown text — profile has no content` | profile 没有正文 | 加一段 Markdown |
+| `<zone>/<frame>: unknown key "X" ignored` | 写了 parser 不识别的 key | 删掉该行或拼写修正 |
+| `<zone>/<frame>: duplicate key "X" — later lines win` | 同 key 出现多次 | 删掉重复行 |
 
-库 spec 与实现一一对应——更新本规范时同步检查上述文件。
+warning 不阻断 setup——design 仍可继续，只是后续 validate 可能报错。
 
----
-
-附录：完整示例文件 `default-library.fig`（生成器 `tools/marketing-library/src/generate.ts` + 33 KB 回环测试）结构：
+## 9. 附录：库文件树状示意
 
 ```
 default-library.fig
-└── Page 1
-     ├── FRAME "Types" (zone)
-     │    ├── FRAME "wechat_moments"  → 4 TEXT KV + size 1080×1080
-     │    ├── FRAME "wechat_article_cover"
-     │    ├── FRAME "xiaohongshu"  → anchor_last BrandBar
-     │    ├── FRAME "ecommerce_detail"  → BrandBar first, CTABar last
-     │    ├── FRAME "event_poster"
-     │    ├── FRAME "dsp_banner"
-     │    └── FRAME "product_long"  → BrandBar first, CTABar last
-     ├── FRAME "Profiles" (zone)
-     │    └── FRAME "casual_v1"  → TEXT markdown + applicable_to
-     ├── FRAME "Components" (zone)
-     │    ├── COMPONENT "BrandBar"  → 2 TEXT children + readonly marker
-     │    └── COMPONENT "CTABar"    → 2 TEXT children + readonly marker
-     └── FRAME "References" (zone)
-          └── FRAME "ref-product-long-001"  → RECTANGLE + for + tag
+├── Page "Types"
+│   ├── FRAME "wechat_moments"
+│   │   ├── TEXT "id: wechat_moments"
+│   │   ├── TEXT "label: 朋友圈广告"
+│   │   ├── TEXT "size: 1080x1080"
+│   │   └── TEXT "description: 微信朋友圈方形广告图，促销活泼风格"
+│   ├── FRAME "product_long"
+│   │   ├── TEXT "id: product_long"
+│   │   ├── TEXT "label: 产品长图"
+│   │   ├── TEXT "size: 750x"
+│   │   ├── TEXT "anchor_first: BrandBar"
+│   │   └── TEXT "anchor_last: CTABar"
+│   └── ...（更多 type）
+│
+├── Page "Profiles"
+│   ├── FRAME "casual_v1"
+│   │   ├── TEXT "# 休闲活泼风格\n\n- 配色：主色 #FF6B35..."
+│   │   └── TEXT "applicable_to: wechat_moments, xiaohongshu"
+│   └── ...（更多 profile）
+│
+├── Page "Components"
+│   ├── COMPONENT "BrandBar"
+│   │   ├── TEXT "readonly: logo, brandName"
+│   │   ├── RECTANGLE "logo"
+│   │   └── TEXT "brandName"
+│   └── ...（更多 component）
+│
+└── Page "References"
+    ├── FRAME "ref-product-long-001"
+    │   ├── TEXT "for: product_long"
+    │   └── TEXT "tag: luxury_v1"
+    └── ...（更多 reference）
 ```
+
+## 10. 写作教程（库作者角度）
+
+### 10.1 从 0 起步
+
+1. 在 Figma 新建 `.fig` 文件
+2. 删除默认 `Page 1`
+3. 新建 4 个 page，分别命名为 `Types` / `Profiles` / `Components` / `References`（**精确大小写**）
+4. 在每个 page 里添加 frame 作为 entry
+
+### 10.2 添加一个 type
+
+`Types` 页 → 新建 frame → 命名（自由，比如 `wechat_moments`） → 加 TEXT 子节点：
+
+```
+id: wechat_moments
+label: 朋友圈广告
+size: 1080x1080
+description: 微信朋友圈方形广告图，促销活泼风格
+anchor_first: BrandBar
+anchor_last: CTABar
+```
+
+→ setup 时会自动建一个 1080×1080 的根 frame，第一/最后 child 是 BrandBar/CTABar INSTANCE。
+
+### 10.3 添加一个 profile
+
+`Profiles` 页 → 新建 frame → 命名（建议用 versioned id 比如 `casual_v1`） → 加 TEXT 子节点：
+
+- 第一行写一段 Markdown 正文（以 `# <label>` 开头）
+- 第二行写 `applicable_to: wechat_moments, xiaohongshu`
+
+setup 时若当前 type 是 `wechat_moments`，auto-pick 这个 profile（如果用户没锁定别的）。
+
+### 10.4 添加一个 component
+
+`Components` 页 → 新建 **COMPONENT**（不是 frame）→ 命名 → 设计组件内容 → 加 TEXT `readonly: logo, brandName` 标记哪些子节点不可改。
+
+### 10.5 添加一个 reference
+
+`References` 页 → 新建 frame → 命名（建议前缀 `ref-` 或 `r-`）→ 设计参考内容 → 加 TEXT `for: product_long` 绑定 type。
+
+### 10.6 验证
+
+启动 OpenPencil → marketing 模式 → 打开库 dialog → 上传 `.fig` → 检查 dialog 顶部的 warnings 区。如果有警告，按 §8 修。

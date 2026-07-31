@@ -47,7 +47,7 @@ function makeLibrary() {
   graph.createNode('COMPONENT', componentsPage.id, { name: 'CTABar' })
 
   const ref = graph.createNode('FRAME', referencesPage.id, { name: 'ref-product-long-001' })
-  kv(graph, ref.id, 'for: product_long')
+  kv(graph, ref.id, 'applicable_to: product_long')
   kv(graph, ref.id, 'tag: luxury_v1, casual_v1')
 
   return { graph }
@@ -85,8 +85,22 @@ describe('parseLibraryIndex', () => {
     expect(index.components[1].readonlyNames).toEqual([])
 
     expect(index.references).toHaveLength(1)
-    expect(index.references[0].for).toBe('product_long')
+    expect(index.references[0].applicableTo).toEqual(['product_long'])
     expect(index.references[0].tags).toEqual(['luxury_v1', 'casual_v1'])
+  })
+
+  test('references parse applicable_to as a list and default to empty when absent', () => {
+    const graph = new SceneGraph()
+    const references = graph.addPage('References')
+    const ref1 = graph.createNode('FRAME', references.id, { name: 'r1' })
+    kv(graph, ref1.id, 'applicable_to: wechat_moments, xiaohongshu')
+    const ref2 = graph.createNode('FRAME', references.id, { name: 'r2' })
+
+    const index = parseLibraryIndex(graph)
+    const r1 = expectDefined(index.references.find((r) => r.id === 'r1'))
+    const r2 = expectDefined(index.references.find((r) => r.id === 'r2'))
+    expect(r1.applicableTo).toEqual(['wechat_moments', 'xiaohongshu'])
+    expect(r2.applicableTo).toEqual([])
   })
 
   test('malformed size skips the type with a warning', () => {

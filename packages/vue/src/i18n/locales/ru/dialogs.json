@@ -178,5 +178,9 @@
   "profileGalleryApplicableTo": "Применяется к",
   "profileGalleryApplicableToAll": "всем типам",
   "profileGalleryShowMarkdown": "Показать весь markdown",
-  "profileGalleryEmpty": "Нет подходящих профилей"
+  "profileGalleryEmpty": "Нет подходящих профилей",
+  "referencesFilteredFor": "Отфильтровано по типу",
+  "referencesNoneForType": "Нет ссылок для этого типа. Включите «Показать все» ниже.",
+  "referencesShowOther": "Показать все ссылки",
+  "referencesHideOther": "Скрыть другие ссылки"
 }

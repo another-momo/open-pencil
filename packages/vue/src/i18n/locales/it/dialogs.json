@@ -178,5 +178,9 @@
   "profileGalleryApplicableTo": "Si applica a",
   "profileGalleryApplicableToAll": "tutti i tipi",
   "profileGalleryShowMarkdown": "Mostra markdown completo",
-  "profileGalleryEmpty": "Nessun profilo corrispondente"
+  "profileGalleryEmpty": "Nessun profilo corrispondente",
+  "referencesFilteredFor": "Filtrato per tipo",
+  "referencesNoneForType": "Nessun riferimento per questo tipo. Attiva \"Mostra tutti\" sotto.",
+  "referencesShowOther": "Mostra tutti i riferimenti",
+  "referencesHideOther": "Nascondi altri riferimenti"
 }

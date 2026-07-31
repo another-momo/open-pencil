@@ -178,5 +178,9 @@
   "profileGalleryApplicableTo": "Gilt für",
   "profileGalleryApplicableToAll": "alle Typen",
   "profileGalleryShowMarkdown": "Vollständiges Markdown anzeigen",
-  "profileGalleryEmpty": "Keine passenden Profile"
+  "profileGalleryEmpty": "Keine passenden Profile",
+  "referencesFilteredFor": "Gefiltert nach Typ",
+  "referencesNoneForType": "Keine Referenzen für diesen Typ. Unten \"Alle anzeigen\" aktivieren.",
+  "referencesShowOther": "Alle Referenzen anzeigen",
+  "referencesHideOther": "Andere ausblenden"
 }

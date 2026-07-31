@@ -178,5 +178,9 @@
   "profileGalleryApplicableTo": "Aplica a",
   "profileGalleryApplicableToAll": "todos los tipos",
   "profileGalleryShowMarkdown": "Mostrar markdown completo",
-  "profileGalleryEmpty": "No hay perfiles que coincidan"
+  "profileGalleryEmpty": "No hay perfiles que coincidan",
+  "referencesFilteredFor": "Filtrado por tipo",
+  "referencesNoneForType": "No hay referencias para este tipo. Activa \"Mostrar todas\" abajo.",
+  "referencesShowOther": "Mostrar todas las referencias",
+  "referencesHideOther": "Ocultar otras referencias"
 }

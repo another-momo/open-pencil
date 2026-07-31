@@ -178,5 +178,9 @@
   "profileGalleryApplicableTo": "适用类型",
   "profileGalleryApplicableToAll": "全部类型",
   "profileGalleryShowMarkdown": "查看完整 Markdown",
-  "profileGalleryEmpty": "没有匹配的档案"
+  "profileGalleryEmpty": "没有匹配的档案",
+  "referencesFilteredFor": "已按类型筛选",
+  "referencesNoneForType": "当前类型没有匹配的参考。点击下方\"显示全部\"查看其他类型。",
+  "referencesShowOther": "显示全部参考",
+  "referencesHideOther": "收起其他类型"
 }

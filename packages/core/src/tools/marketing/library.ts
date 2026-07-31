@@ -51,7 +51,13 @@ export interface LibraryComponent {
 
 export interface LibraryReference {
   id: string
-  for?: string
+  /**
+   * Type ids this reference applies to. Empty array means the reference is
+   * universal (applies to all types). When the active document has a type
+   * that matches an entry here, the UI surfaces it first; universal references
+   * are also always available regardless of type.
+   */
+  applicableTo: string[]
   tags: string[]
   nodeId: string
 }
@@ -293,7 +299,7 @@ function parseComponents(zone: SceneNode, graph: SceneGraph, index: LibraryIndex
   )
 }
 
-const REFERENCE_KEYS = new Set(['for', 'tag'])
+const REFERENCE_KEYS = new Set(['applicable_to', 'tag'])
 
 function parseReferences(zone: SceneNode, graph: SceneGraph, index: LibraryIndex): void {
   forEachZoneEntry(
@@ -304,10 +310,10 @@ function parseReferences(zone: SceneNode, graph: SceneGraph, index: LibraryIndex
     (frame, fields) => {
       warnUnknownKeys(zone, frame, fields, REFERENCE_KEYS, index)
 
-      const forValue = fields.get('for')?.[0]
+      const applicableValues = (fields.get('applicable_to') ?? []).flatMap(splitList)
       index.references.push({
         id: frame.name,
-        ...(forValue ? { for: forValue } : {}),
+        applicableTo: applicableValues,
         tags: (fields.get('tag') ?? []).flatMap(splitList),
         nodeId: frame.id
       })

@@ -54,7 +54,7 @@ describe('default-library.fig round-trip', () => {
     expect(ctaBar.readonlyNames).toEqual(['qrCode'])
 
     expect(index.references.map((reference) => reference.id)).toEqual(['ref-product-long-001'])
-    expect(index.references[0].for).toBe('product_long')
+    expect(index.references[0].applicableTo).toEqual(['product_long'])
     expect(index.references[0].tags).toEqual(['luxury_v1'])
   })
 

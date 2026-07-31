@@ -134,6 +134,10 @@ export const dialogMessageDefaults = {
   autoOption: 'Auto',
   inferredTag: '(inferred)',
   referencesKeepNote: 'Injected references stay in the document',
+  referencesFilteredFor: 'Filtered for type',
+  referencesNoneForType: 'No references match this type. Toggle "Show all" below to see others.',
+  referencesShowOther: 'Show all references',
+  referencesHideOther: 'Hide other references',
   done: 'Done',
   profileGalleryTitle: 'Style profile',
   profileGalleryDescription:

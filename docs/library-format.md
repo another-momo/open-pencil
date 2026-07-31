@@ -149,22 +149,22 @@ priority chain:
 
 ## 7. References 页细则
 
-Reference 是用户**可选注入**进工作文档 `参考区` page 的视觉参考材料（design `for` type + AI `look` 工具消费）。
+Reference 是用户**可选注入**进工作文档 \`参考区\` page 的视觉参考材料（design \`applicable_to\` type + AI \`look\` 工具消费）。
 
 ### 7.1 允许的 key
 
 | key | 值格式 | 必填 | 说明 |
 |---|---|---|---|
-| `for` | 单个 type id | 否 | 该 reference 适用的素材类型；如果用户当前 design 的 type 与 `for` 不一致，UI 默认隐藏但仍可手动展开（"Show all" toggle） |
-| `tag` | 字符串（逗号分隔可重复） | 否 | 自由形式的标记，可重复；用于跨 type 分组或 brand 归属；UI 默认按 tag 折叠 |
+| \`applicable_to\` | 逗号分隔的 type id 列表 | 否 | 该 reference 适用的素材类型；列表可空（空 = 通用 reference，对所有 type 都显示）。UI 默认按当前 type 软过滤，未匹配但非空的 reference 通过 "Show all references" 折叠区可见 |
+| \`tag\` | 字符串（逗号分隔可重复） | 否 | 自由形式的标记，可重复；用于跨 type 分组或 brand 归属；UI 默认按 tag 折叠 |
 
-未知 key → warning `<zone>/<frame>: unknown key "X" ignored`。
+未知 key → warning \`<zone>/<frame>: unknown key "X" ignored\`。
 
 ### 7.2 Reference 内容
 
-Reference frame 本身可以是任何形式——位图、layout 帧、文字注释。AI 用 `look` 工具看到注入后的节点时，识别方式与看待画布其他节点一致。
+Reference frame 本身可以是任何形式——位图、layout 帧、文字注释。AI 用 \`look\` 工具看到注入后的节点时，识别方式与看待画布其他节点一致。
 
-`for` 与 `applicable_to` 的语义对齐：两者都表示 "X 适用于哪些 type"。命名不一致是历史遗留——`applicable_to` 是 profile-side 多值声明，`for` 是 reference-side 单值声明。parser 接受两种写法，warning 不强制统一。
+\`applicable_to\` 在 profiles 和 references 两个 zone 里**语义对齐**：都是 "X 适用于哪些 type"。Profile 用它做 setup auto-pick；reference 用它做 UI 软过滤。命名统一便于库作者写一致的 metadata。
 
 ## 8. Warnings 目录（parser 触发）
 

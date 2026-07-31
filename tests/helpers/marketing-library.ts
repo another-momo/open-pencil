@@ -30,10 +30,14 @@ export function makeMiniLibraryGraph(): SceneGraph {
   graph.createNode('TEXT', productLong.id, { text: 'anchor_last: CTABar' })
 
   const casual = graph.createNode('FRAME', profilesPage.id, { name: 'casual_v1' })
-  graph.createNode('TEXT', casual.id, { text: '# 休闲风格\n轻松活泼' })
+  graph.createNode('TEXT', casual.id, {
+    text: '# 休闲风格\n轻松活泼，年轻直接的促销感语言。\n\n- 配色：主色 #FF6B35\n- 字体：Alibaba PuHuiTi'
+  })
   graph.createNode('TEXT', casual.id, { text: 'applicable_to: product_long' })
   const luxury = graph.createNode('FRAME', profilesPage.id, { name: 'luxury_v1' })
-  graph.createNode('TEXT', luxury.id, { text: '# 高端风格\n深底金字' })
+  graph.createNode('TEXT', luxury.id, {
+    text: '# 高端风格\n深底金字，克制叙事的高级感。\n\n- 配色：#0F0F0F + #C9A66B\n- 字体：Alibaba PuHuiTi 700'
+  })
   graph.createNode('TEXT', luxury.id, { text: 'applicable_to: wechat_moments' })
 
   const brandBar = graph.createNode('COMPONENT', componentsPage.id, { name: 'BrandBar' })
@@ -45,7 +49,7 @@ export function makeMiniLibraryGraph(): SceneGraph {
   graph.createNode('TEXT', ctaBar.id, { name: 'ctaText', text: '立即了解' })
 
   const ref = graph.createNode('FRAME', referencesPage.id, { name: 'ref-product-long-001' })
-  graph.createNode('TEXT', ref.id, { text: 'for: product_long' })
+  graph.createNode('TEXT', ref.id, { text: 'applicable_to: product_long' })
   graph.createNode('TEXT', ref.id, { text: 'tag: luxury_v1' })
 
   return graph

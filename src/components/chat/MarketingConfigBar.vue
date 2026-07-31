@@ -76,6 +76,28 @@ const referencesLabel = computed(() =>
     : dialogs.value.chipReferences
 )
 
+// Soft filter by current material type (from type selection). Universal refs
+// (empty applicableTo) are always shown. With "show all" the non-matching
+// refs are revealed too — useful for cross-type inspiration.
+const showAllReferences = ref(false)
+const activeTypeId = computed(
+  () => materialTypeSelection.value?.id ?? types.value[0]?.id ?? null
+)
+const partitionedRefs = computed(() => {
+  const all = references.value
+  const t = activeTypeId.value
+  const matching = all.filter((r) => r.applicableTo.length > 0 && r.applicableTo.includes(t ?? ''))
+  const universal = all.filter((r) => r.applicableTo.length === 0)
+  const other = all.filter(
+    (r) => r.applicableTo.length > 0 && !r.applicableTo.includes(t ?? '')
+  )
+  return { matching, universal, other, total: all.length, hidden: other.length }
+})
+const visibleReferences = computed(() => {
+  const { matching, universal, other } = partitionedRefs.value
+  return showAllReferences.value ? [...matching, ...universal, ...other] : [...matching, ...universal]
+})
+
 const checked = ref<string[]>([])
 const refOpen = ref(false)
 const injectErrors = ref<string[]>([])
@@ -83,6 +105,7 @@ const injectErrors = ref<string[]>([])
 function openReferences(open: boolean) {
   if (!open) return
   injectErrors.value = []
+  showAllReferences.value = false
   checked.value = references.value
     .filter((reference) => library.value?.refInjections.has(reference.id))
     .map((reference) => reference.id)
@@ -169,24 +192,52 @@ function chipClass(active: boolean): string {
       </DropdownMenuTrigger>
       <DropdownMenuPortal>
         <DropdownMenuContent side="top" :side-offset="4" align="start" :class="menuCls.content">
-          <div class="max-h-48 overflow-y-auto">
-            <DropdownMenuItem
-              v-for="reference in references"
-              :key="reference.id"
-              :class="checkedCls"
-              :data-reference-id="reference.id"
-              @select.prevent="toggleReference(reference.id)"
-            >
-              <icon-lucide-check
-                v-if="checked.includes(reference.id)"
-                class="absolute left-2 size-3.5"
-              />
-              <span class="min-w-0 flex-1 truncate">{{ reference.id }}</span>
-              <span class="shrink-0 text-[10px] text-muted">
-                {{ [reference.for, ...reference.tags].filter(Boolean).join(' · ') }}
-              </span>
-            </DropdownMenuItem>
+          <div v-if="activeTypeId" class="px-2 pt-1 pb-0.5 text-[10px] text-muted">
+            {{ dialogs.referencesFilteredFor }}: <span class="text-surface/80">{{ activeTypeId }}</span>
           </div>
+          <div class="max-h-48 overflow-y-auto">
+            <template v-if="visibleReferences.length > 0">
+              <DropdownMenuItem
+                v-for="reference in visibleReferences"
+                :key="reference.id"
+                :class="checkedCls"
+                :data-reference-id="reference.id"
+                @select.prevent="toggleReference(reference.id)"
+              >
+                <icon-lucide-check
+                  v-if="checked.includes(reference.id)"
+                  class="absolute left-2 size-3.5"
+                />
+                <span class="min-w-0 flex-1 truncate">{{ reference.id }}</span>
+                <span class="shrink-0 text-[10px] text-muted">
+                  {{ [...reference.applicableTo, ...reference.tags].filter(Boolean).join(' · ') }}
+                </span>
+              </DropdownMenuItem>
+            </template>
+            <div v-else class="px-2 py-1.5 text-[10px] text-muted">
+              {{ dialogs.referencesNoneForType }}
+            </div>
+          </div>
+          <template v-if="partitionedRefs.hidden > 0">
+            <DropdownMenuSeparator :class="menuCls.separator" />
+            <button
+              type="button"
+              class="flex w-full items-center gap-1 px-2 py-1 text-left text-[10px] text-muted hover:text-surface"
+              data-test-id="config-references-show-all"
+              @click="showAllReferences = !showAllReferences"
+            >
+              <icon-lucide-chevron-down
+                v-if="!showAllReferences"
+                class="size-3 shrink-0"
+              />
+              <icon-lucide-chevron-up v-else class="size-3 shrink-0" />
+              {{
+                showAllReferences
+                  ? dialogs.referencesHideOther
+                  : `${dialogs.referencesShowOther} (${partitionedRefs.hidden})`
+              }}
+            </button>
+          </template>
           <template v-if="references.length > 0">
             <DropdownMenuSeparator :class="menuCls.separator" />
             <div class="px-2 py-1.5">

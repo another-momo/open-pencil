@@ -178,5 +178,9 @@
   "profileGalleryApplicableTo": "適用対象",
   "profileGalleryApplicableToAll": "すべてのタイプ",
   "profileGalleryShowMarkdown": "完全な Markdown を表示",
-  "profileGalleryEmpty": "一致するプロファイルがありません"
+  "profileGalleryEmpty": "一致するプロファイルがありません",
+  "referencesFilteredFor": "タイプで絞り込み",
+  "referencesNoneForType": "このタイプに一致する参考はありません。下で「すべて表示」を有効化。",
+  "referencesShowOther": "すべての参考を表示",
+  "referencesHideOther": "他の参考を隠す"
 }

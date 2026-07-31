@@ -274,7 +274,7 @@ export function buildDefaultLibraryGraph(): SceneGraph {
     fills: solid(DARK),
     textAutoResize: 'WIDTH_AND_HEIGHT'
   })
-  markerText(graph, ref.id, 'for: product_long', 160)
+  markerText(graph, ref.id, 'applicable_to: product_long', 160)
   markerText(graph, ref.id, 'tag: luxury_v1', 180)
 
   return graph

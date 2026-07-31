@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- Marketing-mode system prompt no longer claims "are listed below" when the material library has no types or no active profile — `buildMarketingOverlay` now always emits both section headers, with a clear "no material types available" / "no style profile is active" placeholder so the model knows when to ask the user or fall back to `custom`. The Library references paragraph also clarifies that the 参考区 page only exists after the user injects references (call `list_pages` to confirm), and the brief frame's inner "素材区" zone is called out as unrelated.
+- New regression tests in `tests/engine/app/marketing-library.test.ts` cover both the empty state (library not loaded) and the populated state of the overlay so the prompt / overlay drift cannot recur.
+
 ### Added
 
 - Ship a material library (Library .fig) for marketing design: a plain .fig with Types / Profiles / Components / References zones replaces the code-side material type registry — the shipped `default-library.fig` loads automatically, users can upload their own .fig in the new library dialog, pick references to inject into a dedicated 参考区 page (named to avoid colliding with the brief's internal "素材区" zone), and edit the library simply by opening the .fig. Style profiles inject into the system prompt when `setup_material_type` runs, so switching styles means switching profiles without touching code.

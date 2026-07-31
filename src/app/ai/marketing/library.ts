@@ -98,6 +98,16 @@ export async function replaceMarketingLibrary(
   }
 }
 
+/**
+ * Test-only: clear the in-memory library session so the next call sees the
+ * empty/initial state. Not part of the public API.
+ */
+export function __resetMarketingLibraryForTest(): void {
+  current.value = null
+  loadPromise = null
+  profileSelection.value = null
+}
+
 /** Bind the current library session to a document graph (idempotent) */
 export function bindMarketingLibrary(graph: SceneGraph): void {
   const session = current.value
@@ -137,28 +147,52 @@ export function getActiveProfileId(store: EditorStore): string | undefined {
  * the current library" section (so the AI can infer type ids) plus the
  * "Active style profile" markdown (Q6). Recomputed per turn so a profile
  * switch via re-setup takes effect on the next call.
+ *
+ * Both section headers are ALWAYS emitted so the prompt does not lie about
+ * "are listed below" when the library has not loaded yet (e.g. .fig fetch
+ * failed, user replaced with a broken file, or the bound library has no
+ * types/profiles). The system prompt's wording is intentionally tolerant
+ * of the empty-state text — see system-prompt-marketing.md.
  */
 export function buildMarketingOverlay(store: EditorStore): string {
   void profileVersion.value
   const parts: string[] = []
 
-  const types = current.value?.index.types ?? []
+  const library = current.value
+  const types = library?.index.types ?? []
+  const profiles = library?.index.profiles ?? []
+
   if (types.length > 0) {
     const lines = types.map(
       (type) => `- ${type.id} (${type.label})${type.description ? `: ${type.description}` : ''}`
     )
     parts.push(`## Material types in the current library\n${lines.join('\n')}`)
+  } else {
+    parts.push(
+      `## Material types in the current library\n` +
+        `_No material types available. The default marketing library may have failed to load, ` +
+        `or the bound library has no Types zone. Ask the user to reopen the library dialog ` +
+        `or use \`setup_material_type\` with \`materialType: "custom"\` and width+height._`
+    )
   }
 
   const profileId = profileSelection.value ?? activeProfiles.get(store)
   const profile = profileId
-    ? current.value?.index.profiles.find((entry) => entry.id === profileId)
+    ? profiles.find((entry) => entry.id === profileId)
     : undefined
   if (profile) {
     parts.push(`## Active style profile: ${profile.id}\n${profile.markdown}`)
+  } else {
+    const profileNote = profileId
+      ? `_Profile "${profileId}" is not present in the loaded library. The user-selected ` +
+        `profile id may not exist in the current library file — fall back to the "auto" / ` +
+        `first-profile default unless the user re-selects._`
+      : `_No style profile is active for this turn. Marketing output has no library-supplied ` +
+        `style guidance; rely on the brief's "风格" section or ask the user to pick a profile._`
+    parts.push(`## Active style profile: (none)\n${profileNote}`)
   }
 
-  return parts.length > 0 ? `\n\n${parts.join('\n\n')}` : ''
+  return `\n\n${parts.join('\n\n')}`
 }
 
 // --- Library dialog state + session-start detection (§6.1) ---

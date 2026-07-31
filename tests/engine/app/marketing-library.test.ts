@@ -67,7 +67,8 @@ describe('marketing library service', () => {
   test('buildMarketingOverlay names a missing profile when user-selected id is not in the library', async () => {
     const bytes = await exportFigFile(makeMiniLibraryGraph())
     await replaceMarketingLibrary(new File([bytes], 'lib.fig'))
-    ;(await import('@/app/ai/chat/storage')).profileSelection.value = 'nonexistent_profile'
+    const storage = await import('@/app/ai/chat/storage')
+    storage.profileSelection.value = { id: 'nonexistent_profile', source: 'user' }
 
     try {
       const doc = new SceneGraph()

@@ -19,6 +19,7 @@ import {
 import {
   injectLibraryReferences,
   listMarketingTypes,
+  useInjectedReferenceIds,
   useMarketingLibrary
 } from '@/app/ai/marketing/library'
 import { getActiveEditorStore } from '@/app/editor/active-store'
@@ -56,19 +57,20 @@ const profiles = computed(() => library.value?.index.profiles ?? [])
 const profileGalleryOpen = ref(false)
 
 const profileLabel = computed(() => {
-  const locked = profileSelection.value
-  if (!locked) return `${dialogs.value.chipProfile}: ${dialogs.value.autoOption}`
-  const profile = profiles.value.find((entry) => entry.id === locked)
-  return `${dialogs.value.chipProfile}: ${profile?.label || locked}`
+  const selection = profileSelection.value
+  if (!selection) return `${dialogs.value.chipProfile}: ${dialogs.value.autoOption}`
+  const profile = profiles.value.find((entry) => entry.id === selection.id)
+  const name = profile?.label || selection.id
+  const suffix = selection.source === 'ai' ? ` (${dialogs.value.inferredTag})` : ''
+  return `${dialogs.value.chipProfile}: ${name}${suffix}`
 })
 
 // --- References ---
 
 const references = computed(() => library.value?.index.references ?? [])
+const injectedIds = useInjectedReferenceIds()
 const injectedCount = computed(
-  () =>
-    (library.value?.index.references ?? []).filter((r) => library.value?.refInjections.has(r.id))
-      .length
+  () => (library.value?.index.references ?? []).filter((r) => injectedIds.value.has(r.id)).length
 )
 const referencesLabel = computed(() =>
   injectedCount.value > 0
@@ -107,7 +109,7 @@ function openReferences(open: boolean) {
   injectErrors.value = []
   showAllReferences.value = false
   checked.value = references.value
-    .filter((reference) => library.value?.refInjections.has(reference.id))
+    .filter((reference) => injectedIds.value.has(reference.id))
     .map((reference) => reference.id)
 }
 
@@ -172,7 +174,7 @@ function chipClass(active: boolean): string {
     <!-- Profile (opens gallery dialog) -->
     <button
       type="button"
-      :class="chipClass(!!profileSelection)"
+      :class="chipClass(profileSelection?.source === 'user')"
       data-test-id="config-profile-trigger"
       @click="profileGalleryOpen = true"
     >

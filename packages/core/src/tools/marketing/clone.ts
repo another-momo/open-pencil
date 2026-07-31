@@ -55,6 +55,13 @@ function cloneInto(
   if (props.source) {
     props.source = { ...props.source, id: null, orderKey: null }
   }
+  // INSTANCE subtrees are rejected by findUnsupported, so componentId should
+  // not point to a source-graph component here — but a clone may still carry
+  // a legacy componentId from nodes that were copied from an instance at
+  // some point. Drop it to avoid a dangling reference in the target graph.
+  if (props.componentId) {
+    delete props.componentId
+  }
   carryImageBytes(src, source, target)
 
   const clone = target.createNode(src.type, targetParentId, props)

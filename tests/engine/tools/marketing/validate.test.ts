@@ -135,8 +135,7 @@ test('validate works without a library session (checks derive from anchor record
   setLibrarySession(graph, {
     name: 'other-library.fig',
     graph: new SceneGraph(),
-    index: { types: [], profiles: [], components: [], references: [], warnings: [] },
-    refInjections: new Map()
+    index: { types: [], profiles: [], components: [], references: [], warnings: [] }
   })
 
   graph.deleteNode(ctaBar.instanceId)

@@ -19,7 +19,7 @@ import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 import { BUILTIN_IO_FORMATS, IORegistry } from '#core/io'
 import { computeAllLayouts } from '#core/layout'
 import { cloneSubtreeAcrossGraphs } from '#core/tools/marketing/clone'
-import { markLibraryReference } from '#core/tools/marketing/restore'
+import { libraryReferenceId, markLibraryReference } from '#core/tools/marketing/restore'
 
 export interface LibraryType {
   id: string
@@ -74,8 +74,6 @@ export interface LibrarySession {
   name: string
   graph: SceneGraph
   index: LibraryIndex
-  /** libraryRefId → documentNodeId — 参考区 injection dedup (§5) */
-  refInjections: Map<string, string>
 }
 
 const ZONE_TYPES = 'Types'
@@ -417,9 +415,31 @@ export interface InjectReferencesResult {
 }
 
 /**
- * Clone library references into the document's 参考区 page, deduped via the
- * session's refInjections map (re-inject only after the user deleted the
- * node). Callers wrap this with layout/undo/render concerns.
+ * Library reference ids already injected into the given document's 参考区
+ * page — dedup key derived from the `library-ref` marker on each node, so
+ * the result survives session replacement, document reopen, and multi-doc
+ * libraries. §5
+ */
+export function listInjectedReferenceIds(graph: SceneGraph): Set<string> {
+  const ids = new Set<string>()
+  const page = graph.getPages().find((entry) => entry.name === MATERIALS_PAGE_NAME)
+  if (!page) return ids
+  const walk = (nodeId: string) => {
+    const node = graph.getNode(nodeId)
+    if (!node) return
+    const refId = libraryReferenceId(node)
+    if (refId) ids.add(refId)
+    for (const childId of node.childIds) walk(childId)
+  }
+  walk(page.id)
+  return ids
+}
+
+/**
+ * Clone library references into the document's 参考区 page, deduped against
+ * `library-ref` markers already on the page (re-inject only after the user
+ * deleted the node). Per-graph, per-document, and survives session
+ * replacement. Callers wrap this with layout/undo/render concerns.
  */
 export function injectLibraryReferences(
   graph: SceneGraph,
@@ -432,10 +452,10 @@ export function injectLibraryReferences(
     return result
   }
 
+  const injected = listInjectedReferenceIds(graph)
   const pageId = ensureMaterialsPage(graph)
   for (const refId of refIds) {
-    const existing = session.refInjections.get(refId)
-    if (existing && graph.getNode(existing)) continue
+    if (injected.has(refId)) continue
 
     const reference = session.index.references.find((entry) => entry.id === refId)
     if (!reference) {
@@ -448,7 +468,7 @@ export function injectLibraryReferences(
       continue
     }
     markLibraryReference(graph, clone.rootId, refId)
-    session.refInjections.set(refId, clone.rootId)
+    injected.add(refId)
     result.injected.push({ refId, nodeId: clone.rootId })
   }
   return result

@@ -179,8 +179,7 @@ test('unknown id for a design present in the document gets the re-submit hint (Â
   setLibrarySession(graph, {
     name: 'other-library.fig',
     graph: empty,
-    index: { types: [], profiles: [], components: [], references: [], warnings: [] },
-    refInjections: new Map()
+    index: { types: [], profiles: [], components: [], references: [], warnings: [] }
   })
 
   const second = getTool('setup_material_type').execute(figma, {

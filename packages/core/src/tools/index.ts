@@ -44,6 +44,7 @@ export {
   getDefaultLibrary,
   getLibrarySession,
   injectLibraryReferences,
+  listInjectedReferenceIds,
   loadLibrary,
   parseLibraryIndex,
   setDefaultLibrary,

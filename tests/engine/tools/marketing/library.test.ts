@@ -6,6 +6,7 @@ import {
   getDefaultLibrary,
   getLibrarySession,
   injectLibraryReferences,
+  listInjectedReferenceIds,
   MATERIALS_PAGE_NAME,
   parseLibraryIndex,
   setDefaultLibrary,
@@ -216,6 +217,35 @@ describe('injectLibraryReferences', () => {
     expect(third.injected[0].nodeId).not.toBe(nodeId)
   })
 
+  test('dedup is per-document: a second graph gets its own clone (not affected by the first graph)', () => {
+    const docA = new SceneGraph()
+    const docB = new SceneGraph()
+    attachMiniLibrary(docA)
+    attachMiniLibrary(docB)
+
+    const first = injectLibraryReferences(docA, ['ref-product-long-001'])
+    expect(first.injected).toHaveLength(1)
+    const nodeA = first.injected[0].nodeId
+
+    // docB never had this reference injected — fresh clone, even though both
+    // documents share the same LibrarySession instance.
+    const second = injectLibraryReferences(docB, ['ref-product-long-001'])
+    expect(second.injected).toHaveLength(1)
+    const nodeB = second.injected[0].nodeId
+    expect(nodeB).not.toBe(nodeA)
+    expect(expectDefined(docB.getNode(nodeB)).parentId).toBe(
+      expectDefined(docB.getPages().find((p) => p.name === MATERIALS_PAGE_NAME)).id
+    )
+
+    // Each document only reports its own injected reference.
+    const idsA = listInjectedReferenceIds(docA)
+    const idsB = listInjectedReferenceIds(docB)
+    expect(idsA.has('ref-product-long-001')).toBe(true)
+    expect(idsB.has('ref-product-long-001')).toBe(true)
+    expect(idsA.size).toBe(1)
+    expect(idsB.size).toBe(1)
+  })
+
   test('unknown reference id and missing session produce errors', () => {
     const doc = new SceneGraph()
     attachMiniLibrary(doc)
@@ -234,7 +264,7 @@ describe('library session registry', () => {
       return { graph: lib.graph, index: parseLibraryIndex(lib.graph) }
     })()
     const doc = new SceneGraph()
-    setLibrarySession(doc, { name: 'test.fig', graph, index, refInjections: new Map() })
+    setLibrarySession(doc, { name: 'test.fig', graph, index })
     expect(getLibrarySession(doc)?.name).toBe('test.fig')
     expect(getLibrarySession(new SceneGraph())).toBeUndefined()
 

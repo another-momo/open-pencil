@@ -61,7 +61,6 @@ export function attachMiniLibrary(docGraph: SceneGraph): void {
   setLibrarySession(docGraph, {
     name: MINI_LIBRARY_NAME,
     graph: libGraph,
-    index: parseLibraryIndex(libGraph),
-    refInjections: new Map()
+    index: parseLibraryIndex(libGraph)
   })
 }

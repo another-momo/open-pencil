@@ -27,7 +27,7 @@ const cls = useDialogUI({
 })
 
 const profiles = computed(() => library.value?.index.profiles ?? [])
-const selectedId = computed(() => profileSelection.value)
+const selectedId = computed(() => profileSelection.value?.id ?? null)
 
 const query = ref('')
 const previewId = ref<string | null>(null)

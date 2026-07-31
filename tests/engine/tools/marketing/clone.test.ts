@@ -109,6 +109,23 @@ describe('cloneSubtreeAcrossGraphs', () => {
     if ('error' in result) expect(result.error).toContain('variable')
   })
 
+  test('strips a dangling componentId from clones so the target graph never sees a broken link', () => {
+    const { source, pageId } = makeSource()
+    const comp = source.createNode('COMPONENT', pageId, { name: 'MyComp' })
+    source.createNode('RECTANGLE', comp.id, { name: 'logo', width: 40, height: 40 })
+    // Simulate a node that was copied from an instance at some point and
+    // still carries a componentId pointing back into the source graph.
+    const orphan = source.createNode('FRAME', pageId, { name: 'hasComponentId' })
+    source.updateNode(orphan.id, { componentId: comp.id })
+
+    const target = new SceneGraph()
+    const result = cloneSubtreeAcrossGraphs(source, orphan.id, target, target.getPages()[0].id)
+    expect('error' in result).toBe(false)
+    if ('error' in result) return
+    const clone = expectDefined(target.getNode(result.rootId))
+    expect(clone.componentId).toBeFalsy()
+  })
+
   test('reports missing source node and target parent', () => {
     const { source } = makeSource()
     const target = new SceneGraph()

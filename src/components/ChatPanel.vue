@@ -94,8 +94,9 @@ function withSelectionContext(text: string): string {
   if (locked?.source === 'user') {
     result += `\n\n[素材类型] 用户已指定：${locked.id} — 请直接使用该类型调用 setup_material_type，不要更改。`
   }
-  if (profileSelection.value) {
-    result += `\n\n[风格档案] 用户已指定：${profileSelection.value} — setup_material_type 请传 profile: "${profileSelection.value}"，不要更改。`
+  if (profileSelection.value && profileSelection.value.source === 'user') {
+    const id = profileSelection.value.id
+    result += `\n\n[风格档案] 用户已指定：${id} — setup_material_type 请传 profile: "${id}"，不要更改。`
   }
   const store = getActiveEditorStoreOrNull()
   if (!store) return result

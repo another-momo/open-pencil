@@ -109,14 +109,30 @@ export function setUserMaterialType(id: string | null): void {
 }
 
 /**
- * User-locked style profile (config bar). null = auto (setup picks by
- * applicable_to). Enforced deterministically via core marketing prefs and
- * injected into the next message as a [风格档案] block.
+ * Current style profile (config bar + AI echo). Mirrors the
+ * `materialTypeSelection` shape so the chip and overlay read from a single
+ * source:
+ *
+ * - `source: 'user'`  — picked in ProfileGalleryDialog, persisted as core
+ *   preferences so setup picks it deterministically.
+ * - `source: 'ai'`   — AI's setup_material_type echo; shown in the overlay so
+ *   the user sees what the AI picked, but NOT persisted to core prefs (the
+ *   pick is good for the current setup only).
+ * - `null`            — auto (no lock + no AI pick yet this turn).
+ *
+ * The chip styles itself "active" only when `source === 'user'` so the
+ * visual cue reflects who locked the profile.
  */
-export const profileSelection = ref<string | null>(null)
+export const profileSelection = ref<{ id: string; source: 'user' | 'ai' } | null>(null)
 
 export function setUserProfile(id: string | null): void {
-  profileSelection.value = id
+  profileSelection.value = id ? { id, source: 'user' } : null
+}
+
+export function setAiProfile(id: string | null): void {
+  // User locks win — never overwrite them with an AI echo.
+  if (profileSelection.value?.source === 'user') return
+  profileSelection.value = id ? { id, source: 'ai' } : null
 }
 
 export function setInferredMaterialType(id: string | null): void {

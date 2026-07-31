@@ -11,13 +11,14 @@
  * the next turn (Q6). Marketing runs only in the built-in AI chat (Q12).
  */
 
-import { ref, shallowRef } from 'vue'
+import { ref, shallowRef, computed, type Ref } from 'vue'
 
 import { computeAllLayouts } from '@open-pencil/core/layout'
 import {
   getLibrarySession,
   injectLibraryReferences as injectLibraryReferencesCore,
   listDocumentLibraryNames,
+  listInjectedReferenceIds,
   loadLibrary,
   setLibrarySession,
   setMarketingPrefs,
@@ -25,10 +26,10 @@ import {
   type LibrarySession
 } from '@open-pencil/core/tools'
 
-import { profileSelection } from '@/app/ai/chat/storage'
+import { profileSelection, setAiProfile } from '@/app/ai/chat/storage'
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
-import type { EditorStore } from '@/app/editor/active-store'
+import { getActiveEditorStore, type EditorStore } from '@/app/editor/active-store'
 
 const DEFAULT_LIBRARY_URL = 'default-library.fig'
 const DEFAULT_LIBRARY_NAME = 'default-library.fig'
@@ -36,6 +37,12 @@ const DEFAULT_LIBRARY_NAME = 'default-library.fig'
 const current = shallowRef<LibrarySession | null>(null)
 const libraryLoadError = ref('')
 let loadPromise: Promise<LibrarySession | null> | null = null
+// Reflects the saved library reference ids on the current document's
+// 参考区 page. Bumped after each injection / re-bind so subscribers (the
+// References chip counter) re-evaluate. The actual ids are read fresh from
+// graph markers inside `useInjectedReferenceIds` — this ref just acts as
+// the change signal.
+const injectionTick = ref(0)
 
 /** Reactive handle to the current library session (null until loaded) */
 export function useMarketingLibrary() {
@@ -53,7 +60,7 @@ export function getMarketingLibrary(): LibrarySession | null {
 
 async function loadFromBytes(bytes: Uint8Array, name: string): Promise<LibrarySession> {
   const { graph, index } = await loadLibrary(bytes, name)
-  return { name, graph, index, refInjections: new Map() }
+  return { name, graph, index }
 }
 
 /** Load the shipped default library on first call; subsequent calls return the current one */
@@ -113,8 +120,31 @@ export function bindMarketingLibrary(graph: SceneGraph): void {
   const session = current.value
   if (session && getLibrarySession(graph) !== session) setLibrarySession(graph, session)
   // Push the user-locked profile into core prefs so it deterministically
-  // wins over setup's auto-pick on the next setup call
-  setMarketingPrefs(graph, { profileId: profileSelection.value ?? undefined })
+  // wins over setup's auto-pick on the next setup call. AI-echoed profiles
+  // are intentionally NOT persisted — those are per-setup signals, not
+  // long-lived locks.
+  setMarketingPrefs(graph, {
+    profileId: profileSelection.value?.source === 'user' ? profileSelection.value.id : undefined
+  })
+  // The 参考区 page's marker set may have changed since the last injection
+  // (e.g. user deleted a reference node) — refresh the reactive tick so
+  // the chip counter re-reads from the graph.
+  injectionTick.value++
+}
+
+/**
+ * Reactive Set of library reference ids currently injected into the active
+ * document's 参考区 page. Derived from graph markers, so it survives
+ * session replacement and document reopen. The Vue chip counter and the
+ * references dropdown base their checked-state on this.
+ */
+export function useInjectedReferenceIds(): Readonly<Ref<Set<string>>> {
+  const graph = getActiveEditorStore().graph
+  return computed(() => {
+    void injectionTick.value
+    void current.value
+    return listInjectedReferenceIds(graph)
+  })
 }
 
 // --- Types for chips + reference injection context ---
@@ -129,17 +159,22 @@ export function listMarketingTypes(): { id: string; label: string; description?:
 
 // --- Active profile (Q6) ---
 
-const activeProfiles = new WeakMap<EditorStore, string>()
-const profileVersion = ref(0)
-
-export function setActiveProfile(store: EditorStore, profileId: string): void {
-  if (activeProfiles.get(store) === profileId) return
-  activeProfiles.set(store, profileId)
-  profileVersion.value++
+/**
+ * Record the AI's choice from setup_material_type's return value. Delegates
+ * to storage so the chip and overlay share one source. `store` is the
+ * editor store — kept in the signature for caller compatibility (the
+ * `setActiveProfile(store, id)` hook shape is used by tools/index.ts).
+ */
+export function setActiveProfile(_store: EditorStore, profileId: string): void {
+  setAiProfile(profileId)
 }
 
 export function getActiveProfileId(store: EditorStore): string | undefined {
-  return activeProfiles.get(store)
+  // Kept for callers that read the active profile from a store handle. The
+  // single source is `profileSelection` in chat storage.
+  const selection = profileSelection.value
+  if (!selection) return undefined
+  return selection.id
 }
 
 /**
@@ -155,7 +190,6 @@ export function getActiveProfileId(store: EditorStore): string | undefined {
  * of the empty-state text — see system-prompt-marketing.md.
  */
 export function buildMarketingOverlay(store: EditorStore): string {
-  void profileVersion.value
   const parts: string[] = []
 
   const library = current.value
@@ -191,15 +225,15 @@ export function buildMarketingOverlay(store: EditorStore): string {
     )
   }
 
-  const profileId = profileSelection.value ?? activeProfiles.get(store)
-  const profile = profileId
-    ? profiles.find((entry) => entry.id === profileId)
-    : undefined
+  const selection = profileSelection.value
+  const profileId = selection?.id
+  const profile = profileId ? profiles.find((entry) => entry.id === profileId) : undefined
   if (profile) {
-    parts.push(`## Active style profile: ${profile.id}\n${profile.markdown}`)
+    const chosenBy = selection?.source === 'ai' ? ' (chosen by AI this turn)' : ''
+    parts.push(`## Active style profile: ${profile.id}${chosenBy}\n${profile.markdown}`)
   } else {
     const profileNote = profileId
-      ? `_Profile "${profileId}" is not present in the loaded library. The user-selected ` +
+      ? `_Profile "${profileId}" is not present in the loaded library. The selected ` +
         `profile id may not exist in the current library file — fall back to the "auto" / ` +
         `first-profile default unless the user re-selects._`
       : `_No style profile is active for this turn. Marketing output has no library-supplied ` +
@@ -271,5 +305,9 @@ export function injectLibraryReferences(
       inverse: () => store.restorePageFromSnapshot(before)
     })
   }
+  // Even when nothing was injected (all already present), the dialog closes
+  // and the chip counter should still reflect the current state — bump the
+  // tick so the references dropdown re-reads the marker set.
+  injectionTick.value++
   return result
 }

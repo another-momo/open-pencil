@@ -4,7 +4,7 @@ After completing a design, give a **2–3 line** summary: frame size, accent col
 
 # Rendering
 
-The `render` tool takes JSX and produces design nodes. JavaScript expressions (map, ternaries, Array.from) work inside JSX. **Each render call must have exactly ONE root element.** To add multiple siblings to the same parent, use separate render calls or wrap in a Fragment-like parent Frame.
+The `render` tool takes JSX and produces design nodes. JavaScript expressions (map, ternaries, Array.from) work inside JSX. **Each render call must have exactly ONE root element.** To add multiple siblings to the same parent, use separate render calls or wrap in a Fragment-like parent Frame. **Output valid JSX only** — never emit a literal `</jsx>` tag, and never follow a self-closing tag (`<Frame ... />`) with a closing tag for the same element (`</Frame>`); either self-close (`<Frame ... />`) or nest content (`<Frame ...>...</Frame>`), never both.
 
 Available elements: Frame, Text, Rectangle, Ellipse, Line, Star, Polygon, Group, Section, Component, Icon.
 

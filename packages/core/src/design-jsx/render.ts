@@ -135,6 +135,27 @@ function stripHtmlComments(jsxString: string): string {
   return jsxString.replace(/<!--[\s\S]*?-->/g, '')
 }
 
+/** Literal `<jsx>`/`</jsx>` tags models sometimes wrap their output in */
+const JSX_WRAPPER_TAG_RE = /<\/?jsx\b[^>]*>/gi
+/** Self-closing tag immediately followed by its own closing tag: `<Frame .../></Frame>` */
+const SELF_CLOSE_PLUS_CLOSE_RE = /(<([A-Za-z][A-Za-z0-9]*)\b[^>]*\/>)\s*<\/\2\s*>/g
+
+/**
+ * Tolerate the two most common model slips before handing JSX to sucrase
+ * (both produced hard "Unexpected token" failures with zero recovery):
+ * literal `</jsx>` wrappers and self-closing tags trailed by their own
+ * closing tag. Anything still invalid after this falls to the parser error.
+ */
+function sanitizeModelJsx(jsxString: string): string {
+  let out = jsxString.replace(JSX_WRAPPER_TAG_RE, '')
+  let prev: string
+  do {
+    prev = out
+    out = out.replace(SELF_CLOSE_PLUS_CLOSE_RE, '$1')
+  } while (out !== prev)
+  return out
+}
+
 function unsupportedPropWarnings(tree: TreeNode): string[] {
   const warnings: string[] = []
   collectUnsupportedPropWarnings(tree, warnings)
@@ -174,7 +195,7 @@ function collectInvalidColorWarnings(tree: TreeNode, warnings: string[]): void {
 }
 
 export function buildComponent(jsxString: string): React.ComponentType {
-  const trimmed = stripHtmlComments(jsxString).trim()
+  const trimmed = sanitizeModelJsx(stripHtmlComments(jsxString)).trim()
 
   const aliases = `
     const __h = React.createElement

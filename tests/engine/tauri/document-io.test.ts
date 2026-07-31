@@ -40,6 +40,7 @@ describe('Tauri document IO helpers', () => {
       state: { sceneVersion: 42 } as Parameters<typeof createDocumentWriter>[0]['state'],
       getFilePath: () => '/tmp/document.fig',
       getFileHandle: () => null,
+      setFileHandle: () => undefined,
       setSavedVersion: (version) => savedVersions.push(version),
       setLastWriteTime: () => undefined
     })

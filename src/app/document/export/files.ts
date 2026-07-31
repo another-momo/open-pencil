@@ -171,10 +171,14 @@ export async function saveExportedFile(
           }
         ]
       })
-      const writable = await handle.createWritable()
-      await writable.write(new Uint8Array(data))
-      await writable.close()
-      return
+      try {
+        const writable = await handle.createWritable()
+        await writable.write(new Uint8Array(data))
+        await writable.close()
+        return
+      } catch {
+        downloadBlob(data, fileName, mime)
+      }
     } catch (e) {
       if ((e as Error).name === 'AbortError') return
     }

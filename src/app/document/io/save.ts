@@ -39,8 +39,12 @@ export function createSaveActions({
     state,
     getFilePath,
     getFileHandle,
+    setFileHandle,
     setSavedVersion,
-    setLastWriteTime
+    setLastWriteTime,
+    onWriteFallback: (data) => {
+      downloadBlob(data, state.documentName || 'Untitled.fig', 'application/octet-stream')
+    }
   })
 
   async function saveFigFile() {

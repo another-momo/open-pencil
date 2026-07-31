@@ -8,16 +8,20 @@ type DocumentWriterOptions = {
   state: WriteDocumentState
   getFilePath: () => string | null
   getFileHandle: () => FileSystemFileHandle | null
+  setFileHandle: (handle: FileSystemFileHandle | null) => void
   setSavedVersion: (version: number) => void
   setLastWriteTime: (time: number) => void
+  onWriteFallback?: (data: Uint8Array) => void
 }
 
 export function createDocumentWriter({
   state,
   getFilePath,
   getFileHandle,
+  setFileHandle,
   setSavedVersion,
-  setLastWriteTime
+  setLastWriteTime,
+  onWriteFallback
 }: DocumentWriterOptions) {
   return async function writeFile(data: Uint8Array) {
     setLastWriteTime(Date.now())
@@ -30,10 +34,17 @@ export function createDocumentWriter({
       return
     }
     if (fileHandle) {
-      const writable = await fileHandle.createWritable()
-      await writable.write(new Uint8Array(data))
-      await writable.close()
-      setSavedVersion(state.sceneVersion)
+      try {
+        const writable = await fileHandle.createWritable()
+        await writable.write(new Uint8Array(data))
+        await writable.close()
+        setSavedVersion(state.sceneVersion)
+      } catch {
+        setFileHandle(null)
+        if (onWriteFallback) {
+          onWriteFallback(data)
+        }
+      }
     }
   }
 }

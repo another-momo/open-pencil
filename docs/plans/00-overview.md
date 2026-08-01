@@ -66,7 +66,7 @@ packages/core/src/tools/image-gen/
 
 ## 5. 落地顺序
 
-当前执行顺序以 `README.md` §当前执行顺序 为准。长期方向：品牌包深度集成 + 迭代交互优化。
+当前执行顺序以 `README.md` §当前执行顺序 为准。长期方向：品牌包（=library 载体，`l2-resource-library.md` §11）深度集成（多品牌 + 沉淀机制）+ 迭代交互优化。
 
 ## 6. 源码参考
 

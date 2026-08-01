@@ -292,4 +292,4 @@ tool call 失败时，generate_image 失败尝试 stock_photo 作为备选或让
 
 实施任务表与各阶段状态已迁移至 `README.md`（唯一状态来源）；冒烟测试错误目录见 `knowledge/error-catalog.md`，实测方法论见 `knowledge/methodology.md`。
 
-营销工具统一放在 `packages/core/src/tools/marketing/` 域（仿 image-gen 模式：入口文件 + 子文件夹实现）。后续阶段：Phase 3 实测迭代（进行中）→ Phase 4 品牌包集成（远期，优先级论证见 `../review/2026-07-27-agent-design-review.md`）。
+营销工具统一放在 `packages/core/src/tools/marketing/` 域（仿 image-gen 模式：入口文件 + 子文件夹实现）。后续阶段：Phase 3 实测迭代（进行中）→ 品牌包深化（载体 = library 已就位，剩余缺口见 `l2-resource-library.md` §11.2/§11.4，沉淀迭代机制仅规划缓做 §11.3）。

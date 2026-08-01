@@ -44,7 +44,7 @@
 | L3 制作清单 + 派生 | ⬜ 待启动 | 依赖注册表 per-rootFrame 键控（见 `l2-context-engineering.md` 评审） |
 | L3 导出流程 | ⬜ 待启动 | —— |
 | L3 ask 工具 / 生图进度 | ⬜ 待启动 | checkpoint 从对话 → UI 迁移主线（见 `../review/2026-07-27-agent-design-review.md`） |
-| L3 品牌包 | ⏸ 暂缓 | 优先级论证见 review，待重排；Library .fig 形态下与素材库统一载体（见 `l2-resource-library.md` §11） |
+| L3 品牌包 | 🅿 载体已就位（=library，`l2-resource-library.md` §11）；沉淀/迭代机制仅规划缓做（§11.3） | 多品牌已决策 v1 一库=一品牌（§11.4）；数据维度 + 用户视角（"我的品牌"）待启动 |
 | L2 素材资源库（子规划） | ✅ v1 已实施（2026-07-30）：default-library.fig（生成器 + 回环测试，全部文字设阿里巴巴普惠体）+ 扫库解析（LibraryIndex + warnings，包括重复 key 警告）+ `cloneSubtreeAcrossGraphs` 跨文档克隆 + setup 读库（activeProfileId + 断裂 marker-aware 引导 + 用户锁定 profile 核心穿透）+ readonly 基线机制拆除 + validate 脱库精简 + profile overlay（prepareCall）+ web dialog（默认库 + 上传替换 + fetch 失败重试 + references 注入了） + 库标识 marker（递归扫描）+ MarketingConfigBar（三配置项：类型 / 风格 / 参考，替代独立验证 type/profile/reference，参考元素注入工作文档「参考区」页避开与 brief 内素材区 zone 重名）+ render 单元出错模型净化（`<X/></X>` → `<X/>`，剥离 `<jsx>`/```</jsx>`包裹）+ l2-agent-mode.md §3/§4/§5 重写与资源汇总；62 条营销 + 2 条生成器 + 4 条 render 净化 + 1 条重绑定测试 全绿 | 冒烟回归：营销模式跑通默认库出类型 → MarketingConfigBar 手动锁定类型/风格 → setup 出锚点→ references 注入参考区全链路；自定义库重开断裂的 dialog 提示验证；render 验证模型同类输出不再硬错 |
 
 ## 当前执行顺序（2026-07-27 评审后）
@@ -61,4 +61,4 @@
 
 ## 待决事项汇总
 
-各设计文档内的待决项不变，跨文档的开放议题见 `../review/2026-07-27-agent-design-review.md` §待讨论议题。
+各设计文档内的待决项不变，跨文档的开放议题见 `../review/2026-07-27-agent-design-review.md` §待讨论议题；品牌包多品牌已决策 v1 一库=一品牌（`l2-resource-library.md` §11.4），沉淀机制缓做。

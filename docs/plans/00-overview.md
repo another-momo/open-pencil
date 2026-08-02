@@ -33,7 +33,7 @@ packages/core/src/tools/image-gen/
   requests.ts    # 解析 JSON 数组 + references + 尺寸 16px 对齐与约束裁剪
 ```
 
-语义（2026-07-28 重构，详见 `tasks/l1-image-gen-optimize.md`）：**`references` 是唯一图片输入入口，`id` 只决定输出目标**。省略 `id` → 新建 frame；传入 `id` → 覆盖该节点 fill（leaf 节点直接覆盖 fill；Frame 作为背景填充，children 保留——text-over-image hero 的标准做法）。编辑 = references 引用目标节点自身；重新生成（不参考旧图）= references 不含目标节点；多张参考图经 `image[]` 走 edits 端点，prompt 里用 `[image N]` 按声明顺序指代；非 IMAGE 节点用 `{ id, asImage: true }` 渲染为参考。
+语义（2026-07-28 重构，详见 `architecture/l1-image-gen.md`）：**`references` 是唯一图片输入入口，`id` 只决定输出目标**。省略 `id` → 新建 frame；传入 `id` → 覆盖该节点 fill（leaf 节点直接覆盖 fill；Frame 作为背景填充，children 保留——text-over-image hero 的标准做法）。编辑 = references 引用目标节点自身；重新生成（不参考旧图）= references 不含目标节点；多张参考图经 `image[]` 走 edits 端点，prompt 里用 `[image N]` 按声明顺序指代；非 IMAGE 节点用 `{ id, asImage: true }` 渲染为参考。
 
 配置**完全独立于 LLM**：
 - `src/app/ai/chat/storage.ts`：`imageGenApiKey` / `imageGenBaseURL` / `imageGenModel`

@@ -57,11 +57,7 @@
 
 ### 2026-07-27 误诊修正（实施前讨论）
 
-实施前与组员讨论时确认三处误诊，写入文档避免后人重蹈：
-
-1. **scen-graph plugin-data.test.ts 失败**：原以为是 .fig 解析 pre-existing 问题，实际是 test pollution（marketing/kiwi/scene-graph 一起跑时发生）。单独跑 scene-graph（210 tests）全部通过。
-2. **Playwright 文字不显示（第一轮）**：原以为是 pre-existing CanvasKit bug，实际是 Playwright 测试 API 用错了——用了 `store.updateNode(id, { characters: '...' })`，但 `updateNode` 接受的是 raw 字段名 `text`，不是 Figma proxy 的 `characters`。正确 API 是 `proxy.characters = '...'`。
-3. **Playwright 文字不显示（git stash 验证）**：基于错误 #2 的二次误判，已撤回。
+> 误诊修正已合并至 `../knowledge/methodology.md` §8 测试陷阱。原始 3 个误诊（test pollution / Playwright proxy vs raw API / 二次误判）详见该节。
 
 ### 2026-07-29 视觉回路评审衍生：elision 三目标重新定性 + 待定事项
 

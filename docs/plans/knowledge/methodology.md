@@ -48,3 +48,23 @@ prompt 规则与工具 `description` 必须一致——AI 在两者矛盾时选�
 ```
 
 反模式：堆 prompt 一般指引应对代码可判定的问题；为模型特异错误（如 JSON 尾部垃圾）写 prompt 规则而不是修解析器。
+
+## 8. 测试陷阱：Playwright / Figma API 双接口字段名混淆
+
+**来源**：2026-07-27 三次误诊（详见 `../history/l2-context-engineering-history.md` §实施记录 与 `../history/l2-marketing-font-puhuiti-history.md` §实施记录 引用的同一组教训；2026-08-02 文档重排时合并到本节）。
+
+### 三个误诊
+
+1. `scen-graph plugin-data.test.ts` 失败——原以为 .fig 解析 pre-existing；实为 **test pollution**（marketing/kiwi/scene-graph 一起跑时发生），单独跑 scene-graph 210 tests 全过。
+2. Playwright 画布文字不显示——原以为 CanvasKit/Vite 渲染问题；实为 **API 用错**：`store.updateNode(id, { characters: '...' })` 字段名错（Figma proxy 是 `characters`，raw 字段是 `text`），正确 API 是 `proxy.characters = '...'`。
+3. Playwright 文字不显示（git stash 验证）——基于 #2 的二次验证，**不成立**，撤回。
+
+### 稳定规则
+
+> Playwright 测试必须用 **Figma proxy API**（`proxy.characters` / `proxy.fontName` / `proxy.fontSize`）；`store.updateNode` 用 **raw 字段名**（`text` / `fontFamily` / `fontSize`）。**两套 API 不可互换**。
+
+### 教训
+
+- 写 Playwright 测试时不要直接调 `store.updateNode` 改画布文本——必须走 proxy。
+- test pollution 是多测试套件同跑时的常见现象，**单跑能区分**。
+- 二次误诊时务必先撤回前次结论再重做。

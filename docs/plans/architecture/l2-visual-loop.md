@@ -1,8 +1,8 @@
 # 视觉回路：设计方案
 
-> 最后更新 2026-07-29。**哪些做了、哪些没做见 §5 实施状态总览**；本文档保留设计与决策依据。
-> elision 机制演进（轮末永久裁剪 vs prepareStep 阈值触发、OOM 根因验证）不属本文档，归 [l2-context-engineering.md](./l2-context-engineering.md) §2026-07-29 实施记录。
+> elision 机制演进（轮末永久裁剪 vs prepareStep 阈值触发、OOM 根因验证）不属本文档，归 [l2-context-engineering.md](./l2-context-engineering.md) §7 待决。
 > 评审背景：`../review/2026-07-27-agent-design-review.md` 第二部分 §1；`../review/2026-07-29-visual-loop-implementation-review.md`。
+> 实施状态详见 `../README.md`（唯一状态来源）与 `../history/l2-visual-loop-history.md`。
 
 ## 1. 问题定位
 
@@ -36,7 +36,7 @@
 ```
 
 - **通道 A（默认）**：`look` 执行时导出 JPEG，通过 AI SDK v6 的 `toModelOutput` 返回 media 内容部分，主模型直接"看到"。信息无损，质量上限最高。
-- **通道 B（✅ 已实现，V1）**：`look` 内部用独立配置的视觉模型做一次分析（图 + focus 作为分析 prompt），文字结论返回主模型。配置复用 imageGen 先例：`visionProvider`（openai-compatible `/chat/completions` 或 anthropic-compatible `/messages` 两种端点格式）+ `visionApiKey / visionBaseURL / visionModel`，设置面板加独立 section，默认留空 = 通道 B 不可用（look 报错并提示配置或切回 A）；配套"复制主模型配置"按钮（逐项独立，不自动全填、不做运行期回退推断）。实现：`packages/core/src/tools/marketing/vision.ts`（ofetch 直连，`setVisionAnalyzer` 测试钩子）+ `look.ts` 内部分支。
+- **通道 B**：`look` 内部用独立配置的视觉模型做一次分析（图 + focus 作为分析 prompt），文字结论返回主模型。配置复用 imageGen 先例：`visionProvider`（openai-compatible `/chat/completions` 或 anthropic-compatible `/messages` 两种端点格式）+ `visionApiKey / visionBaseURL / visionModel`，设置面板加独立 section，默认留空 = 通道 B 不可用（look 报错并提示配置或切回 A）；配套"复制主模型配置"按钮（逐项独立，不自动全填、不做运行期回退推断）。实现：`packages/core/src/tools/marketing/vision.ts`（ofetch 直连，`setVisionAnalyzer` 测试钩子）+ `look.ts` 内部分支。
 - **显式选择，而非能力探测**（2026-07-29 评审 §4.9 推翻原"能力探测 + A 失败自动降级 B"方案）：能力探测是隐式变量，失败模式跨 `用户模型能力 → transport 选择 → 工具形态` 三层联动难调试；显式二选一的失败模式只有"凭证未填"和"凭证错"。通道 B 必须与 A 平起平坐，不是兜底。
 
 | 维度 | 通道 A（默认） | 通道 B |
@@ -67,20 +67,20 @@
 - **428K 膨胀归因修正**：2026-07-27 实测的单步 37K→428K（每图 ~50-100K tokens）正是 base64 以 JSON 文本形态发送的结果，与 Anthropic 图片计费（~1.4k tokens/张）相差两个数量级。
 - **V0 回归指定的 kimi/minimax 全在断线路径上**（`src/app/ai/chat/model.ts:78-84` 走 `createOpenAI().chat()`）——不修复则 V0 实测必然空转。
 
-**解决方案（✅ 2026-07-29 已实施，双钩子）**：OpenAI chat completions 只允许 user 消息携带图片，`image_url` 支持 base64 data URL（SDK 对 user 消息图片本就这么转，`@ai-sdk/openai dist/index.mjs:154-160`）。transport 层按 provider 分支（`needsImageAsUserMessage`：`openai` / `minimax` / `deepseek` / `openai-compatible`(completions)），把 media tool-result 改写为「tool 消息只留 note 文本 + 紧随其后插一条带 image part 的 user 消息」（`src/app/ai/chat/media-tool-results.ts`，纯函数、幂等、未改写时原样返回）。两个钩子各管一段（2026-07-29 第三次实测修正）：
+**解决方案（双钩子）**：OpenAI chat completions 只允许 user 消息携带图片，`image_url` 支持 base64 data URL（SDK 对 user 消息图片本就这么转，`@ai-sdk/openai dist/index.mjs:154-160`）。transport 层按 provider 分支（`needsImageAsUserMessage`：`openai` / `minimax` / `deepseek` / `openai-compatible`(completions)），把 media tool-result 改写为「tool 消息只留 note 文本 + 紧随其后插一条带 image part 的 user 消息」（`src/app/ai/chat/media-tool-results.ts`，纯函数、幂等、未改写时原样返回）。两个钩子各管一段：
 
-- **`prepareCall`（轮入口）**：elision（K=2）+ 改写历史存活图。**改写必须同时覆盖轮内**——look 的图在 50 步循环中途产生，`prepareCall` 时还不存在，只在轮入口改写等于不改（第三次实测 Step 2 仍 ~60K tokens 证实）
+- **`prepareCall`（轮入口）**：elision（K=2）+ 改写历史存活图。**改写必须同时覆盖轮内**——look 的图在 50 步循环中途产生，`prepareCall` 时还不存在，只在轮入口改写等于不改（实测 Step 2 仍 ~60K tokens 证实）
 - **`prepareStep`（逐步）**：对新产生的 media tool-result 做同一改写。新图总在历史尾部，改写不动缓存前缀
 
 Anthropic / OpenRouter / Google / Responses API 路径不改写——原生 tool-result 图片是最优形态，改写反是降级。测试：`tests/engine/chat/media-tool-results.test.ts`（6 case，含 elide→rewrite 管道顺序）。debug log 的 MEDIA DELIVERY 段区分轮入口普查与轮内逐步改写计数。
 
-**实测结论**（2026-07-29，MiniMax-M3）：
+**实测结论**（MiniMax-M3）：
 
-- `openai-compatible`(completions) + MiniMax-M3：**通过**——改写后模型可见图 ✅
+- `openai-compatible`(completions) + MiniMax-M3：改写后模型可见图
 - `openai-compatible`(responses) + MiniMax-M3：**不可用**——端侧报 `invalid params, tool result's tool id not found (2013)`，MiniMax 的 responses 兼容端点对无状态 tool 往返的 call_id 校验不通过，属端侧限制，避开即可
-- `anthropic-compatible` + MiniMax Anthropic 端点：**通过**——原生 tool-result 图片 ✅。浏览器 dev 需经 vite proxy（`/proxy/minimax-anthropic` → `https://api.minimaxi.com/anthropic/v1`，端点 CORS 不允许 `anthropic-version` 头；Tauri 走 tauriFetch 天然免 proxy）
+- `anthropic-compatible` + MiniMax Anthropic 端点：原生 tool-result 图片。浏览器 dev 需经 vite proxy（`/proxy/minimax-anthropic` → `https://api.minimaxi.com/anthropic/v1`，端点 CORS 不允许 `anthropic-version` 头；Tauri 走 tauriFetch 天然免 proxy）
 
-## 4. `look` 工具设计（✅ 已实现）
+## 4. `look` 工具设计
 
 ```
 look({ id?, focus? })
@@ -89,7 +89,7 @@ look({ id?, focus? })
 - `id`：目标节点，省略 = 当前营销根 frame 总览
 - `focus`：本轮想检查什么——通道 A 并入 note 文字随图一起给主模型；通道 B 作为分析 prompt 的一部分发给独立视觉模型
 
-### 精度是目标尺寸的确定性函数（2026-07-29 修订，取代原"两级截图策略"）
+### 精度是目标尺寸的确定性函数
 
 **原理**（评审 §3.2）：可读性是逐元素的局部属性，整图缩略承载的是关系属性（节奏、配比、重心）。拿 overview 问局部问题，给到原图也是错的——要修的不是"把 overview 变清楚"，而是"别拿 overview 问局部问题"。overview 糊是特性（等价于眯眼测试），不是缺陷。
 
@@ -105,18 +105,18 @@ look({ id?, focus? })
 
 ### 去重与上下文控制
 
-**dedup 机制已取消**（2026-07-28）：`look` 永远返回完整 base64 图。取消原因：dedup 仅节省 ~300KB / 命中率 <10%；返回的"unchanged: true refer to your previous inspection"假设历史图存在，与 media elision 根本冲突，产生悬挂引用。
+**dedup 机制已取消**：`look` 永远返回完整 base64 图。取消原因：dedup 仅节省 ~300KB / 命中率 <10%；返回的"unchanged: true refer to your previous inspection"假设历史图存在，与 media elision 根本冲突，产生悬挂引用。
 
-**token 成本控制由请求级 media elision 负责**（2026-07-28 已落地）：对请求 messages 做纯函数变换，只保留最新 K=2 张 media 图 base64，老的图被替换为文本占位（保留 note 文本）。K 值可在设置面板调整（1-3）。机制细节、已知局限（纯函数不碰常驻内存、per-turn 不覆盖轮内峰值）与演进待定事项均见 [l2-context-engineering.md](./l2-context-engineering.md)。注意：`export_image` 不在 chat 的 CORE_TOOLS 中，实际仅 `look` 生效（评审 #9）。
+**token 成本控制由请求级 media elision 负责**：对请求 messages 做纯函数变换，只保留最新 K=2 张 media 图 base64，老的图被替换为文本占位（保留 note 文本）。K 值可在设置面板调整（1-3）。机制细节、已知局限（纯函数不碰常驻内存、per-turn 不覆盖轮内峰值）与演进待定事项均见 [l2-context-engineering.md](./l2-context-engineering.md) §7 待决。注意：`export_image` 不在 chat 的 CORE_TOOLS 中，实际仅 `look` 生效（评审 #9）。
 
-**"每 section 最多 2 次 zoom look"预算硬约束已撤销**（评审 §3.7/#8）——describe 前置过滤后 look 次数本就少；且预算绝不能实现成"拒绝并让模型回看历史图"（图已被 elision 裁掉，产生悬挂引用）。
+**不设 look 预算硬约束**（describe 前置过滤后次数本就少；且预算会让模型回看已被 elision 裁掉的图，产生悬挂引用）。
 
 ## 6. 触发时机（prompt 规则）
 
-1. **素材理解**（✅ 已实现 2026-07-29）：任务开始读需求单时 look 素材区每个素材条目的图片（focus "what does this image show"），生成一行内容描述写入 AI结论区。B 模式按 imageHash 自动缓存（重复理解零成本）；用户用法说明永远优先，图与说明明显不符时先问再用。素材角色从"全靠用户命名"变为"AI 看图 + 用户声明仲裁"。
-2. **生图验收**（✅ 已生效）：`generate_image` 落画布后 → look 验证生成结果是否符合 prompt 意图（图内文字乱码是 AI 生图常见病）。
-3. **checkpoint 前置门禁**（✅ 已生效）：展示 CP2/CP4 前必须 overview look。CP4 的文字可读性检查按 §4 修订执行：先 describe 定位候选文字节点，再 look 那几个节点确认，不在 root look 上问局部问题。
-4. ~~**跨 section 一致性**：改为 overview look 执行~~ —— **已撤销**（2026-07-29 评审 §3.4）：色值、字号、间距是确定性数据，describe 给精确数字，视觉只能给"看起来差不多"，改 overview 是降级而非升级。"每 3 个 section 用 describe 分析风格协调"规则保持不变；overview look 若用于此场景，focus 应表述为"整体印象与重心分布"，不是"一致性"。
+1. **素材理解**：任务开始读需求单时 look 素材区每个素材条目的图片（focus "what does this image show"），生成一行内容描述写入 AI结论区。B 模式按 imageHash 自动缓存（重复理解零成本）；用户用法说明永远优先，图与说明明显不符时先问再用。素材角色从"全靠用户命名"变为"AI 看图 + 用户声明仲裁"。
+2. **生图验收**：`generate_image` 落画布后 → look 验证生成结果是否符合 prompt 意图（图内文字乱码是 AI 生图常见病）。
+3. **checkpoint 前置门禁**：展示 CP2/CP4 前必须 overview look。CP4 的文字可读性检查按 §4 修订执行：先 describe 定位候选文字节点，再 look 那几个节点确认，不在 root look 上问局部问题。
+4. **跨 section 一致性**：色值、字号、间距是确定性数据，describe 给精确数字；视觉只用于"整体印象与重心分布"，不复用 overview look 做一致性。"每 3 个 section 用 describe 分析风格协调"规则保持不变。
 
 ## 7. V0 结论的用途（原 §6/§7 合并）
 
@@ -128,15 +128,15 @@ look({ id?, focus? })
 
 ## 8. 与现有体系的张力处理
 
-- **lint 降噪**（✅ 已实现 2026-07-29）：R3-4 类启发式警告降级——"看起来有没有问题"由图回答，lint 只保留结构性 error（方法论 §6）。describe 的 subpixel / 8px grid / Low contrast / Near-invisible / gap≫padding 已降为 info（`describe/issues.ts INFO_PATTERNS`）；溢出、零尺寸、invisible、dark-on-dark 等结构 error 保留为硬门槛。
+- **lint 降噪**：R3-4 类启发式警告降级——"看起来有没有问题"由图回答，lint 只保留结构性 error（方法论 §6）。describe 的 subpixel / 8px grid / Low contrast / Near-invisible / gap≫padding 已降为 info（`describe/issues.ts INFO_PATTERNS`）；溢出、零尺寸、invisible、dark-on-dark 等结构 error 保留为硬门槛。
 - **错误目录新增"视觉误判"类**：look 报告不存在的问题 / 漏报明显问题，按实测迭代方法论处理，先观察幻觉率再决定是否加 prompt 约束。
-- **eval 工具不兜底视觉**（✅）：look 是视觉的唯一入口，防止 AI 用 eval 手写截图逻辑绕过 elision 与可读性声明机制。
+- **eval 工具不兜底视觉**：look 是视觉的唯一入口，防止 AI 用 eval 手写截图逻辑绕过 elision 与可读性声明机制。
 
 ## 9. 风险
 
 | 风险 | 缓解 |
 |---|---|
-| **通道 A 在 chat-completions provider 上静默断线，视觉回路空转且看似正常** | ✅ 已修复并实测（§3.1 改写 + MiniMax-M3 双路径验证）；长期防线：端到端接线测试防代码层退化、debug log MEDIA DELIVERY 段运行时判读、TEST-1234 判别法 |
+| **通道 A 在 chat-completions provider 上静默断线，视觉回路空转且看似正常** | §3.1 改写 + MiniMax-M3 双路径验证；长期防线：端到端接线测试防代码层退化、debug log MEDIA DELIVERY 段运行时判读、TEST-1234 判别法 |
 | 多模态模型审美判断不可靠 | advisory 定位 + focus 收窄问题域 + look 在 note 中声明可读性边界并引导钻取子节点 + V0 先实测 |
 | 上下文窗口压力（每图 token 成本 provider 相关：media part ≈1.4k，base64 文本 ≈50-100K） | chat history 媒体 elision（K=2）+ describe 前置过滤压缩 look 次数（一轮 CP4 全套约 2-3k tokens）；elision 演进归 l2-context-engineering.md 待定事项 |
 | 延迟叠加（截图 + 视觉推理每次数秒） | CP 前置门禁每轮多 5-10 秒，对"生图 60 秒"现状可接受；制作清单场景另算总账 |

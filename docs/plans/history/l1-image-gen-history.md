@@ -1,8 +1,8 @@
 # l1-image-gen-history (历史)
 
-> **来源**：从 `../tasks/l1-image-gen-optimize.md` 切出的实施/时间线/误诊记录。
+> **来源**：从 `../architecture/l1-image-gen.md` 切出的实施/时间线/误诊记录。
 > 本文件按"只追加"原则归档；新讨论请开新 §。
-> 当前正确设计见 `../tasks/l1-image-gen-optimize.md`。
+> 当前正确设计见 `../architecture/l1-image-gen.md`。
 
 ## 验证与测试
 

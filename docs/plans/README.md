@@ -15,35 +15,37 @@ plans/
 ├── 00-overview.md                  # 业务总览：产品定位 + 三层架构
 │
 ├── architecture/                   # 设计文档（描述"当前正确的设计"）
+│   ├── l1-image-gen.md
 │   ├── l2-agent-mode.md
+│   ├── l2-ai-undo-snapshot.md
 │   ├── l2-context-engineering.md
+│   ├── l2-marketing-font-puhuiti.md
 │   ├── l2-resource-library.md
 │   ├── l2-visual-loop.md
 │   └── l3-workbench.md
 │
 ├── tasks/                          # 实施任务记录（带 Step/验收/时间线）
-│   ├── l1-image-gen-optimize.md
-│   ├── l2-ai-undo-snapshot.md
-│   └── l2-marketing-font-puhuiti.md
+│   └── l1-image-gen-optimize.md    # 实施步骤骨架 + 验证/回滚指针
 │
 ├── history/                        # 从设计文档切出的实施/时间线/误诊记录
 │   ├── l1-image-gen-history.md
 │   ├── l2-agent-mode-history.md
+│   ├── l2-ai-undo-snapshot-history.md
 │   ├── l2-context-engineering-history.md
+│   ├── l2-marketing-font-puhuiti-history.md
 │   ├── l2-resource-library-history.md
 │   ├── l2-visual-loop-history.md
 │   └── l3-workbench-history.md
 │
 ├── knowledge/                      # 只追加不改
 │   ├── error-catalog.md
-│   └── methodology.md
+│   └── methodology.md              # 8 节：含 §8 测试陷阱（Playwright/Figma API 双接口字段名混淆）
 │
-└── archive/                        # 已归档
+└── archive/                        # 已归档（缩简后 65 行）
     └── marketing-mode-switch-plan.md
 ```
 
-> L1 设计本体在 tasks/（`tasks/l1-image-gen-optimize.md`，任务属性大于设计属性，保留 -optimize 后缀）。本期不另立 `architecture/l1-image-gen.md`。
-> `../library-format.md` 位置不变（.fig 格式契约，跨进程引用）。
+> `../library-format.md` 位置不变（.fig 格式契约，跨进程引用）。`../review/` 9 份评审见其 `README.md` 索引。
 
 ## 文档地图
 
@@ -52,17 +54,18 @@ plans/
 | `00-overview.md` | 总览 | 产品定位、三层架构、落地顺序、源码参考 | 易变，随进展更新 |
 | `../library-format.md` | 规范 | Library .fig 格式规范：四个 zone 的 KV/Markdown 语法、warnings 总表、作者扩展示例 | 半持久 |
 | `architecture/l2-agent-mode.md` | 设计 | L2 主设计：理念、工作流、素材类型、资源体系、校验 | 半持久 |
-| `architecture/l2-context-engineering.md` | 设计 | L2 子规划：上下文工程——media elision、跨 session 恢复、类型关键词下沉 | 半持久 |
+| `architecture/l2-context-engineering.md` | 设计 | L2 上下文工程：media elision、跨 session 恢复、类型关键词下沉 | 半持久 |
 | `architecture/l2-resource-library.md` | 设计 | L2 资源库：type/profile/reference 三关切解耦 + Library .fig 单一来源 | 半持久 |
 | `architecture/l2-visual-loop.md` | 设计 | L2 视觉回路：多模态看图、look 工具、双通道架构 | 半持久 |
 | `architecture/l3-workbench.md` | 设计 | L3 工作台交互：三类信息模型、需求单、类型显性化、制作清单 | 半持久 |
-| `tasks/l1-image-gen-optimize.md` | 任务 | L1 子规划：生图工具优化——references 解耦模型、尺寸规范化、超时/错误处理、非 IMAGE 节点渲染参考 | 半持久 |
-| `tasks/l2-ai-undo-snapshot.md` | 任务 | L2 子规划：AI undo snapshot 累积（嫌疑 1 修复：拆分 AI undo 栈 + chronological 优先级） | 半持久 |
-| `tasks/l2-marketing-font-puhuiti.md` | 任务 | L2 子规划：营销字体——阿里巴巴普惠体（9 字重）替换默认 Inter | 半持久 |
+| `architecture/l1-image-gen.md` | 设计 | L1 生图工具：references 解耦、尺寸规范化、超时/错误处理、`asImage: true` 渲染 | 半持久 |
+| `architecture/l2-ai-undo-snapshot.md` | 设计 | L2 AI undo 合并：per-burst coalesceKey（拆分 AI undo 栈 + 50x 内存节省） | 半持久 |
+| `architecture/l2-marketing-font-puhuiti.md` | 设计 | L2 营销字体：PuHuiTi 9 字重 + BUNDLED_FONTS + FONT_WEIGHT_NAMES 修复 | 半持久 |
+| `tasks/l1-image-gen-optimize.md` | 任务 | L1 实施步骤骨架 + 验证/回滚指针（设计见 `architecture/l1-image-gen.md`） | 半持久 |
 | `history/<name>-history.md` | 历史 | 从对应设计/任务文档切出的实施记录、误诊修正、评审后续修正 | 档案（追加） |
 | `knowledge/error-catalog.md` | 知识 | 冒烟测试错误目录（实测驱动迭代的核心资产，持续追加） | 只增不改 |
-| `knowledge/methodology.md` | 知识 | 实测沉淀的方法论：注入可靠性排序、可判定性划分等 | 只增不改 |
-| `archive/marketing-mode-switch-plan.md` | 归档 | L2 Phase 0 模式切换（已实现，仅供历史参考） | 档案 |
+| `knowledge/methodology.md` | 知识 | 实测沉淀的方法论：注入可靠性排序、可判定性划分、测试陷阱 | 只增不改 |
+| `archive/marketing-mode-switch-plan.md` | 归档 | L2 Phase 0 模式切换设计决策（已实现，261→65 行缩简） | 档案 |
 
 评审记录见 `../review/`。
 
@@ -78,7 +81,7 @@ plans/
 | L2 上下文工程（子规划） | ✅ 4 项任务全部实施（2026-07-28） | 冒烟回归：朋友圈/小红书/DSP 各一（类型推断准确率 + 单步输入峰值 <100K + 重开文档 validate 可用）；多设计同类型并存（制作清单）未支持，随 L3 启动再评估 |
 | L2 AI undo coalesce（子规划） | ✅ 已实施（2026-07-28） | 随第 4 轮回归做冒烟验证：DevTools memory（1 次 burst 后 undo ≤ 200 KB）+ Ctrl+Z 撤销整段 burst 行为 |
 | L2 视觉回路（子规划） | 🔄 V0 实测通过 + elision 已落地（2026-07-28） | hero 叠字改造 ✅、R4-1 尺寸回填 bug ✅、look **去重已取消并落地**（2026-07-28，连同请求级 K=2 media elision）✅、快照降噪 ✅——待下轮冒烟验证（护栏回归 + 叠字产出 + elision 后 token 峰值 <100K） |
-| L2 营销字体：普惠体（子规划） | ✅ 已实施（2026-07-27） | 9 字重 PuHuiTi bundle（62MB）+ 8 素材类型改 `['Alibaba PuHuiTi']` + prompt 强约束 + _headers TTF MIME——`tasks/l2-marketing-font-puhuiti.md` |
+| L2 营销字体：普惠体（子规划） | ✅ 已实施（2026-07-27） | 9 字重 PuHuiTi bundle（62MB）+ 8 素材类型改 `['Alibaba PuHuiTi']` + prompt 强约束 + _headers TTF MIME——`architecture/l2-marketing-font-puhuiti.md` |
 | L3 需求单节点 | ✅ V1 已实现 | —— |
 | L3 类型显性化 | ✅ 已实现（chips + 预推断 + 自定义尺寸兜底） | —— |
 | L3 选区注入 | ✅ 已实现 | —— |
@@ -94,12 +97,12 @@ plans/
 
 **已完成的轮次**（详细记录见 `history/`）：
 - L2 视觉回路 V0 优化迭代 ✅（2026-07-27）— `history/l2-visual-loop-history.md`
-- L2 营销字体：普惠体 ✅（2026-07-27）— `tasks/l2-marketing-font-puhuiti.md` + `history/l1-image-gen-history.md` 中的相关 误诊
+- L2 营销字体：普惠体 ✅（2026-07-27）— `architecture/l2-marketing-font-puhuiti.md` + `history/l1-image-gen-history.md` 中的相关 误诊
 - L2 视觉回路：通道 A chat-completions 改写 ✅（2026-07-29）— `history/l2-visual-loop-history.md`
 - L2 上下文工程 ✅（2026-07-28 全部实施）— `history/l2-context-engineering-history.md`
-- L2 AI undo coalesce ✅（2026-07-28 实施完成）— `tasks/l2-ai-undo-snapshot.md`
+- L2 AI undo coalesce ✅（2026-07-28 实施完成）— `architecture/l2-ai-undo-snapshot.md`
 - L2 视觉回路 V1/V2 ✅（2026-07-29 完成）— `history/l2-visual-loop-history.md`
-- L1 生图工具优化 ✅（2026-07-28 实施完成）— `tasks/l1-image-gen-optimize.md`
+- L1 生图工具优化 ✅（2026-07-28 实施完成）— `architecture/l1-image-gen.md`
 
 ## 待决事项汇总
 

@@ -1,7 +1,7 @@
 # 营销 Agent 默认字体切到阿里巴巴普惠体
 
 > 状态与执行顺序见 `README.md`。
-> 上层总览见 `00-overview.md`，L2 营销 Agent 主设计见 `l2-agent-mode.md`。
+> 上层总览见 `00-overview.md`，L2 营销 Agent 主设计见 `../architecture/l2-agent-mode.md`。
 
 ## 问题
 

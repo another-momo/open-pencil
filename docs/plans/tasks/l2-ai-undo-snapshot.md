@@ -1,7 +1,7 @@
 # AI Undo Snapshot 累积：方案设计
 
 > 状态与执行顺序见 `README.md`。
-> 上层架构见 `00-overview.md`；上下文工程见 `l2-context-engineering.md`；视觉回路见 `l2-visual-loop.md`。
+> 上层架构见 `00-overview.md`；上下文工程见 `../architecture/l2-context-engineering.md`；视觉回路见 `../architecture/l2-visual-loop.md`。
 
 ## 问题
 
@@ -290,7 +290,7 @@ store.pushUndoEntry({
 ## 不在本次范围
 
 - ❌ Diff snapshot（实施后仍超内存才做）
-- ❌ 跨 session undo 持久化（已在 `l2-context-engineering.md` 方案 2 覆盖）
+- ❌ 跨 session undo 持久化（已在 `../architecture/l2-context-engineering.md` 方案 2 覆盖）
 - ❌ AI undo UI 区分（如颜色标识 "AI: render" vs "Move"）—— UI 增强，非必需
 - ❌ LLM 主动声明 logical step（粒度细化方案，本次不做）
 

@@ -2,7 +2,7 @@
 
 > 本文件只追加不修改。来源：冒烟测试复盘（见 `error-catalog.md`）与历次设计评审。
 >
-> 历史：迁移自原 `l2-agent-mode-plan.md` §11 修复方法论 + `l3-workbench.md` §2.1（2026-07-27 文档重组）。
+> 历史：迁移自原 `l2-agent-mode-plan.md` §11 修复方法论 + `../architecture/l3-workbench.md` §2.1（2026-07-27 文档重组）。
 
 ## 1. 规则注入可靠性排序（R2-1 验证）
 

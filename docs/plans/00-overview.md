@@ -16,8 +16,8 @@
 
 | 层 | 职责（问题域） | 设计文档 |
 |---|---|---|
-| L3 工作台交互 | 高频、结构化交互的界面承载；流程形态与真实工作形态的对齐 | `l3-workbench.md` |
-| L2 营销 Agent 模式 | 营销场景的 Agent 工作流与约束体系 | `l2-agent-mode.md`（主设计）· `l2-context-engineering.md`（上下文供给与管理）· `l2-visual-loop.md`（视觉感知能力） |
+| L3 工作台交互 | 高频、结构化交互的界面承载；流程形态与真实工作形态的对齐 | `architecture/l3-workbench.md` |
+| L2 营销 Agent 模式 | 营销场景的 Agent 工作流与约束体系 | `architecture/l2-agent-mode.md`（主设计）· `architecture/l2-context-engineering.md`（上下文供给与管理）· `architecture/l2-visual-loop.md`（视觉感知能力） |
 | L1 生图工具 | 文生图 / 图编辑落画布 | 本文档 §3 |
 
 ## 3. 已实现的 MVP（L1 生图工具）
@@ -33,7 +33,7 @@ packages/core/src/tools/image-gen/
   requests.ts    # 解析 JSON 数组 + references + 尺寸 16px 对齐与约束裁剪
 ```
 
-语义（2026-07-28 重构，详见 `l1-image-gen-optimize.md`）：**`references` 是唯一图片输入入口，`id` 只决定输出目标**。省略 `id` → 新建 frame；传入 `id` → 覆盖该节点 fill（leaf 节点直接覆盖 fill；Frame 作为背景填充，children 保留——text-over-image hero 的标准做法）。编辑 = references 引用目标节点自身；重新生成（不参考旧图）= references 不含目标节点；多张参考图经 `image[]` 走 edits 端点，prompt 里用 `[image N]` 按声明顺序指代；非 IMAGE 节点用 `{ id, asImage: true }` 渲染为参考。
+语义（2026-07-28 重构，详见 `tasks/l1-image-gen-optimize.md`）：**`references` 是唯一图片输入入口，`id` 只决定输出目标**。省略 `id` → 新建 frame；传入 `id` → 覆盖该节点 fill（leaf 节点直接覆盖 fill；Frame 作为背景填充，children 保留——text-over-image hero 的标准做法）。编辑 = references 引用目标节点自身；重新生成（不参考旧图）= references 不含目标节点；多张参考图经 `image[]` 走 edits 端点，prompt 里用 `[image N]` 按声明顺序指代；非 IMAGE 节点用 `{ id, asImage: true }` 渲染为参考。
 
 配置**完全独立于 LLM**：
 - `src/app/ai/chat/storage.ts`：`imageGenApiKey` / `imageGenBaseURL` / `imageGenModel`
@@ -66,7 +66,7 @@ packages/core/src/tools/image-gen/
 
 ## 5. 落地顺序
 
-当前执行顺序以 `README.md` §当前执行顺序 为准。长期方向：品牌包（=library 载体，`l2-resource-library.md` §11）深度集成（多品牌 + 沉淀机制）+ 迭代交互优化。
+当前执行顺序以 `README.md` §当前执行顺序 为准。长期方向：品牌包（=library 载体，`architecture/l2-resource-library.md` §11）深度集成（多品牌 + 沉淀机制）+ 迭代交互优化。
 
 ## 6. 源码参考
 

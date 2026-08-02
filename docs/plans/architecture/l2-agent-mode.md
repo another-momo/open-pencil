@@ -1,6 +1,6 @@
 # 营销图片设计 Agent 模式：详细规划
 
-> 本文档定义营销 Agent 模式的设计：核心理念、工作流、素材类型体系、资源管理、运行时机制与校验。**状态与任务进度见 `README.md`（唯一状态来源）**；冒烟错误目录见 `knowledge/error-catalog.md`，实测方法论见 `knowledge/methodology.md`。
+> 本文档定义营销 Agent 模式的设计：核心理念、工作流、素材类型体系、资源管理、运行时机制与校验。**状态与任务进度见 `README.md`（唯一状态来源）**；冒烟错误目录见 `../knowledge/error-catalog.md`，实测方法论见 `../knowledge/methodology.md`。
 
 ## 1. 核心设计理念
 
@@ -179,7 +179,7 @@ setup_material_type({ id: "wechat_moments" })
 
 `size`、锚点实例 ID、`activeProfileId`（当前生效的 profile——其 Markdown 由 app 层注入后续轮次的 system prompt overlay，见 Q6）、库解析 `warnings`（库里有畸形条目时 AI 转告用户）。
 
-此外 `note` 字段携带**含真实 rootFrameId 的操作硬指令**：`render every section INTO the root frame with render({ parent_id: "<rootFrameId>", jsx: ... })`。冒烟测试证明（见 `knowledge/error-catalog.md` R2-1）：prompt 规则不足以保证 AI 使用 `parent_id`，而工具结果常驻对话上下文、且带着具体 ID，是最可靠的注入位置。readonly 声明节点名也在 note 中（声明式约束）。
+此外 `note` 字段携带**含真实 rootFrameId 的操作硬指令**：`render every section INTO the root frame with render({ parent_id: "<rootFrameId>", jsx: ... })`。冒烟测试证明（见 `../knowledge/error-catalog.md` R2-1）：prompt 规则不足以保证 AI 使用 `parent_id`，而工具结果常驻对话上下文、且带着具体 ID，是最可靠的注入位置。readonly 声明节点名也在 note 中（声明式约束）。
 
 ### 5.2 素材类型切换与修复
 
@@ -287,9 +287,3 @@ generate_image 输出尺寸是枚举值，目标区域可能是任意尺寸。�
 ### 9.5 错误恢复
 
 tool call 失败时，generate_image 失败尝试 stock_photo 作为备选或让用户上传；图片风格不匹配时调整 prompt 重新生成（最多重试 2 次）；用户拒绝某个 section 时只重做该 section，不影响已完成部分；步数用完时保存设计状态，用户发送"继续"后从中断处恢复。
-
-## 10. 实现与状态
-
-实施任务表与各阶段状态已迁移至 `README.md`（唯一状态来源）；冒烟测试错误目录见 `knowledge/error-catalog.md`，实测方法论见 `knowledge/methodology.md`。
-
-营销工具统一放在 `packages/core/src/tools/marketing/` 域（仿 image-gen 模式：入口文件 + 子文件夹实现）。后续阶段：Phase 3 实测迭代（进行中）→ 品牌包深化（载体 = library 已就位，剩余缺口见 `l2-resource-library.md` §11.2/§11.4，沉淀迭代机制仅规划缓做 §11.3）。

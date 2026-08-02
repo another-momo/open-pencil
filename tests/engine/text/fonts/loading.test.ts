@@ -205,7 +205,7 @@ describe('FontManager loaded font cache', () => {
     const manager = new FontManager()
     const recording = createRecordingProvider()
     manager.attachProvider({} as CanvasKit, recording.provider)
-    manager.setHostFontLoader(async (family, style) => {
+    manager.setHostFontLoader(async (family, _style) => {
       if (family === 'Alibaba PuHuiTi') return new ArrayBuffer(8192)
       return null
     })

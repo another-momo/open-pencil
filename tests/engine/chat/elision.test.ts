@@ -171,7 +171,7 @@ describe('UIMessage → ModelMessage wiring (toModelOutput + elision)', () => {
       {
         id: 'msg-1',
         role: 'assistant',
-        parts: tags.map((tag, i) => ({
+        parts: tags.map((tag) => ({
           type: 'tool-look',
           toolCallId: `call-${tag}`,
           state: 'output-available',

@@ -11,6 +11,10 @@ const { message } = defineProps<{ message: UIMessage }>()
 
 type ToolPart = Extract<UIMessagePart<UIDataTypes, UITools>, { toolCallId: string }>
 
+interface UnknownToolOutput {
+  [key: string]: unknown
+}
+
 function toolDisplayName(part: ToolPart): string {
   return getToolName(part)
     .replace(/^mcp__[^_]+__/, '')
@@ -29,7 +33,7 @@ function hasErrorOutput(part: ToolPart): boolean {
 
 function mediaOutput(part: ToolPart): { base64: string; mimeType: string } | undefined {
   if (part.state !== 'output-available') return undefined
-  const output = part.output as Record<string, unknown> | undefined
+  const output = part.output as UnknownToolOutput | undefined
   if (!output || typeof output !== 'object') return undefined
   if (typeof output.base64 !== 'string' || typeof output.mimeType !== 'string') return undefined
   if (!output.mimeType.startsWith('image/')) return undefined
@@ -46,7 +50,7 @@ function displayOutput(part: ToolPart): string {
   if (hasErrorOutput(part)) return (part.output as { error: string }).error
   const media = mediaOutput(part)
   if (media) {
-    const { base64: _base64, ...rest } = part.output as Record<string, unknown>
+    const { base64: _base64, ...rest } = part.output as UnknownToolOutput
     return JSON.stringify({ ...rest, base64: `[omitted ${media.base64.length} chars]` }, null, 2)
   }
   return JSON.stringify(part.output, null, 2)

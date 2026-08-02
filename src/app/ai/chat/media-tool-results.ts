@@ -120,9 +120,9 @@ export function inlineMediaToolResultsAsUserMessages(messages: ModelMessage[]): 
       const output =
         textOnly.length === 0
           ? { type: 'text', value: '[image inlined as a user message]' }
-          : singleText !== undefined
+          : (singleText !== undefined
             ? { type: 'text', value: singleText }
-            : { ...candidate.output, value: textOnly }
+            : { ...candidate.output, value: textOnly })
       return { ...part, output }
     })
 

@@ -173,6 +173,12 @@ export function analyzeImageWithVisionModel(input: {
   mimeType: string
   prompt: string
 }): Promise<string> {
+  if (!input.base64) {
+    throw new Error('Vision analysis requires a non-empty base64 image')
+  }
+  if (!input.mimeType.startsWith('image/')) {
+    throw new Error(`Invalid mime type for vision analysis: ${input.mimeType}`)
+  }
   return analyzer(input)
 }
 

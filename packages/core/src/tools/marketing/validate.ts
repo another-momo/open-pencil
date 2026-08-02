@@ -14,9 +14,9 @@ import type { FigmaAPI } from '#core/figma-api'
 import {
   getMarketingState,
   listMarketingDesigns,
-  touchMarketingState,
-  type MarketingDocumentState
+  touchMarketingState
 } from '#core/tools/marketing/registry'
+import type { MarketingDocumentState } from '#core/tools/marketing/restore'
 
 export interface ValidateViolation {
   type: 'anchor_deleted' | 'anchor_misplaced'

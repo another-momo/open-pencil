@@ -169,7 +169,7 @@ export function setActiveProfile(_store: EditorStore, profileId: string): void {
   setAiProfile(profileId)
 }
 
-export function getActiveProfileId(store: EditorStore): string | undefined {
+export function getActiveProfileId(_store: EditorStore): string | undefined {
   // Kept for callers that read the active profile from a store handle. The
   // single source is `profileSelection` in chat storage.
   const selection = profileSelection.value
@@ -189,7 +189,7 @@ export function getActiveProfileId(store: EditorStore): string | undefined {
  * types/profiles). The system prompt's wording is intentionally tolerant
  * of the empty-state text — see system-prompt-marketing.md.
  */
-export function buildMarketingOverlay(store: EditorStore): string {
+export function buildMarketingOverlay(_store: EditorStore): string {
   const parts: string[] = []
 
   const library = current.value

@@ -11,15 +11,20 @@ interface MediaOutputShape {
   mimeType: string
 }
 
+interface UnknownMediaOutput {
+  base64: unknown
+  mimeType: unknown
+}
+
 function asMediaOutput(value: unknown): MediaOutputShape | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
-  const record = value as Record<string, unknown>
+  const record = value as UnknownMediaOutput
   if (
     typeof record.base64 === 'string' &&
     typeof record.mimeType === 'string' &&
     record.mimeType.startsWith('image/')
   ) {
-    return record as unknown as MediaOutputShape
+    return { base64: record.base64, mimeType: record.mimeType }
   }
   return undefined
 }
@@ -27,7 +32,7 @@ function asMediaOutput(value: unknown): MediaOutputShape | undefined {
 function sanitizeMediaOutput(value: unknown): unknown {
   const media = asMediaOutput(value)
   if (!media) return value
-  const { base64, ...rest } = value as Record<string, unknown>
+  const { base64: _base64, ...rest } = value as Record<string, unknown>
   return { ...rest, base64: `[omitted ${media.base64.length} chars]` }
 }
 
@@ -87,9 +92,9 @@ function formatMediaDelivery(): string {
   const verdict =
     debug.degradedOutputs > 0
       ? '⚠ media tool-result outputs are NOT in content form — the image was serialized as JSON text (toModelOutput wiring broken)'
-      : debug.rewriteToUserMessage
+      : (debug.rewriteToUserMessage
         ? 'chat-completions path: images are rewritten to user-message image parts (turn entry + per step)'
-        : 'images delivered natively inside tool results'
+        : 'images delivered natively inside tool results')
   const lines = [
     `  Provider: ${debug.providerID} / ${debug.modelID} (api: ${debug.customAPIType})`,
     `  Turn-entry history: ${debug.contentOutputs} content-form media tool-result(s), ${debug.degradedOutputs} degraded, ${debug.mediaParts} image part(s)`,

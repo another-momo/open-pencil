@@ -23,15 +23,15 @@ import {
   clearMarketingState,
   getMarketingPrefs,
   listMarketingDesigns,
-  setMarketingState,
-  type AnchorRecord,
-  type MarketingDocumentState
+  setMarketingState
 } from '#core/tools/marketing/registry'
 import {
   markMarketingAnchor,
   markMarketingRoot,
   marketingRootLibrary,
-  marketingRootType
+  marketingRootType,
+  type AnchorRecord,
+  type MarketingDocumentState
 } from '#core/tools/marketing/restore'
 
 const COMPONENTS_PAGE_NAME = 'Components'

@@ -12,7 +12,22 @@
 
 import type { PluginDataEntry, SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
-import { setMarketingState, type AnchorRecord } from '#core/tools/marketing/registry'
+export interface AnchorRecord {
+  templateId: string
+  position: 'top' | 'bottom'
+  componentId: string
+  instanceId: string
+}
+
+export interface MarketingDocumentState {
+  materialTypeId: string
+  rootFrameId: string
+  /** Resolved lazily by setup when absent (restore may run before a Components page exists) */
+  componentsPageId?: string
+  anchors: AnchorRecord[]
+  /** Monotonic sequence — higher = more recently active (not wall time) */
+  lastActiveAt: number
+}
 
 const MARKETING_PLUGIN_ID = 'open-pencil-marketing'
 const ROLE_KEY = 'role'
@@ -152,11 +167,13 @@ function restoreAnchor(instance: SceneNode): AnchorRecord | undefined {
 
 /**
  * Scan top-level frames for marketing root markers and rebuild registry
- * entries. Returns the number of restored designs.
+ * entries. Returns the restored designs for the caller to register.
  */
-export function restoreStateFromCanvas(graph: SceneGraph): number {
+export function restoreStateFromCanvas(
+  graph: SceneGraph
+): Array<Omit<MarketingDocumentState, 'lastActiveAt'>> {
   const componentsPageId = findComponentsPageId(graph)
-  let restored = 0
+  const designs: Array<Omit<MarketingDocumentState, 'lastActiveAt'>> = []
 
   for (const page of graph.getPages()) {
     if (page.id === componentsPageId || page.name === 'Components') continue
@@ -174,14 +191,13 @@ export function restoreStateFromCanvas(graph: SceneGraph): number {
         if (anchor) anchors.push(anchor)
       }
 
-      setMarketingState(graph, {
+      designs.push({
         materialTypeId,
         rootFrameId: rootFrame.id,
         ...(componentsPageId ? { componentsPageId } : {}),
         anchors
       })
-      restored++
     }
   }
-  return restored
+  return designs
 }

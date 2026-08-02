@@ -96,6 +96,7 @@ describe('parseLibraryIndex', () => {
     const ref1 = graph.createNode('FRAME', references.id, { name: 'r1' })
     kv(graph, ref1.id, 'applicable_to: wechat_moments, xiaohongshu')
     const ref2 = graph.createNode('FRAME', references.id, { name: 'r2' })
+    expect(ref2.id).toBeDefined()
 
     const index = parseLibraryIndex(graph)
     const r1 = expectDefined(index.references.find((r) => r.id === 'r1'))

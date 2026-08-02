@@ -9,24 +9,10 @@
 
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
-import { restoreStateFromCanvas } from '#core/tools/marketing/restore'
-
-export interface AnchorRecord {
-  templateId: string
-  position: 'top' | 'bottom'
-  componentId: string
-  instanceId: string
-}
-
-export interface MarketingDocumentState {
-  materialTypeId: string
-  rootFrameId: string
-  /** Resolved lazily by setup when absent (restore may run before a Components page exists) */
-  componentsPageId?: string
-  anchors: AnchorRecord[]
-  /** Monotonic sequence — higher = more recently active (not wall time) */
-  lastActiveAt: number
-}
+import {
+  restoreStateFromCanvas,
+  type MarketingDocumentState
+} from '#core/tools/marketing/restore'
 
 const states = new WeakMap<SceneGraph, Map<string, MarketingDocumentState>>()
 const restoredGraphs = new WeakSet<SceneGraph>()
@@ -60,7 +46,10 @@ function ensureRestored(graph: SceneGraph): void {
   if (restoredGraphs.has(graph)) return
   restoredGraphs.add(graph)
   if (states.get(graph)?.size) return
-  restoreStateFromCanvas(graph)
+  const designs = restoreStateFromCanvas(graph)
+  for (const design of designs) {
+    setMarketingState(graph, design)
+  }
 }
 
 function designsOf(graph: SceneGraph): Map<string, MarketingDocumentState> {

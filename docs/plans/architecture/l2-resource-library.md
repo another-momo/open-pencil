@@ -26,7 +26,7 @@
 | 维度 | 谁提供 | 存储位置 | 选择权 | 注入方式 |
 |---|---|---|---|---|
 | **Type**（硬约束） | 库 / 代码兜底 | Library .fig Types 区 | AI 推断，或用户手动选择（L3 类型 chips，已实现） | `setup_material_type` 工具返回 |
-| **Profile**（风格档案） | 用户 / 库 | Library .fig Profiles 区（plain TEXT 节点 = md 内容） | AI 推荐 + CP1 人确认，或用户手动选择（v1 走对话确认，UI 化归 L3） | 首次 setup 调用时灌入 system prompt overlay（仅内置 chat 通道，Q12） |
+| **Profile**（风格档案） | 用户 / 库 | Library .fig Profiles 区（plain TEXT 节点 = md 内容） | **用户显式选择**（MarketingConfigBar Profile chip），未选择 = 无 profile（"是否使用"与"使用哪个"两个决策都归用户）；旧"AI 推荐 + CP1 人确认"流程留待未来按需启用（触发条件见 review §2.5.8） | 用户显式选定后才灌入 system prompt overlay（仅内置 chat 通道，Q12）；无 profile → overlay 输出 `(none)` 提示 |
 | **Reference**（参考样例） | user 主动标记 | Library .fig References 区（plain frame + `applicable_to` / `tag` 子文本） | **仅用户选择**（session 启动 dialog 勾选） | 勾选后 app 克隆进工作文档「参考区」页；AI 按既有需求单"素材区" zone 流程消费：位图 = `look`、结构 = `describe` + `look`（§5——参考区页 ≠ brief 内的素材区 zone） |
 
 职责切开：**type 硬、profile 软、reference advisory**。三者独立演化：换风格 = 切 profile，不动 type；加类型 = 库里加 frame，不改代码；参考图 = 用户自己拖进 References 区。
@@ -55,6 +55,7 @@
 | Q11 | default-library.fig 如何分发？ | **构建期资产**——app 启动读 bytes 注入 core（core 保持无 DOM）；默认库常驻，**无库态不存在**；不做无头入口回落（Q12） |
 | Q12 | 营销场景的运行入口范围？ | **仅内置 AI chat**——MCP / CLI / ACP 暂不考虑，不为它们做库加载、profile 注入或错误回落 |
 | Q13 | readonly 运行时校验是否保留？ | **降级为声明式元数据 + prompt 约束**——快照 / 基线 / `accept` / 基线重建机制删除；validate 收缩为 anchor_deleted / anchor_misplaced 结构校验。失败可见可恢复（prompt 约束 + 实例不透明容器 + Phase 4 视觉终检 + 用户随时可让 AI 改回）；registry 架构保留，将来要加回校验只是重新填充它 |
+| Q14 | 无匹配 profile 时是否静默套用首个？ | **否**——P8 修复落地（2026-08-03，review §2.5.8 / §阶段 1.2 第 3 项）。`setup.ts:resolveProfile` 取消 auto-pick + `(applicable ?? profiles[0])` 兜底；无 user-picked profile 且无 caller 显式 id 时返回 `{}`（不挂载任何 activeProfileId），由 `buildMarketingOverlay` 输出 `(none)` 提示，由 `MarketingConfigBar` chip 显式渲染"未选"虚线灰状态。**只有"用户已在 config bar 显式选择 profile"或"调用方传 `profile` 参数"两条路径才会挂载 profile**——与"约束 + AI 自由"范式中"用户掌控约束"自洽 |
 
 ## 4. Library .fig 的具体形态
 

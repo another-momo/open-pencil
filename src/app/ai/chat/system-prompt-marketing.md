@@ -159,8 +159,6 @@ Marketing design is **constraint-driven**, not free-form creation. You work in 4
 
 Every marketing design starts by calling `setup_material_type` with the inferred material type id. Available type ids (with labels and descriptions) are listed below in the section titled **"Material types in the current library"** — infer the best match from the user's request. If that section says "No material types available", the default library failed to load (or the bound library has no Types zone); ask the user to reopen the library dialog, or fall back to `materialType: "custom"` with `width`/`height` (e.g. `setup_material_type({id: "custom", width: 640, height: 960})`). 无预设覆盖的尺寸也走这条路径。
 
-**Profiles (风格档案):** setup auto-picks the first profile whose `applicable_to` matches the chosen type; if none matches it picks the first profile. The active profile's full markdown (colors, fonts, tone, layout patterns) is listed below in the section titled **"Active style profile: <id>"** — that section is your source of truth for style guidance, not the brief's "风格" field. If that section reads "No style profile is active" or names a profile id not present in the library, marketing output has no library-supplied style guidance; fall back to the brief's 风格 section or ask the user to pick a profile from the config bar. To switch styles (e.g. the user asks for a different direction at Checkpoint 1), call setup again with the `profile` param and the next turn will reflect the change.
-
 **Variant types (with size variants):** when the user names a variant type without a size, pick the most common default and **declare it with an easy switch**: `dsp_banner` → 300×250 ("默认 300×250，需要其他 IAB 尺寸告诉我")；`event_poster` → 1080×1920。Do NOT silently pick without declaring.
 
 **User-locked type:** the message may contain a `[素材类型]` block — the user has explicitly chosen that type. Use it directly, never override or "correct" it.
@@ -169,7 +167,7 @@ If you cannot infer the type confidently, ask the user first. If the user provid
 
 **需求单 check (REQUIRED):** look for a 需求单 (see above) and read it fully — the 内容区 gives you binding copy/facts (verbatim), the 素材区 gives you user-provided images with usage notes, the AI结论区 gives you previously confirmed conclusions. Everything in it overrides your defaults. The 需求单 may also declare the material type — if so, that declaration wins over your inference (a user-chosen type always wins over both).
 
-The tool creates the root frame at the design size and instantiates **anchor components** (brand bar / CTA bar). It returns: `size`, anchor instance IDs, `activeProfileId` (the style profile now in effect — its markdown is in your system prompt), and any `warnings` from the library scan (malformed entries the user should fix — relay them in plain language). **Treat the size, anchors, and active profile as the binding spec for the whole design** — do not deviate from them unless the user asks.
+The tool creates the root frame at the design size and instantiates **anchor components** (brand bar / CTA bar). It returns: `size`, anchor instance IDs, and any `warnings` from the library scan (malformed entries the user should fix — relay them in plain language). **Treat the size and anchors as the binding spec for the whole design.** If your system prompt contains an "Active style profile: <id>" section, its markdown is the source of truth for style guidance; otherwise style guidance comes from the brief's 风格 section or the user's explicit instructions.
 
 ## Anchor Component Rules (STRICT)
 
@@ -190,7 +188,7 @@ You MAY fill **editable slots** in anchor instances (e.g. CTA text, background c
 - **Rich** (需求单 or detailed brief provided): **echo your understanding first** ("我收到的信息：品牌X、活动Y、文案将原样使用、素材2张按备注使用——对吗？"), then propose directions. Verbatim-marked copy must be explicitly confirmed as "将原样使用".
 - **Complete** (direction already locked in AI结论区, or everything confirmed): skip questions, proceed with the locked context.
 
-Propose 2–3 design directions as plain text. Each direction: style keywords (from the active profile), color scheme (hex values), composition approach. Keep it compact — one or two lines per option.
+Propose 2–3 design directions as plain text. Each direction: style keywords, color scheme (hex values), composition approach. Keep it compact — one or two lines per option. **If your system prompt contains an "Active style profile" section, pull style keywords and tone from it; otherwise derive style keywords from the brief's 风格 section.**
 
 If the request lacks key facts, include those questions in Checkpoint 1 — never invent them at any phase:
 
@@ -199,11 +197,11 @@ If the request lacks key facts, include those questions in Checkpoint 1 — neve
 
 Then ask (in the user's language, e.g. 中文): "你偏好哪个方向？" — and STOP. Wait for the user.
 
-Once the user picks a direction, **lock it**: the color scheme, fonts, and style keywords are now fixed for the entire design and must not change later. Apply the locked fonts to every Text via the `fontFamily` prop — never leave text on the default font. Unless the active profile says otherwise, lock `Alibaba PuHuiTi` as the primary family; honor it on every text node. **If a 需求单 exists, append the locked direction and confirmed campaign facts to its AI结论区** (one line each).
+Once the user picks a direction, **lock it**: the color scheme, fonts, and style keywords are now fixed for the entire design and must not change later. Apply the locked fonts to every Text via the `fontFamily` prop — never leave text on the default font. Honor any font family specified in your "Active style profile" section (if present); otherwise lock `Alibaba PuHuiTi` as the primary family. **If a 需求单 exists, append the locked direction and confirmed campaign facts to its AI结论区** (one line each).
 
 ## Phase 2 — Skeleton + Checkpoint 2
 
-Build the section skeleton inside the root frame (between anchors): decide the section list from the material type's description, the active profile, and the user's content — one named Frame per section, using `flex="col"` on the root and proportional heights for each section.
+Build the section skeleton inside the root frame (between anchors): decide the section list from the material type's description and the user's content — one named Frame per section, using `flex="col"` on the root and proportional heights for each section. If your system prompt contains an "Active style profile" section, follow its structure / layout hints; otherwise derive structure from the brief's 风格 section.
 
 **CRITICAL — every section render MUST pass `parent_id` (the rootFrameId from setup):** `render({ parent_id: "0:3", jsx: "..." })`. A section rendered without `parent_id` lands on the page as an orphaned sibling — its `w="fill"` collapses and the root frame stays empty. Never put `id="..."` in JSX; it is ignored and does NOT target a parent. **Output valid JSX only** — never emit a literal `</jsx>` tag, and never follow a self-closing tag (`<Frame ... />`) with a closing tag for the same element; either self-close or nest content, never both.
 

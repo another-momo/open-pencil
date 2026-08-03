@@ -9,7 +9,6 @@ import type { SceneNode } from '@open-pencil/scene-graph'
 
 import { syncMaterialTypeFromAI } from '@/app/ai/chat/storage'
 import type { ChatMode } from '@/app/ai/chat/storage'
-import { setActiveProfile } from '@/app/ai/marketing/library'
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
 import { getActiveEditorStore } from '@/app/editor/active-store'
 import type { EditorStore } from '@/app/editor/active-store'
@@ -167,12 +166,14 @@ export function createAITools(store: EditorStore, chatMode: ChatMode = 'ui') {
         }
       },
       onToolLog: (entry) => {
-        // Q6: record the profile chosen by setup so the transport can inject
-        // its markdown into the system prompt's "Active style profile" section on subsequent turns.
-        if (entry.tool === 'setup_material_type' && !entry.error) {
-          const result = entry.result as { activeProfileId?: string } | undefined
-          if (result?.activeProfileId) setActiveProfile(store, result.activeProfileId)
-        }
+        // P8 (2026-08-01): profile is a user-driven asset. Setup may
+        // return `activeProfileId` (because the user has locked one in the
+        // config bar), but the AI must NOT echo it back into
+        // `profileSelection` — that would imply the AI picked the profile,
+        // polluting the user-picked profile semantics and changing the chip display.
+        // The MarketingConfigBar → `bindMarketingLibrary` path is the
+        // single writer for the active profile; this hook is intentionally
+        // a no-op for `setup_material_type`.
         runState.toolLog.push(entry)
       },
       getStepBudget: (): StepBudget => ({

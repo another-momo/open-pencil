@@ -6,7 +6,7 @@ import { computed, markRaw, nextTick, ref, watch } from 'vue'
 import { getAcpDebugText, clearAcpDebugLog, hasAcpDebugEntries } from '@/app/ai/acp/transport'
 import { copyChatLog } from '@/app/ai/debug'
 import { clearToolLogEntries, didHitStepLimit, beginNewBurst } from '@/app/ai/tools'
-import { materialTypeSelection, profileSelection } from '@/app/ai/chat/storage'
+import { materialTypeSelection } from '@/app/ai/chat/storage'
 import { activeTab } from '@/app/tabs'
 import AcpPermissionDialog from '@/components/chat/AcpPermissionDialog.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
@@ -94,10 +94,11 @@ function withSelectionContext(text: string): string {
   if (locked?.source === 'user') {
     result += `\n\n[素材类型] 用户已指定：${locked.id} — 请直接使用该类型调用 setup_material_type，不要更改。`
   }
-  if (profileSelection.value && profileSelection.value.source === 'user') {
-    const id = profileSelection.value.id
-    result += `\n\n[风格档案] 用户已指定：${id} — setup_material_type 请传 profile: "${id}"，不要更改。`
-  }
+  // P8v3 (2026-08-01): profile is injected via the system-prompt
+  // overlay when the user has locked one. There is no AI-side action to
+  // take for profiles, so no `[风格档案]` block needs to be appended to
+  // the user message — and we deliberately do NOT tell the AI to pass
+  // a `profile` parameter (that parameter was removed in v3).
   const store = getActiveEditorStoreOrNull()
   if (!store) return result
   const lines: string[] = []

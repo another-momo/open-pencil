@@ -47,13 +47,9 @@ const previewProfile = computed(() =>
   previewId.value ? (profiles.value.find((profile) => profile.id === previewId.value) ?? null) : null
 )
 
-function pick(id: string | null) {
+function pick(id: string) {
   setUserProfile(id)
   open.value = false
-}
-
-function pickAuto() {
-  pick(null)
 }
 
 function formatApplicableTo(types: string[]): string {
@@ -97,24 +93,11 @@ watch(open, (isOpen) => {
           </span>
         </div>
 
-        <!-- Auto (no lock) card -->
-        <button
-          v-if="!query.trim()"
-          type="button"
-          class="mt-3 flex w-full items-start gap-2 rounded border border-dashed border-border p-2 text-left transition-colors hover:border-accent/60"
-          :class="!selectedId ? 'border-accent bg-accent/5' : ''"
-          data-test-id="profile-gallery-auto"
-          @click="pickAuto"
-        >
-          <icon-lucide-check v-if="!selectedId" class="mt-0.5 size-3.5 shrink-0 text-accent" />
-          <span v-else class="mt-0.5 size-3.5 shrink-0" />
-          <div class="min-w-0 flex-1">
-            <div class="text-xs font-medium text-surface">{{ dialogs.autoOption }}</div>
-            <div class="mt-0.5 text-[10px] text-muted">
-              {{ dialogs.profileGalleryAutoHint }}
-            </div>
-          </div>
-        </button>
+        <!-- P8v4 (2026-08-04): auto-pick is disabled. The "Auto (no lock)"
+             card was removed because clicking it only sent the user back
+             to the unset state, which now means "no profile in effect"
+             rather than "let setup auto-pick." Toggling out of a locked
+             profile now requires an explicit pick of a different one. -->
 
         <div
           v-if="filtered.length > 0"

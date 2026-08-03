@@ -21,7 +21,6 @@ interface SetupToolResult {
   error?: string
   rootFrameId?: string
   anchors?: AnchorResult[]
-  activeProfileId?: string
   repaired?: string[]
 }
 
@@ -189,38 +188,29 @@ test('unknown id for a design present in the document gets the re-submit hint (�
   expect(second.error).toContain('other-library.fig')
 })
 
-test('setup returns activeProfileId and rejects unknown profiles', () => {
-  const { figma, result } = run('product_long')
-  expect(result.error).toBeUndefined()
-  expect(result.activeProfileId).toBe('casual_v1')
+// P8v5 (2026-08-04): profile state lives in `profileSelection` (app
+// ref) and is invisible to setup entirely. The earlier P8v3 "陈旧 lock"
+// tests were dropped because `MarketingPrefs` is gone — setup no
+// longer has any per-graph profile cache to consult.
 
-  const bad = getTool('setup_material_type').execute(figma, {
-    id: 'product_long',
-    profile: 'nonexistent'
-  }) as SetupToolResult
-  expect(bad.error).toContain('Unknown profile')
-  expect(bad.error).toContain('casual_v1')
-})
-
-test('switching profiles via re-setup keeps the design intact', () => {
+test('re-setup with the same id is a no-op for profile state (P8v5)', () => {
   const { figma } = setupToolTest()
   attachMiniLibrary(figma.graph)
   const first = getTool('setup_material_type').execute(figma, {
     id: 'product_long'
-  }) as SetupToolResult
-  expect(first.activeProfileId).toBe('casual_v1')
+  }) as SetupToolResult & { activeProfileId?: string }
+  expect(first.error).toBeUndefined()
 
   const second = getTool('setup_material_type').execute(figma, {
-    id: 'product_long',
-    profile: 'luxury_v1'
-  }) as SetupToolResult
+    id: 'product_long'
+  }) as SetupToolResult & { activeProfileId?: string }
   expect(second.error).toBeUndefined()
-  expect(second.activeProfileId).toBe('luxury_v1')
   expect(second.rootFrameId).toBe(first.rootFrameId)
   expect((second.anchors ?? []).map((a) => a.instanceId)).toEqual(
     (first.anchors ?? []).map((a) => a.instanceId)
   )
   expect(second.repaired).toBeUndefined()
+  expect('activeProfileId' in second).toBe(false)
 })
 
 test('setup stamps the library name on the root frame marker', () => {

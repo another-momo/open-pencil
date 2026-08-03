@@ -73,6 +73,76 @@
   - **驳回**（实习生误读）："P0 resolveExistingDesign 清空别人"（代码本有善）；P0 空串“写不出 Components 页面”（setup 会立即重解析）；“replaceMarketingLibrary 不重 bind”（`bindMarketingLibrary` 以对象 identité 判定本来就重绑，加了重绑定测试为证）；"[素材类型] 未交付"（L3 chips 已完成）；profile “非确定性”（文件顺序恒定）；stripLibraryMarkerTexts 误剥（正则只严匹配 `readonly:`）。
 - **测试**：marketing 引擎测试（brief / library / setup / validate / restore / clone / look / registry）、生成器回环测试、render 净化测试、app 层 marketing-library 测试——全绿；`lint` 无新增错误（修复了一处组件例外话后的复杂度超限与 restore 的重复 import）；`tsgo` / `check:vue` / `check:i18n` / `check:arch`(steiger) / `test:dupes` / `test:tools` 全绿；app 测试组 26/28（`figma-images` / `cli/eval` 两个文件在本机基线上同样卡死，环境存量问题，与本次改动无关）。具体条数随每次 commit 浮动，建议直接看 `bun test` 输出而非锁死数字。
 
+### 9.4 P8 修复：profile 显式选择（2026-08-03/04 ⏳ 进行中）
+
+**评审依据**：`../../review/2026-08-01-marketing-workbench-branch-review.md` §2.5.8（产品分析 + 建议）+ §2.4 P8（风险行）+ §3.2 第 4 项（profile 双源镜像）+ §五 阶段 1.2 第 3 项（执行指令）。
+
+**设计原则**（用户拍板，2026-08-03 补充；2026-08-04 收紧）：
+> **只有当用户指定了 profile，所有跟 profile 相关的信息才进入到 agent 的上下文中；静态 system prompt 完全不提 profile；setup 工具不返回任何 profile 信息。**
+
+三个层级的"profile 不在场"语义：
+1. **静态 system prompt**（常驻）——完全不提 profile；profile 不作为 prompt 的常驻概念存在。
+2. **动态 overlay**（每轮拼接）——仅当 user-picked profile 时注入 "Active style profile: <id>" 段 + markdown；否则不输出任何 profile 段。
+3. **setup 工具返回值**（一次性结果）——不返回 `activeProfileId`；不接收 `profile` 参数；profile 是 setup 工具完全不可见的概念。
+
+**根因**：
+1. `setup.ts:resolveProfile` 三条静默采用路径（auto-pick / 锁命中 / first fallback），AI 无法区分。
+2. `library.ts:bindMarketingLibrary:126-128` 在 `profileSelection.source !== 'user'` 时覆盖写 `undefined`，破坏 user-picked profile。
+3. `MarketingConfigBar` chip 的 "Auto" 文本表达错误。
+4. `buildMarketingOverlay` 始终输出 `## Profiles in the current library` + `## Active style profile: (none)` 段——即使无 user-picked profile 也向 agent 泄漏 profile 目录。
+5. `system-prompt-marketing.md` L162 + L172/L193/L202/L206 默认假设 profile 始终在场。
+6. `storage.ts` 保留 `source: 'ai'` 分支 + `setAiProfile` 写入路径——P8 后死路径。
+7. `tools/index.ts:174` 的 `setActiveProfile` 回调污染 `profileSelection`。
+8. **（P8v3 新增）`setup.ts` 的 `activeProfileId` 返回字段 + `profile` 参数让 profile 概念进入 setup 工具表面**——即使 overlay 与 prompt 收紧，AI 看到工具返参里有这个字段仍会去用它。
+9. **（P8v3 新增）`ChatPanel.vue` 拼接 `[风格档案]` 块告诉 AI 传 `profile` 参数**——profile v3 移除参数后这块变成误导。
+
+**改动**：
+
+**P8 基础修复**（4 处）：
+- `packages/core/src/tools/marketing/setup.ts:resolveProfile` — 删 auto-pick + `(applicable ?? profiles[0])` 兜底（保留 caller-explicit + user-picked 两条路径）
+- `src/app/ai/marketing/library.ts:bindMarketingLibrary` — 保留 user-picked profile
+- `src/components/chat/MarketingConfigBar.vue` — Profile chip 显式
+- `packages/vue/src/i18n/messages/dialogs.ts` + 8 个 locale — 新增 `profileChipUnset` key
+- `src/app/ai/chat/system-prompt-marketing.md` L162（事实陈述）
+
+**P8v2 收紧**（5 处）：
+- `library.ts:buildMarketingOverlay` — Material types 段始终输出；Profile catalog + Active style 段**仅在 user-picked profile 时**输出
+- `system-prompt-marketing.md` L172/L193/L202/L206 — profile 改「可选 binding spec」
+- `marketing.ts:setupMaterialTypeTool.profile` — 描述改写
+- `tools/index.ts:onToolLog` — 删 `setActiveProfile` 回调
+- `storage.ts` — 收紧 type + 删 `setAiProfile`
+- `library.ts` — 删 `setActiveProfile` 死路径
+- `MarketingConfigBar.vue` — chip 三态 → 二态
+
+**P8v3 全面清理**（4 处，与用户原则对齐）：
+- `setup.ts` —— 删 `SetupResult.activeProfileId` 字段；删 `resolveProfile` 函数；删 `setupMaterialType` 的 `profileId` 参数；删 `getMarketingPrefs` import
+- `marketing.ts:setupMaterialTypeTool` —— 删 `profile` 参数（含描述）；调整 `execute` 不再传 profile
+- `system-prompt-marketing.md` —— 删 L162 整段；L172/L193/L202/L206 改"如果你的 system prompt 包含..."条件性表述
+- `ChatPanel.vue:withSelectionContext` —— 删 `[风格档案]` 块；删 `profileSelection` import
+- 测试：`setup.test.ts` 重写 3 个 P8 测试为 P8v3 断言（setup 不返回 activeProfileId 字段、不接受 profile 参数、user-picked profile 不影响 setup 结果）
+
+**P8v4 UI 收尾**（Auto 卡片删除）：
+- `ProfileGalleryDialog.vue` —— 删 "Auto (no lock)" 卡片（`data-test-id="profile-gallery-auto"`）；删 `pickAuto` 函数；`pick(id)` 参数收紧为 `string`（用户必须显式选一个 profile，auto-pick 已禁用）
+- `packages/vue/src/i18n/messages/dialogs.ts` + 8 locale —— 删 `profileGalleryAutoHint` i18n key（无引用方）
+- 注：`autoOption` i18n key 保留——被 Type chip 复用，与 profile 无关
+
+**P8v5 MarketingPrefs 体系删除**：
+- `registry.ts` —— 删 `MarketingPrefs` interface、`prefs` WeakMap、`setMarketingPrefs` / `getMarketingPrefs` 函数
+- `marketing.ts` + `tools/index.ts` —— 删两个 re-export 点
+- `library.ts:bindMarketingLibrary` —— 删 prefs 读写分支（profile 状态完全由 `profileSelection` (app ref) 承载，bind 不再缓存）
+- 测试：删 2 个 P8v3 "陈旧 lock" 测试（prefs 不存在后无法测）；改写 1 个 bind 测试为 P8v5，断言 chip 切到 unset 立即清除 overlay 中的 profile 段（不再有"陈旧 lock 留存"的隐藏行为）
+- **产品语义变化**：用户清除 chip = 立即清除 pick（与 chip UI 直觉一致）。之前 P8v2 设计的"bind 不覆盖陈旧 pick"在 v5 移除——chip 是 single source of truth，其状态就是真实意图。
+
+**故意不做**：
+- setActiveProfile 接 store 参数 → 留待多 tab 决策
+- MarketingPrefs 持久化（pluginData）→ 同上
+- system-prompt 里的 AI 行为改造（如"主动推荐 profile"）→ 留待 v1.5（profile 概念从 prompt 完全移除后，AI 也不会主动推荐——效果免费达成）
+- 删除 `inferredTag` i18n key（保留以兼容旧 locale 文案；当前无引用方）
+
+**commit hash**：待最终 commit 后回填
+
+**回滚方案**：单 commit `git revert HEAD`，不破坏 Phase 0 / Phase 1.1 commit
+
 ## 10. 阶段路线
 
 | 阶段 | 内容 | 状态 |

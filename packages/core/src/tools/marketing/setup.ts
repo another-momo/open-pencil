@@ -21,7 +21,6 @@ import { cloneSubtreeAcrossGraphs } from '#core/tools/marketing/clone'
 import { getLibrarySession, type LibrarySession } from '#core/tools/marketing/library'
 import {
   clearMarketingState,
-  getMarketingPrefs,
   listMarketingDesigns,
   setMarketingState
 } from '#core/tools/marketing/registry'
@@ -43,8 +42,6 @@ export interface SetupResult {
   /** Root frame size — height is null for HUG (long-image types grow with content) */
   size: { width: number; height: number | null }
   anchors: { template: string; position: string; instanceId: string }[]
-  /** Profile chosen for this design — the app injects its markdown into the system prompt overlay (Q6) */
-  activeProfileId?: string
   /** Library scan warnings (malformed entries, duplicates, unresolved anchors) */
   warnings?: string[]
   repaired?: string[]
@@ -99,31 +96,10 @@ function resolveMaterialConfig(
   }
 }
 
-function resolveProfile(
-  session: LibrarySession | undefined,
-  graph: FigmaAPI['graph'],
-  typeId: string,
-  requested?: string
-): { activeProfileId?: string } | { error: string } {
-  const profiles = session?.index.profiles ?? []
-  if (profiles.length === 0) return {}
-  if (requested) {
-    const found = profiles.find((profile) => profile.id === requested)
-    if (!found) {
-      const available = profiles.map((profile) => profile.id).join(', ')
-      return { error: `Unknown profile: "${requested}". Available: ${available}` }
-    }
-    return { activeProfileId: found.id }
-  }
-  // A user-locked profile (config bar) always wins over auto-pick
-  const locked = getMarketingPrefs(graph).profileId
-  if (locked) {
-    const found = profiles.find((profile) => profile.id === locked)
-    if (found) return { activeProfileId: found.id }
-  }
-  const applicable = profiles.find((profile) => profile.applicableTo.includes(typeId))
-  return { activeProfileId: (applicable ?? profiles[0]).id }
-}
+// P8v3 (2026-08-01): profile is no longer part of the setup tool surface.
+// The user-driven lock is read at `bindMarketingLibrary` time and
+// injected into the system prompt via `buildMarketingOverlay` — setup
+// itself does not echo any profile information.
 
 function ensureComponentsPage(figma: FigmaAPI, existingId?: string): string {
   const graph = figma.graph
@@ -419,17 +395,13 @@ function collectReadonlyNote(session: LibrarySession | undefined, config: Materi
 export function setupMaterialType(
   figma: FigmaAPI,
   id: string,
-  size?: { width: number; height: number },
-  profileId?: string
+  size?: { width: number; height: number }
 ): SetupResult | { error: string } {
   const graph = figma.graph
   const session = getLibrarySession(graph)
 
   const config = resolveMaterialConfig(session, graph, id, size)
   if ('error' in config) return config
-
-  const profile = resolveProfile(session, graph, id, profileId)
-  if ('error' in profile) return profile
 
   const designs = listMarketingDesigns(graph)
   const { existing, rootFrameId: adoptedId } = resolveExistingDesign(graph, designs, config, id)
@@ -485,7 +457,6 @@ export function setupMaterialType(
       position: anchor.position,
       instanceId: anchor.instanceId
     })),
-    ...(profile.activeProfileId ? { activeProfileId: profile.activeProfileId } : {}),
     ...(warnings.length > 0 ? { warnings } : {}),
     ...(repaired.length > 0 ? { repaired } : {}),
     note: `Root frame and anchor instances are ready. CRITICAL: render every section INTO the root frame with render({ parent_id: "${rootFrameId}", jsx: ... }) — sections rendered without parent_id land on the page as orphaned siblings and w="fill" collapses. Never pass id as a JSX prop.${collectReadonlyNote(session, config)}`

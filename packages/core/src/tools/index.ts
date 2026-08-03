@@ -34,7 +34,6 @@ export {
 } from './marketing/vision'
 export type { VisionMode, VisionProvider, VisionAnalyzer } from './marketing/vision'
 export { getMarketingState } from './marketing'
-export { getMarketingPrefs, setMarketingPrefs } from './marketing'
 export {
   cloneSubtreeAcrossGraphs,
   listDocumentLibraryNames,

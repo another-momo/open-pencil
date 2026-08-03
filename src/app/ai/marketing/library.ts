@@ -21,12 +21,11 @@ import {
   listInjectedReferenceIds,
   loadLibrary,
   setLibrarySession,
-  setMarketingPrefs,
   type InjectReferencesResult,
   type LibrarySession
 } from '@open-pencil/core/tools'
 
-import { profileSelection, setAiProfile } from '@/app/ai/chat/storage'
+import { profileSelection } from '@/app/ai/chat/storage'
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
 import { getActiveEditorStore, type EditorStore } from '@/app/editor/active-store'
@@ -119,13 +118,10 @@ export function __resetMarketingLibraryForTest(): void {
 export function bindMarketingLibrary(graph: SceneGraph): void {
   const session = current.value
   if (session && getLibrarySession(graph) !== session) setLibrarySession(graph, session)
-  // Push the user-locked profile into core prefs so it deterministically
-  // wins over setup's auto-pick on the next setup call. AI-echoed profiles
-  // are intentionally NOT persisted — those are per-setup signals, not
-  // long-lived locks.
-  setMarketingPrefs(graph, {
-    profileId: profileSelection.value?.source === 'user' ? profileSelection.value.id : undefined
-  })
+  // Profile state is read directly from `profileSelection` (the single
+  // source of truth) by `buildMarketingOverlay` per turn. No per-graph
+  // cache is maintained here — chip state is always reflected as-is.
+  //
   // The 参考区 page's marker set may have changed since the last injection
   // (e.g. user deleted a reference node) — refresh the reactive tick so
   // the chip counter re-reads from the graph.
@@ -160,18 +156,12 @@ export function listMarketingTypes(): { id: string; label: string; description?:
 // --- Active profile (Q6) ---
 
 /**
- * Record the AI's choice from setup_material_type's return value. Delegates
- * to storage so the chip and overlay share one source. `store` is the
- * editor store — kept in the signature for caller compatibility (the
- * `setActiveProfile(store, id)` hook shape is used by tools/index.ts).
+ * Read the user-picked profile id (if any). Returns `undefined` when the
+ * user has not picked a profile in the MarketingConfigBar Profile chip —
+ * per P8 (2026-08-01) there is no AI-driven path to set the active
+ * profile any more; setup never auto-picks.
  */
-export function setActiveProfile(_store: EditorStore, profileId: string): void {
-  setAiProfile(profileId)
-}
-
 export function getActiveProfileId(_store: EditorStore): string | undefined {
-  // Kept for callers that read the active profile from a store handle. The
-  // single source is `profileSelection` in chat storage.
   const selection = profileSelection.value
   if (!selection) return undefined
   return selection.id
@@ -179,15 +169,21 @@ export function getActiveProfileId(_store: EditorStore): string | undefined {
 
 /**
  * Library context for marketing mode: the system prompt's "Material types in
- * the current library" section (so the AI can infer type ids) plus the
- * "Active style profile" markdown (Q6). Recomputed per turn so a profile
- * switch via re-setup takes effect on the next call.
+ * the current library" section (so the AI can infer type ids) plus, when the
+ * user has locked a profile, the "Active style profile" markdown (Q6).
  *
- * Both section headers are ALWAYS emitted so the prompt does not lie about
- * "are listed below" when the library has not loaded yet (e.g. .fig fetch
- * failed, user replaced with a broken file, or the bound library has no
- * types/profiles). The system prompt's wording is intentionally tolerant
- * of the empty-state text — see system-prompt-marketing.md.
+ * Profile information is ONLY injected into the agent context when the user
+ * has explicitly picked one (per review §2.5.8 / P8, 2026-08-01). Without a
+ * user-picked profile:
+ *   - The "Profiles in the current library" listing is OMITTED (no profile
+ *     catalog leak — the AI has no business knowing what profiles exist if
+ *     the user has not chosen any).
+ *   - The "Active style profile" section is OMITTED entirely. The system
+ *     prompt's wording assumes this section is absent when no profile is
+ *     active (see system-prompt-marketing.md).
+ *
+ * The Material types section is ALWAYS emitted (so the AI can still infer
+ * type ids and surface library-load failures to the user).
  */
 export function buildMarketingOverlay(_store: EditorStore): string {
   const parts: string[] = []
@@ -210,36 +206,27 @@ export function buildMarketingOverlay(_store: EditorStore): string {
     )
   }
 
-  if (profiles.length > 0) {
-    const lines = profiles.map(
-      (profile) =>
-        `- ${profile.id}${profile.label ? ` (${profile.label})` : ''}` +
-        (profile.applicableTo.length > 0 ? ` — applies to: ${profile.applicableTo.join(', ')}` : '')
-    )
-    parts.push(`## Profiles in the current library\n${lines.join('\n')}`)
-  } else {
-    parts.push(
-      `## Profiles in the current library\n` +
-        `_No style profiles available. The library has no Profiles page — ` +
-        `output will use the brief's 风格 section as guidance._`
-    )
-  }
-
   const selection = profileSelection.value
+  const userPicked = selection?.source === 'user'
   const profileId = selection?.id
   const profile = profileId ? profiles.find((entry) => entry.id === profileId) : undefined
-  if (profile) {
-    const chosenBy = selection?.source === 'ai' ? ' (chosen by AI this turn)' : ''
-    parts.push(`## Active style profile: ${profile.id}${chosenBy}\n${profile.markdown}`)
-  } else {
-    const profileNote = profileId
-      ? `_Profile "${profileId}" is not present in the loaded library. The selected ` +
-        `profile id may not exist in the current library file — fall back to the "auto" / ` +
-        `first-profile default unless the user re-selects._`
-      : `_No style profile is active for this turn. Marketing output has no library-supplied ` +
-        `style guidance; rely on the brief's "风格" section or ask the user to pick a profile._`
-    parts.push(`## Active style profile: (none)\n${profileNote}`)
+
+  if (userPicked && profile) {
+    parts.push(`## Active style profile: ${profile.id}\n${profile.markdown}`)
+  } else if (userPicked && profileId) {
+    // The user picked a profile id that is NOT in the loaded library.
+    // Surface the inconsistency rather than silently dropping the pick.
+    parts.push(
+      `## Active style profile: (not in library)\n` +
+        `_Profile "${profileId}" is not present in the loaded library. The user has ` +
+        `picked this profile id but the current library file does not contain it. ` +
+        `Ask the user to reopen the library dialog and re-pick a profile that exists, ` +
+        `or clear the chip in the MarketingConfigBar._`
+    )
   }
+  // No user-picked profile → emit no profile sections at all. The catalog
+  // (## Profiles in the current library) is intentionally omitted so the
+  // agent has no visibility into the profile catalog until the user picks.
 
   return `\n\n${parts.join('\n\n')}`
 }

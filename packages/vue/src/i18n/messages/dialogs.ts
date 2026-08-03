@@ -132,6 +132,11 @@ export const dialogMessageDefaults = {
   chipProfile: 'Style',
   chipReferences: 'References',
   autoOption: 'Auto',
+  // P8 (2026-08-01): chip tri-state. 'Style: None' replaces 'Style: Auto'
+  // for the profile chip's unset state to make the "no profile will be
+  // applied" semantics explicit. The ProfileGalleryDialog keeps using
+  // `autoOption` ("Auto") for the no-lock card inside the gallery.
+  profileChipUnset: 'None',
   inferredTag: '(inferred)',
   referencesKeepNote: 'Injected references stay in the document',
   referencesFilteredFor: 'Filtered for type',
@@ -143,7 +148,6 @@ export const dialogMessageDefaults = {
   profileGalleryDescription:
     'Pick a style profile — its colors, fonts, tone, and layout patterns will be applied to the design. Lock one to override the library auto-pick.',
   profileGallerySearch: 'Search profiles',
-  profileGalleryAutoHint: 'No lock — let setup auto-pick by the chosen material type',
   profileGalleryApplicableTo: 'Applies to',
   profileGalleryApplicableToAll: 'all types',
   profileGalleryShowMarkdown: 'Show full markdown',

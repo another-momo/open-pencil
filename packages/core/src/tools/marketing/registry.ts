@@ -19,25 +19,6 @@ const restoredGraphs = new WeakSet<SceneGraph>()
 let activityClock = 0
 
 /**
- * Per-graph user preferences (set via the config bar, not the AI): a locked
- * profile always wins over setup's auto-pick, so an explicit user choice
- * survives re-setup calls (docs/plans/l2-resource-library.md §2).
- */
-export interface MarketingPrefs {
-  profileId?: string
-}
-
-const prefs = new WeakMap<SceneGraph, MarketingPrefs>()
-
-export function setMarketingPrefs(graph: SceneGraph, update: MarketingPrefs): void {
-  prefs.set(graph, { ...prefs.get(graph), ...update })
-}
-
-export function getMarketingPrefs(graph: SceneGraph): MarketingPrefs {
-  return prefs.get(graph) ?? {}
-}
-
-/**
  * First access per graph: rebuild state from canvas markers so reopened
  * documents recover their marketing designs without any app-level wiring
  * (covers chat, MCP, and CLI entry points).

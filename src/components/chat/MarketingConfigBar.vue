@@ -58,11 +58,12 @@ const profileGalleryOpen = ref(false)
 
 const profileLabel = computed(() => {
   const selection = profileSelection.value
-  if (!selection) return `${dialogs.value.chipProfile}: ${dialogs.value.autoOption}`
+  if (!selection) return `${dialogs.value.chipProfile}: ${dialogs.value.profileChipUnset}`
   const profile = profiles.value.find((entry) => entry.id === selection.id)
   const name = profile?.label || selection.id
-  const suffix = selection.source === 'ai' ? ` (${dialogs.value.inferredTag})` : ''
-  return `${dialogs.value.chipProfile}: ${name}${suffix}`
+  // P8 (2026-08-01): only user-picked profiles exist — no AI-echo /
+  // inferred suffix any more. The label is just the picked profile's name.
+  return `${dialogs.value.chipProfile}: ${name}`
 })
 
 // --- References ---
@@ -136,6 +137,28 @@ function chipClass(active: boolean): string {
     ? `${base} border-accent bg-accent/15 font-medium text-accent`
     : `${base} border-border text-muted hover:border-accent/40 hover:text-surface`
 }
+
+// Profile chip is a binary state machine per P8 (2026-08-01): profile is
+// either explicitly user-picked or it is not. There is no AI-driven path
+// any more (setup never auto-picks, AI never echoes).
+//   - 'unset' (no profileSelection)        → dashed muted border, signals
+//     "no profile will be applied" to the user.
+//   - 'picked' (selection.source === 'user') → accent border + background,
+//     signalling a persistent user-driven pick that survives subsequent
+//     bindMarketingLibrary calls.
+type ProfileChipState = 'unset' | 'picked'
+function profileChipClass(state: ProfileChipState): string {
+  const base =
+    'shrink-0 cursor-pointer rounded-full border px-2 py-0.5 text-[10px] transition-colors'
+  if (state === 'picked') {
+    return `${base} border-accent bg-accent/15 font-medium text-accent`
+  }
+  return `${base} border-dashed border-border text-muted hover:border-accent/40 hover:text-surface`
+}
+
+function profileChipState(): ProfileChipState {
+  return profileSelection.value ? 'picked' : 'unset'
+}
 </script>
 
 <template>
@@ -174,7 +197,8 @@ function chipClass(active: boolean): string {
     <!-- Profile (opens gallery dialog) -->
     <button
       type="button"
-      :class="chipClass(profileSelection?.source === 'user')"
+      :class="profileChipClass(profileChipState())"
+      :data-profile-state="profileChipState()"
       data-test-id="config-profile-trigger"
       @click="profileGalleryOpen = true"
     >

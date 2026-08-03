@@ -32,7 +32,8 @@ function asMediaOutput(value: unknown): MediaOutputShape | undefined {
 function sanitizeMediaOutput(value: unknown): unknown {
   const media = asMediaOutput(value)
   if (!media) return value
-  const { base64: _base64, ...rest } = value as Record<string, unknown>
+  const record = value as JsonObject
+  const { base64: _base64, ...rest } = record
   return { ...rest, base64: `[omitted ${media.base64.length} chars]` }
 }
 

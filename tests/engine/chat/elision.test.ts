@@ -167,19 +167,20 @@ describe('UIMessage → ModelMessage wiring (toModelOutput + elision)', () => {
   }
 
   function lookUIMessage(tags: string[]): UIMessage[] {
+    const parts = tags.map((tag) => ({
+      type: 'tool-look' as const,
+      toolCallId: `call-${tag}`,
+      state: 'output-available' as const,
+      input: {},
+      output: lookOutput(tag)
+    }))
     return [
       {
         id: 'msg-1',
         role: 'assistant',
-        parts: tags.map((tag) => ({
-          type: 'tool-look',
-          toolCallId: `call-${tag}`,
-          state: 'output-available',
-          input: {},
-          output: lookOutput(tag)
-        }))
+        parts
       }
-    ] as unknown as UIMessage[]
+    ] as UIMessage[]
   }
 
   function chatTools() {

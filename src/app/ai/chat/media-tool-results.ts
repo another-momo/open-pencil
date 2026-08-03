@@ -92,7 +92,6 @@ export function inlineMediaToolResultsAsUserMessages(messages: ModelMessage[]): 
     }
 
     const images: Array<{ toolName: string; mediaType: string; data: string }> = []
-    let touched = false
     const content = message.content.map((part) => {
       const candidate = part as ToolResultPartLike
       if (candidate.type !== 'tool-result') return part
@@ -101,7 +100,6 @@ export function inlineMediaToolResultsAsUserMessages(messages: ModelMessage[]): 
       const mediaItems = candidate.output.value.filter(isMediaItem)
       if (mediaItems.length === 0) return part
 
-      touched = true
       for (const item of mediaItems) {
         images.push({
           toolName: candidate.toolName ?? 'look',
@@ -126,10 +124,14 @@ export function inlineMediaToolResultsAsUserMessages(messages: ModelMessage[]): 
       return { ...part, output }
     })
 
-    result.push(touched ? ({ ...message, content } as ModelMessage) : message)
+    if (content !== message.content) {
+      anyTouched = true
+      result.push({ ...message, content } as ModelMessage)
+    } else {
+      result.push(message)
+    }
 
     if (images.length > 0) {
-      anyTouched = true
       result.push({
         role: 'user',
         content: images.flatMap((image) => [

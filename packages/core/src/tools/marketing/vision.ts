@@ -69,14 +69,14 @@ function visionErrorDetail(error: unknown): string | undefined {
   return data?.error?.message ?? data?.message ?? error.message
 }
 
-async function requestVisionAnalysis<T>(
+async function requestVisionAnalysis(
   path: string,
   headers: Record<string, string>,
   body: Record<string, unknown>,
-  extractText: (data: T) => string | undefined
+  extractText: (data: unknown) => string | undefined
 ): Promise<string> {
   try {
-    const response = await ofetch<T>(`${visionBaseURL}${path}`, {
+    const response = await ofetch(`${visionBaseURL}${path}`, {
       method: 'POST',
       headers,
       body,
@@ -102,7 +102,7 @@ function analyzeViaOpenAICompatible(input: {
   mimeType: string
   prompt: string
 }): Promise<string> {
-  return requestVisionAnalysis<ChatCompletionResponse>(
+  return requestVisionAnalysis(
     '/chat/completions',
     { Authorization: `Bearer ${visionKey}` },
     {
@@ -121,7 +121,7 @@ function analyzeViaOpenAICompatible(input: {
       ],
       max_tokens: 2048
     },
-    (data) => data.choices?.[0]?.message?.content
+    (data) => (data as ChatCompletionResponse).choices?.[0]?.message?.content
   )
 }
 
@@ -130,7 +130,7 @@ function analyzeViaAnthropicCompatible(input: {
   mimeType: string
   prompt: string
 }): Promise<string> {
-  return requestVisionAnalysis<AnthropicMessagesResponse>(
+  return requestVisionAnalysis(
     '/messages',
     { 'x-api-key': visionKey ?? '', 'anthropic-version': '2023-06-01' },
     {
@@ -149,7 +149,7 @@ function analyzeViaAnthropicCompatible(input: {
         }
       ]
     },
-    (data) => data.content?.find((block) => block.type === 'text')?.text
+    (data) => (data as AnthropicMessagesResponse).content?.find((block) => block.type === 'text')?.text
   )
 }
 

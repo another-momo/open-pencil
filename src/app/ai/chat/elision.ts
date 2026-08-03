@@ -67,21 +67,18 @@ export function elideMediaToolResults(messages: ModelMessage[], keep: number): M
 
   return messages.map((message, messageIndex) => {
     if (message.role !== 'tool' || !Array.isArray(message.content)) return message
-    let touched = false
     const content = message.content.map((part, partIndex) => {
       const candidate = part as ToolResultLikePart
       if (candidate.type !== 'tool-result' || !isContentOutput(candidate.output)) return part
       const output = candidate.output
-      let outputTouched = false
       const value = output.value.map((item, valueIndex) => {
         if (!toElide.has(`${messageIndex}:${partIndex}:${valueIndex}`)) return item
-        outputTouched = true
         return { type: 'text', text: ELIDED_PLACEHOLDER }
       })
-      if (!outputTouched) return part
-      touched = true
+      if (value === output.value) return part
       return { ...part, output: { ...output, value } }
     })
-    return touched ? ({ ...message, content } as ModelMessage) : message
+    if (content === message.content) return message
+    return { ...message, content } as ModelMessage
   })
 }

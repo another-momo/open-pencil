@@ -6,11 +6,11 @@ import {
   chooseLocalFontMatch,
   fontManager,
   FontManager,
-  SceneGraph,
   styleToWeight,
   weightToFigmaStyle,
   weightToStyle
 } from '@open-pencil/core'
+import type { SceneGraph } from '@open-pencil/core'
 
 function pageId(graph: SceneGraph) {
   return graph.getPages()[0].id
@@ -88,23 +88,22 @@ describe('FontManager loaded font cache', () => {
   } {
     const calls: Array<{ family: string; style: string }> = []
     const cache = new Map<string, number>()
-    const provider = {
-      registerFont(font: unknown): void {
-        const f = font as { familyName?: string; getTypeface?: () => unknown }
-        if (!f?.familyName) return
-        const key = `${f.familyName}|${f.getTypeface ? 'face' : 'unknown'}`
+    const provider: TypefaceFontProvider = {
+      registerFont(font) {
+        if (!font?.familyName) return
+        const key = `${font.familyName}|${font.getTypeface ? 'face' : 'unknown'}`
         cache.set(key, (cache.get(key) ?? 0) + 1)
       },
-      countFonts(): number {
+      countFonts() {
         return cache.size
       },
-      getFontFamilies(): string[] {
+      getFontFamilies() {
         return [...new Set([...cache.keys()].map((k) => k.split('|')[0]))]
       },
-      matchFamily(_family: string): Array<{ getFamilyName(): string; getFontStyle(): string }> {
+      matchFamily(_family) {
         return []
       }
-    } as unknown as TypefaceFontProvider
+    }
     void calls
     return { provider, calls }
   }
@@ -130,7 +129,11 @@ describe('FontManager loaded font cache', () => {
     const originalFetch = globalThis.fetch
     try {
       globalThis.fetch = (async (input: RequestInfo | URL) => {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+        const url = (typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url)
         if (url.includes('cdn.example.com')) {
           return new Response(new ArrayBuffer(4096), { status: 200 })
         }

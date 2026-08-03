@@ -19,7 +19,7 @@ import {
 import type { MarketingDocumentState } from '#core/tools/marketing/restore'
 
 export interface ValidateViolation {
-  type: 'anchor_deleted' | 'anchor_misplaced'
+  type: 'anchor_deleted' | 'anchor_misplaced' | 'root_deleted'
   message: string
   nodeId?: string
   fix: string
@@ -38,7 +38,15 @@ function checkAnchors(
 ): void {
   const graph = figma.graph
   const rootFrame = graph.getNode(state.rootFrameId)
-  if (!rootFrame) return
+  if (!rootFrame) {
+    violations.push({
+      type: 'root_deleted',
+      message: `marketing root frame was deleted`,
+      nodeId: state.rootFrameId,
+      fix: 'Re-run setup_material_type on the same id to re-materialize the root frame, or delete the orphaned session state.'
+    })
+    return
+  }
 
   const childIds = rootFrame.childIds
   for (const anchor of state.anchors) {
@@ -69,6 +77,22 @@ export function validateMarketingDesign(figma: FigmaAPI, rootFrameId?: string): 
   const state = getMarketingState(graph, rootFrameId)
   if (!state) {
     const designs = listMarketingDesigns(graph)
+    // If an explicit id was given but resolved to nothing, it likely means
+    // the root frame was deleted and the registry was pruned. Surface a
+    // root_deleted violation so the user sees the specific reason.
+    if (rootFrameId && !graph.getNode(rootFrameId)) {
+      return {
+        valid: false,
+        violations: [
+          {
+            type: 'root_deleted',
+            message: 'marketing root frame was deleted',
+            nodeId: rootFrameId,
+            fix: 'Re-run setup_material_type on the same id to re-materialize the root frame, or delete the orphaned session state.'
+          }
+        ]
+      }
+    }
     const message =
       !rootFrameId && designs.length > 1
         ? `Multiple marketing designs — pass an explicit id. Candidates: ${designs.map((design) => `"${design.rootFrameId}" (${design.materialTypeId})`).join(', ')}`

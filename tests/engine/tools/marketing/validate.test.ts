@@ -39,8 +39,11 @@ function setup(id: string) {
   return { graph, figma, setup: result }
 }
 
-function runValidate(figma: Parameters<ReturnType<typeof getTool>['execute']>[0]) {
-  return getTool('validate').execute(figma, {}) as ValidateToolResult
+function runValidate(
+  figma: Parameters<ReturnType<typeof getTool>['execute']>[0],
+  rootFrameId?: string
+) {
+  return getTool('validate').execute(figma, rootFrameId ? { id: rootFrameId } : {}) as ValidateToolResult
 }
 
 function findInstanceChild(
@@ -125,6 +128,17 @@ test('validate detects anchor misplacement', () => {
   const check = runValidate(figma)
   expect(check.valid).toBe(false)
   expect(check.violations?.some((v) => v.type === 'anchor_misplaced')).toBe(true)
+})
+
+test('validate reports root_deleted when the root frame is gone', () => {
+  const { graph, figma, setup: setupResult } = setup('product_long')
+  const rootFrameId = expectDefined(setupResult.rootFrameId)
+
+  graph.deleteNode(rootFrameId)
+
+  const check = runValidate(figma, rootFrameId)
+  expect(check.valid).toBe(false)
+  expect(check.violations?.some((v) => v.type === 'root_deleted')).toBe(true)
 })
 
 test('validate works without a library session (checks derive from anchor records)', () => {

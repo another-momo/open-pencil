@@ -43,7 +43,7 @@ describe('marketing registry (per-rootFrame)', () => {
     expect(getMarketingState(graph)?.rootFrameId).toBe(frameA.id)
   })
 
-  test('multiple designs with the active root frame deleted resolve to undefined', () => {
+  test('stale active root in a multi-design document returns undefined and surfaces candidates', () => {
     const { graph } = setupToolTest()
     const pageId = graph.getPages()[0].id
     const frameA = graph.createNode('FRAME', pageId, { name: 'A' })
@@ -52,9 +52,22 @@ describe('marketing registry (per-rootFrame)', () => {
     setMarketingState(graph, design(frameB.id, 'xiaohongshu'))
     graph.deleteNode(frameB.id)
 
-    expect(getMarketingState(graph, frameB.id)?.rootFrameId).toBe(frameB.id)
+    // default resolution: latest is gone, return undefined, KEEP the
+    // stale entry so the caller can show the candidate list.
     expect(getMarketingState(graph)).toBeUndefined()
     expect(listMarketingDesigns(graph)).toHaveLength(2)
+  })
+
+test('explicit id on a deleted root prunes the stale entry', () => {
+    const { graph } = setupToolTest()
+    const pageId = graph.getPages()[0].id
+    const frameA = graph.createNode('FRAME', pageId, { name: 'A' })
+    setMarketingState(graph, design(frameA.id))
+    graph.deleteNode(frameA.id)
+
+    // explicit id on a stale single-design entry prunes it
+    expect(getMarketingState(graph, frameA.id)).toBeUndefined()
+    expect(listMarketingDesigns(graph)).toHaveLength(0)
   })
 
   test('explicit rootFrameId bypasses recency', () => {

@@ -63,10 +63,10 @@ function designsOf(graph: SceneGraph): Map<string, MarketingDocumentState> {
 
 /**
  * Resolve a design by rootFrameId, or the default when omitted: the only
- * design, or the most recently active one. When the most recently active
- * design's root frame is gone, resolution fails (returns undefined) so
- * tools surface the candidate list instead of silently falling back to an
- * older design.
+ * design, or the most recently active one. When the root frame for a
+ * resolved design is gone, the entry is pruned from the registry and
+ * resolution fails (returns undefined) so tools surface the candidate
+ * list instead of silently serving stale state.
  */
 export function getMarketingState(
   graph: SceneGraph,
@@ -75,18 +75,45 @@ export function getMarketingState(
   ensureRestored(graph)
   const designs = states.get(graph)
   if (!designs || designs.size === 0) return undefined
-  if (rootFrameId) return designs.get(rootFrameId)
-  if (designs.size === 1) return [...designs.values()][0]
+  if (rootFrameId) {
+    const design = designs.get(rootFrameId)
+    if (!design) return undefined
+    if (!graph.getNode(design.rootFrameId)) {
+      designs.delete(design.rootFrameId)
+      if (designs.size === 0) states.delete(graph)
+      return undefined
+    }
+    return design
+  }
+  if (designs.size === 1) {
+    const design = [...designs.values()][0]
+    if (!graph.getNode(design.rootFrameId)) {
+      designs.delete(design.rootFrameId)
+      states.delete(graph)
+      return undefined
+    }
+    return design
+  }
   let latest: MarketingDocumentState | undefined
   for (const design of designs.values()) {
     if (!latest || design.lastActiveAt > latest.lastActiveAt) latest = design
   }
-  if (!latest || !graph.getNode(latest.rootFrameId)) return undefined
+  if (!latest || !graph.getNode(latest.rootFrameId)) {
+    // Multi-design with a stale active root: do NOT prune here.
+    // The caller is expected to surface the candidate list
+    // (via listMarketingDesigns) and ask the user for an explicit id,
+    // so we leave the stale entry so it still shows up as a candidate.
+    return undefined
+  }
   return latest
 }
 
 export function listMarketingDesigns(graph: SceneGraph): MarketingDocumentState[] {
   ensureRestored(graph)
+  // Read-only listing — stale entries are returned so callers can
+  // detect ambiguity (multiple designs where the active root is gone)
+  // and prompt the user for an explicit id. Pruning happens in the
+  // unambiguous paths inside getMarketingState, or via clearMarketingState.
   return [...(states.get(graph)?.values() ?? [])]
 }
 

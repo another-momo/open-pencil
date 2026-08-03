@@ -92,13 +92,28 @@ export function inlineMediaToolResultsAsUserMessages(messages: ModelMessage[]): 
     }
 
     const images: Array<{ toolName: string; mediaType: string; data: string }> = []
-    const content = message.content.map((part) => {
+    let content: typeof message.content | null = null
+    let contentTouched = false
+
+    for (const part of message.content) {
       const candidate = part as ToolResultPartLike
-      if (candidate.type !== 'tool-result') return part
-      if (!MEDIA_OUTPUT_TOOLS.has(candidate.toolName ?? '')) return part
-      if (!isContentOutput(candidate.output)) return part
+      if (candidate.type !== 'tool-result') {
+        if (content) content.push(part)
+        continue
+      }
+      if (!MEDIA_OUTPUT_TOOLS.has(candidate.toolName ?? '')) {
+        if (content) content.push(part)
+        continue
+      }
+      if (!isContentOutput(candidate.output)) {
+        if (content) content.push(part)
+        continue
+      }
       const mediaItems = candidate.output.value.filter(isMediaItem)
-      if (mediaItems.length === 0) return part
+      if (mediaItems.length === 0) {
+        if (content) content.push(part)
+        continue
+      }
 
       for (const item of mediaItems) {
         images.push({
@@ -121,10 +136,15 @@ export function inlineMediaToolResultsAsUserMessages(messages: ModelMessage[]): 
           : (singleText !== undefined
             ? { type: 'text', value: singleText }
             : { ...candidate.output, value: textOnly })
-      return { ...part, output }
-    })
 
-    if (content !== message.content) {
+      if (!content) {
+        content = message.content.slice(0, message.content.indexOf(part))
+      }
+      content.push({ ...part, output })
+      contentTouched = true
+    }
+
+    if (contentTouched) {
       anyTouched = true
       result.push({ ...message, content } as ModelMessage)
     } else {

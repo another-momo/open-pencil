@@ -27,7 +27,8 @@ export const UNIT_TEST_GROUPS = {
     'tests/engine/tools',
     'tests/engine/vector',
     'tests/engine/vue'
-  ]
+  ],
+  chat: ['tests/engine/chat']
 } as const
 
 export type UnitTestGroup = keyof typeof UNIT_TEST_GROUPS | 'all'

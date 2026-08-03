@@ -63,13 +63,13 @@ describe('restoreStateFromCanvas', () => {
 
     clearMarketingState(graph)
     const restored = restoreStateFromCanvas(graph)
-    expect(restored).toBe(2)
+    expect(restored).toHaveLength(2)
     expect(listMarketingDesigns(graph)).toHaveLength(2)
   })
 
   test('documents without marketing markers restore nothing', () => {
     const { graph } = setupToolTest()
     graph.createNode('FRAME', graph.getPages()[0].id, { name: 'unrelated' })
-    expect(restoreStateFromCanvas(graph)).toBe(0)
+    expect(restoreStateFromCanvas(graph)).toHaveLength(0)
   })
 })

@@ -1,12 +1,16 @@
 name: CI
 
 on:
+  push:
+    branches-ignore:
+      - master
   pull_request:
     branches: [master]
     paths-ignore:
       - 'packages/docs/**'
       - 'openspec/**'
       - '*.md'
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -36,7 +40,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        group: [app, dom, editor, fig, render, scene, vue]
+        group: [app, dom, editor, fig, render, scene, vue, chat]
     name: Unit tests (${{ matrix.group }})
     steps:
       - uses: actions/checkout@v4

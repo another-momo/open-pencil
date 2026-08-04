@@ -47,6 +47,7 @@
 | `CHANGELOG.md` | fork 发版记录 | 双方都写 Unreleased，每次必撞 |
 | `.github/workflows/build.yml` | fork 发版策略（-152 行大删） | 结构性冲突，只能手工 |
 | `src/app/document/io/save.ts` / `write.ts` | createWritable 失败降级 | upstream 存储史诗重写同一条链路 |
+| `.lfsconfig` | fork 的 LFS 指向自己的 GitHub LFS（`0e37d170`） | upstream 若改此文件（如迁移网关，上次是 `5f13dc2e`），合并时必须**保留 fork 版**——误采用 upstream 版会让 CI 的 LFS pull 立刻失效（无凭证），且故障表现为测试红而非合并冲突，极难察觉 |
 
 **中危（大改动时才撞）**
 
@@ -136,3 +137,4 @@
 - 2026-08-04：文档建立。D2 四项已随合并丢弃；`uint8ArrayToBase64` → upstream `encodeBase64`、`Uint8Array.fromBase64` → `decodeBase64`（顺带修了 vue-tsc 对 TS 5.8 的报错）。
 - 2026-08-04：**R2 已落地**（`9f109acf`）——fork 设置状态迁至 `src/app/ai/marketing/settings.ts`，`chat/storage.ts` 与 upstream 逐字节一致。**R3 已落地**（`99f25cbf`）——fork 发版记录迁至 `CHANGELOG.fork.md`，`CHANGELOG.md` 与 upstream 逐字节一致。
 - 2026-08-04：修复 review §3.2-3（restore 扫描深度不一致）——`restoreStateFromCanvas` 改为递归，与 `listDocumentLibraryNames` 对齐，补嵌套 group 回归测试（70/70 marketing 测试通过）。§3.2 六个实质缺陷至此全部清零。
+- 2026-08-04：CI 首次全绿（run 30906679583）。红源 #1（格式漂移，21 个 fork 文件 oxfmt 修复，`062cb3fc`）与红源 #2（LFS 指向上游私有网关 → 改指 fork 的 GitHub LFS 并上传 15 对象/228MB，`0e37d170`）均清零；quality 链条后续暴露的 lint/arch/type-shapes 问题同批修复（`eb2a2973`/`104a21e7`/`efd2fb3c`/`1fc8b4b8`/`d1c5d713`）。**`.lfsconfig` 列入 §2.2 高危清单**——fork 必须永远指向自己的 GitHub LFS。

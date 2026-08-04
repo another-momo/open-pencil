@@ -90,12 +90,14 @@ export function formatTokenUsage(): string {
 function formatMediaDelivery(): string {
   const debug = getPrepareCallDebug()
   if (!debug) return '  (no prepareCall recorded yet)'
-  const verdict =
-    debug.degradedOutputs > 0
-      ? '⚠ media tool-result outputs are NOT in content form — the image was serialized as JSON text (toModelOutput wiring broken)'
-      : (debug.rewriteToUserMessage
-        ? 'chat-completions path: images are rewritten to user-message image parts (turn entry + per step)'
-        : 'images delivered natively inside tool results')
+  let verdict = 'images delivered natively inside tool results'
+  if (debug.degradedOutputs > 0) {
+    verdict =
+      '⚠ media tool-result outputs are NOT in content form — the image was serialized as JSON text (toModelOutput wiring broken)'
+  } else if (debug.rewriteToUserMessage) {
+    verdict =
+      'chat-completions path: images are rewritten to user-message image parts (turn entry + per step)'
+  }
   const lines = [
     `  Provider: ${debug.providerID} / ${debug.modelID} (api: ${debug.customAPIType})`,
     `  Turn-entry history: ${debug.contentOutputs} content-form media tool-result(s), ${debug.degradedOutputs} degraded, ${debug.mediaParts} image part(s)`,

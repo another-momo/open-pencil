@@ -151,10 +151,7 @@ export function inlineMediaToolResultsAsUserMessages(messages: ModelMessage[]): 
         continue
       }
 
-      const output = extractMediaOutput(
-        { ...candidate, output: candidate.output },
-        images
-      )
+      const output = extractMediaOutput({ ...candidate, output: candidate.output }, images)
       if (!output) {
         if (content) content.push(part)
         continue

@@ -14,7 +14,8 @@ import { useI18n } from '@open-pencil/vue'
 import {
   materialTypeSelection,
   profileSelection,
-  setUserMaterialType
+  setUserMaterialType,
+  setUserProfile
 } from '@/app/ai/chat/storage'
 import {
   injectLibraryReferences,
@@ -159,6 +160,19 @@ function profileChipClass(state: ProfileChipState): string {
 function profileChipState(): ProfileChipState {
   return profileSelection.value ? 'picked' : 'unset'
 }
+
+// Chip is a toggle: clicking a 'picked' chip clears the user-picked profile
+// (back to unset, no profile in effect); clicking an 'unset' chip opens the
+// gallery to pick one. Mirrors how the Type chip's dropdown lists "Auto" as
+// the explicit unset option — for profile there is no "Auto" any more
+// (P8v4), so the toggle action lives on the chip itself.
+function toggleProfileChip() {
+  if (profileSelection.value) {
+    setUserProfile(null)
+  } else {
+    profileGalleryOpen.value = true
+  }
+}
 </script>
 
 <template>
@@ -194,13 +208,16 @@ function profileChipState(): ProfileChipState {
       </DropdownMenuPortal>
     </DropdownMenuRoot>
 
-    <!-- Profile (opens gallery dialog) -->
+    <!-- Profile (chip toggles: clicked when picked → clear; clicked when unset → open gallery) -->
     <button
       type="button"
       :class="profileChipClass(profileChipState())"
       :data-profile-state="profileChipState()"
+      :title="profileSelection
+        ? dialogs.profileChipClearHint
+        : dialogs.profileChipOpenHint"
       data-test-id="config-profile-trigger"
-      @click="profileGalleryOpen = true"
+      @click="toggleProfileChip"
     >
       {{ profileLabel }}
     </button>

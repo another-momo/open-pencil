@@ -167,6 +167,8 @@
   "chipReferences": "参考",
   "autoOption": "自动",
   "profileChipUnset": "无",
+  "profileChipClearHint": "点击清除已选风格",
+  "profileChipOpenHint": "点击选择风格",
   "inferredTag": "（推断）",
   "referencesKeepNote": "已注入的参考不会被移除",
   "visionProvider": "视觉 Provider 类型",

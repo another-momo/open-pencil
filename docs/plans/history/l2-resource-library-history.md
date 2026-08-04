@@ -133,6 +133,13 @@
 - 测试：删 2 个 P8v3 "陈旧 lock" 测试（prefs 不存在后无法测）；改写 1 个 bind 测试为 P8v5，断言 chip 切到 unset 立即清除 overlay 中的 profile 段（不再有"陈旧 lock 留存"的隐藏行为）
 - **产品语义变化**：用户清除 chip = 立即清除 pick（与 chip UI 直觉一致）。之前 P8v2 设计的"bind 不覆盖陈旧 pick"在 v5 移除——chip 是 single source of truth，其状态就是真实意图。
 
+**P8v6 chip toggle 修复（已选无法取消）**：
+- 用户反馈：P8v4 删 Auto 卡片后，chip 选中态没有"取消"入口 —— 再点 chip 只打开 Gallery，再点同一卡片又只能改选不能清除
+- 修法：`MarketingConfigBar.vue:toggleProfileChip` —— 已选时点 chip = `setUserProfile(null)`；未选时点 chip = 打开 Gallery。`title` 属性分别提示"Click to clear profile" / "Click to pick a profile"
+- i18n：新增 `profileChipClearHint` / `profileChipOpenHint`（主 + 8 locale）
+- 测试：新增 `setUserProfile(null) clears the user-picked profile and the overlay section (P8v6)`（marketing-library.test.ts 第 6 个测试）—— 守住 storage 层 setUserProfile(null) → overlay 同步清掉的契约
+- 与 P8 哲学：chip 既是状态指示器又是 toggle 入口；P8v4 删 Gallery 内 Auto 卡片的设计判断延伸——"无 profile = 用户主动选择的无"，chip 上点一下即回到这个状态
+
 **故意不做**：
 - setActiveProfile 接 store 参数 → 留待多 tab 决策
 - MarketingPrefs 持久化（pluginData）→ 同上

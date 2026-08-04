@@ -159,6 +159,8 @@
   "chipReferences": "Referencias",
   "autoOption": "Auto",
   "profileChipUnset": "Ninguno",
+  "profileChipClearHint": "Clic para quitar estilo",
+  "profileChipOpenHint": "Clic para elegir estilo",
   "inferredTag": "(inferido)",
   "referencesKeepNote": "Las referencias insertadas permanecen en el documento",
   "visionSection": "Vision (look)",

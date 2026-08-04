@@ -132,11 +132,18 @@ export const dialogMessageDefaults = {
   chipProfile: 'Style',
   chipReferences: 'References',
   autoOption: 'Auto',
-  // P8 (2026-08-01): chip tri-state. 'Style: None' replaces 'Style: Auto'
-  // for the profile chip's unset state to make the "no profile will be
-  // applied" semantics explicit. The ProfileGalleryDialog keeps using
-  // `autoOption` ("Auto") for the no-lock card inside the gallery.
+  // P8 (2026-08-01): chip is a binary state — `profileChipUnset` for the
+  // unset state ("no profile will be applied"), no "Auto" since auto-pick
+  // is disabled (P8v4). The ProfileGalleryDialog keeps using `autoOption`
+  // ("Auto") for the no-lock card inside the gallery (P8v4 retired that
+  // card too, so `autoOption` is now Type-chip only).
   profileChipUnset: 'None',
+  // P8 (2026-08-04): chip is a toggle — clicking a picked chip clears it
+  // (back to unset), clicking an unset chip opens the gallery. Two tooltips
+  // disambiguate the action before the click so users don't lose their pick
+  // by accident.
+  profileChipClearHint: 'Click to clear profile',
+  profileChipOpenHint: 'Click to pick a profile',
   inferredTag: '(inferred)',
   referencesKeepNote: 'Injected references stay in the document',
   referencesFilteredFor: 'Filtered for type',

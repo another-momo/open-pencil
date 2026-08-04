@@ -159,6 +159,8 @@
   "chipReferences": "Referencje",
   "autoOption": "Auto",
   "profileChipUnset": "Brak",
+  "profileChipClearHint": "Kliknij, aby usunąć styl",
+  "profileChipOpenHint": "Kliknij, aby wybrać styl",
   "inferredTag": "(wywnioskowane)",
   "referencesKeepNote": "Wstawione referencje pozostają w dokumencie",
   "visionSection": "Vision (look)",

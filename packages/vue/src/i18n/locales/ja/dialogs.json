@@ -159,6 +159,8 @@
   "chipReferences": "参考",
   "autoOption": "自動",
   "profileChipUnset": "なし",
+  "profileChipClearHint": "クリックでスタイルを解除",
+  "profileChipOpenHint": "クリックでスタイルを選択",
   "inferredTag": "（推測）",
   "referencesKeepNote": "注入済みの参考はドキュメントに残ります",
   "visionSection": "Vision (look)",

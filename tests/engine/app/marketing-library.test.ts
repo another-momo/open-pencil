@@ -126,4 +126,35 @@ describe('marketing library service', () => {
       __resetMarketingLibraryForTest()
     }
   })
+
+  // P8v6 (2026-08-04): the MarketingConfigBar profile chip is a toggle —
+  // clicking a picked chip calls `setUserProfile(null)`. This test guards
+  // the storage layer's setUserProfile(null) contract: it clears
+  // `profileSelection`, and the overlay immediately drops the profile
+  // section. The chip's @click wiring is a thin one-line wrapper around
+  // this storage call, so storage-level coverage is sufficient.
+  test('setUserProfile(null) clears the user-picked profile and the overlay section (P8v6)', async () => {
+    const bytes = await exportFigFile(makeMiniLibraryGraph())
+    const result = await replaceMarketingLibrary(new File([bytes], 'lib.fig'))
+    expect('error' in result).toBe(false)
+
+    try {
+      const storage = await import('@/app/ai/chat/storage')
+      const doc = new SceneGraph()
+
+      // Pick first.
+      storage.setUserProfile('luxury_v1')
+      bindMarketingLibrary(doc)
+      expect(storage.profileSelection.value).toEqual({ id: 'luxury_v1', source: 'user' })
+      expect(buildMarketingOverlay(doc)).toContain('## Active style profile: luxury_v1')
+
+      // Toggle clears — exactly what the chip's @click does on a picked chip.
+      storage.setUserProfile(null)
+      bindMarketingLibrary(doc)
+      expect(storage.profileSelection.value).toBeNull()
+      expect(buildMarketingOverlay(doc)).not.toContain('## Active style profile')
+    } finally {
+      __resetMarketingLibraryForTest()
+    }
+  })
 })

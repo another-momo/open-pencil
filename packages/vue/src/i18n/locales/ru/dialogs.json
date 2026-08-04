@@ -159,6 +159,8 @@
   "chipReferences": "Образцы",
   "autoOption": "Авто",
   "profileChipUnset": "Нет",
+  "profileChipClearHint": "Нажмите, чтобы убрать стиль",
+  "profileChipOpenHint": "Нажмите, чтобы выбрать стиль",
   "inferredTag": "(выведено)",
   "referencesKeepNote": "Вставленные образцы остаются в документе",
   "visionSection": "Vision (look)",

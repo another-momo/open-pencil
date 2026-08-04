@@ -29,7 +29,7 @@ import { TEXT_PICTURE_KEYS } from './text-picture'
 import * as Variables from './variables'
 import { normalizeVectorNetwork } from './vector-network'
 
-export type { GUID, Color } from './primitives'
+export type { GUID, Color, Vector } from './primitives'
 export * from './types'
 
 import type { Emitter } from 'nanoevents'
@@ -49,7 +49,14 @@ import type {
   VariableValue
 } from './types'
 
-export { cloneVectorNetwork, normalizeVectorNetwork, validateVectorNetwork } from './vector-network'
+export {
+  cloneVectorNetwork,
+  mergeVectorNetworks,
+  normalizeVectorNetwork,
+  transformVectorNetwork,
+  validateVectorNetwork,
+  vectorNetworksEqual
+} from './vector-network'
 
 let nextLocalID = 1
 

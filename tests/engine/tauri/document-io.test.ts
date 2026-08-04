@@ -41,6 +41,7 @@ describe('Tauri document IO helpers', () => {
       getFilePath: () => '/tmp/document.fig',
       getFileHandle: () => null,
       setFileHandle: () => undefined,
+      getStorageBinding: () => null,
       setSavedVersion: (version) => savedVersions.push(version),
       setLastWriteTime: () => undefined
     })

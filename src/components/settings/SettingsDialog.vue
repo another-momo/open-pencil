@@ -7,31 +7,22 @@ import { IS_TAURI } from '@open-pencil/core/constants'
 import { useAIChat } from '@/app/ai/chat/use'
 import { appCredentialServices } from '@/app/settings/credentials/app'
 import { settingsDialogOpen, settingsDialogSection } from '@/app/settings/dialog'
-import ApiKeySection from '@/components/settings/provider/ApiKeySection.vue'
-import ApiTypeSection from '@/components/settings/provider/ApiTypeSection.vue'
 import ChatModeSection from '@/components/settings/provider/ChatModeSection.vue'
-import CustomEndpointSection from '@/components/settings/provider/CustomEndpointSection.vue'
 import ImageGenKeysSection from '@/components/settings/provider/ImageGenKeysSection.vue'
 import LookImagesKeptSection from '@/components/settings/provider/LookImagesKeptSection.vue'
-import MaxTokensSection from '@/components/settings/provider/MaxTokensSection.vue'
-import StockPhotoKeysSection from '@/components/settings/provider/StockPhotoKeysSection.vue'
-import TestConnectionSection from '@/components/settings/provider/TestConnectionSection.vue'
 import VisionKeysSection from '@/components/settings/provider/VisionKeysSection.vue'
 import { provideProviderSettings } from '@/components/settings/provider/context'
-import ProviderSelectField from '@/components/settings/provider-select/ProviderSelectField.vue'
+import ModelsPanel from '@/components/settings/models/ModelsPanel.vue'
+import StockPhotoKeysSection from '@/components/settings/provider/StockPhotoKeysSection.vue'
+import StorageSettingsPanel from '@/components/settings/storage/StorageSettingsPanel.vue'
+import VectorizeSettingsSection from '@/components/settings/vectorize/VectorizeSettingsSection.vue'
 import AppSwitch from '@/components/ui/AppSwitch.vue'
 import { AppDialogFooter, AppDialogHeader, AppDialogRoot } from '@/components/ui/dialog'
 
 const { dialogs } = useI18n()
 const { browserCredentialsRemembered, setRememberCredentials } = useAIChat()
-const providerSettings = provideProviderSettings()
-
-function save(): void {
-  void providerSettings.save()
-}
-
+provideProviderSettings()
 function onOpenChange(open: boolean): void {
-  if (!open) save()
   settingsDialogOpen.value = open
 }
 
@@ -60,6 +51,7 @@ const navigationClass =
   <AppDialogRoot
     :open="settingsDialogOpen"
     size="lg"
+    height="tall"
     data-test-id="app-settings-dialog"
     @update:open="onOpenChange"
   >
@@ -91,31 +83,43 @@ const navigationClass =
           <icon-lucide-image class="size-3.5" />
           {{ dialogs.settingsMedia }}
         </button>
+        <button
+          type="button"
+          :class="navigationClass"
+          :data-state="settingsDialogSection === 'storage' ? 'active' : 'inactive'"
+          data-test-id="settings-section-storage"
+          @click="settingsDialogSection = 'storage'"
+        >
+          <icon-lucide-cloud class="size-3.5" />
+          {{ dialogs.settingsStorage }}
+        </button>
       </nav>
 
       <div class="min-h-0 flex-1 overflow-y-auto p-4">
         <section
           v-if="settingsDialogSection === 'ai'"
-          class="flex flex-col gap-2.5"
+          class="flex h-full flex-col"
           data-test-id="settings-ai-panel"
         >
           <h3 class="text-xs font-semibold text-surface">{{ dialogs.settingsAIAndAgents }}</h3>
           <ChatModeSection />
-          <ProviderSelectField data-test-id="settings-ai-provider" />
-          <MaxTokensSection />
           <LookImagesKeptSection />
-          <CustomEndpointSection />
-          <ApiTypeSection />
-          <ApiKeySection />
-          <TestConnectionSection />
+          <ModelsPanel />
         </section>
 
-        <section v-else class="flex flex-col gap-2.5" data-test-id="settings-media-panel">
+        <section
+          v-else-if="settingsDialogSection === 'media'"
+          class="flex flex-col gap-2.5"
+          data-test-id="settings-media-panel"
+        >
           <h3 class="text-xs font-semibold text-surface">{{ dialogs.settingsMedia }}</h3>
           <ImageGenKeysSection />
           <VisionKeysSection />
           <StockPhotoKeysSection />
+          <VectorizeSettingsSection />
         </section>
+
+        <StorageSettingsPanel v-else />
       </div>
     </div>
 

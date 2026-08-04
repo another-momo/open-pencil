@@ -6,6 +6,17 @@
 
 - Marketing-mode system prompt no longer claims "are listed below" when the material library has no types or no active profile — `buildMarketingOverlay` now always emits both section headers, with a clear "no material types available" / "no style profile is active" placeholder so the model knows when to ask the user or fall back to `custom`. The Library references paragraph also clarifies that the 参考区 page only exists after the user injects references (call `list_pages` to confirm), and the brief frame's inner "素材区" zone is called out as unrelated.
 - New regression tests in `tests/engine/app/marketing-library.test.ts` cover both the empty state (library not loaded) and the populated state of the overlay so the prompt / overlay drift cannot recur.
+- Match Figma Plugin API vector path and network editing, including bounds, winding rules, region fills, validation, and handle mirroring. (#444)
+- Let AI and MCP tools create arbitrary vectors from SVG path data without leaving blank layers after invalid input. (#440)
+- Show stroke colors and weights in AI visual descriptions. (#447)
+- Stop warning AI agents that supported inline SVG attributes were ignored. (#445)
+- Help AI agents discover every shape supported by `create_shape`. (#448)
+- Keep `fill="none"` and `stroke="none"` SVG paths transparent when rendering inline artwork. (#446)
+- Match regional browser languages to supported locales without selecting a secondary language. (#417)
+- Save auto-layout frames that stretch their children to `.fig` without failing. (#427)
+- Preserve multiple colors in imported vector artwork such as multi-color logos. (#386)
+- Edit vectors in opened documents at the correct position, with live fills and undo/redo. (#390)
+- Reduce large `.fig` page-switch work to the active page, reuse fixed-point propagation indexes, and coalesce Layers tree rebuilds. (#420)
 - Center text glyphs within explicit line-height leading in CanvasKit paragraph rendering.
 
 ### Added
@@ -22,6 +33,9 @@
 - Choose how `look` delivers images with a new Vision mode in AI settings: channel A (default) lets the main model see images directly; channel B sends them to an independent vision model (OpenAI-compatible or Anthropic-compatible endpoint with its own key/base URL/model, copyable from the main model config) and returns only its text analysis, keeping images out of the main conversation entirely.
 - Understand user-provided materials: at task start the agent inspects images in the 需求单 materials zone, writes one-line content descriptions into the AI-conclusions zone, and reuses them across sessions — re-inspecting an already-described image is free (cached by image hash). User usage notes still win, but the agent asks before using an image that clearly doesn't match its note.
 - Fill frames with images as their background in `generate_image` and `stock_photo`, keeping children intact — enables text-over-image hero layouts in marketing designs.
+- Expose Figma-style mask, visibility, lock, flip, component, z-order, distribution, selection, ruler, multiplayer cursor, and Settings actions from the shared browser and desktop menus, with Move to page available in the browser menu.
+- Use MiniMax M3 as the default MiniMax model for AI design workflows. (#431)
+- Export selections, pages and documents as editable PowerPoint (`.pptx`) files from the File menu, CLI and SDK: text, rectangles, ellipses and lines stay native editable elements, while gradients, masks, blends, vectors and icons fall back to embedded images.
 - Figma-style Assets panel browsing with component thumbnails, grid/list views, page grouping, context actions, and drag-to-canvas insertion.
 - Import HTML, CSS, Tailwind, and JSX as editable documents from the app, CLI, and SDK, and export standalone browser-ready HTML with compiled CSS and optional external assets.
 - Author richer Design JSX with components, instances, variables, gradients, structured fills, shadows, and blur effects.
@@ -30,10 +44,15 @@
 - Find overlapping layers and overflowing children from the CLI, AI tools, and MCP.
 - Use Figma-style number-key opacity shortcuts: `1`–`9` set 10%–90%, `0` sets 100%, and two-digit sequences set exact values.
 - Drag image files directly into the desktop app and paste Figma layers with their remote image fills.
+- Drop SVG files onto the canvas to import them as editable vector layers alongside raster images. (#392)
+- Import compatible SVG fills as a single editable multi-color vector. (#394)
 - Drag with the Text tool to create a fixed-size text box, or click to create auto-width text.
 - Target a specific open document and page from live CLI and MCP automation, including sessions with multiple documents.
 - Test OpenAI-compatible provider connections from AI settings with clearer setup errors.
-- Manage AI, agent, and media credentials from unified Settings, using the system credential store on desktop and optional encrypted storage in the browser.
+- Manage AI, agent, and media credentials from unified Settings, using the system credential store on desktop and encrypted browser storage by default with a session-only option.
+- Assign separate Design, Review, Fast, and Vision models, providers, endpoints, and credentials from AI settings.
+- Connect an S3-compatible storage workspace with local-first saves, background synchronization, and centrally managed credentials.
+- Convert image layers into editable vector layers with Recraft or fal.ai from the canvas context menu. (#322)
 - Build custom property panels with new Vue SDK number fields, bindable values, property sections, responsive property grids, segmented controls, property lists, color models, fill controls, and gradient primitives.
 - Connect local MCP clients through automatically discovered private Unix sockets on macOS and Linux, with localhost TCP fallback. (#338)
 - Create centered frames from current Figma-style device and asset presets, or resize selected frames from the Design panel while preserving their names.
@@ -48,6 +67,7 @@
 - Coalesce AI tool undo entries per chat message (burst): one Ctrl+Z now reverts the whole AI run for a message instead of a single tool call, cutting undo memory for a 50-step AI session from ~7.5 MB to ~150 KB.
 - Choose Freeform, vertical, horizontal, or grid flow directly from the contextual Layout section, with sizing grouped alongside it and current Layout guide terminology.
 - Redesign the editor chrome and Design panel with denser aligned controls, clearer selection and section states, improved menus and overlays, consistent light/dark theming, and better keyboard and screen-reader behavior.
+- Center full-area empty and setup states consistently across panels, dialogs, and workspaces.
 - Scale the Layers panel to documents with thousands of nodes through virtualized rows, faster incremental updates, stable expansion, range selection, and scroll-to-selection.
 - Resolve fonts before text appears, with language-aware CJK and Arabic fallback, character-specific remote subsets, and more reliable rendering as fonts load.
 - Open and save large `.fig` documents substantially faster while preserving original metadata and user edits; corrupted compressed data now reports an error instead of being opened as valid content.

@@ -13,8 +13,8 @@ import {
   getVisionMode,
   isVisionChannelBReady
 } from '#core/tools/marketing/vision'
+import { encodeBase64 } from '#core/bytes'
 import { defineTool } from '#core/tools/schema'
-import { uint8ArrayToBase64 } from '#core/tools/vector/export'
 
 const MAX_LONG_EDGE = 1024
 const MIN_LEGIBLE_TEXT_PX = 12
@@ -121,7 +121,7 @@ async function analyzeViaVisionChannel(
   if (!data || data.length === 0) return { error: 'Nothing visible to inspect' }
 
   const analysis = await analyzeImageWithVisionModel({
-    base64: uint8ArrayToBase64(data),
+    base64: encodeBase64(data),
     mimeType: 'image/jpeg',
     prompt: [
       'You are the vision subsystem of a design agent. Analyze this design screenshot factually and answer concisely.',
@@ -191,7 +191,7 @@ export const lookTool = defineTool({
     )
 
     return {
-      base64: uint8ArrayToBase64(data),
+      base64: encodeBase64(data),
       mimeType: 'image/jpeg',
       byteLength: data.length,
       node: nodeInfo,

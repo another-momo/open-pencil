@@ -45,12 +45,6 @@ const chatSession = createChatSessionManager({
   isACPProvider,
   providerID,
   credentialsReady,
-  resolveAPIKey,
-  modelID,
-  customModelID,
-  customBaseURL,
-  customAPIType,
-  maxOutputTokens,
   chatMode,
   getActiveEditorStore
 })

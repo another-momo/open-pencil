@@ -1,5 +1,7 @@
 import { FetchError, ofetch } from 'ofetch'
 
+import { decodeBase64 } from '#core/bytes'
+
 export type ImageGenQuality = 'low' | 'medium' | 'high' | 'auto'
 export type ImageGenFormat = 'png' | 'jpeg' | 'webp'
 export type ImageGenBackground = 'auto' | 'opaque'
@@ -99,7 +101,7 @@ interface ImageApiResponse {
 async function extractImageBytes(data: ImageApiResponse): Promise<Uint8Array> {
   const item = data.data?.[0]
   if (!item) throw new Error('Image API returned no image data')
-  if (item.b64_json) return Uint8Array.fromBase64(item.b64_json)
+  if (item.b64_json) return decodeBase64(item.b64_json)
   if (item.url) {
     const response = await fetch(item.url)
     if (!response.ok) throw new Error(`Download generated image: ${response.status}`)

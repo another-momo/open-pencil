@@ -25,7 +25,7 @@ import {
   type LibrarySession
 } from '@open-pencil/core/tools'
 
-import { profileSelection } from '@/app/ai/chat/storage'
+import { profileSelection } from '@/app/ai/marketing/settings'
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
 import { getActiveEditorStore, type EditorStore } from '@/app/editor/active-store'

@@ -2,7 +2,7 @@ import { computed, inject, provide, proxyRefs, ref } from 'vue'
 import type { InjectionKey, ShallowUnwrapRef } from 'vue'
 
 import { resolveProviderApiFormat, resolveProviderBaseURL } from '@/app/ai/chat/model'
-import type { ChatMode } from '@/app/ai/chat/storage'
+import type { ChatMode } from '@/app/ai/marketing/settings'
 import { useAIChat } from '@/app/ai/chat/use'
 
 // Fork-owned provider settings context (marketing/vision/image-gen). Upstream's

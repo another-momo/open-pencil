@@ -12,7 +12,7 @@ import { computed, ref, watch } from 'vue'
 
 import { useI18n } from '@open-pencil/vue'
 
-import { profileSelection, setUserProfile } from '@/app/ai/chat/storage'
+import { profileSelection, setUserProfile } from '@/app/ai/marketing/settings'
 import { useMarketingLibrary } from '@/app/ai/marketing/library'
 import { useDialogUI } from '@/components/ui/dialog'
 

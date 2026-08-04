@@ -16,7 +16,7 @@ import {
   profileSelection,
   setUserMaterialType,
   setUserProfile
-} from '@/app/ai/chat/storage'
+} from '@/app/ai/marketing/settings'
 import {
   injectLibraryReferences,
   listMarketingTypes,

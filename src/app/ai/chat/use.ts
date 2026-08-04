@@ -5,17 +5,12 @@ import { IS_BROWSER } from '@open-pencil/core/constants'
 import {
   apiKeyStatus,
   browserCredentialsRemembered,
-  chatMode,
   credentialsReady,
   customAPIType,
   customBaseURL,
   customModelID,
-  imageGenApiKey,
-  imageGenBaseURL,
-  imageGenModel,
   isACPProvider,
   isConfigured,
-  lookImagesKept,
   maxOutputTokens,
   modelID,
   pexelsKeyStatus,
@@ -27,13 +22,21 @@ import {
   setPexelsKey,
   setRememberCredentials,
   setUnsplashKey,
-  unsplashKeyStatus,
+  unsplashKeyStatus
+} from '@/app/ai/chat/storage'
+import {
+  chatMode,
+  imageGenApiKey,
+  imageGenBaseURL,
+  imageGenModel,
+  lookImagesKept,
+  registerMarketingSettingsEffects,
   visionApiKey,
   visionBaseURL,
   visionMode,
   visionModel,
   visionProvider
-} from '@/app/ai/chat/storage'
+} from '@/app/ai/marketing/settings'
 import { createChatSessionManager } from '@/app/ai/chat/transports'
 import { exposeChatTransportOverride } from '@/app/browser-bridge'
 import { getActiveEditorStore } from '@/app/editor/active-store'
@@ -50,6 +53,7 @@ const chatSession = createChatSessionManager({
 })
 
 registerAIChatEffects(chatSession.markTransportDirty)
+registerMarketingSettingsEffects(chatSession.markTransportDirty)
 
 if (IS_BROWSER) {
   exposeChatTransportOverride((factory) => {

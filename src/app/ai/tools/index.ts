@@ -7,8 +7,8 @@ import { CORE_TOOLS, getMarketingState, toolsToAI } from '@open-pencil/core/tool
 import type { StepBudget, ToolLogEntry } from '@open-pencil/core/tools'
 import type { SceneNode } from '@open-pencil/scene-graph'
 
-import { syncMaterialTypeFromAI } from '@/app/ai/chat/storage'
-import type { ChatMode } from '@/app/ai/chat/storage'
+import { syncMaterialTypeFromAI } from '@/app/ai/marketing/settings'
+import type { ChatMode } from '@/app/ai/marketing/settings'
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
 import { getActiveEditorStore } from '@/app/editor/active-store'
 import type { EditorStore } from '@/app/editor/active-store'

@@ -12,8 +12,8 @@ import {
   inlineMediaToolResultsAsUserMessages
 } from '@/app/ai/chat/media-tool-results'
 import { resolveLanguageModelID } from '@/app/ai/chat/model'
-import { lookImagesKept } from '@/app/ai/chat/storage'
-import type { ChatMode } from '@/app/ai/chat/storage'
+import { lookImagesKept } from '@/app/ai/marketing/settings'
+import type { ChatMode } from '@/app/ai/marketing/settings'
 import SYSTEM_PROMPT_MARKETING from '@/app/ai/chat/system-prompt-marketing.md?raw'
 import SYSTEM_PROMPT from '@/app/ai/chat/system-prompt.md?raw'
 import { bindMarketingLibrary, buildMarketingOverlay } from '@/app/ai/marketing/library'

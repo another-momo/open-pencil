@@ -53,7 +53,7 @@ describe('marketing library service', () => {
     expect('error' in result).toBe(false)
 
     try {
-      const storage = await import('@/app/ai/chat/storage')
+      const storage = await import('@/app/ai/marketing/settings')
       storage.setUserProfile('luxury_v1')
       const doc = new SceneGraph()
       const overlay = buildMarketingOverlay(doc)
@@ -74,7 +74,7 @@ describe('marketing library service', () => {
   test('buildMarketingOverlay surfaces an inconsistent user pick (P8)', async () => {
     const bytes = await exportFigFile(makeMiniLibraryGraph())
     await replaceMarketingLibrary(new File([bytes], 'lib.fig'))
-    const storage = await import('@/app/ai/chat/storage')
+    const storage = await import('@/app/ai/marketing/settings')
     storage.profileSelection.value = { id: 'nonexistent_profile', source: 'user' }
 
     try {
@@ -103,7 +103,7 @@ describe('marketing library service', () => {
 
     try {
       const doc = new SceneGraph()
-      const storage = await import('@/app/ai/chat/storage')
+      const storage = await import('@/app/ai/marketing/settings')
 
       // No user pick yet → overlay has no profile section regardless of
       // bind calls.
@@ -139,7 +139,7 @@ describe('marketing library service', () => {
     expect('error' in result).toBe(false)
 
     try {
-      const storage = await import('@/app/ai/chat/storage')
+      const storage = await import('@/app/ai/marketing/settings')
       const doc = new SceneGraph()
 
       // Pick first.

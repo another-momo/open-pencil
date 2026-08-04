@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ChatMode } from '@/app/ai/chat/storage'
-import { useProviderSettingsContext } from '@/components/chat/ProviderSettings/context'
+import { useProviderSettingsContext } from '@/components/settings/provider/context'
 
 const ctx = useProviderSettingsContext()
 

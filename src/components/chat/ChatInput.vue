@@ -3,7 +3,6 @@ import { TooltipProvider } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
 
 import ProviderModelSelect from '@/components/chat/ProviderModelSelect.vue'
-import ProviderSettings from '@/components/chat/ProviderSettings/ProviderSettings.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import Tip from '@/components/ui/Tip.vue'
 import { useButtonUI } from '@/components/ui/button'
@@ -12,6 +11,7 @@ import { setInferredMaterialType } from '@/app/ai/chat/storage'
 import { useAIChat } from '@/app/ai/chat/use'
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
 import { getActiveEditorStore } from '@/app/editor/active-store'
+import { openSettingsDialog } from '@/app/settings/dialog'
 import { useI18n } from '@open-pencil/vue'
 
 import { ACP_AGENTS } from '@open-pencil/core/constants'
@@ -169,7 +169,17 @@ function handleNewBrief() {
               <icon-lucide-sticky-note class="size-3" />
             </button>
           </Tip>
-          <ProviderSettings />
+          <Tip :label="dialogs.providerSettings">
+            <button
+              type="button"
+              data-test-id="provider-settings-trigger"
+              :aria-label="dialogs.providerSettings"
+              class="rounded p-0.5 text-muted hover:bg-hover hover:text-surface"
+              @click="openSettingsDialog('ai')"
+            >
+              <icon-lucide-settings class="size-3" />
+            </button>
+          </Tip>
         </div>
       </div>
 

@@ -1,6 +1,8 @@
-import type { ModelMessage } from 'ai'
+import type { ModelMessage, ToolResultPart } from 'ai'
 
 import { MEDIA_OUTPUT_TOOLS } from '@/app/ai/chat/elision'
+
+type ToolResultOutput = ToolResultPart['output']
 
 /**
  * Media delivery for chat-completions providers (docs/plans/l2-visual-loop.md §3.1).
@@ -130,17 +132,17 @@ export function inlineMediaToolResultsAsUserMessages(messages: ModelMessage[]): 
         textOnly.length === 1 && textOnly[0].type === 'text' && typeof textOnly[0].text === 'string'
           ? textOnly[0].text
           : undefined
-      const output =
+      const output: ToolResultOutput =
         textOnly.length === 0
           ? { type: 'text', value: '[image inlined as a user message]' }
           : (singleText !== undefined
             ? { type: 'text', value: singleText }
-            : { ...candidate.output, value: textOnly })
+            : ({ ...candidate.output, value: textOnly } as ToolResultOutput))
 
       if (!content) {
         content = message.content.slice(0, message.content.indexOf(part))
       }
-      content.push({ ...part, output })
+      content.push({ ...part, output } as (typeof content)[number])
       contentTouched = true
     }
 

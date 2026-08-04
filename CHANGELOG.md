@@ -6,6 +6,7 @@
 
 - Marketing-mode system prompt no longer claims "are listed below" when the material library has no types or no active profile — `buildMarketingOverlay` now always emits both section headers, with a clear "no material types available" / "no style profile is active" placeholder so the model knows when to ask the user or fall back to `custom`. The Library references paragraph also clarifies that the 参考区 page only exists after the user injects references (call `list_pages` to confirm), and the brief frame's inner "素材区" zone is called out as unrelated.
 - New regression tests in `tests/engine/app/marketing-library.test.ts` cover both the empty state (library not loaded) and the populated state of the overlay so the prompt / overlay drift cannot recur.
+- Center text glyphs within explicit line-height leading in CanvasKit paragraph rendering.
 
 ### Added
 
@@ -21,6 +22,7 @@
 - Choose how `look` delivers images with a new Vision mode in AI settings: channel A (default) lets the main model see images directly; channel B sends them to an independent vision model (OpenAI-compatible or Anthropic-compatible endpoint with its own key/base URL/model, copyable from the main model config) and returns only its text analysis, keeping images out of the main conversation entirely.
 - Understand user-provided materials: at task start the agent inspects images in the 需求单 materials zone, writes one-line content descriptions into the AI-conclusions zone, and reuses them across sessions — re-inspecting an already-described image is free (cached by image hash). User usage notes still win, but the agent asks before using an image that clearly doesn't match its note.
 - Fill frames with images as their background in `generate_image` and `stock_photo`, keeping children intact — enables text-over-image hero layouts in marketing designs.
+- Figma-style Assets panel browsing with component thumbnails, grid/list views, page grouping, context actions, and drag-to-canvas insertion.
 - Import HTML, CSS, Tailwind, and JSX as editable documents from the app, CLI, and SDK, and export standalone browser-ready HTML with compiled CSS and optional external assets.
 - Author richer Design JSX with components, instances, variables, gradients, structured fills, shadows, and blur effects.
 - Manage pages with rename, delete, and drag-to-reorder actions in the Pages panel.
@@ -31,7 +33,9 @@
 - Drag with the Text tool to create a fixed-size text box, or click to create auto-width text.
 - Target a specific open document and page from live CLI and MCP automation, including sessions with multiple documents.
 - Test OpenAI-compatible provider connections from AI settings with clearer setup errors.
-- Build custom property panels with new Vue SDK number fields, bindable values, property sections, segmented controls, property lists, color models, fill controls, and gradient primitives.
+- Build custom property panels with new Vue SDK number fields, bindable values, property sections, responsive property grids, segmented controls, property lists, color models, fill controls, and gradient primitives.
+- Connect local MCP clients through automatically discovered private Unix sockets on macOS and Linux, with localhost TCP fallback. (#338)
+- Create centered frames from current Figma-style device and asset presets, or resize selected frames from the Design panel while preserving their names.
 
 ### Changed
 
@@ -41,6 +45,7 @@
 - Reduce lint noise in `describe`: subpixel positions, off-grid gaps, low-contrast and near-invisible estimates, and gap-vs-padding heuristics are downgraded from warning to info — whether they actually look wrong is answered visually by `look`, while deterministic structural errors (overflow, zero-size, invisible) stay hard gates.
 - Show tool-result images as thumbnails in the chat panel instead of raw JSON, and keep base64 image payloads out of the AI debug log — media sizes are reported as a separate stat (no longer inflating the token estimate), and every step now shows both cache reads and cache writes.
 - Coalesce AI tool undo entries per chat message (burst): one Ctrl+Z now reverts the whole AI run for a message instead of a single tool call, cutting undo memory for a 50-step AI session from ~7.5 MB to ~150 KB.
+- Choose Freeform, vertical, horizontal, or grid flow directly from the contextual Layout section, with sizing grouped alongside it and current Layout guide terminology.
 - Redesign the editor chrome and Design panel with denser aligned controls, clearer selection and section states, improved menus and overlays, consistent light/dark theming, and better keyboard and screen-reader behavior.
 - Scale the Layers panel to documents with thousands of nodes through virtualized rows, faster incremental updates, stable expansion, range selection, and scroll-to-selection.
 - Resolve fonts before text appears, with language-aware CJK and Arabic fallback, character-specific remote subsets, and more reliable rendering as fonts load.
@@ -53,19 +58,24 @@
 - Deliver `look` tool images to the model on OpenAI-style chat-completions providers (OpenAI, MiniMax, DeepSeek, and custom OpenAI-compatible endpoints) — their SDK silently serialized screenshots as base64 JSON text inside tool messages, so the model never actually saw the image; media tool-results are now rewritten into image-bearing user messages on those providers while Anthropic, OpenRouter, and Google keep native tool-result images.
 - Add a 120s timeout to image generation API calls, surface the API's actual error message (e.g. "moderation blocked") instead of a bare HTTP status, and send `moderation`/`background`/`output_compression` consistently on both generation and edit paths.
 - Honor explicit width/height in `generate_image` when filling an existing node — target-node size is now only inherited when no size is given (previously an explicit 2048×1152 request could be silently replaced by 1024×1024).
+- Keep MCP file access inside its configured root even when paths contain symlinks, and harden local authentication token checks. (#338)
 - Keep desktop text visible across the scene and overlay canvases, refresh it after local fonts load, and preserve rendering when a requested italic face is unavailable (#395).
 - Honor node-scoped variable modes in `.fig` files so light and dark component examples keep their intended colors.
-- Preserve nested instance text, visibility, and paint overrides across repeated children and component swaps in `.fig` files.
+- Preserve nested instance text, visibility, paint, geometry, and clipping across repeated children and component swaps in `.fig` files.
 - Improve `.fig` import and rendering fidelity for groups, booleans, instances, rotated vectors, complex text fills, auto-sized text, layout grids, page guides, patterns, noise effects, masks, and canvas backgrounds.
 - Preserve pages, components, prototype and library metadata, export settings, unsupported effects, and other unrelated Figma data when editing and resaving `.fig` files.
 - Prevent duplicate generated IDs from corrupting `.fig` round trips.
+- Populate lazy `.fig` pages for file-mode CLI inspection, preserve the whole document when exporting FIG unless a page is explicitly requested, and expose vector paths and variable modes to Plugin API scripts.
 - Match Figma auto-layout reflow after deleting children, hiding optional instance slots, or syncing component changes.
 - Make group and boolean-operation children scale with their parent during resize.
 - Restore desktop copy, cut, and paste when browser clipboard events are unavailable.
+- Show only the most specific tooltip when property controls contain nested actions.
+- Start globally installed ACP agents correctly on Windows instead of reporting them as unavailable (#361).
 - Keep duplicated layers independent instead of sharing mutable fills, strokes, bindings, overrides, or vector data, and remove stale bindings when paints are deleted.
 - Preserve Hangul IME composition while editing text.
 - Share public app links from the desktop collaboration panel and send the current document to newly joined collaborators.
 - Resolve published package types correctly for TypeScript consumers and keep file-backed CLI commands working under Node.
+- Reuse the existing tab when reopening a file through its desktop path or browser file handle, avoiding duplicate watchers and conflicting saves (#297).
 
 ### Security
 

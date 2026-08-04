@@ -31,7 +31,7 @@ export function createDocumentWriter({
       const { writeFile: tauriWrite } = await import('@tauri-apps/plugin-fs')
       await tauriWrite(filePath, data)
       setSavedVersion(state.sceneVersion)
-      return
+      return true
     }
     if (fileHandle) {
       try {
@@ -39,6 +39,7 @@ export function createDocumentWriter({
         await writable.write(new Uint8Array(data))
         await writable.close()
         setSavedVersion(state.sceneVersion)
+        return true
       } catch {
         setFileHandle(null)
         if (onWriteFallback) {
@@ -46,5 +47,6 @@ export function createDocumentWriter({
         }
       }
     }
+    return false
   }
 }

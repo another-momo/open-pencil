@@ -137,9 +137,11 @@
 - setActiveProfile 接 store 参数 → 留待多 tab 决策
 - MarketingPrefs 持久化（pluginData）→ 同上
 - system-prompt 里的 AI 行为改造（如"主动推荐 profile"）→ 留待 v1.5（profile 概念从 prompt 完全移除后，AI 也不会主动推荐——效果免费达成）
-- 删除 `inferredTag` i18n key（保留以兼容旧 locale 文案；当前无引用方）
+- **保留 `inferredTag` i18n key**——P8 后误判为死 key，实际仍被 `materialTypeSelection.source === 'inferred'` 路径用作 Type chip 后缀（"X（推断）"）。`inferredTag` / `autoOption` / `profileChipUnset` 三个 key 各自归属不同（Type / Type / Profile），互不混用
 
-**commit hash**：待最终 commit 后回填
+**commit hash**：`8c8279a0`（2026-08-04，"fix(marketing): profile explicit selection only (Phase 1.2 P8 + v2 + v3 + v4 + rename + v5)"，25 文件 / +327 / -221）
+
+**收尾 commit**（2026-08-04，单独提交）：回填本任务文档 + history §9.4 + architecture §11.3 措辞一致化（把 §11.3"setup 优先级"由"用户显式指定 > 自动沉淀版 > 手写版"改为"P8 唯一通路 = 用户显式选择（无 pick = 不挂载任何 profile） > 自动沉淀版 > 手写版"）。
 
 **回滚方案**：单 commit `git revert HEAD`，不破坏 Phase 0 / Phase 1.1 commit
 

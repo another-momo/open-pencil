@@ -51,10 +51,11 @@
 | 阶段 | 状态 | commit | 说明 |
 |---|---|---|---|
 | 2026-08-03 计划批准 | ✅ | — | ExitPlanMode 通过 |
-| 2026-08-03 step1 plan 文档 | ⏳ | — | 本文件 + §2/Q14 + §9.4 占位 |
-| 2026-08-03 step2 core 改动 | ⬜ | — | setup.ts 删兜底 + tests |
-| 2026-08-03 step3 app 改动 | ⬜ | — | library.ts bind 不覆盖 + chip 三态 + i18n |
-| 2026-08-03 step4 整体验证 + commit | ⬜ | — | typecheck + lint + bun test |
+| 2026-08-03 step1 plan 文档 | ✅ | — | 本文件 + §2/Q14 + §9.4 占位 |
+| 2026-08-03 step2 core 改动 | ✅ | — | setup.ts 删兜底 + tests |
+| 2026-08-03 step3 app 改动 | ✅ | — | library.ts bind 不覆盖 + chip 三态 + i18n |
+| 2026-08-03 step4 P8 验证 + commit | ✅ | `8c8279a0` | P8 + v2 + v3 + v4 + rename + v5 单 commit 落地（25 文件 +327/-221） |
+| 2026-08-04 step5 plan/history 回填 | ✅ | — | 本表回填 + history §9.4 commit hash 回填 + architecture §11.3 setup 优先级措辞与 P8 一致 + 误判死 key `inferredTag` 撤回（实为 Type chip 后缀，仍被引用） |
 
 详细时间线、误诊教训、commit hash 见 `../history/l2-resource-library-history.md` §9.4。
 

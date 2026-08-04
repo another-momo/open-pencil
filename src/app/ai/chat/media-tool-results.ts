@@ -1,6 +1,7 @@
 import type { ModelMessage, ToolResultPart } from 'ai'
 
 import { MEDIA_OUTPUT_TOOLS } from '@/app/ai/chat/elision'
+import type { ContentOutput, ToolResultLikePart } from '@/app/ai/chat/elision'
 
 type ToolResultOutput = ToolResultPart['output']
 
@@ -29,23 +30,12 @@ interface MediaItem {
   text?: unknown
 }
 
-interface ContentOutputLike {
-  type: string
-  value?: unknown
-}
-
-interface ToolResultPartLike {
-  type: string
-  toolName?: string
-  output?: unknown
-}
-
 function isContentOutput(output: unknown): output is { type: string; value: MediaItem[] } {
   return (
     !!output &&
     typeof output === 'object' &&
-    (output as ContentOutputLike).type === 'content' &&
-    Array.isArray((output as ContentOutputLike).value)
+    (output as ContentOutput).type === 'content' &&
+    Array.isArray((output as ContentOutput).value)
   )
 }
 
@@ -69,7 +59,7 @@ export function censusMediaToolResults(messages: ModelMessage[]): MediaToolResul
   for (const message of messages) {
     if (message.role !== 'tool' || !Array.isArray(message.content)) continue
     for (const part of message.content) {
-      const candidate = part as ToolResultPartLike
+      const candidate = part as ToolResultLikePart
       if (candidate.type !== 'tool-result') continue
       if (!MEDIA_OUTPUT_TOOLS.has(candidate.toolName ?? '')) continue
       if (!isContentOutput(candidate.output)) {
@@ -98,7 +88,7 @@ interface InlinedImage {
  * read through.
  */
 function extractMediaOutput(
-  candidate: ToolResultPartLike & { output: { type: string; value: MediaItem[] } },
+  candidate: ToolResultLikePart & { output: { type: string; value: MediaItem[] } },
   images: InlinedImage[]
 ): ToolResultOutput | null {
   const mediaItems = candidate.output.value.filter(isMediaItem)
@@ -137,7 +127,7 @@ export function inlineMediaToolResultsAsUserMessages(messages: ModelMessage[]): 
     let contentTouched = false
 
     for (const part of message.content) {
-      const candidate = part as ToolResultPartLike
+      const candidate = part as ToolResultLikePart
       if (candidate.type !== 'tool-result') {
         if (content) content.push(part)
         continue

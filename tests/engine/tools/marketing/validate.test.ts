@@ -3,34 +3,12 @@ import { expect, test } from 'bun:test'
 import { SceneGraph } from '@open-pencil/core'
 import { getMarketingState, setLibrarySession } from '@open-pencil/core/tools'
 
+import type { ValidateResult, ValidateViolation } from '#core/tools/marketing/validate'
+
 import { expectDefined } from '#tests/helpers/assert'
 import { attachMiniLibrary } from '#tests/helpers/marketing-library'
+import type { AnchorResult, SetupToolResult } from '#tests/helpers/marketing-types'
 import { getTool, setupToolTest } from '#tests/helpers/tools'
-
-interface AnchorResult {
-  template: string
-  position: string
-  instanceId: string
-}
-
-interface SetupToolResult {
-  error?: string
-  rootFrameId?: string
-  anchors?: AnchorResult[]
-}
-
-interface ValidateViolation {
-  type: string
-  message: string
-  nodeId?: string
-  fix: string
-}
-
-interface ValidateToolResult {
-  valid: boolean
-  violations?: ValidateViolation[]
-  note?: string
-}
 
 function setup(id: string) {
   const { graph, figma } = setupToolTest()
@@ -46,7 +24,7 @@ function runValidate(
   return getTool('validate').execute(
     figma,
     rootFrameId ? { id: rootFrameId } : {}
-  ) as ValidateToolResult
+  ) as ValidateResult
 }
 
 function findInstanceChild(

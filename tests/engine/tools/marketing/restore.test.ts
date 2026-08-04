@@ -7,19 +7,8 @@ import { restoreStateFromCanvas } from '#core/tools/marketing/restore'
 
 import { expectDefined } from '#tests/helpers/assert'
 import { attachMiniLibrary } from '#tests/helpers/marketing-library'
+import type { SetupToolResult } from '#tests/helpers/marketing-types'
 import { getTool, setupToolTest } from '#tests/helpers/tools'
-
-interface AnchorResult {
-  template: string
-  position: string
-  instanceId: string
-}
-
-interface SetupToolResult {
-  error?: string
-  rootFrameId?: string
-  anchors?: AnchorResult[]
-}
 
 function setupDesign(id: string) {
   const env = setupToolTest()

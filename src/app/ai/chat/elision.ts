@@ -21,12 +21,12 @@ interface MediaLikePart {
   type: string
 }
 
-interface ContentOutput {
+export interface ContentOutput {
   type: string
   value?: unknown
 }
 
-interface ToolResultLikePart {
+export interface ToolResultLikePart {
   type: string
   toolName?: string
   output?: unknown

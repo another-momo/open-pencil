@@ -9,20 +9,8 @@ import {
 
 import { expectDefined } from '#tests/helpers/assert'
 import { attachMiniLibrary } from '#tests/helpers/marketing-library'
+import type { AnchorResult, SetupToolResult } from '#tests/helpers/marketing-types'
 import { getTool, setupToolTest } from '#tests/helpers/tools'
-
-interface AnchorResult {
-  template: string
-  position: string
-  instanceId: string
-}
-
-interface SetupToolResult {
-  error?: string
-  rootFrameId?: string
-  anchors?: AnchorResult[]
-  repaired?: string[]
-}
 
 function run(id: string) {
   const { graph, figma } = setupToolTest()

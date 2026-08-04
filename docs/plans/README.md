@@ -22,6 +22,7 @@ plans/
 │   ├── l2-marketing-font-puhuiti.md
 │   ├── l2-resource-library.md
 │   ├── l2-visual-loop.md
+│   ├── fork-divergence.md
 │   └── l3-workbench.md
 │
 ├── tasks/                          # 实施任务记录（带 Step/验收/时间线）
@@ -61,6 +62,7 @@ plans/
 | `architecture/l1-image-gen.md` | 设计 | L1 生图工具：references 解耦、尺寸规范化、超时/错误处理、`asImage: true` 渲染 | 半持久 |
 | `architecture/l2-ai-undo-snapshot.md` | 设计 | L2 AI undo 合并：per-burst coalesceKey（拆分 AI undo 栈 + 50x 内存节省） | 半持久 |
 | `architecture/l2-marketing-font-puhuiti.md` | 设计 | L2 营销字体：PuHuiTi 9 字重 + BUNDLED_FONTS + FONT_WEIGHT_NAMES 修复 | 半持久 |
+| `architecture/fork-divergence.md` | 治理 | Fork 与 upstream 差异全景：处置（保留/丢弃/重构）、冗余接受标准、合并 SOP | 每次合并后刷新 |
 | `tasks/l1-image-gen-optimize.md` | 任务 | L1 实施步骤骨架 + 验证/回滚指针（设计见 `architecture/l1-image-gen.md`） | 半持久 |
 | `history/<name>-history.md` | 历史 | 从对应设计/任务文档切出的实施记录、误诊修正、评审后续修正 | 档案（追加） |
 | `knowledge/error-catalog.md` | 知识 | 冒烟测试错误目录（实测驱动迭代的核心资产，持续追加） | 只增不改 |

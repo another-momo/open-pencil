@@ -25,6 +25,7 @@ import {
 } from '@/app/ai/marketing/library'
 import { getActiveEditorStore } from '@/app/editor/active-store'
 import { menuItem, useMenuUI } from '@/components/ui/menu'
+import Tip from '@/components/ui/Tip.vue'
 import ProfileGalleryDialog from '@/components/chat/ProfileGalleryDialog.vue'
 
 const { dialogs } = useI18n()
@@ -207,16 +208,17 @@ function toggleProfileChip() {
     </DropdownMenuRoot>
 
     <!-- Profile (chip toggles: clicked when picked → clear; clicked when unset → open gallery) -->
-    <button
-      type="button"
-      :class="profileChipClass(profileChipState())"
-      :data-profile-state="profileChipState()"
-      :title="profileSelection ? dialogs.profileChipClearHint : dialogs.profileChipOpenHint"
-      data-test-id="config-profile-trigger"
-      @click="toggleProfileChip"
-    >
-      {{ profileLabel }}
-    </button>
+    <Tip :label="profileSelection ? dialogs.profileChipClearHint : dialogs.profileChipOpenHint">
+      <button
+        type="button"
+        :class="profileChipClass(profileChipState())"
+        :data-profile-state="profileChipState()"
+        data-test-id="config-profile-trigger"
+        @click="toggleProfileChip"
+      >
+        {{ profileLabel }}
+      </button>
+    </Tip>
 
     <!-- References -->
     <DropdownMenuRoot v-model:open="refOpen">

@@ -166,8 +166,10 @@ function restoreAnchor(instance: SceneNode): AnchorRecord | undefined {
 }
 
 /**
- * Scan top-level frames for marketing root markers and rebuild registry
- * entries. Returns the restored designs for the caller to register.
+ * Scan frames for marketing root markers and rebuild registry entries.
+ * Returns the restored designs for the caller to register.
+ * Recursive: users may nest root frames inside groups (mirrors
+ * listDocumentLibraryNames).
  */
 export function restoreStateFromCanvas(
   graph: SceneGraph
@@ -175,29 +177,34 @@ export function restoreStateFromCanvas(
   const componentsPageId = findComponentsPageId(graph)
   const designs: Array<Omit<MarketingDocumentState, 'lastActiveAt'>> = []
 
+  const walk = (nodeId: string) => {
+    const rootFrame = graph.getNode(nodeId)
+    if (!rootFrame) return
+    if (isMarketingRoot(rootFrame)) {
+      const materialTypeId = markerValue(rootFrame, TYPE_KEY)
+      if (materialTypeId) {
+        const anchors: AnchorRecord[] = []
+        for (const instanceId of rootFrame.childIds) {
+          const instance = graph.getNode(instanceId)
+          if (!instance || markerValue(instance, ROLE_KEY) !== ROLE_ANCHOR) continue
+          const anchor = restoreAnchor(instance)
+          if (anchor) anchors.push(anchor)
+        }
+
+        designs.push({
+          materialTypeId,
+          rootFrameId: rootFrame.id,
+          ...(componentsPageId ? { componentsPageId } : {}),
+          anchors
+        })
+      }
+    }
+    for (const childId of rootFrame.childIds) walk(childId)
+  }
+
   for (const page of graph.getPages()) {
     if (page.id === componentsPageId || page.name === 'Components') continue
-    for (const childId of page.childIds) {
-      const rootFrame = graph.getNode(childId)
-      if (!isMarketingRoot(rootFrame)) continue
-      const materialTypeId = markerValue(rootFrame, TYPE_KEY)
-      if (!materialTypeId) continue
-
-      const anchors: AnchorRecord[] = []
-      for (const instanceId of rootFrame.childIds) {
-        const instance = graph.getNode(instanceId)
-        if (!instance || markerValue(instance, ROLE_KEY) !== ROLE_ANCHOR) continue
-        const anchor = restoreAnchor(instance)
-        if (anchor) anchors.push(anchor)
-      }
-
-      designs.push({
-        materialTypeId,
-        rootFrameId: rootFrame.id,
-        ...(componentsPageId ? { componentsPageId } : {}),
-        anchors
-      })
-    }
+    for (const childId of page.childIds) walk(childId)
   }
   return designs
 }

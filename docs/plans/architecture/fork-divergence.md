@@ -134,3 +134,5 @@
 ## 6. 处置决策变更记录
 
 - 2026-08-04：文档建立。D2 四项已随合并丢弃；`uint8ArrayToBase64` → upstream `encodeBase64`、`Uint8Array.fromBase64` → `decodeBase64`（顺带修了 vue-tsc 对 TS 5.8 的报错）。
+- 2026-08-04：**R2 已落地**（`9f109acf`）——fork 设置状态迁至 `src/app/ai/marketing/settings.ts`，`chat/storage.ts` 与 upstream 逐字节一致。**R3 已落地**（`99f25cbf`）——fork 发版记录迁至 `CHANGELOG.fork.md`，`CHANGELOG.md` 与 upstream 逐字节一致。
+- 2026-08-04：修复 review §3.2-3（restore 扫描深度不一致）——`restoreStateFromCanvas` 改为递归，与 `listDocumentLibraryNames` 对齐，补嵌套 group 回归测试（70/70 marketing 测试通过）。§3.2 六个实质缺陷至此全部清零。

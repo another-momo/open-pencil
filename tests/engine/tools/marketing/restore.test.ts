@@ -67,6 +67,18 @@ describe('restoreStateFromCanvas', () => {
     expect(listMarketingDesigns(graph)).toHaveLength(2)
   })
 
+  test('restores root frames nested inside groups', () => {
+    const { graph, result } = setupDesign('product_long')
+    const rootFrameId = result.rootFrameId as string
+    const group = graph.createNode('GROUP', graph.getPages()[0].id, { name: 'wrapper' })
+    graph.reparentNode(rootFrameId, group.id)
+
+    clearMarketingState(graph)
+    const restored = restoreStateFromCanvas(graph)
+    expect(restored).toHaveLength(1)
+    expect(restored[0]?.rootFrameId).toBe(rootFrameId)
+  })
+
   test('documents without marketing markers restore nothing', () => {
     const { graph } = setupToolTest()
     graph.createNode('FRAME', graph.getPages()[0].id, { name: 'unrelated' })

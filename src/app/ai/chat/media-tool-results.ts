@@ -83,6 +83,45 @@ export function censusMediaToolResults(messages: ModelMessage[]): MediaToolResul
   return census
 }
 
+interface InlinedImage {
+  toolName: string
+  mediaType: string
+  data: string
+}
+
+/**
+ * Collect media items into `images` and return the rewritten text-only
+ * output for a media tool-result part — or null when the part carries no
+ * media. Collapses to a plain text output when no media remains:
+ * chat-completions providers JSON.stringify content outputs, which would
+ * wrap the note in a '[{"type":"text",...}]' envelope the model has to
+ * read through.
+ */
+function extractMediaOutput(
+  candidate: ToolResultPartLike & { output: { type: string; value: MediaItem[] } },
+  images: InlinedImage[]
+): ToolResultOutput | null {
+  const mediaItems = candidate.output.value.filter(isMediaItem)
+  if (mediaItems.length === 0) return null
+
+  for (const item of mediaItems) {
+    images.push({
+      toolName: candidate.toolName ?? 'look',
+      mediaType: item.mediaType,
+      data: item.data
+    })
+  }
+  const textOnly = candidate.output.value.filter((item) => !isMediaItem(item))
+  if (textOnly.length === 0) {
+    return { type: 'text', value: '[image inlined as a user message]' }
+  }
+  const first = textOnly[0]
+  if (textOnly.length === 1 && first.type === 'text' && typeof first.text === 'string') {
+    return { type: 'text', value: first.text }
+  }
+  return { ...candidate.output, value: textOnly } as ToolResultOutput
+}
+
 export function inlineMediaToolResultsAsUserMessages(messages: ModelMessage[]): ModelMessage[] {
   const result: ModelMessage[] = []
   let anyTouched = false
@@ -93,7 +132,7 @@ export function inlineMediaToolResultsAsUserMessages(messages: ModelMessage[]): 
       continue
     }
 
-    const images: Array<{ toolName: string; mediaType: string; data: string }> = []
+    const images: InlinedImage[] = []
     let content: typeof message.content | null = null
     let contentTouched = false
 
@@ -111,33 +150,15 @@ export function inlineMediaToolResultsAsUserMessages(messages: ModelMessage[]): 
         if (content) content.push(part)
         continue
       }
-      const mediaItems = candidate.output.value.filter(isMediaItem)
-      if (mediaItems.length === 0) {
+
+      const output = extractMediaOutput(
+        { ...candidate, output: candidate.output },
+        images
+      )
+      if (!output) {
         if (content) content.push(part)
         continue
       }
-
-      for (const item of mediaItems) {
-        images.push({
-          toolName: candidate.toolName ?? 'look',
-          mediaType: item.mediaType,
-          data: item.data
-        })
-      }
-      const textOnly = candidate.output.value.filter((item) => !isMediaItem(item))
-      // Collapse to a plain text output when no media remains — chat-completions
-      // providers JSON.stringify content outputs, which would wrap the note in
-      // a '[{"type":"text",...}]' envelope the model has to read through.
-      const singleText =
-        textOnly.length === 1 && textOnly[0].type === 'text' && typeof textOnly[0].text === 'string'
-          ? textOnly[0].text
-          : undefined
-      const output: ToolResultOutput =
-        textOnly.length === 0
-          ? { type: 'text', value: '[image inlined as a user message]' }
-          : singleText !== undefined
-            ? { type: 'text', value: singleText }
-            : ({ ...candidate.output, value: textOnly } as ToolResultOutput)
 
       if (!content) {
         content = message.content.slice(0, message.content.indexOf(part))

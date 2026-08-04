@@ -67,16 +67,20 @@ describe('weightToFigmaStyle', () => {
 })
 
 describe('chooseLocalFontMatch', () => {
-  test('returns null when no candidates', () => {
-    expect(chooseLocalFontMatch('Inter', [], 400)).toBeNull()
+  test('returns undefined when no candidates', () => {
+    expect(chooseLocalFontMatch([], 'Inter')).toBeUndefined()
   })
 
   test('picks exact family + style match', () => {
     expect(
-      chooseLocalFontMatch('Inter', [
-        { family: 'Roboto', style: 'Regular' },
-        { family: 'Inter', style: 'Bold' }
-      ])
+      chooseLocalFontMatch(
+        [
+          { family: 'Roboto', style: 'Regular' },
+          { family: 'Inter', style: 'Bold' }
+        ],
+        'Inter',
+        'Bold'
+      )
     ).toEqual({ family: 'Inter', style: 'Bold' })
   })
 })
@@ -128,43 +132,21 @@ describe('FontManager loaded font cache', () => {
       'Heavy',
       'Black'
     ]) {
-      const buffer = await manager.loadFamily('Alibaba PuHuiTi', {
-        family: 'Alibaba PuHuiTi',
-        style
-      })
+      const buffer = await manager.loadLocalFont('Alibaba PuHuiTi', style)
       expect(buffer).not.toBeNull()
       expect(buffer?.byteLength).toBe(8192)
     }
   })
 
-  test('loadFamily falls back to global fetch when host loader returns null', async () => {
+  test('loadLocalFont falls back to bundled fonts when the host loader returns null', async () => {
     const manager = new FontManager()
-    const originalFetch = globalThis.fetch
-    try {
-      globalThis.fetch = (async (input: RequestInfo | URL) => {
-        let url: string
-        if (typeof input === 'string') {
-          url = input
-        } else if (input instanceof URL) {
-          url = input.toString()
-        } else {
-          url = input.url
-        }
-        if (url.includes('cdn.example.com')) {
-          return new Response(new ArrayBuffer(4096), { status: 200 })
-        }
-        return new Response('not found', { status: 404 })
-      }) as typeof fetch
+    manager.setHostFontLoader(async () => null)
 
-      const buffer = await manager.loadFamily('FallbackFont', {
-        family: 'FallbackFont',
-        style: 'Regular',
-        url: 'https://cdn.example.com/font.woff2'
-      })
-      expect(buffer).not.toBeNull()
-      expect(buffer?.byteLength).toBe(4096)
-    } finally {
-      globalThis.fetch = originalFetch
-    }
+    // The bundled Alibaba PuHuiTi assets ship inside @open-pencil/core
+    // (packages/core/assets) — with no host loader hit, loadLocalFont
+    // resolves the real bundled Regular weight.
+    const buffer = await manager.loadLocalFont('Alibaba PuHuiTi', 'Regular')
+    expect(buffer).not.toBeNull()
+    expect(buffer?.byteLength).toBeGreaterThan(1000)
   })
 })

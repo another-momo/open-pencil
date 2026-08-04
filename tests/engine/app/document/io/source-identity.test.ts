@@ -78,7 +78,7 @@ describe('saved document identity', () => {
     // instead of throwing (the stale handle is cleared so later saves use the
     // download path). The fallback itself needs a DOM, which this environment
     // lacks, so tolerate its rejection — the identity invariant is what matters.
-    await actions.saveFigFile().catch(() => {})
+    await actions.saveFigFile().catch(() => undefined)
 
     expect(setSourceIdentity).not.toHaveBeenCalled()
     expect(setFileHandle).toHaveBeenCalledWith(null)

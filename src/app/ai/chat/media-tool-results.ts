@@ -135,9 +135,9 @@ export function inlineMediaToolResultsAsUserMessages(messages: ModelMessage[]): 
       const output: ToolResultOutput =
         textOnly.length === 0
           ? { type: 'text', value: '[image inlined as a user message]' }
-          : (singleText !== undefined
+          : singleText !== undefined
             ? { type: 'text', value: singleText }
-            : ({ ...candidate.output, value: textOnly } as ToolResultOutput))
+            : ({ ...candidate.output, value: textOnly } as ToolResultOutput)
 
       if (!content) {
         content = message.content.slice(0, message.content.indexOf(part))

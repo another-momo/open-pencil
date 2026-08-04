@@ -58,7 +58,7 @@ describe('marketing registry (per-rootFrame)', () => {
     expect(listMarketingDesigns(graph)).toHaveLength(2)
   })
 
-test('explicit id on a deleted root prunes the stale entry', () => {
+  test('explicit id on a deleted root prunes the stale entry', () => {
     const { graph } = setupToolTest()
     const pageId = graph.getPages()[0].id
     const frameA = graph.createNode('FRAME', pageId, { name: 'A' })

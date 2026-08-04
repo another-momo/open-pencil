@@ -1,5 +1,6 @@
 import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
+import { encodeBase64 } from '#core/bytes'
 import type { FigmaAPI } from '#core/figma-api'
 import {
   getMarketingState,
@@ -13,7 +14,6 @@ import {
   getVisionMode,
   isVisionChannelBReady
 } from '#core/tools/marketing/vision'
-import { encodeBase64 } from '#core/bytes'
 import { defineTool } from '#core/tools/schema'
 
 const MAX_LONG_EDGE = 1024
@@ -92,7 +92,10 @@ async function analyzeViaVisionChannel(
   scale: number,
   noteParts: string[],
   focus: string | undefined
-): Promise<{ error: string } | { analysis: string; cached: boolean; node: typeof nodeInfo; focus?: string; note: string }> {
+): Promise<
+  | { error: string }
+  | { analysis: string; cached: boolean; node: typeof nodeInfo; focus?: string; note: string }
+> {
   if (!isVisionChannelBReady()) {
     return {
       error:

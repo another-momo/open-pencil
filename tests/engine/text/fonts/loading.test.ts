@@ -117,8 +117,21 @@ describe('FontManager loaded font cache', () => {
       return null
     })
 
-    for (const style of ['Thin', 'Light', 'Regular', 'Medium', 'SemiBold', 'Bold', 'ExtraBold', 'Heavy', 'Black']) {
-      const buffer = await manager.loadFamily('Alibaba PuHuiTi', { family: 'Alibaba PuHuiTi', style })
+    for (const style of [
+      'Thin',
+      'Light',
+      'Regular',
+      'Medium',
+      'SemiBold',
+      'Bold',
+      'ExtraBold',
+      'Heavy',
+      'Black'
+    ]) {
+      const buffer = await manager.loadFamily('Alibaba PuHuiTi', {
+        family: 'Alibaba PuHuiTi',
+        style
+      })
       expect(buffer).not.toBeNull()
       expect(buffer?.byteLength).toBe(8192)
     }

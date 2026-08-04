@@ -9,10 +9,7 @@
 
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
-import {
-  restoreStateFromCanvas,
-  type MarketingDocumentState
-} from '#core/tools/marketing/restore'
+import { restoreStateFromCanvas, type MarketingDocumentState } from '#core/tools/marketing/restore'
 
 const states = new WeakMap<SceneGraph, Map<string, MarketingDocumentState>>()
 const restoredGraphs = new WeakSet<SceneGraph>()

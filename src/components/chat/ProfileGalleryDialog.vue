@@ -44,7 +44,9 @@ const filtered = computed(() => {
 })
 
 const previewProfile = computed(() =>
-  previewId.value ? (profiles.value.find((profile) => profile.id === previewId.value) ?? null) : null
+  previewId.value
+    ? (profiles.value.find((profile) => profile.id === previewId.value) ?? null)
+    : null
 )
 
 function pick(id: string) {
@@ -115,11 +117,7 @@ watch(open, (isOpen) => {
             "
             :data-profile-id="profile.id"
           >
-            <button
-              type="button"
-              class="block w-full text-left"
-              @click="pick(profile.id)"
-            >
+            <button type="button" class="block w-full text-left" @click="pick(profile.id)">
               <div class="flex items-start gap-2">
                 <icon-lucide-check
                   v-if="selectedId === profile.id"
@@ -158,7 +156,10 @@ watch(open, (isOpen) => {
             </button>
           </div>
         </div>
-        <div v-else class="mt-3 rounded border border-dashed border-border p-4 text-center text-xs text-muted">
+        <div
+          v-else
+          class="mt-3 rounded border border-dashed border-border p-4 text-center text-xs text-muted"
+        >
           {{ dialogs.profileGalleryEmpty }}
         </div>
 

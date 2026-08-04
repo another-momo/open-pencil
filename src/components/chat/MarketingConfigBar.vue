@@ -84,22 +84,20 @@ const referencesLabel = computed(() =>
 // (empty applicableTo) are always shown. With "show all" the non-matching
 // refs are revealed too — useful for cross-type inspiration.
 const showAllReferences = ref(false)
-const activeTypeId = computed(
-  () => materialTypeSelection.value?.id ?? types.value[0]?.id ?? null
-)
+const activeTypeId = computed(() => materialTypeSelection.value?.id ?? types.value[0]?.id ?? null)
 const partitionedRefs = computed(() => {
   const all = references.value
   const t = activeTypeId.value
   const matching = all.filter((r) => r.applicableTo.length > 0 && r.applicableTo.includes(t ?? ''))
   const universal = all.filter((r) => r.applicableTo.length === 0)
-  const other = all.filter(
-    (r) => r.applicableTo.length > 0 && !r.applicableTo.includes(t ?? '')
-  )
+  const other = all.filter((r) => r.applicableTo.length > 0 && !r.applicableTo.includes(t ?? ''))
   return { matching, universal, other, total: all.length, hidden: other.length }
 })
 const visibleReferences = computed(() => {
   const { matching, universal, other } = partitionedRefs.value
-  return showAllReferences.value ? [...matching, ...universal, ...other] : [...matching, ...universal]
+  return showAllReferences.value
+    ? [...matching, ...universal, ...other]
+    : [...matching, ...universal]
 })
 
 const checked = ref<string[]>([])
@@ -213,9 +211,7 @@ function toggleProfileChip() {
       type="button"
       :class="profileChipClass(profileChipState())"
       :data-profile-state="profileChipState()"
-      :title="profileSelection
-        ? dialogs.profileChipClearHint
-        : dialogs.profileChipOpenHint"
+      :title="profileSelection ? dialogs.profileChipClearHint : dialogs.profileChipOpenHint"
       data-test-id="config-profile-trigger"
       @click="toggleProfileChip"
     >
@@ -236,7 +232,8 @@ function toggleProfileChip() {
       <DropdownMenuPortal>
         <DropdownMenuContent side="top" :side-offset="4" align="start" :class="menuCls.content">
           <div v-if="activeTypeId" class="px-2 pt-1 pb-0.5 text-[10px] text-muted">
-            {{ dialogs.referencesFilteredFor }}: <span class="text-surface/80">{{ activeTypeId }}</span>
+            {{ dialogs.referencesFilteredFor }}:
+            <span class="text-surface/80">{{ activeTypeId }}</span>
           </div>
           <div class="max-h-48 overflow-y-auto">
             <template v-if="visibleReferences.length > 0">
@@ -269,10 +266,7 @@ function toggleProfileChip() {
               data-test-id="config-references-show-all"
               @click="showAllReferences = !showAllReferences"
             >
-              <icon-lucide-chevron-down
-                v-if="!showAllReferences"
-                class="size-3 shrink-0"
-              />
+              <icon-lucide-chevron-down v-if="!showAllReferences" class="size-3 shrink-0" />
               <icon-lucide-chevron-up v-else class="size-3 shrink-0" />
               {{
                 showAllReferences

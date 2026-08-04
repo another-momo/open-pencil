@@ -10,7 +10,10 @@ import { buildDefaultLibraryGraph } from '../src/generate'
 describe('default-library.fig round-trip', () => {
   test('exports four named pages, one per zone', () => {
     const graph = buildDefaultLibraryGraph()
-    const pages = graph.getPages().map((page) => page.name).sort()
+    const pages = graph
+      .getPages()
+      .map((page) => page.name)
+      .sort()
     expect(pages).toEqual(['Components', 'Profiles', 'References', 'Types'])
   })
 

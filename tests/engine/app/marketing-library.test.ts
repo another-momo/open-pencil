@@ -13,7 +13,6 @@ import {
 
 import { makeMiniLibraryGraph } from '#tests/helpers/marketing-library'
 
-
 describe('marketing library service', () => {
   test('bindMarketingLibrary replaces a previously bound session after upload-replace', async () => {
     const doc = new SceneGraph()

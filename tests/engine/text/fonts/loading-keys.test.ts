@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 
-import { fontManager, isVariableFont, normalizeFontFamily, SceneGraph, styleToVariant } from '@open-pencil/core'
+import {
+  fontManager,
+  isVariableFont,
+  normalizeFontFamily,
+  SceneGraph,
+  styleToVariant
+} from '@open-pencil/core'
 
 import { expectDefined } from '#tests/helpers/assert'
 

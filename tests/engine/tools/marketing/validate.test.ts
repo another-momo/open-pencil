@@ -43,7 +43,10 @@ function runValidate(
   figma: Parameters<ReturnType<typeof getTool>['execute']>[0],
   rootFrameId?: string
 ) {
-  return getTool('validate').execute(figma, rootFrameId ? { id: rootFrameId } : {}) as ValidateToolResult
+  return getTool('validate').execute(
+    figma,
+    rootFrameId ? { id: rootFrameId } : {}
+  ) as ValidateToolResult
 }
 
 function findInstanceChild(

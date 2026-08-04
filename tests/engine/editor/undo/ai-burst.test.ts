@@ -6,7 +6,12 @@ function burstKey(burstId: number) {
   return `ai-burst-${burstId}`
 }
 
-function snapshotEntry(label: string, coalesceKey: string, restoreTo: number, state: { value: number }) {
+function snapshotEntry(
+  label: string,
+  coalesceKey: string,
+  restoreTo: number,
+  state: { value: number }
+) {
   return {
     label,
     coalesceKey,

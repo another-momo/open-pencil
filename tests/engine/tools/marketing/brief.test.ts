@@ -79,7 +79,9 @@ test('brief layout computes sane geometry (no sizing collapse)', () => {
   const mainId = expectDefined(fresh.childIds.find((id) => graph.getNode(id)?.name === '需求内容'))
   const main = expectDefined(graph.getNode(mainId))
   const aiCard = expectDefined(
-    graph.getNode(expectDefined(fresh.childIds.find((id) => graph.getNode(id)?.name === BRIEF_ZONE_AI_NAME)))
+    graph.getNode(
+      expectDefined(fresh.childIds.find((id) => graph.getNode(id)?.name === BRIEF_ZONE_AI_NAME))
+    )
   )
   expect(main.width).toBe(560 - 32 - 16 - 172)
   expect(aiCard.width).toBe(172)

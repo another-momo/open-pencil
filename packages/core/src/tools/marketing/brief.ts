@@ -167,12 +167,7 @@ function createCard(
   return card.id
 }
 
-function createLabelRow(
-  figma: FigmaAPI,
-  parentId: string,
-  label: string,
-  badge: string
-): void {
+function createLabelRow(figma: FigmaAPI, parentId: string, label: string, badge: string): void {
   const graph = figma.graph
   const row = graph.createNode('FRAME', parentId, { name: 'LabelRow' })
   graph.updateNode(row.id, {
@@ -298,9 +293,7 @@ export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
         blendMode: 'NORMAL'
       }
     ],
-    pluginData: [
-      { pluginId: BRIEF_PLUGIN_ID, key: BRIEF_ROLE_KEY, value: BRIEF_ROLE_VALUE }
-    ]
+    pluginData: [{ pluginId: BRIEF_PLUGIN_ID, key: BRIEF_ROLE_KEY, value: BRIEF_ROLE_VALUE }]
   })
 
   const main = graph.createNode('FRAME', brief.id, { name: '需求内容' })
@@ -365,10 +358,16 @@ export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
     '例如：「XX奶茶」夏季新品买一送一，主推芒果冰沙，单价 9.9 元，活动时间 6 月 1 日 — 6 月 7 日。文案方向：年轻、清爽、突出「夏日解暑」的感觉。',
     { lineHeight: 20, color: EXAMPLE_COLOR, wrap: true }
   )
-  createText(figma, contentCard, 'FieldsHint', '需要的字段：品牌名 · 优惠活动 · 价格 · 时间 · 想要的文案', {
-    fontSize: 11,
-    color: MUTED_COLOR
-  })
+  createText(
+    figma,
+    contentCard,
+    'FieldsHint',
+    '需要的字段：品牌名 · 优惠活动 · 价格 · 时间 · 想要的文案',
+    {
+      fontSize: 11,
+      color: MUTED_COLOR
+    }
+  )
 
   const materialCard = createCard(figma, main.id, BRIEF_ZONE_MATERIALS_NAME, {
     stroke: CARD_STROKE,
@@ -385,10 +384,16 @@ export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
   })
   createSlot(figma, grid.id, BRIEF_ENTRY_NAME, '主视觉', true)
   for (let i = 0; i < 3; i++) createSlot(figma, grid.id, '添加位', '添加', false)
-  createText(figma, materialCard, 'MaterialNote', '每张图可备注用途（主视觉 / 卡片配图 / 仅参考风格）', {
-    fontSize: 11,
-    color: MUTED_COLOR
-  })
+  createText(
+    figma,
+    materialCard,
+    'MaterialNote',
+    '每张图可备注用途（主视觉 / 卡片配图 / 仅参考风格）',
+    {
+      fontSize: 11,
+      color: MUTED_COLOR
+    }
+  )
 
   const aiCard = createCard(figma, brief.id, BRIEF_ZONE_AI_NAME, {
     bg: AI_ZONE_BG,

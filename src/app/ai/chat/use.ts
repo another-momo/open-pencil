@@ -24,6 +24,7 @@ import {
   setUnsplashKey,
   unsplashKeyStatus
 } from '@/app/ai/chat/storage'
+import { createChatSessionManager } from '@/app/ai/chat/transports'
 import {
   chatMode,
   imageGenApiKey,
@@ -37,7 +38,6 @@ import {
   visionModel,
   visionProvider
 } from '@/app/ai/marketing/settings'
-import { createChatSessionManager } from '@/app/ai/chat/transports'
 import { exposeChatTransportOverride } from '@/app/browser-bridge'
 import { getActiveEditorStore } from '@/app/editor/active-store'
 

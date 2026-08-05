@@ -42,7 +42,6 @@ import {
   getPageTree,
   listAvailableFonts,
   listFonts,
-  listPages,
   pageBounds,
   queryNodes,
   selectNodes,
@@ -99,12 +98,13 @@ import {
 /**
  * Extended tools not in CORE_TOOLS — variables, vector ops, analysis,
  * codegen, advanced structure, path manipulation, etc.
+ * (list_pages moved to CORE_TOOLS: the marketing prompt's 参考区 check
+ * needs page enumeration in AI chat.)
  */
 export const EXTENDED_TOOLS: ToolDef[] = [
   // Read (advanced)
   getPageTree,
   getCurrentPage,
-  listPages,
   selectNodes,
   queryNodes,
   getComponents,

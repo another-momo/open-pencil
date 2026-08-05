@@ -37,7 +37,7 @@ function originalImageData(
   const { fills } = node
   if (!Array.isArray(fills) || fills.length !== 1) return null
   const fill = fills[0]
-  if (fill.type !== 'IMAGE' || fill.visible === false || !fill.imageHash) return null
+  if (fill.type !== 'IMAGE' || !fill.visible || !fill.imageHash) return null
   const data = figma.graph.images.get(fill.imageHash)
   return data ? { data, mimeType: sniffImageMime(data) } : null
 }

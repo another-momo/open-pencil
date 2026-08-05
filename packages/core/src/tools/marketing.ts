@@ -5,16 +5,26 @@ import { defineTool } from './schema'
 export { lookTool } from './marketing/look'
 
 export {
+  BRIEF_CONCLUSIONS_NAME,
+  BRIEF_EMPTY_STATE_NAME,
   BRIEF_ENTRY_NAME,
   BRIEF_NAME,
   BRIEF_ZONE_AI_NAME,
   BRIEF_ZONE_MATERIALS_NAME,
   BRIEF_ZONE_USER_NAME,
+  addBriefMaterialEntry,
   appendToBriefAiZone,
   createBrief,
   findBrief,
   isBrief
 } from './marketing/brief'
+export {
+  readBrief,
+  removeBriefMaterial,
+  updateBriefContent,
+  updateMaterialCaption
+} from './marketing/brief-edit'
+export type { BriefMaterialView, BriefView } from './marketing/brief-edit'
 export { getMarketingState } from './marketing/registry'
 export { cloneSubtreeAcrossGraphs } from './marketing/clone'
 export { listDocumentLibraryNames, markLibraryReference } from './marketing/restore'

@@ -13,8 +13,9 @@
  * requires async fetching; plus signs are drawn with plain rectangles.
  */
 
-import type { SceneNode } from '@open-pencil/scene-graph'
+import type { Fill, SceneNode } from '@open-pencil/scene-graph'
 
+import { TRANSPARENT } from '#core/constants'
 import type { FigmaAPI } from '#core/figma-api'
 
 export const BRIEF_PLUGIN_ID = 'open-pencil-marketing'
@@ -26,8 +27,9 @@ export const BRIEF_ZONE_USER_NAME = '内容区'
 export const BRIEF_ZONE_MATERIALS_NAME = '素材区'
 export const BRIEF_ZONE_AI_NAME = 'AI结论区'
 export const BRIEF_ENTRY_NAME = '素材条目'
-const BRIEF_CONCLUSIONS_NAME = '结论列表'
-const BRIEF_EMPTY_STATE_NAME = '空状态'
+export const BRIEF_CONCLUSIONS_NAME = '结论列表'
+export const BRIEF_EMPTY_STATE_NAME = '空状态'
+const BRIEF_ADD_SLOT_NAME = '添加位'
 
 const BRIEF_BG = { r: 0.996, g: 0.965, b: 0.839 }
 const CARD_BG = { r: 1, g: 1, b: 1 }
@@ -383,7 +385,7 @@ export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
     fills: []
   })
   createSlot(figma, grid.id, BRIEF_ENTRY_NAME, '主视觉', true)
-  for (let i = 0; i < 3; i++) createSlot(figma, grid.id, '添加位', '添加', false)
+  for (let i = 0; i < 3; i++) createSlot(figma, grid.id, BRIEF_ADD_SLOT_NAME, '添加', false)
   createText(
     figma,
     materialCard,
@@ -477,4 +479,58 @@ export function appendToBriefAiZone(figma: FigmaAPI, briefId: string, text: stri
   const emptyStateId = findChild(aiCardId, BRIEF_EMPTY_STATE_NAME)
   if (emptyStateId) graph.updateNode(emptyStateId, { visible: false })
   return true
+}
+
+/**
+ * Add a real material entry (image + caption) to the brief's MaterialGrid.
+ * Implemented here (not in brief-edit.ts) to reuse the internal createSlot
+ * without exporting it. The new entry is inserted before the first 添加位 so
+ * the hint slots stay at the tail. Accepts raw bytes (figma.createImage) or
+ * an already-registered image hash.
+ */
+export function addBriefMaterialEntry(
+  figma: FigmaAPI,
+  briefId: string,
+  image: Uint8Array | { hash: string },
+  caption: string
+): { entryId: string } | { error: string } {
+  const graph = figma.graph
+  const brief = graph.getNode(briefId)
+  if (!isBrief(brief)) return { error: 'Brief not found' }
+  const mainId = brief.childIds.find((id) => graph.getNode(id)?.name === '需求内容')
+  const materialCardId = mainId
+    ? graph
+        .getNode(mainId)
+        ?.childIds.find((id) => graph.getNode(id)?.name === BRIEF_ZONE_MATERIALS_NAME)
+    : undefined
+  const gridId = materialCardId
+    ? graph
+        .getNode(materialCardId)
+        ?.childIds.find((id) => graph.getNode(id)?.name === 'MaterialGrid')
+    : undefined
+  if (!gridId) return { error: 'Brief material grid not found' }
+
+  const hash = image instanceof Uint8Array ? figma.createImage(image).hash : image.hash
+  const entryId = createSlot(figma, gridId, BRIEF_ENTRY_NAME, caption, true)
+
+  const addSlotIndex =
+    graph
+      .getNode(gridId)
+      ?.childIds.findIndex((id) => graph.getNode(id)?.name === BRIEF_ADD_SLOT_NAME) ?? -1
+  if (addSlotIndex >= 0) graph.insertChildAt(entryId, gridId, addSlotIndex)
+
+  const imageId = graph
+    .getNode(entryId)
+    ?.childIds.find((id) => graph.getNode(id)?.name === '图片位')
+  if (!imageId) return { error: 'Brief entry image slot missing' }
+  const imageFill: Fill = {
+    type: 'IMAGE',
+    imageHash: hash,
+    imageScaleMode: 'FILL',
+    color: TRANSPARENT,
+    opacity: 1,
+    visible: true
+  }
+  graph.updateNode(imageId, { fills: [imageFill] })
+  return { entryId }
 }

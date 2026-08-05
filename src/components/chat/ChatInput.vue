@@ -7,16 +7,14 @@ import AppInput from '@/components/ui/AppInput.vue'
 import Tip from '@/components/ui/Tip.vue'
 import { useButtonUI } from '@/components/ui/button'
 import { inferMaterialTypeFromText } from '@/app/ai/chat/material-type-infer'
+import { createBriefInStore, openBriefPanel } from '@/app/ai/marketing/brief-panel'
 import { setInferredMaterialType } from '@/app/ai/marketing/settings'
 import { useAIChat } from '@/app/ai/chat/use'
-import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
 import { getActiveEditorStore } from '@/app/editor/active-store'
 import { openSettingsDialog } from '@/app/settings/dialog'
 import { useI18n } from '@open-pencil/vue'
 
 import { ACP_AGENTS } from '@open-pencil/core/constants'
-import { computeAllLayouts } from '@open-pencil/core/layout'
-import { createBrief } from '@open-pencil/core/tools'
 
 import {
   bindMarketingLibrary,
@@ -24,6 +22,7 @@ import {
   maybeAutoOpenLibraryDialog,
   openLibraryDialog
 } from '@/app/ai/marketing/library'
+import BriefPanelDialog from '@/components/chat/BriefPanelDialog.vue'
 import MarketingConfigBar from '@/components/chat/MarketingConfigBar.vue'
 import MarketingLibraryDialog from '@/components/chat/MarketingLibraryDialog.vue'
 
@@ -108,20 +107,9 @@ async function handleSubmit(e: Event) {
 }
 
 function handleNewBrief() {
-  const store = getActiveEditorStore()
-  const before = store.snapshotPage()
-  const figma = makeFigmaFromStore(store)
-  const center = store.viewportCanvasCenter()
-  const brief = createBrief(figma, center.x - 180, center.y - 120)
-  computeAllLayouts(store.graph, store.state.currentPageId)
-  store.select([brief.id])
-  store.requestRender()
-  const after = store.snapshotPage()
-  store.pushUndoEntry({
-    label: '新建需求单',
-    forward: () => store.restorePageFromSnapshot(after),
-    inverse: () => store.restorePageFromSnapshot(before)
-  })
+  // Single-brief semantics: create only when missing, then open the panel
+  createBriefInStore()
+  openBriefPanel()
 }
 </script>
 
@@ -226,6 +214,7 @@ function handleNewBrief() {
       </form>
 
       <MarketingLibraryDialog v-if="chatMode === 'marketing'" />
+      <BriefPanelDialog v-if="chatMode === 'marketing'" />
     </div>
   </TooltipProvider>
 </template>

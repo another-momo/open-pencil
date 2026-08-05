@@ -34,6 +34,8 @@ export const BRIEF_EMPTY_STATE_NAME = '空状态'
 export const BRIEF_EMPTY_HINT_NAME = 'EmptyHint'
 /** Legacy empty 'add' slots — no longer created, still recognized when inserting entries into old documents */
 const BRIEF_ADD_SLOT_NAME = '添加位'
+/** All brief text uses the bundled marketing CJK family (weights resolve via fontWeight) */
+const BRIEF_FONT_FAMILY = 'Alibaba PuHuiTi'
 
 const BRIEF_BG = { r: 0.996, g: 0.965, b: 0.839 }
 const CARD_BG = { r: 1, g: 1, b: 1 }
@@ -94,6 +96,7 @@ function createText(
   const node = graph.createNode('TEXT', parentId, { name })
   graph.updateNode(node.id, {
     text: characters,
+    fontFamily: BRIEF_FONT_FAMILY,
     fontSize: options.fontSize ?? 26,
     fontWeight: options.fontWeight ?? 400,
     textAutoResize: options.wrap ? 'HEIGHT' : 'WIDTH_AND_HEIGHT',

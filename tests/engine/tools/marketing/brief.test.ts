@@ -36,6 +36,19 @@ test('createBrief builds the three-zone structure with pluginData marker', () =>
   )
   expect(mainZoneNames).toContain(BRIEF_ZONE_USER_NAME)
   expect(mainZoneNames).toContain(BRIEF_ZONE_MATERIALS_NAME)
+
+  // All brief text uses the bundled marketing CJK family
+  const stack = [...brief.childIds]
+  let textCount = 0
+  while (stack.length > 0) {
+    const node = expectDefined(graph.getNode(expectDefined(stack.pop())))
+    if (node.type === 'TEXT') {
+      textCount++
+      expect(node.fontFamily).toBe('Alibaba PuHuiTi')
+    }
+    stack.push(...node.childIds)
+  }
+  expect(textCount).toBeGreaterThan(0)
 })
 
 test('createBrief starts with an empty MaterialGrid (no sample entry, no add slots) and a visible EmptyHint', () => {

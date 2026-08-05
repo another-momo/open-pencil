@@ -88,7 +88,8 @@ export function createBriefInStore(): boolean {
   const before = store.snapshotPage()
   const figma = makeFigmaFromStore(store)
   const center = store.viewportCanvasCenter()
-  const brief = createBrief(figma, center.x - 180, center.y - 120)
+  // Brief is ~1252 wide × ~850 tall (×√5 redesign) — offset by half to center on the viewport
+  const brief = createBrief(figma, center.x - 626, center.y - 425)
   computeAllLayouts(store.graph, store.state.currentPageId)
   store.select([brief.id])
   store.requestRender()

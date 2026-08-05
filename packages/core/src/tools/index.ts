@@ -50,6 +50,7 @@ export {
 export type { InjectReferencesResult, LibraryIndex, LibrarySession } from './marketing'
 export {
   BRIEF_CONCLUSIONS_NAME,
+  BRIEF_EMPTY_HINT_NAME,
   BRIEF_EMPTY_STATE_NAME,
   BRIEF_ENTRY_NAME,
   BRIEF_NAME,

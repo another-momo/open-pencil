@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test'
 
 import { computeAllLayouts } from '@open-pencil/core/layout'
 import {
+  BRIEF_EMPTY_HINT_NAME,
   BRIEF_ENTRY_NAME,
   BRIEF_NAME,
   BRIEF_ZONE_AI_NAME,
@@ -37,24 +38,37 @@ test('createBrief builds the three-zone structure with pluginData marker', () =>
   expect(mainZoneNames).toContain(BRIEF_ZONE_MATERIALS_NAME)
 })
 
-test('createBrief includes one sample material entry (image slot + caption)', () => {
+test('createBrief starts with an empty MaterialGrid (no sample entry, no add slots) and a visible EmptyHint', () => {
   const { graph, figma } = setupToolTest()
   const brief = createBrief(figma)
 
-  const walk = (id: string, visit: (nodeId: string) => void): void => {
-    visit(id)
-    for (const childId of expectDefined(graph.getNode(id)).childIds) walk(childId, visit)
+  const names: string[] = []
+  const walk = (id: string): void => {
+    const node = expectDefined(graph.getNode(id))
+    names.push(node.name)
+    for (const childId of node.childIds) walk(childId)
   }
-  let entryId: string | undefined
-  walk(brief.id, (id) => {
-    if (graph.getNode(id)?.name === BRIEF_ENTRY_NAME) entryId = id
-  })
+  walk(brief.id)
 
-  const entryChildren = expectDefined(graph.getNode(expectDefined(entryId))).childIds.map((id) =>
-    expectDefined(graph.getNode(id))
+  expect(names).not.toContain(BRIEF_ENTRY_NAME)
+  expect(names).not.toContain('添加位')
+  expect(names).toContain(BRIEF_EMPTY_HINT_NAME)
+
+  const mainId = expectDefined(brief.childIds.find((id) => graph.getNode(id)?.name === '需求内容'))
+  const cardId = expectDefined(
+    graph
+      .getNode(mainId)
+      ?.childIds.find((id) => graph.getNode(id)?.name === BRIEF_ZONE_MATERIALS_NAME)
   )
-  expect(entryChildren.some((node) => node.name === '图片位')).toBe(true)
-  expect(entryChildren.some((node) => node.type === 'TEXT')).toBe(true)
+  const gridId = expectDefined(
+    graph.getNode(cardId)?.childIds.find((id) => graph.getNode(id)?.name === 'MaterialGrid')
+  )
+  expect(expectDefined(graph.getNode(gridId)).childIds).toEqual([])
+
+  const emptyHintId = expectDefined(
+    graph.getNode(cardId)?.childIds.find((id) => graph.getNode(id)?.name === BRIEF_EMPTY_HINT_NAME)
+  )
+  expect(expectDefined(graph.getNode(emptyHintId)).visible).not.toBe(false)
 })
 
 test('findBrief locates the marked brief and ignores lookalikes', () => {
@@ -73,8 +87,8 @@ test('brief layout computes sane geometry (no sizing collapse)', () => {
   computeAllLayouts(graph, figma.currentPage.id)
 
   const fresh = expectDefined(graph.getNode(brief.id))
-  expect(fresh.width).toBe(560)
-  expect(fresh.height).toBeGreaterThan(100)
+  expect(fresh.width).toBe(1252)
+  expect(fresh.height).toBeGreaterThan(200)
 
   const mainId = expectDefined(fresh.childIds.find((id) => graph.getNode(id)?.name === '需求内容'))
   const main = expectDefined(graph.getNode(mainId))
@@ -83,26 +97,10 @@ test('brief layout computes sane geometry (no sizing collapse)', () => {
       expectDefined(fresh.childIds.find((id) => graph.getNode(id)?.name === BRIEF_ZONE_AI_NAME))
     )
   )
-  expect(main.width).toBe(560 - 32 - 16 - 172)
-  expect(aiCard.width).toBe(172)
-  expect(aiCard.height).toBe(fresh.height - 32)
-
-  const gridId = expectDefined(
-    (function find(nodeId: string): string | undefined {
-      const node = graph.getNode(nodeId)
-      if (!node) return undefined
-      if (node.name === 'MaterialGrid') return nodeId
-      for (const childId of node.childIds) {
-        const found = find(childId)
-        if (found) return found
-      }
-      return undefined
-    })(brief.id)
-  )
-  const slotWidths = expectDefined(graph.getNode(gridId)).childIds.map(
-    (id) => expectDefined(graph.getNode(id)).width
-  )
-  for (const w of slotWidths) expect(w).toBeGreaterThan(40)
+  // main = brief width - padding*2 - itemSpacing - AI card width
+  expect(main.width).toBe(1252 - 72 - 36 - 384)
+  expect(aiCard.width).toBe(384)
+  expect(aiCard.height).toBe(fresh.height - 72)
 })
 
 test('appendToBriefAiZone appends text only into the AI conclusions list', () => {

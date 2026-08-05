@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test'
 
 import {
+  BRIEF_EMPTY_HINT_NAME,
   BRIEF_ENTRY_NAME,
   BRIEF_ZONE_MATERIALS_NAME,
   addBriefMaterialEntry,
@@ -23,24 +24,27 @@ function findChildId(
   return graph.getNode(parentId)?.childIds.find((id) => graph.getNode(id)?.name === name)
 }
 
-function findGridId(graph: ReturnType<typeof setupToolTest>['graph'], briefId: string): string {
+function findMaterialCardId(
+  graph: ReturnType<typeof setupToolTest>['graph'],
+  briefId: string
+): string {
   const mainId = expectDefined(findChildId(graph, briefId, '需求内容'))
-  const cardId = expectDefined(findChildId(graph, mainId, BRIEF_ZONE_MATERIALS_NAME))
-  return expectDefined(findChildId(graph, cardId, 'MaterialGrid'))
+  return expectDefined(findChildId(graph, mainId, BRIEF_ZONE_MATERIALS_NAME))
 }
 
-test('readBrief reads back default content, sample entry, and empty conclusions', () => {
+function findGridId(graph: ReturnType<typeof setupToolTest>['graph'], briefId: string): string {
+  return expectDefined(findChildId(graph, findMaterialCardId(graph, briefId), 'MaterialGrid'))
+}
+
+test('readBrief reads back default content, no materials, and empty conclusions', () => {
   const { figma } = setupToolTest()
   const brief = createBrief(figma)
 
   const view = expectDefined(readBrief(figma))
   expect(view.briefId).toBe(brief.id)
   expect(view.content).toContain('XX奶茶')
-  expect(view.materials.length).toBe(1)
-  const sample = expectDefined(view.materials[0])
-  expect(sample.caption).toBe('主视觉')
-  // Sample entry ships with a SOLID placeholder fill, not a real image
-  expect(sample.imageHash).toBe(null)
+  // Material grid starts empty — entries are added via the brief panel
+  expect(view.materials).toEqual([])
   expect(view.conclusions).toEqual([])
 })
 
@@ -70,7 +74,7 @@ test('updateBriefContent writes back to the ContentExample text', () => {
   expect(updateBriefContent(figma, 'nonexistent', 'x')).toBe(false)
 })
 
-test('addBriefMaterialEntry (bytes path) inserts an entry with an IMAGE fill before the add slots', () => {
+test('addBriefMaterialEntry (bytes path) appends an entry with an IMAGE fill and hides the EmptyHint', () => {
   const { graph, figma } = setupToolTest()
   const brief = createBrief(figma)
   const bytes = new Uint8Array([1, 2, 3, 4])
@@ -84,11 +88,14 @@ test('addBriefMaterialEntry (bytes path) inserts an entry with an IMAGE fill bef
   const gridChildren = expectDefined(graph.getNode(gridId)).childIds.map((id) =>
     expectDefined(graph.getNode(id))
   )
-  const entries = gridChildren.filter((node) => node.name === BRIEF_ENTRY_NAME)
-  expect(entries.length).toBe(2)
-  // Add slots stay at the tail
-  expect(gridChildren.slice(-3).every((node) => node.name === '添加位')).toBe(true)
-  expect(gridChildren[gridChildren.length - 4]?.id).toBe(entryId)
+  expect(gridChildren.map((node) => node.name)).toEqual([BRIEF_ENTRY_NAME])
+  expect(gridChildren[0]?.id).toBe(entryId)
+
+  // EmptyHint hides once any material entry exists
+  const emptyHintId = expectDefined(
+    findChildId(graph, findMaterialCardId(graph, brief.id), BRIEF_EMPTY_HINT_NAME)
+  )
+  expect(expectDefined(graph.getNode(emptyHintId)).visible).toBe(false)
 
   const imageId = expectDefined(findChildId(graph, entryId, '图片位'))
   const fill = expectDefined(graph.getNode(imageId)).fills[0]
@@ -101,8 +108,8 @@ test('addBriefMaterialEntry (bytes path) inserts an entry with an IMAGE fill bef
   expect(expectDefined(graph.getNode(captionId)).text).toBe('卡片配图')
 
   const view = expectDefined(readBrief(figma))
-  expect(view.materials.map((m) => m.caption)).toEqual(['主视觉', '卡片配图'])
-  expect(expectDefined(view.materials[1]).imageHash).toBe(hash)
+  expect(view.materials.map((m) => m.caption)).toEqual(['卡片配图'])
+  expect(expectDefined(view.materials[0]).imageHash).toBe(hash)
 })
 
 test('addBriefMaterialEntry accepts an existing image hash', () => {
@@ -113,7 +120,7 @@ test('addBriefMaterialEntry accepts an existing image hash', () => {
   const result = addBriefMaterialEntry(figma, brief.id, { hash }, '仅参考风格')
   expect('entryId' in result).toBe(true)
   const view = expectDefined(readBrief(figma))
-  expect(expectDefined(view.materials[1]).imageHash).toBe(hash)
+  expect(expectDefined(view.materials[0]).imageHash).toBe(hash)
 })
 
 test('addBriefMaterialEntry errors on a missing brief', () => {
@@ -125,7 +132,9 @@ test('addBriefMaterialEntry errors on a missing brief', () => {
 test('updateMaterialCaption and removeBriefMaterial mutate the entry', () => {
   const { figma } = setupToolTest()
   const brief = createBrief(figma)
-  const entryId = expectDefined(readBrief(figma)).materials[0]?.entryId ?? ''
+  const added = addBriefMaterialEntry(figma, brief.id, new Uint8Array([1, 2, 3]), '主视觉')
+  const entryId = 'entryId' in added ? added.entryId : ''
+  expect(entryId).not.toBe('')
 
   expect(updateMaterialCaption(figma, entryId, '主视觉（定稿）')).toBe(true)
   expect(expectDefined(readBrief(figma)).materials[0]?.caption).toBe('主视觉（定稿）')
@@ -142,9 +151,7 @@ test('readBrief returns null for a structurally broken brief (materials zone del
   const { graph, figma } = setupToolTest()
   const brief = createBrief(figma)
 
-  const mainId = expectDefined(findChildId(graph, brief.id, '需求内容'))
-  const cardId = expectDefined(findChildId(graph, mainId, BRIEF_ZONE_MATERIALS_NAME))
-  graph.deleteNode(cardId)
+  graph.deleteNode(findMaterialCardId(graph, brief.id))
 
   expect(readBrief(figma)).toBe(null)
 })

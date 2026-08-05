@@ -35,22 +35,21 @@
 ### 需求单节点结构（`packages/core/src/tools/marketing/brief.ts`）
 
 ```
-需求单 (FRAME, pluginData: role=brief, createBrief :269)
+需求单 (FRAME, pluginData: role=brief, createBrief；宽 1252，整体尺寸 ×√5≈2.236 放大)
 ├─ 需求内容 (FRAME)
-│  ├─ 内容区 (白卡, :344)
-│  │  ├─ ContentInput → ContentExample TEXT（用户文案载体, :354-360）
+│  ├─ 内容区 (白卡)
+│  │  ├─ ContentInput → ContentExample TEXT（用户文案载体）
 │  │  └─ FieldsHint TEXT
-│  └─ 素材区 (白卡, :372)
-│     ├─ MaterialGrid (HORIZONTAL auto-layout, :377)
-│     │  ├─ 素材条目 ×N（filled 条目, createSlot :215-266）
-│     │  └─ 添加位 ×3（空位提示, :386）
+│  └─ 素材区 (白卡)
+│     ├─ MaterialGrid (HORIZONTAL auto-layout) — 素材条目 ×N（初始为空，无添加位/示例条目）
+│     ├─ EmptyHint TEXT（"暂无素材 · 在需求单面板中添加"，有任意条目后 visible:false）
 │     └─ MaterialNote TEXT
-└─ AI结论区 (琥珀深卡, :398)
-   ├─ Top → 结论列表 (FRAME, appendToBriefAiZone 按名定位, :463-469)
-   └─ 空状态（有结论后 visible:false, :478）
+└─ AI结论区 (琥珀深卡)
+   ├─ Top → 结论列表 (FRAME, appendToBriefAiZone 按名定位)
+   └─ 空状态（有结论后 visible:false）
 ```
 
-- **素材条目结构**（`createSlot`，`:215-266`）：外层 FRAME（name=`素材条目`，VERTICAL，itemSpacing 8，`layoutGrow: 1`）→ 子 FRAME `图片位`（**64×64 固定**，圆角 10，1px INSIDE stroke，fills 为 SOLID 占位色——**当前没有真图片管线**）+ 子 TEXT `Caption`（备注，fontSize 10）。
+- **素材条目结构**（`createSlot`）：外层 FRAME（name=`素材条目`，VERTICAL，itemSpacing 18，`layoutGrow: 1`）→ 子 FRAME `图片位`（**143×143 固定**，圆角 22，1px INSIDE stroke，fills 初始为 SOLID 占位色，添加时覆写为 IMAGE fill）+ 子 TEXT `Caption`（备注，fontSize 22）。
 - 定位惯例：brief 根用 pluginData（rename-proof）；**子节点全部按名字查找**（`appendToBriefAiZone:463-469` 即如此）。
 - 导出常量：`BRIEF_NAME='需求单'`、`BRIEF_ZONE_USER_NAME='内容区'`、`BRIEF_ZONE_MATERIALS_NAME='素材区'`、`BRIEF_ZONE_AI_NAME='AI结论区'`、`BRIEF_ENTRY_NAME='素材条目'`（`:20-28`）；内部常量 `BRIEF_CONCLUSIONS_NAME='结论列表'`、`BRIEF_EMPTY_STATE_NAME='空状态'`（`:29-30`）需导出复用。
 
@@ -58,7 +57,7 @@
 
 - `figma.createImage(bytes): { hash }`（`packages/core/src/figma-api/index.ts:496-500`）——core/app 侧无 EditorContext 时的正确入口；`graph.images: Map<hash, bytes>`。
 - app 侧另有 `store.storeImage(bytes)`（EditorContext bridge，`packages/core/src/editor/clipboard/assets.ts:61-65`）。
-- IMAGE fill 写法（参照 `assets.ts:116-123`）：`{ type: 'IMAGE', imageHash, imageScaleMode: 'FILL', color: TRANSPARENT, opacity: 1, visible: true }`。图片位固定 64×64 + FILL 模式，无需关心原图尺寸。
+- IMAGE fill 写法（参照 `assets.ts:116-123`）：`{ type: 'IMAGE', imageHash, imageScaleMode: 'FILL', color: TRANSPARENT, opacity: 1, visible: true }`。图片位固定 143×143 + FILL 模式，无需关心原图尺寸。
 - 文件选择先例：`ImageFillPicker.vue:39-55`——`useFileDialog({ accept: 'image/png,image/jpeg,image/webp' })` + `file.arrayBuffer()`。
 
 ### UI 惯例
@@ -100,7 +99,7 @@ removeBriefMaterial(figma, entryId): boolean             // graph.deleteNode
 
 实现要点：
 
-- 新条目插入到 `添加位` **之前**（保持提示位在尾部）。
+- 新条目插入到首个 `添加位` **之前**（仅兼容旧文档；新文档无添加位，自然 append 到尾部）；添加成功后素材区 `EmptyHint` 置为 `visible:false`。
 - `readBrief` 基于 `findBrief`（`brief.ts:59`，只扫当前页顶层、返回第一个 brief）——v1 接受"一个文档一个需求单"语义；多需求单不支持，创建入口也要挡（已有 brief 时直接打开面板）。
 - `figma.createImage` 是纯同步的 hash+set（`figma-api/index.ts:496-500`），**不会失败也不校验格式**——坏图只在渲染期表现为空白。靠文件选择的 accept 限制类型即可，不做额外解码校验。
 - 定位策略维持**按名查找**（与 `appendToBriefAiZone` 同一惯例），条目的稳定身份用**节点 id**（面板打开时读出，会话内稳定）。不给子节点补 pluginData——收益不抵变更面。
@@ -157,7 +156,7 @@ removeBriefMaterial(figma, entryId): boolean             // graph.deleteNode
 
 ## 五、明确不做
 
-- 不做画布拖放命中/添加位点击交互（表单取代之；添加位保留为纯视觉提示）。
+- 不做画布拖放命中交互（表单取代之；添加位已随画布重设计移除，素材区仅保留弱化的 EmptyHint 空态文本）。
 - 不做 AI结论区的任何编辑/删除/版本化（append-only 契约不变，面板只读）。
 - 不做面板的 live 同步（打开时重建即可）。
 - 不动需求单节点结构、区名、pluginData 标记、prompt 中素材区语义。
@@ -168,7 +167,7 @@ removeBriefMaterial(figma, entryId): boolean             // graph.deleteNode
 1. **新增** `tests/engine/tools/marketing/brief-edit.test.ts`：
    - `createBrief` 后 `readBrief` 能读回默认内容/示例条目/空结论；
    - `updateBriefContent` 写回且 ContentExample 文本更新；
-   - `addBriefMaterial`（bytes 路径）后：MaterialGrid 多一个 `素材条目`、其 `图片位` fills 为 IMAGE 且 hash 存在于 `graph.images`、Caption 文本正确、添加位仍在尾部；
+   - `addBriefMaterial`（bytes 路径）后：MaterialGrid 多一个 `素材条目`、其 `图片位` fills 为 IMAGE 且 hash 存在于 `graph.images`、Caption 文本正确、`EmptyHint` 隐藏（visible:false）；
    - `updateMaterialCaption` / `removeBriefMaterial` 行为；
    - 结构残缺（删掉素材区）时 `readBrief` 返回 `null`。
 2. 定点跑 `bun test tests/engine/tools/marketing`（本机弱，不跑全量，全量交 CI）。
@@ -189,7 +188,7 @@ removeBriefMaterial(figma, entryId): boolean             // graph.deleteNode
 | 按名定位的子节点被用户重命名导致面板读不出 | 与现有 `appendToBriefAiZone` 同级风险，面板显示"结构异常"而非静默错；不引入 pluginData 标记子节点（变更面大于收益） |
 | 面板视图与画布脱节（用户开了面板后手改画布） | 每次 apply 前重读 `loadBrief()`（4.2），不信任旧视图；不做 live sync |
 | 内容区失焦时序洞（改了就点别的按钮，change 未触发） | `@change` + commit-before-act 双保险（4.2/4.3） |
-| 大图 bytes 进 `graph.images` 的内存 | 64×64 FILL 展示，原图进 images Map 与现有粘贴管线同级；不额外压缩 |
+| 大图 bytes 进 `graph.images` 的内存 | 143×143 FILL 展示，原图进 images Map 与现有粘贴管线同级；不额外压缩 |
 | 删除条目后 image bytes 成为孤儿 | 已核实**无任何图片清理接口**（`graph.images.delete` 仅 collab 同步内部使用）——与现有粘贴/删除管线行为一致，接受为已知限制，不造新接口 |
 | 缩略图 hash→URL 无现成 helper | 已定为阶段 1 必做项，方案明确（`useImageThumb` + 面板级 objectURL 缓存，关闭时 revoke，见 4.3） |
 | `createSlot` 跨模块导出扩大 API 表面 | 不导出；条目创建函数 `addBriefMaterialEntry` 实现在 brief.ts 同模块内（4.1） |

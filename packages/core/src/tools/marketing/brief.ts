@@ -196,7 +196,7 @@ function createLabelRow(figma: FigmaAPI, parentId: string, label: string, badge:
   })
 }
 
-/** A material entry: image slot on top, usage-note caption below */
+/** A material entry: image slot on top, usage-note caption below. Fixed width so wrapped rows stay uniform. */
 function createSlot(figma: FigmaAPI, parentId: string, name: string, caption: string): string {
   const graph = figma.graph
   const slot = graph.createNode('FRAME', parentId, { name })
@@ -205,8 +205,8 @@ function createSlot(figma: FigmaAPI, parentId: string, name: string, caption: st
     itemSpacing: 18,
     counterAxisAlign: 'CENTER',
     primaryAxisSizing: 'HUG',
-    counterAxisSizing: 'FILL',
-    layoutGrow: 1,
+    counterAxisSizing: 'FIXED',
+    width: 180,
     fills: []
   })
   const image = graph.createNode('FRAME', slot.id, { name: '图片位' })
@@ -231,7 +231,8 @@ function createSlot(figma: FigmaAPI, parentId: string, name: string, caption: st
   createText(figma, slot.id, 'Caption', caption, {
     fontSize: 22,
     align: 'CENTER',
-    color: SUB_COLOR
+    color: SUB_COLOR,
+    wrap: true
   })
   return slot.id
 }
@@ -348,7 +349,9 @@ export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
   const grid = graph.createNode('FRAME', materialCard, { name: 'MaterialGrid' })
   graph.updateNode(grid.id, {
     layoutMode: 'HORIZONTAL',
+    layoutWrap: 'WRAP',
     itemSpacing: 26,
+    counterAxisSpacing: 26,
     primaryAxisSizing: 'FILL',
     counterAxisSizing: 'HUG',
     fills: []
@@ -482,6 +485,13 @@ export function addBriefMaterialEntry(
         ?.childIds.find((id) => graph.getNode(id)?.name === 'MaterialGrid')
     : undefined
   if (!gridId) return { error: 'Brief material grid not found' }
+
+  // Legacy briefs predate the wrapped grid — upgrade on first entry add so
+  // entries wrap instead of squeezing into one row.
+  const grid = graph.getNode(gridId)
+  if (grid && grid.layoutWrap !== 'WRAP') {
+    graph.updateNode(gridId, { layoutWrap: 'WRAP', counterAxisSpacing: grid.itemSpacing })
+  }
 
   const hash = image instanceof Uint8Array ? figma.createImage(image).hash : image.hash
   const entryId = createSlot(figma, gridId, BRIEF_ENTRY_NAME, caption)

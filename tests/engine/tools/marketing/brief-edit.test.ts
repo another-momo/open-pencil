@@ -85,11 +85,16 @@ test('addBriefMaterialEntry (bytes path) appends an entry with an IMAGE fill and
   const entryId = result.entryId
 
   const gridId = findGridId(graph, brief.id)
-  const gridChildren = expectDefined(graph.getNode(gridId)).childIds.map((id) =>
-    expectDefined(graph.getNode(id))
-  )
+  const grid = expectDefined(graph.getNode(gridId))
+  const gridChildren = grid.childIds.map((id) => expectDefined(graph.getNode(id)))
   expect(gridChildren.map((node) => node.name)).toEqual([BRIEF_ENTRY_NAME])
   expect(gridChildren[0]?.id).toBe(entryId)
+
+  // Entries wrap into rows at a fixed width instead of squeezing into one row
+  expect(grid.layoutWrap).toBe('WRAP')
+  expect(grid.counterAxisSpacing).toBe(grid.itemSpacing)
+  expect(gridChildren[0]?.width).toBe(180)
+  expect(gridChildren[0]?.layoutGrow).toBe(0)
 
   // EmptyHint hides once any material entry exists
   const emptyHintId = expectDefined(

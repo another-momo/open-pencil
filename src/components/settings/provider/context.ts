@@ -86,13 +86,15 @@ function createProviderSettingsContext() {
     hasExistingVisionKey
   }
 
-  // Copy-from-main buttons only fill the inputs — nothing is persisted until
-  // save() runs, matching every other field in this dialog.
+  // Copy-from-main buttons persist immediately: they fill the input
+  // programmatically, which never fires the field's change event, so deferring
+  // to save() would silently drop the copied value when the dialog closes.
   async function copyMainKeyToVision() {
     if (!canCopyMainKey.value) return
     const key = await resolveAPIKey()
     if (!key) return
     visionKeyInput.value = key
+    saveVisionSettings(visionStorage, visionInputs)
   }
 
   function copyMainBaseURLToVision() {
@@ -103,11 +105,13 @@ function createProviderSettingsContext() {
     // so the copied URL isn't combined with a mismatched format.
     const format = resolveProviderApiFormat(providerID.value)
     if (format) visionProvider.value = format
+    saveVisionSettings(visionStorage, visionInputs)
   }
 
   function copyMainModelToVision() {
     if (!canCopyMainModel.value) return
     visionModelInput.value = mainModelValue.value
+    saveVisionSettings(visionStorage, visionInputs)
   }
 
   function setChatMode(mode: ChatMode) {

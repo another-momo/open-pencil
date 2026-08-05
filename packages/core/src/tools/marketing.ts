@@ -1,3 +1,11 @@
+import {
+  BRIEF_ESTIMATED_HEIGHT,
+  BRIEF_WIDTH,
+  createBriefPlaced,
+  findBrief,
+  getPageContentBounds
+} from './marketing/brief'
+import { readBrief } from './marketing/brief-edit'
 import { setupMaterialType } from './marketing/setup'
 import { validateMarketingDesign } from './marketing/validate'
 import { defineTool } from './schema'
@@ -6,18 +14,24 @@ export { lookTool } from './marketing/look'
 
 export {
   BRIEF_CONCLUSIONS_NAME,
+  BRIEF_CONTENT_GAP,
   BRIEF_EMPTY_HINT_NAME,
   BRIEF_EMPTY_STATE_NAME,
   BRIEF_ENTRY_NAME,
+  BRIEF_ESTIMATED_HEIGHT,
   BRIEF_NAME,
+  BRIEF_WIDTH,
   BRIEF_ZONE_AI_NAME,
   BRIEF_ZONE_MATERIALS_NAME,
   BRIEF_ZONE_USER_NAME,
   addBriefMaterialEntry,
   appendToBriefAiZone,
   createBrief,
+  createBriefPlaced,
   findBrief,
-  isBrief
+  getPageContentBounds,
+  isBrief,
+  resolveBriefPlacement
 } from './marketing/brief'
 export {
   readBrief,
@@ -68,6 +82,49 @@ export const setupMaterialTypeTool = defineTool({
       id,
       typeof width === 'number' && typeof height === 'number' ? { width, height } : undefined
     )
+})
+
+export const readBriefTool = defineTool({
+  name: 'read_brief',
+  mutates: false,
+  description:
+    'Read the 需求单 (design brief) on the current page in one call — content text, material entries (each with imageNodeId for `look`, caption, hasImage), and AI conclusions. Returns { brief: null } when no brief exists — that is a normal state, not an error; proceed without one (or propose creating one if the user is sharing real requirements). Prefer this over find_nodes + describe when looking for the brief.',
+  params: {},
+  execute: (figma) => {
+    const view = readBrief(figma)
+    if (!view) return { brief: null }
+    return {
+      briefId: view.briefId,
+      content: view.content,
+      materials: view.materials.map((material) => ({
+        entryId: material.entryId,
+        imageNodeId: material.imageNodeId,
+        caption: material.caption,
+        hasImage: material.imageHash !== null
+      })),
+      conclusions: view.conclusions
+    }
+  }
+})
+
+export const createBriefTool = defineTool({
+  name: 'create_brief',
+  mutates: true,
+  description:
+    "Create an EMPTY 需求单 (design brief) frame on the canvas, placed clear of existing content. Only call this after proposing it to the user and receiving explicit agreement — never create one unprompted. The brief is created empty on purpose: never fill in its content yourself; after creating, tell the user the brief panel opened and ask them to fill in the content zone and add materials there. If a brief already exists, nothing is created and the result is { briefId, created: false } with the existing brief's id — read it with read_brief instead.",
+  params: {},
+  execute: (figma) => {
+    const existing = findBrief(figma)
+    if (existing) return { briefId: existing.id, created: false }
+    const bounds = getPageContentBounds(figma)
+    // No viewport access here: center on existing content (collides → shifts
+    // right of it), or at the origin on an empty page.
+    const center = bounds
+      ? { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+      : { x: BRIEF_WIDTH / 2, y: BRIEF_ESTIMATED_HEIGHT / 2 }
+    const brief = createBriefPlaced(figma, center)
+    return { briefId: brief.id, created: true }
+  }
 })
 
 export const validateTool = defineTool({

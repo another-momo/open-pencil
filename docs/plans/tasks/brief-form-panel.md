@@ -142,17 +142,21 @@ removeBriefMaterial(figma, entryId): boolean             // graph.deleteNode
 
 `messages/dialogs.ts` 新增一组 `briefPanel*` key（标题、三区标签、占位提示、添加/删除、空态、结构异常提示），zh-CN 翻译，其余 locale 暂填英文。
 
-### 4.6 阶段 2：从画布选区添加（可选，实施前再评估必要性）
+### 4.6 阶段 2：从画布选区添加（已实施 2026-08-05）
 
 - 面板素材区加"从画布选区添加"按钮：读 `store.state.selectedIds`，过滤带 IMAGE fill 的节点，对每个：新建条目（`addBriefMaterialEntry` 变体接受 `imageHash` 而非 bytes——core 原语签名预留 `image: Uint8Array | { hash: string }` 联合类型）。
 - **copy/move 由用户选择，默认 move**：点击后弹选择（"移入素材区（推荐）——原图从画布移除，可撤销" / "复制到素材区——保留画布原图"）。默认 move 的理由：避免画布残留重复图被 AI 误读为可用素材；但用户可能对已投入使用的图片有顾虑，故保留 copy 出口。记住本次选择（会话内），减少重复打断。
 - 若评估下来真实使用频次低，整个阶段 2 可砍，预算转投 e2e 或缩略图质量。
 
-### 4.7 阶段 3：AI 提议创建（本任务内可延后）
+**实施要点**：`brief-panel.ts` 新增 `getSelectionImageNodes(ids?)`（过滤选区中带 IMAGE fill 的节点）、`applyAddMaterialsFromSelection(mode)`（单个 undo 事务批量建条目，label 复用 `'add-material'`；move 时删原节点）、`selectionAddMode`（模块级 ref，记住会话内选择）。`BriefPanelDialog.vue` 加按钮（`useSelectionState` 响应式计数，无图片选区时禁用）+ move/copy 小弹层；i18n 加 `briefPanelAddFromSelection` / `briefPanelAddSelectionMove` / `briefPanelAddSelectionCopy`。
+
+### 4.7 阶段 3：AI 提议创建（已实施 2026-08-05）
 
 - 新 agent 工具 `create_brief`（走标准注册链：`brief-edit.ts` 或 `brief.ts` 加函数 → `tools/marketing.ts` defineTool（`mutates: true`）→ `registry-core.ts` CORE_TOOLS → `src/app/ai/tools/index.ts:119` MARKETING_ONLY_TOOLS）。只允许创建**空骨架**，不接受内容参数——内容权威必须来自用户。
 - prompt 改 `system-prompt-marketing.md:20`：从 "never create it yourself" 改为"对话中出现实质需求信息而需求单不存在时，可**提议**（'我可以把这些整理成需求单，要吗？'），用户同意后才调用 `create_brief` 创建空需求单并引导用户在面板中填写"。
 - app 侧检测 `create_brief` 执行成功后自动 `openBriefPanel()`（toolLog/工具结果钩子，或简单起见在 prompt 里要求 AI 提示用户打开——实现时取可靠者）。
+
+**实施要点**：`create_brief` 定义在 `tools/marketing.ts`（复用 `createBriefPlaced` 碰撞放置；core 无视口，中心取内容包围盒中心、空页放原点）；已有需求单时返回 `{ briefId, created: false }`（对 agent 更友好，写进了 description）。自动开面板在 `src/app/ai/tools/index.ts` 的 onBeforeExecute/onAfterExecute：`create_brief` 执行前记录 brief 是否已存在，执行后"此前无 + 现在有"即成功 → `openBriefPanel()`（直接 import，无循环依赖）。同时新增 `read_brief` 工具（`mutates: false`，无需求单返回 `{ brief: null }`），`BriefMaterialView` 增加 `imageNodeId`。
 
 ## 五、明确不做
 
@@ -206,3 +210,6 @@ removeBriefMaterial(figma, entryId): boolean             // graph.deleteNode
 3. `figma.createImage(bytes)` 纯同步 hash+set（`figma-api/index.ts:496-500`），不会抛错、不校验格式，无需 try/catch 包裹本身。
 4. `graph.images` 无公开清理接口（无 `deleteImage`），bytes 孤儿为既有行为，接受。
 5. 多 store：每 tab 一个 EditorStore；面板用 `getActiveEditorStoreOrNull()`（先例 `ChatPanel.vue:103`），apply 前重读天然跟随活跃 tab。
+6. 内容包围盒用现成 helper：`computeAbsoluteBounds(nodes, (id) => graph.getAbsolutePosition(id))`（`@open-pencil/scene-graph/geometry`，先例 `editor/viewport.ts:101`）。放置逻辑收敛在 `brief.ts` 的 `resolveBriefPlacement(center, contentBounds | null)` / `getPageContentBounds(figma)` / `createBriefPlaced(figma, center)`，app 面板与 `create_brief` 工具共用。
+7. ai-adapter 的 `onAfterExecute` 只收到 `def`、拿不到执行结果——检测 `create_brief` 成功用"执行前无需求单 + 执行后有"判定（`src/app/ai/tools/index.ts`）。
+8. 线上 structuredClone 报错涉及的工具文件实际路径是 `packages/core/src/design-jsx/renderer.ts`（`applyInstanceOverrides`），不是 `tools/render/renderer.ts`；已在写入 override 前做 structuredClone 净化（克隆失败的 prop 忽略并 console.warn），并在 `editor/history/snapshot.ts` 的 `snapshotPage` 加了不可克隆字段取证日志（`[snapshot] uncloneable node`，原样 rethrow）。

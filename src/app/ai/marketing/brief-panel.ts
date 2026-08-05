@@ -25,7 +25,7 @@ import type { FigmaAPI } from '@open-pencil/core/figma-api'
 import { computeAllLayouts } from '@open-pencil/core/layout'
 import {
   addBriefMaterialEntry,
-  createBrief,
+  createBriefPlaced,
   findBrief,
   readBrief,
   removeBriefMaterial,
@@ -79,7 +79,8 @@ export function loadBrief(): BriefPanelState {
 /**
  * Create the brief on the canvas as one undo transaction, then let the
  * caller open the panel. Single-brief semantics: a no-op when a brief
- * already exists.
+ * already exists. Placement: centered on the viewport, or right of existing
+ * content when it would overlap (resolveBriefPlacement).
  */
 export function createBriefInStore(): boolean {
   const store = getActiveEditorStoreOrNull()
@@ -87,9 +88,7 @@ export function createBriefInStore(): boolean {
   if (findBrief(makeFigmaFromStore(store))) return false
   const before = store.snapshotPage()
   const figma = makeFigmaFromStore(store)
-  const center = store.viewportCanvasCenter()
-  // Brief is ~1252 wide × ~850 tall (×√5 redesign) — offset by half to center on the viewport
-  const brief = createBrief(figma, center.x - 626, center.y - 425)
+  const brief = createBriefPlaced(figma, store.viewportCanvasCenter())
   computeAllLayouts(store.graph, store.state.currentPageId)
   store.select([brief.id])
   store.requestRender()
@@ -224,4 +223,53 @@ export function applyRemoveMaterial(entryId: string): boolean {
   return applyMutation(BRIEF_UNDO_LABELS.removeMaterial, (figma) =>
     removeBriefMaterial(figma, entryId)
   )
+}
+
+// --- Add from canvas selection (stage 2) ---
+
+export type SelectionAddMode = 'move' | 'copy'
+
+/** Session-remembered move/copy choice (module-level, intentionally not persisted) */
+export const selectionAddMode = ref<SelectionAddMode | null>(null)
+
+/** Selected canvas nodes carrying an IMAGE fill, as { nodeId, hash } pairs */
+export function getSelectionImageNodes(
+  ids?: Iterable<string>
+): Array<{ nodeId: string; hash: string }> {
+  const store = getActiveEditorStoreOrNull()
+  if (!store) return []
+  const targets: Array<{ nodeId: string; hash: string }> = []
+  for (const id of ids ?? store.state.selectedIds) {
+    const fill = store.graph.getNode(id)?.fills.find((f) => f.type === 'IMAGE' && f.imageHash)
+    if (fill?.type === 'IMAGE' && fill.imageHash) targets.push({ nodeId: id, hash: fill.imageHash })
+  }
+  return targets
+}
+
+/**
+ * Add every selected image node as a material entry (empty caption, user
+ * fills it in the panel). 'move' deletes the original canvas node; 'copy'
+ * keeps it. One undo transaction for the whole batch. Returns entries added.
+ */
+export function applyAddMaterialsFromSelection(mode: SelectionAddMode): number {
+  commitDrafts()
+  selectionAddMode.value = mode
+  const targets = getSelectionImageNodes()
+  if (targets.length === 0) return 0
+  let added = 0
+  applyMutation(BRIEF_UNDO_LABELS.addMaterial, (figma) => {
+    const view = readBrief(figma)
+    if (!view) return false
+    for (const { nodeId, hash } of targets) {
+      const result = addBriefMaterialEntry(figma, view.briefId, { hash }, '')
+      if ('error' in result) {
+        briefPanelError.value = result.error
+        continue
+      }
+      added++
+      if (mode === 'move') figma.graph.deleteNode(nodeId)
+    }
+    return added > 0
+  })
+  return added
 }

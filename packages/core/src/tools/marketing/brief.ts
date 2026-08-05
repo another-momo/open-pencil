@@ -16,6 +16,8 @@
  */
 
 import type { Fill, SceneNode } from '@open-pencil/scene-graph'
+import { computeAbsoluteBounds } from '@open-pencil/scene-graph/geometry'
+import type { Rect, Vector } from '@open-pencil/scene-graph/primitives'
 
 import { TRANSPARENT } from '#core/constants'
 import type { FigmaAPI } from '#core/figma-api'
@@ -71,6 +73,49 @@ export function findBrief(figma: FigmaAPI): SceneNode | undefined {
     if (isBrief(child)) return child
   }
   return undefined
+}
+
+/** Brief frame width (see createBrief) and estimated height, for placement collision checks */
+export const BRIEF_WIDTH = 1252
+export const BRIEF_ESTIMATED_HEIGHT = 850
+/** Horizontal gap between existing content and a brief placed to its right */
+export const BRIEF_CONTENT_GAP = 100
+
+/** Union absolute bounds of all top-level nodes on the current page; null on an empty page */
+export function getPageContentBounds(figma: FigmaAPI): Rect | null {
+  const graph = figma.graph
+  const page = graph.getNode(figma.currentPage.id)
+  if (!page) return null
+  const nodes = page.childIds
+    .map((id) => graph.getNode(id))
+    .filter((node): node is SceneNode => node !== undefined)
+  if (nodes.length === 0) return null
+  return computeAbsoluteBounds(nodes, (id) => graph.getAbsolutePosition(id))
+}
+
+/**
+ * Where to place a new brief: centered on `center`, unless that rect
+ * (BRIEF_WIDTH × BRIEF_ESTIMATED_HEIGHT) intersects existing content — then to
+ * the right of the content bounds (+ BRIEF_CONTENT_GAP), vertically aligned
+ * with `center`.
+ */
+export function resolveBriefPlacement(center: Vector, contentBounds: Rect | null): Vector {
+  const x = center.x - BRIEF_WIDTH / 2
+  const y = center.y - BRIEF_ESTIMATED_HEIGHT / 2
+  if (!contentBounds) return { x, y }
+  const intersects =
+    x < contentBounds.x + contentBounds.width &&
+    x + BRIEF_WIDTH > contentBounds.x &&
+    y < contentBounds.y + contentBounds.height &&
+    y + BRIEF_ESTIMATED_HEIGHT > contentBounds.y
+  if (!intersects) return { x, y }
+  return { x: contentBounds.x + contentBounds.width + BRIEF_CONTENT_GAP, y }
+}
+
+/** Create a brief placed to avoid overlapping existing content (centered on `center` when possible) */
+export function createBriefPlaced(figma: FigmaAPI, center: Vector): SceneNode {
+  const { x, y } = resolveBriefPlacement(center, getPageContentBounds(figma))
+  return createBrief(figma, x, y)
 }
 
 interface TextOptions {

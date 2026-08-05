@@ -3,10 +3,11 @@ import { tool } from 'ai'
 import * as v from 'valibot'
 
 import { computeAllLayouts } from '@open-pencil/core/layout'
-import { CORE_TOOLS, getMarketingState, toolsToAI } from '@open-pencil/core/tools'
+import { CORE_TOOLS, findBrief, getMarketingState, toolsToAI } from '@open-pencil/core/tools'
 import type { StepBudget, ToolLogEntry } from '@open-pencil/core/tools'
 import type { SceneNode } from '@open-pencil/scene-graph'
 
+import { openBriefPanel } from '@/app/ai/marketing/brief-panel'
 import { syncMaterialTypeFromAI } from '@/app/ai/marketing/settings'
 import type { ChatMode } from '@/app/ai/marketing/settings'
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
@@ -116,10 +117,17 @@ export function beginNewBurst(store?: EditorStore): void {
 }
 
 /** Marketing-only tools — hidden in ui mode where no marketing state exists. */
-const MARKETING_ONLY_TOOLS = new Set(['look', 'setup_material_type', 'validate'])
+const MARKETING_ONLY_TOOLS = new Set([
+  'look',
+  'setup_material_type',
+  'validate',
+  'read_brief',
+  'create_brief'
+])
 
 export function createAITools(store: EditorStore, chatMode: ChatMode = 'ui') {
   let beforeSnapshot: Map<string, SceneNode> | null = null
+  let briefExistedBefore = false
   const runState = getRunState(store)
   const tools =
     chatMode === 'marketing'
@@ -133,12 +141,22 @@ export function createAITools(store: EditorStore, chatMode: ChatMode = 'ui') {
       onBeforeExecute: (def) => {
         if (def.mutates) {
           beforeSnapshot = store.snapshotPage()
+          if (def.name === 'create_brief') {
+            briefExistedBefore = Boolean(findBrief(makeFigmaFromStore(store)))
+          }
         }
       },
       onAfterExecute: async (def) => {
         if (def.name === 'setup_material_type') {
           const typeId = getMarketingState(store.graph)?.materialTypeId
           if (typeId) syncMaterialTypeFromAI(typeId)
+        }
+        // create_brief succeeded when no brief existed before and one exists
+        // now — open the panel so the user can fill it in (the AI never fills)
+        if (def.name === 'create_brief') {
+          const created = !briefExistedBefore && Boolean(findBrief(makeFigmaFromStore(store)))
+          briefExistedBefore = false
+          if (created) openBriefPanel()
         }
         if (def.mutates) {
           const pageId = store.state.currentPageId

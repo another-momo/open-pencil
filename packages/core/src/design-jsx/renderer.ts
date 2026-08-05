@@ -480,8 +480,20 @@ function applyInstanceOverrides(
     const prop = key.slice(sep + 1)
     const child = descendants.find((n) => n.name === childName)
     if (!child || !(prop in child)) continue
-    graph.updateNode(child.id, { [prop]: value } as Partial<SceneNode>)
-    overrides[`${child.id}:${prop}`] = value
+    // Sanitize: JSX-evaluated values may be proxies or otherwise uncloneable —
+    // clone to break shared references; skip the prop when it cannot be cloned
+    // instead of writing a value that later breaks structuredClone (snapshot).
+    let safeValue: unknown
+    try {
+      safeValue = structuredClone(value)
+    } catch {
+      console.warn(
+        `[design-jsx] instance override ignored (uncloneable value): node ${child.id}, prop ${prop}`
+      )
+      continue
+    }
+    graph.updateNode(child.id, { [prop]: safeValue } as Partial<SceneNode>)
+    overrides[`${child.id}:${prop}`] = safeValue
   }
   if (Object.keys(overrides).length > 0) {
     graph.updateNode(instance.id, { overrides })

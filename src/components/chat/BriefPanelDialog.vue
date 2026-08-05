@@ -2,10 +2,11 @@
 import { useFileDialog } from '@vueuse/core'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
-import { useI18n } from '@open-pencil/vue'
+import { useI18n, useSelectionState } from '@open-pencil/vue'
 
 import {
   applyAddMaterial,
+  applyAddMaterialsFromSelection,
   applyCaption,
   applyContent,
   applyRemoveMaterial,
@@ -16,10 +17,13 @@ import {
   clearDrafts,
   closeBriefPanel,
   createBriefInStore,
+  getSelectionImageNodes,
   loadBrief,
   noteDraftCaption,
   noteDraftContent,
-  type BriefPanelState
+  selectionAddMode,
+  type BriefPanelState,
+  type SelectionAddMode
 } from '@/app/ai/marketing/brief-panel'
 import { getActiveEditorStoreOrNull } from '@/app/editor/active-store'
 import { AppDialogBody, AppDialogHeader, AppDialogRoot } from '@/components/ui/dialog'
@@ -136,6 +140,29 @@ onFilesPicked(async (files) => {
 function onCreateBrief(): void {
   if (createBriefInStore()) refresh()
 }
+
+// --- Add from canvas selection: move/copy chooser, remembered per session ---
+
+const { selectedIds } = useSelectionState()
+const selectionImageCount = computed(() => getSelectionImageNodes(selectedIds.value).length)
+const selectionChooserOpen = ref(false)
+
+function onAddFromSelection(): void {
+  if (selectionImageCount.value === 0) return
+  // A mode chosen earlier this session is reused without asking again
+  if (selectionAddMode.value) {
+    applyAddMaterialsFromSelection(selectionAddMode.value)
+    refresh()
+    return
+  }
+  selectionChooserOpen.value = !selectionChooserOpen.value
+}
+
+function onChooseSelectionMode(mode: SelectionAddMode): void {
+  selectionChooserOpen.value = false
+  applyAddMaterialsFromSelection(mode)
+  refresh()
+}
 </script>
 
 <template>
@@ -237,14 +264,49 @@ function onCreateBrief(): void {
               <icon-lucide-trash-2 class="size-3.5" />
             </button>
           </div>
-          <button
-            type="button"
-            class="rounded border border-border px-2.5 py-1 text-xs text-muted hover:bg-hover hover:text-surface"
-            data-test-id="brief-panel-add-material"
-            @click="pickImage()"
-          >
-            {{ dialogs.briefPanelAddMaterial }}
-          </button>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="rounded border border-border px-2.5 py-1 text-xs text-muted hover:bg-hover hover:text-surface"
+              data-test-id="brief-panel-add-material"
+              @click="pickImage()"
+            >
+              {{ dialogs.briefPanelAddMaterial }}
+            </button>
+            <div class="relative">
+              <button
+                type="button"
+                class="rounded border border-border px-2.5 py-1 text-xs text-muted hover:bg-hover hover:text-surface disabled:cursor-not-allowed disabled:opacity-50"
+                :disabled="selectionImageCount === 0"
+                data-test-id="brief-panel-add-from-selection"
+                @click="onAddFromSelection"
+              >
+                {{ dialogs.briefPanelAddFromSelection }}
+              </button>
+              <div
+                v-if="selectionChooserOpen"
+                class="absolute bottom-full left-0 z-10 mb-1 flex w-64 flex-col gap-1 rounded border border-border bg-surface p-1.5 shadow-lg"
+                data-test-id="brief-panel-selection-chooser"
+              >
+                <button
+                  type="button"
+                  class="rounded px-2 py-1.5 text-left text-xs text-surface hover:bg-hover"
+                  data-test-id="brief-panel-selection-move"
+                  @click="onChooseSelectionMode('move')"
+                >
+                  {{ dialogs.briefPanelAddSelectionMove }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded px-2 py-1.5 text-left text-xs text-surface hover:bg-hover"
+                  data-test-id="brief-panel-selection-copy"
+                  @click="onChooseSelectionMode('copy')"
+                >
+                  {{ dialogs.briefPanelAddSelectionCopy }}
+                </button>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- AI conclusions zone (read-only) -->

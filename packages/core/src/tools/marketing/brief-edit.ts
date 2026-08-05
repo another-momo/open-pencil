@@ -25,6 +25,8 @@ export interface BriefMaterialView {
   entryId: string
   caption: string
   imageHash: string | null
+  /** Node id of the entry's 图片位 image slot — pass to look to view the image */
+  imageNodeId: string | null
 }
 
 /** One-shot view model for the brief panel */
@@ -67,7 +69,8 @@ function readMaterials(graph: SceneGraph, gridId: string): BriefMaterialView[] {
     materials.push({
       entryId,
       caption: captionId ? (graph.getNode(captionId)?.text ?? '') : '',
-      imageHash: imageFill?.type === 'IMAGE' ? (imageFill.imageHash ?? null) : null
+      imageHash: imageFill?.type === 'IMAGE' ? (imageFill.imageHash ?? null) : null,
+      imageNodeId: imageId ?? null
     })
   }
   return materials

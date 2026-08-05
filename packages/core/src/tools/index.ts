@@ -50,18 +50,24 @@ export {
 export type { InjectReferencesResult, LibraryIndex, LibrarySession } from './marketing'
 export {
   BRIEF_CONCLUSIONS_NAME,
+  BRIEF_CONTENT_GAP,
   BRIEF_EMPTY_HINT_NAME,
   BRIEF_EMPTY_STATE_NAME,
   BRIEF_ENTRY_NAME,
+  BRIEF_ESTIMATED_HEIGHT,
   BRIEF_NAME,
+  BRIEF_WIDTH,
   BRIEF_ZONE_AI_NAME,
   BRIEF_ZONE_MATERIALS_NAME,
   BRIEF_ZONE_USER_NAME,
   addBriefMaterialEntry,
   appendToBriefAiZone,
   createBrief,
+  createBriefPlaced,
   findBrief,
-  isBrief
+  getPageContentBounds,
+  isBrief,
+  resolveBriefPlacement
 } from './marketing'
 export {
   readBrief,

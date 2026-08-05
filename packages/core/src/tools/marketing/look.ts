@@ -1,4 +1,4 @@
-import type { SceneGraph } from '@open-pencil/scene-graph'
+import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
 import { encodeBase64 } from '#core/bytes'
 import type { FigmaAPI } from '#core/figma-api'
@@ -17,6 +17,39 @@ import { defineTool } from '#core/tools/schema'
 const MAX_LONG_EDGE = 1024
 const MIN_LEGIBLE_TEXT_PX = 12
 const JPEG_QUALITY = 80
+const MAX_DRILL_DEPTH = 2
+const MAX_DRILL_TARGETS = 5
+const MAX_DRILL_NAME = 40
+
+/**
+ * Breadth-first TEXT-node drill targets for the legibility note, limited in
+ * depth and count so large designs don't bloat the note.
+ */
+function collectDrillTargets(
+  graph: SceneGraph,
+  rootId: string
+): { targets: string[]; total: number } {
+  const targets: string[] = []
+  let total = 0
+  let frontier = graph.getChildren(rootId)
+  for (let depth = 0; depth < MAX_DRILL_DEPTH; depth++) {
+    const next: SceneNode[] = []
+    for (const child of frontier) {
+      if (child.type === 'TEXT') {
+        total++
+        if (targets.length < MAX_DRILL_TARGETS) {
+          const name = child.name.trim()
+          const label = name.length > MAX_DRILL_NAME ? `${name.slice(0, MAX_DRILL_NAME)}…` : name
+          targets.push(label ? `${child.id} (${label})` : child.id)
+        }
+      } else {
+        next.push(...graph.getChildren(child.id))
+      }
+    }
+    frontier = next
+  }
+  return { targets, total }
+}
 
 function minFontSizeInSubtree(graph: SceneGraph, rootId: string): number | undefined {
   let min: number | undefined
@@ -68,13 +101,12 @@ function addTextLegibilityNote(
   noteParts.push(
     `You can judge layout proportions, visual weight, and color distribution from this image. ⚠ Text renders at ~${Math.round(minTextPx)}px here — too small to read; do not judge text content or legibility from it.`
   )
-  const drillTargets = graph
-    .getChildren(targetId)
-    .filter((child) => child.childIds.length > 0 || child.type === 'TEXT')
-    .map((child) => `${child.id} (${child.name})`)
-  if (drillTargets.length > 0) {
+  const { targets, total } = collectDrillTargets(graph, targetId)
+  if (targets.length > 0) {
+    const more =
+      total > targets.length ? ` — and ${total - targets.length} more, look specific ids` : ''
     noteParts.push(
-      `To inspect text, look at child nodes individually: ${drillTargets.join(' / ')}.`
+      `To inspect text, look at these text nodes individually: ${targets.join(' / ')}${more}.`
     )
   }
 }
@@ -87,7 +119,8 @@ async function analyzeViaVisionChannel(
   noteParts: string[],
   focus: string | undefined
 ): Promise<
-  { error: string } | { analysis: string; node: typeof nodeInfo; focus?: string; note: string }
+  | { error: string }
+  | { analysis: string; channel: 'B'; node: typeof nodeInfo; focus?: string; note: string }
 > {
   if (!isVisionChannelBReady()) {
     return {
@@ -113,9 +146,10 @@ async function analyzeViaVisionChannel(
   })
   return {
     analysis,
+    channel: 'B' as const,
     node: nodeInfo,
     ...(focus ? { focus } : {}),
-    note: `${noteParts.join(' ')} (Analysis from the independent vision model — treat it as a secondary judgment.)`
+    note: `${noteParts.join(' ')} (Text analysis from the independent vision model.)`
   }
 }
 
@@ -152,6 +186,11 @@ export const lookTool = defineTool({
       `Visual inspection of "${node.name}" (${node.width}×${node.height}, exported at ${Math.round(scale * 100)}%).`
     ]
     if (focus) noteParts.push(`Focus: ${focus}.`)
+    if (node.width > 4 * node.height || node.height > 4 * node.width) {
+      noteParts.push(
+        'Aspect ratio distorted at this scale — judge colors and presence, not proportions.'
+      )
+    }
 
     addTextLegibilityNote(figma.graph, targetId, scale, noteParts)
 
@@ -166,14 +205,11 @@ export const lookTool = defineTool({
     })
     if (!data || data.length === 0) return { error: 'Nothing visible to inspect' }
 
-    noteParts.push(
-      'Judge against the locked direction and section plan. Observations are advisory — confirm structural or readonly concerns with validate.'
-    )
-
     return {
       base64: encodeBase64(data),
       mimeType: 'image/jpeg',
       byteLength: data.length,
+      channel: 'A' as const,
       node: nodeInfo,
       ...(focus ? { focus } : {}),
       note: noteParts.join(' ')

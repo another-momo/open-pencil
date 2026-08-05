@@ -23,6 +23,7 @@ interface LookResult {
   mimeType?: string
   note?: string
   analysis?: string
+  channel?: 'A' | 'B'
   node?: { id: string; name: string; width: number; height: number }
 }
 
@@ -113,9 +114,10 @@ describe('look tool', () => {
     const pageId = graph.getPages()[0].id
     const frame = graph.createNode('FRAME', pageId, { name: 'Tall', width: 750, height: 20000 })
 
-    await runLook(figma, { id: frame.id })
+    const result = await runLook(figma, { id: frame.id })
 
     expect(expectDefined(calls[0]).options.scale).toBe(0.1)
+    expect(result.note).toContain('Aspect ratio distorted')
   })
 
   test('small nodes export at scale 1', async () => {
@@ -125,9 +127,10 @@ describe('look tool', () => {
     const pageId = graph.getPages()[0].id
     const frame = graph.createNode('FRAME', pageId, { name: 'Card', width: 300, height: 250 })
 
-    await runLook(figma, { id: frame.id })
+    const result = await runLook(figma, { id: frame.id })
 
     expect(expectDefined(calls[0]).options.scale).toBe(1)
+    expect(result.note).not.toContain('Aspect ratio distorted')
   })
 
   test('declares illegible text and lists drill-in child nodes on long designs', async () => {
@@ -136,14 +139,40 @@ describe('look tool', () => {
     const pageId = graph.getPages()[0].id
     const root = graph.createNode('FRAME', pageId, { name: 'Detail', width: 750, height: 4000 })
     const section = graph.createNode('FRAME', root.id, { name: 'Hero', width: 750, height: 1000 })
-    graph.createNode('TEXT', section.id, { name: 'Headline', text: 'Hi', fontSize: 24 })
+    const headline = graph.createNode('TEXT', section.id, {
+      name: 'Headline',
+      text: 'Hi',
+      fontSize: 24
+    })
 
     const result = await runLook(figma, { id: root.id })
 
     expect(result.note).toContain('too small to read')
-    expect(result.note).toContain('look at child nodes individually')
-    expect(result.note).toContain(`${section.id} (Hero)`)
+    expect(result.note).toContain('look at these text nodes individually')
+    expect(result.note).toContain(`${headline.id} (Headline)`)
     expect(result.note).not.toContain('Focus:')
+  })
+
+  test('drill targets are count-limited and names are trimmed', async () => {
+    const { graph, figma } = setupToolTest()
+    mockExportImage(figma, [])
+    const pageId = graph.getPages()[0].id
+    const root = graph.createNode('FRAME', pageId, { name: 'Detail', width: 750, height: 4000 })
+    graph.createNode('TEXT', root.id, {
+      name: 'A very long text node name that exceeds the drill-target label limit',
+      text: 'x',
+      fontSize: 24
+    })
+    for (let i = 0; i < 6; i++) {
+      graph.createNode('TEXT', root.id, { name: `  Line ${i}  `, text: 'x', fontSize: 24 })
+    }
+
+    const result = await runLook(figma, { id: root.id })
+
+    expect(result.note).toContain('and 2 more, look specific ids')
+    expect(result.note).toContain('that exceeds …')
+    expect(result.note).toContain('(Line 0)')
+    expect(result.note).not.toContain('(  Line 0  )')
   })
 
   test('no legibility warning when text stays readable at export scale', async () => {
@@ -167,6 +196,8 @@ describe('look tool', () => {
     const result = await runLook(figma, { id: frame.id, focus: 'text readability' })
 
     expect(result.note).toContain('Focus: text readability.')
+    expect(result.channel).toBe('A')
+    expect(result.note).not.toContain('locked direction')
   })
 })
 
@@ -206,6 +237,9 @@ describe('look tool — vision channel B', () => {
     expect(result.error).toBeUndefined()
     expect(result.analysis).toBe('a white mug on a wooden table')
     expect(result.base64).toBeUndefined()
+    expect(result.channel).toBe('B')
+    expect(result.note).toContain('Text analysis from the independent vision model.')
+    expect(result.note).not.toContain('secondary judgment')
     expect(seenPrompt).toContain('Visual inspection of "Card"')
     expect(seenPrompt).toContain('Focus: what does this image show.')
   })

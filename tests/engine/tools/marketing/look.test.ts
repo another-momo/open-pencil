@@ -23,7 +23,6 @@ interface LookResult {
   mimeType?: string
   note?: string
   analysis?: string
-  cached?: boolean
   node?: { id: string; name: string; width: number; height: number }
 }
 
@@ -207,12 +206,11 @@ describe('look tool — vision channel B', () => {
     expect(result.error).toBeUndefined()
     expect(result.analysis).toBe('a white mug on a wooden table')
     expect(result.base64).toBeUndefined()
-    expect(result.cached).toBe(false)
     expect(seenPrompt).toContain('Visual inspection of "Card"')
     expect(seenPrompt).toContain('Focus: what does this image show.')
   })
 
-  test('material descriptions are cached by image hash — second look skips the vision call', async () => {
+  test('no caching — every look triggers a fresh vision call, even for the same image', async () => {
     const { graph, figma } = setupToolTest()
     const calls: ExportCall[] = []
     mockExportImage(figma, calls)
@@ -233,20 +231,18 @@ describe('look tool — vision channel B', () => {
         ]
       })
     const rectA = makeImageRect('Material A')
-    const rectB = makeImageRect('Material B')
     let visionCalls = 0
     setupChannelB(() => {
       visionCalls++
-      return Promise.resolve('description of the material')
+      return Promise.resolve(`analysis ${visionCalls}`)
     })
 
-    const first = await runLook(figma, { id: rectA.id })
-    const second = await runLook(figma, { id: rectB.id })
+    const first = await runLook(figma, { id: rectA.id, focus: 'what does this image show' })
+    const second = await runLook(figma, { id: rectA.id, focus: 'is the text garbled' })
 
-    expect(first.cached).toBe(false)
-    expect(visionCalls).toBe(1)
-    expect(second.cached).toBe(true)
-    expect(second.analysis).toBe('description of the material')
-    expect(calls).toHaveLength(1)
+    expect(first.analysis).toBe('analysis 1')
+    expect(second.analysis).toBe('analysis 2')
+    expect(visionCalls).toBe(2)
+    expect(calls).toHaveLength(2)
   })
 })

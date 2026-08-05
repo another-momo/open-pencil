@@ -4,6 +4,12 @@ import type { InjectionKey, ShallowUnwrapRef } from 'vue'
 import { resolveProviderApiFormat, resolveProviderBaseURL } from '@/app/ai/chat/model'
 import { useAIChat } from '@/app/ai/chat/use'
 import type { ChatMode } from '@/app/ai/marketing/settings'
+import {
+  clearVisionBaseURL,
+  clearVisionKey,
+  clearVisionModel,
+  saveVisionSettings
+} from '@/app/ai/marketing/vision-settings'
 
 // Fork-owned provider settings context (marketing/vision/image-gen). Upstream's
 // chat-model settings moved to the model-profiles system
@@ -60,17 +66,10 @@ function createProviderSettingsContext() {
     if (imageGenModelInput.value.trim()) {
       imageGenModel.value = imageGenModelInput.value.trim()
     }
-    if (visionKeyInput.value.trim()) {
-      visionApiKey.value = visionKeyInput.value.trim()
-      hasExistingVisionKey.value = true
-      visionKeyInput.value = ''
-    }
-    if (visionBaseURLInput.value.trim()) {
-      visionBaseURL.value = visionBaseURLInput.value.trim()
-    }
-    if (visionModelInput.value.trim()) {
-      visionModel.value = visionModelInput.value.trim()
-    }
+    saveVisionSettings(
+      { visionApiKey, visionBaseURL, visionModel },
+      { visionKeyInput, visionBaseURLInput, visionModelInput, hasExistingVisionKey }
+    )
   }
 
   function clearImageGenKey() {
@@ -79,10 +78,12 @@ function createProviderSettingsContext() {
     hasExistingImageGenKey.value = false
   }
 
-  function clearVisionKey() {
-    visionApiKey.value = ''
-    visionKeyInput.value = ''
-    hasExistingVisionKey.value = false
+  const visionStorage = { visionApiKey, visionBaseURL, visionModel }
+  const visionInputs = {
+    visionKeyInput,
+    visionBaseURLInput,
+    visionModelInput,
+    hasExistingVisionKey
   }
 
   // Copy-from-main buttons only fill the inputs — nothing is persisted until
@@ -139,7 +140,9 @@ function createProviderSettingsContext() {
     hasExistingImageGenKey,
     save,
     clearImageGenKey,
-    clearVisionKey,
+    clearVisionKey: () => clearVisionKey(visionStorage, visionInputs),
+    clearVisionBaseURL: () => clearVisionBaseURL(visionStorage, visionInputs),
+    clearVisionModel: () => clearVisionModel(visionStorage, visionInputs),
     copyMainKeyToVision,
     copyMainBaseURLToVision,
     copyMainModelToVision,

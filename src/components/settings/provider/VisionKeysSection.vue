@@ -77,7 +77,7 @@ function onProviderChange(event: Event) {
           kind="url"
           type="text"
           placeholder="https://api.minimax.io/v1"
-          @clear="ctx.clearVisionKey"
+          @clear="ctx.clearVisionBaseURL"
           @change="ctx.save"
         />
       </div>
@@ -100,7 +100,7 @@ function onProviderChange(event: Event) {
           kind="model"
           type="text"
           placeholder="MiniMax-M3"
-          @clear="ctx.clearVisionKey"
+          @clear="ctx.clearVisionModel"
           @change="ctx.save"
         />
       </div>

@@ -1,4 +1,4 @@
-import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
+import type { SceneGraph } from '@open-pencil/scene-graph'
 
 import { encodeBase64 } from '#core/bytes'
 import type { FigmaAPI } from '#core/figma-api'
@@ -9,8 +9,6 @@ import {
 } from '#core/tools/marketing/registry'
 import {
   analyzeImageWithVisionModel,
-  cacheMaterialDescription,
-  getCachedMaterialDescription,
   getVisionMode,
   isVisionChannelBReady
 } from '#core/tools/marketing/vision'
@@ -34,10 +32,6 @@ function minFontSizeInSubtree(graph: SceneGraph, rootId: string): number | undef
     for (const childId of node.childIds) stack.push(childId)
   }
   return min
-}
-
-function imageHashOf(node: SceneNode): string | undefined {
-  return node.fills.find((fill) => fill.imageHash)?.imageHash
 }
 
 function resolveTargetId(
@@ -93,27 +87,12 @@ async function analyzeViaVisionChannel(
   noteParts: string[],
   focus: string | undefined
 ): Promise<
-  | { error: string }
-  | { analysis: string; cached: boolean; node: typeof nodeInfo; focus?: string; note: string }
+  { error: string } | { analysis: string; node: typeof nodeInfo; focus?: string; note: string }
 > {
   if (!isVisionChannelBReady()) {
     return {
       error:
         'Vision channel B is selected but credentials are incomplete — set vision API key, base URL, and model in AI settings, or switch the vision mode back to A'
-    }
-  }
-  const node = figma.graph.getNode(targetId)
-  const imageHash = node ? imageHashOf(node) : undefined
-  if (imageHash) {
-    const cached = getCachedMaterialDescription(figma.graph, imageHash)
-    if (cached) {
-      return {
-        analysis: cached,
-        cached: true,
-        node: nodeInfo,
-        ...(focus ? { focus } : {}),
-        note: `${noteParts.join(' ')} (Cached analysis from the independent vision model — treat it as a secondary judgment.)`
-      }
     }
   }
   const data = await figma.exportImage?.([targetId], {
@@ -132,10 +111,8 @@ async function analyzeViaVisionChannel(
       'If text is too small to read, say so explicitly instead of guessing its content.'
     ].join('\n')
   })
-  if (imageHash) cacheMaterialDescription(figma.graph, imageHash, analysis)
   return {
     analysis,
-    cached: false,
     node: nodeInfo,
     ...(focus ? { focus } : {}),
     note: `${noteParts.join(' ')} (Analysis from the independent vision model — treat it as a secondary judgment.)`

@@ -64,6 +64,7 @@ plans/
 | `architecture/l2-marketing-font-puhuiti.md` | 设计 | L2 营销字体：PuHuiTi 9 字重 + BUNDLED_FONTS + FONT_WEIGHT_NAMES 修复 | 半持久 |
 | `architecture/fork-divergence.md` | 治理 | Fork 与 upstream 差异全景：处置（保留/丢弃/重构）、冗余接受标准、合并 SOP | 每次合并后刷新 |
 | `tasks/l1-image-gen-optimize.md` | 任务 | L1 实施步骤骨架 + 验证/回滚指针（设计见 `architecture/l1-image-gen.md`） | 半持久 |
+| `tasks/look-tool-fixes.md` | 任务 | look 工具修复与优化：素材缓存删减、凭证链路正确性修复 + 体验增强，三阶段实施（设计见 `architecture/l2-visual-loop.md`） | 半持久 |
 | `history/<name>-history.md` | 历史 | 从对应设计/任务文档切出的实施记录、误诊修正、评审后续修正 | 档案（追加） |
 | `knowledge/error-catalog.md` | 知识 | 冒烟测试错误目录（实测驱动迭代的核心资产，持续追加） | 只增不改 |
 | `knowledge/methodology.md` | 知识 | 实测沉淀的方法论：注入可靠性排序、可判定性划分、测试陷阱 | 只增不改 |

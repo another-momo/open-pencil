@@ -28,9 +28,7 @@ export {
   setVisionCredentials,
   setVisionAnalyzer,
   getVisionMode,
-  isVisionChannelBReady,
-  getCachedMaterialDescription,
-  cacheMaterialDescription
+  isVisionChannelBReady
 } from './marketing/vision'
 export type { VisionMode, VisionProvider, VisionAnalyzer } from './marketing/vision'
 export { getMarketingState } from './marketing'

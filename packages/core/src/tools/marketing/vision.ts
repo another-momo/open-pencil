@@ -6,15 +6,9 @@
  * When mode is B, `look` sends the exported image to an OpenAI-compatible
  * vision endpoint and returns the text analysis to the main model — no
  * base64 ever enters the main conversation context.
- *
- * Also owns the material-description cache (素材理解): analyses for nodes
- * with an IMAGE fill are cached per graph by the fill's imageHash, so
- * re-inspecting the same material costs no vision call.
  */
 
 import { FetchError, ofetch } from 'ofetch'
-
-import type { SceneGraph } from '@open-pencil/scene-graph'
 
 export type VisionMode = 'A' | 'B'
 export type VisionProvider = 'openai-compatible' | 'anthropic-compatible'
@@ -181,26 +175,4 @@ export function analyzeImageWithVisionModel(input: {
     throw new Error(`Invalid mime type for vision analysis: ${input.mimeType}`)
   }
   return analyzer(input)
-}
-
-const materialDescriptions = new WeakMap<SceneGraph, Map<string, string>>()
-
-export function getCachedMaterialDescription(
-  graph: SceneGraph,
-  imageHash: string
-): string | undefined {
-  return materialDescriptions.get(graph)?.get(imageHash)
-}
-
-export function cacheMaterialDescription(
-  graph: SceneGraph,
-  imageHash: string,
-  description: string
-): void {
-  let cache = materialDescriptions.get(graph)
-  if (!cache) {
-    cache = new Map()
-    materialDescriptions.set(graph, cache)
-  }
-  cache.set(imageHash, description)
 }

@@ -5,3 +5,4 @@ export {
   encodeBase64Text,
   type Base64Alphabet
 } from './base64'
+export { detectImageMime } from './image-mime'

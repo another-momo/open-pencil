@@ -1,6 +1,6 @@
 import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
-import { encodeBase64 } from '#core/bytes'
+import { detectImageMime, encodeBase64 } from '#core/bytes'
 import type { FigmaAPI } from '#core/figma-api'
 import {
   analyzeImageWithVisionModel,
@@ -15,13 +15,6 @@ const JPEG_QUALITY = 80
 const MAX_DRILL_DEPTH = 2
 const MAX_DRILL_TARGETS = 5
 const MAX_DRILL_NAME = 40
-
-function sniffImageMime(data: Uint8Array): string {
-  if (data[0] === 0x89 && data[1] === 0x50) return 'image/png'
-  if (data[0] === 0xff && data[1] === 0xd8) return 'image/jpeg'
-  if (data[0] === 0x52 && data[1] === 0x49) return 'image/webp'
-  return 'image/png'
-}
 
 /**
  * When the target is a plain image bearer (a single visible IMAGE fill —
@@ -39,7 +32,7 @@ function originalImageData(
   const fill = fills[0]
   if (fill.type !== 'IMAGE' || !fill.visible || !fill.imageHash) return null
   const data = figma.graph.images.get(fill.imageHash)
-  return data ? { data, mimeType: sniffImageMime(data) } : null
+  return data ? { data, mimeType: detectImageMime(data) } : null
 }
 
 /**

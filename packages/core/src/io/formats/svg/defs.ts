@@ -1,7 +1,7 @@
 import type { Effect, Fill, SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 import type { Color } from '@open-pencil/scene-graph/primitives'
 
-import { encodeBase64 } from '#core/bytes'
+import { detectImageMime, encodeBase64 } from '#core/bytes'
 import { colorToHex } from '#core/color'
 import { colorToDisplayCss, getDefaultRenderColorSpace } from '#core/color/management'
 import type { RenderColorSpace } from '#core/color/management'
@@ -131,13 +131,6 @@ function createImagePattern(
       })
     )
   }
-}
-
-function detectImageMime(data: Uint8Array): string {
-  if (data[0] === 0x89 && data[1] === 0x50) return 'image/png'
-  if (data[0] === 0xff && data[1] === 0xd8) return 'image/jpeg'
-  if (data[0] === 0x52 && data[1] === 0x49) return 'image/webp'
-  return 'image/png'
 }
 
 export function createFilterDef(

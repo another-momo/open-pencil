@@ -20,6 +20,7 @@ interface LookResult {
   error?: string
   base64?: string
   mimeType?: string
+  byteLength?: number
   note?: string
   analysis?: string
   channel?: 'A' | 'B'
@@ -45,8 +46,10 @@ afterEach(() => {
 
 describe('look tool', () => {
   test('errors when exportImage is unavailable', async () => {
-    const { figma } = setupToolTest()
-    const result = await runLook(figma, {})
+    const { graph, figma } = setupToolTest()
+    const pageId = graph.getPages()[0].id
+    const frame = graph.createNode('FRAME', pageId, { name: 'Detail', width: 100, height: 100 })
+    const result = await runLook(figma, { id: frame.id })
     expect(result.error).toContain('not available')
   })
 
@@ -108,6 +111,95 @@ describe('look tool', () => {
 
     expect(expectDefined(calls[0]).options.scale).toBe(1)
     expect(result.note).not.toContain('Aspect ratio distorted')
+  })
+
+  test('image-bearing nodes bypass rendering and return the original bytes', async () => {
+    const { graph, figma } = setupToolTest()
+    // No exportImage mock on purpose — the original-bytes path must not need it
+    const pageId = graph.getPages()[0].id
+    const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4])
+    const { hash } = figma.createImage(pngBytes)
+    const rect = graph.createNode('RECTANGLE', pageId, { name: 'Photo', width: 143, height: 143 })
+    graph.updateNode(rect.id, {
+      fills: [
+        {
+          type: 'IMAGE',
+          imageHash: hash,
+          color: { r: 0, g: 0, b: 0, a: 0 },
+          opacity: 1,
+          visible: true
+        }
+      ]
+    })
+
+    const result = await runLook(figma, { id: rect.id, focus: 'what does this image show' })
+
+    expect(result.error).toBeUndefined()
+    expect(result.channel).toBe('A')
+    expect(result.mimeType).toBe('image/png')
+    expect(result.byteLength).toBe(pngBytes.length)
+    expect(result.note).toContain('Original image bytes')
+    expect(result.note).toContain('possibly cropped')
+  })
+
+  test('channel B also receives the original bytes for image-bearing nodes', async () => {
+    const { graph, figma } = setupToolTest()
+    // No exportImage mock — channel B must analyze the original bytes directly
+    const pageId = graph.getPages()[0].id
+    const { hash } = figma.createImage(new Uint8Array([0xff, 0xd8, 9, 8, 7]))
+    const rect = graph.createNode('RECTANGLE', pageId, { name: 'Photo', width: 143, height: 143 })
+    graph.updateNode(rect.id, {
+      fills: [
+        {
+          type: 'IMAGE',
+          imageHash: hash,
+          color: { r: 0, g: 0, b: 0, a: 0 },
+          opacity: 1,
+          visible: true
+        }
+      ]
+    })
+    let seenPrompt = ''
+    let seenMime = ''
+    setVisionMode('B')
+    setVisionCredentials('sk-test', 'https://vision.example/v1', 'vision-model')
+    setVisionAnalyzer((input) => {
+      seenPrompt = input.prompt
+      seenMime = input.mimeType
+      return Promise.resolve('a portrait product shot')
+    })
+
+    const result = await runLook(figma, { id: rect.id })
+
+    expect(result.analysis).toBe('a portrait product shot')
+    expect(seenMime).toBe('image/jpeg')
+    expect(seenPrompt).toContain('Original image bytes')
+  })
+
+  test('nodes with mixed fills still render via exportImage', async () => {
+    const { graph, figma } = setupToolTest()
+    const calls: ExportCall[] = []
+    mockExportImage(figma, calls)
+    const pageId = graph.getPages()[0].id
+    const { hash } = figma.createImage(new Uint8Array([0xff, 0xd8, 1, 2]))
+    const rect = graph.createNode('RECTANGLE', pageId, { name: 'Mix', width: 100, height: 100 })
+    graph.updateNode(rect.id, {
+      fills: [
+        { type: 'SOLID', color: { r: 1, g: 0, b: 0, a: 1 }, opacity: 1, visible: true },
+        {
+          type: 'IMAGE',
+          imageHash: hash,
+          color: { r: 0, g: 0, b: 0, a: 0 },
+          opacity: 1,
+          visible: true
+        }
+      ]
+    })
+
+    const result = await runLook(figma, { id: rect.id })
+
+    expect(expectDefined(calls[0]).nodeIds).toEqual([rect.id])
+    expect(result.mimeType).toBe('image/jpeg')
   })
 
   test('declares illegible text and lists drill-in child nodes on long designs', async () => {

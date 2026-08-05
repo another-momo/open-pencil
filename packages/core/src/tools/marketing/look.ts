@@ -16,6 +16,32 @@ const MAX_DRILL_DEPTH = 2
 const MAX_DRILL_TARGETS = 5
 const MAX_DRILL_NAME = 40
 
+function sniffImageMime(data: Uint8Array): string {
+  if (data[0] === 0x89 && data[1] === 0x50) return 'image/png'
+  if (data[0] === 0xff && data[1] === 0xd8) return 'image/jpeg'
+  if (data[0] === 0x52 && data[1] === 0x49) return 'image/webp'
+  return 'image/png'
+}
+
+/**
+ * When the target is a plain image bearer (a single visible IMAGE fill —
+ * pasted images, brief material slots), hand the model the original bytes
+ * instead of a render. The canvas presentation shrinks (brief slots render
+ * at 143px) and crops (FILL into fixed squares) the image, destroying detail
+ * and orientation cues the model is explicitly asked to judge.
+ */
+function originalImageData(
+  figma: FigmaAPI,
+  node: SceneNode
+): { data: Uint8Array; mimeType: string } | null {
+  const { fills } = node
+  if (!Array.isArray(fills) || fills.length !== 1) return null
+  const fill = fills[0]
+  if (fill.type !== 'IMAGE' || fill.visible === false || !fill.imageHash) return null
+  const data = figma.graph.images.get(fill.imageHash)
+  return data ? { data, mimeType: sniffImageMime(data) } : null
+}
+
 /**
  * Breadth-first TEXT-node drill targets for the legibility note, limited in
  * depth and count so large designs don't bloat the note.
@@ -86,10 +112,8 @@ function addTextLegibilityNote(
 }
 
 async function analyzeViaVisionChannel(
-  figma: FigmaAPI,
-  targetId: string,
+  image: { data: Uint8Array; mimeType: string },
   nodeInfo: { id: string; name: string; width: number; height: number },
-  scale: number,
   noteParts: string[],
   focus: string | undefined
 ): Promise<
@@ -102,16 +126,9 @@ async function analyzeViaVisionChannel(
         'Vision channel B is selected but credentials are incomplete — set vision API key, base URL, and model in AI settings, or switch the vision mode back to A'
     }
   }
-  const data = await figma.exportImage?.([targetId], {
-    scale,
-    format: 'JPG',
-    quality: JPEG_QUALITY
-  })
-  if (!data || data.length === 0) return { error: 'Nothing visible to inspect' }
-
   const analysis = await analyzeImageWithVisionModel({
-    base64: encodeBase64(data),
-    mimeType: 'image/jpeg',
+    base64: encodeBase64(image.data),
+    mimeType: image.mimeType,
     prompt: [
       'You are the vision subsystem of a design agent. Analyze this design screenshot factually and answer concisely.',
       ...noteParts,
@@ -145,9 +162,6 @@ export const lookTool = defineTool({
     }
   },
   execute: async (figma, { id, focus }) => {
-    if (!figma.exportImage) {
-      return { error: 'Visual inspection is not available in this environment' }
-    }
     if (typeof id !== 'string' || !id) {
       return {
         error:
@@ -160,36 +174,51 @@ export const lookTool = defineTool({
     if (!node) return { error: `Node "${targetId}" not found` }
 
     const nodeInfo = { id: targetId, name: node.name, width: node.width, height: node.height }
-    const longEdge = Math.max(node.width, node.height)
-    const scale = longEdge > 0 ? Math.max(0.1, Math.min(1, MAX_LONG_EDGE / longEdge)) : 1
+    const noteParts: string[] = []
 
-    const noteParts = [
-      `Visual inspection of "${node.name}" (${node.width}×${node.height}, exported at ${Math.round(scale * 100)}%).`
-    ]
-    if (focus) noteParts.push(`Focus: ${focus}.`)
-    if (node.width > 4 * node.height || node.height > 4 * node.width) {
+    let image: { data: Uint8Array; mimeType: string }
+    const original = originalImageData(figma, node)
+    if (original) {
       noteParts.push(
-        'Aspect ratio distorted at this scale — judge colors and presence, not proportions.'
+        `Original image bytes of "${node.name}" at full resolution — on canvas it appears as ${node.width}×${node.height}, possibly cropped or scaled. Judge the image itself, not its canvas presentation.`
       )
+      image = original
+    } else {
+      if (!figma.exportImage) {
+        return { error: 'Visual inspection is not available in this environment' }
+      }
+      const longEdge = Math.max(node.width, node.height)
+      const scale = longEdge > 0 ? Math.max(0.1, Math.min(1, MAX_LONG_EDGE / longEdge)) : 1
+
+      noteParts.push(
+        `Visual inspection of "${node.name}" (${node.width}×${node.height}, exported at ${Math.round(scale * 100)}%).`
+      )
+      if (node.width > 4 * node.height || node.height > 4 * node.width) {
+        noteParts.push(
+          'Aspect ratio distorted at this scale — judge colors and presence, not proportions.'
+        )
+      }
+      addTextLegibilityNote(figma.graph, targetId, scale, noteParts)
+
+      const data = await figma.exportImage([targetId], {
+        scale,
+        format: 'JPG',
+        quality: JPEG_QUALITY
+      })
+      if (!data || data.length === 0) return { error: 'Nothing visible to inspect' }
+      image = { data, mimeType: 'image/jpeg' }
     }
 
-    addTextLegibilityNote(figma.graph, targetId, scale, noteParts)
+    if (focus) noteParts.push(`Focus: ${focus}.`)
 
     if (getVisionMode() === 'B') {
-      return analyzeViaVisionChannel(figma, targetId, nodeInfo, scale, noteParts, focus)
+      return analyzeViaVisionChannel(image, nodeInfo, noteParts, focus)
     }
 
-    const data = await figma.exportImage([targetId], {
-      scale,
-      format: 'JPG',
-      quality: JPEG_QUALITY
-    })
-    if (!data || data.length === 0) return { error: 'Nothing visible to inspect' }
-
     return {
-      base64: encodeBase64(data),
-      mimeType: 'image/jpeg',
-      byteLength: data.length,
+      base64: encodeBase64(image.data),
+      mimeType: image.mimeType,
+      byteLength: image.data.length,
       channel: 'A' as const,
       node: nodeInfo,
       ...(focus ? { focus } : {}),

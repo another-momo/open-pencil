@@ -19,12 +19,9 @@ function setup(id: string) {
 
 function runValidate(
   figma: Parameters<ReturnType<typeof getTool>['execute']>[0],
-  rootFrameId?: string
+  rootFrameId: string
 ) {
-  return getTool('validate').execute(
-    figma,
-    rootFrameId ? { id: rootFrameId } : {}
-  ) as ValidateResult
+  return getTool('validate').execute(figma, { id: rootFrameId }) as ValidateResult
 }
 
 function findInstanceChild(
@@ -83,8 +80,8 @@ test('batch_update outside instances records nothing', () => {
 })
 
 test('validate passes on a clean setup', () => {
-  const { figma } = setup('product_long')
-  const result = runValidate(figma)
+  const { figma, setup: setupResult } = setup('product_long')
+  const result = runValidate(figma, expectDefined(setupResult.rootFrameId))
   expect(result.valid).toBe(true)
 })
 
@@ -93,7 +90,7 @@ test('validate detects anchor instance deletion', () => {
   const ctaBar = expectDefined(setupResult.anchors?.find((a) => a.template === 'CTABar'))
   graph.deleteNode(ctaBar.instanceId)
 
-  const check = runValidate(figma)
+  const check = runValidate(figma, expectDefined(setupResult.rootFrameId))
   expect(check.valid).toBe(false)
   expect(check.violations?.some((v) => v.type === 'anchor_deleted')).toBe(true)
 })
@@ -106,7 +103,7 @@ test('validate detects anchor misplacement', () => {
 
   graph.reorderChild(brandBar.instanceId, rootFrame.id, rootFrame.childIds.length - 1)
 
-  const check = runValidate(figma)
+  const check = runValidate(figma, rootFrame.id)
   expect(check.valid).toBe(false)
   expect(check.violations?.some((v) => v.type === 'anchor_misplaced')).toBe(true)
 })
@@ -134,14 +131,16 @@ test('validate works without a library session (checks derive from anchor record
   })
 
   graph.deleteNode(ctaBar.instanceId)
-  const check = runValidate(figma)
+  const check = runValidate(figma, expectDefined(setupResult.rootFrameId))
   expect(check.valid).toBe(false)
   expect(check.violations?.some((v) => v.type === 'anchor_deleted')).toBe(true)
 })
 
 test('validate without marketing state reports setup hint', () => {
-  const { figma } = setupToolTest()
-  const result = runValidate(figma)
+  const { graph, figma } = setupToolTest()
+  const pageId = graph.getPages()[0].id
+  const frame = graph.createNode('FRAME', pageId, { name: 'Plain' })
+  const result = runValidate(figma, frame.id)
   expect(result.valid).toBe(false)
   expect(result.note).toContain('setup_material_type')
 })

@@ -2,7 +2,6 @@ import { afterEach, describe, expect, test } from 'bun:test'
 
 import type { FigmaAPI } from '@open-pencil/core'
 
-import { setMarketingState } from '#core/tools/marketing/registry'
 import {
   setVisionAnalyzer,
   setVisionCredentials,
@@ -51,11 +50,11 @@ describe('look tool', () => {
     expect(result.error).toContain('not available')
   })
 
-  test('errors without id and without a marketing session', async () => {
+  test('errors without an id — the id is always required', async () => {
     const { figma } = setupToolTest()
     mockExportImage(figma, [])
     const result = await runLook(figma, {})
-    expect(result.error).toContain('No id given')
+    expect(result.error).toContain('Pass an explicit node id')
   })
 
   test('errors for an unknown node id', async () => {
@@ -63,28 +62,6 @@ describe('look tool', () => {
     mockExportImage(figma, [])
     const result = await runLook(figma, { id: '999:999' })
     expect(result.error).toContain('not found')
-  })
-
-  test('multiple marketing designs with a stale active root require an explicit id', async () => {
-    const { graph, figma } = setupToolTest()
-    mockExportImage(figma, [])
-    const pageId = graph.getPages()[0].id
-    const frameA = graph.createNode('FRAME', pageId, { name: 'A' })
-    const frameB = graph.createNode('FRAME', pageId, { name: 'B' })
-    const design = (rootFrameId: string, materialTypeId: string) => ({
-      materialTypeId,
-      rootFrameId,
-      componentsPageId: 'components',
-      anchors: [],
-      readonly: new Map()
-    })
-    setMarketingState(graph, design(frameA.id, 'wechat_moments'))
-    setMarketingState(graph, design(frameB.id, 'xiaohongshu'))
-    graph.deleteNode(frameB.id)
-
-    const result = await runLook(figma, {})
-    expect(result.error).toContain('Multiple marketing designs')
-    expect(result.error).toContain(frameA.id)
   })
 
   test('scales long edge to 1024 and exports JPEG at quality 80', async () => {

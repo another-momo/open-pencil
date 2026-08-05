@@ -3,11 +3,6 @@ import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 import { encodeBase64 } from '#core/bytes'
 import type { FigmaAPI } from '#core/figma-api'
 import {
-  getMarketingState,
-  listMarketingDesigns,
-  touchMarketingState
-} from '#core/tools/marketing/registry'
-import {
   analyzeImageWithVisionModel,
   getVisionMode,
   isVisionChannelBReady
@@ -65,27 +60,6 @@ function minFontSizeInSubtree(graph: SceneGraph, rootId: string): number | undef
     for (const childId of node.childIds) stack.push(childId)
   }
   return min
-}
-
-function resolveTargetId(
-  figma: { graph: SceneGraph },
-  id: string | undefined
-): string | { error: string } {
-  if (id) return id
-  const state = getMarketingState(figma.graph)
-  if (!state) {
-    const designs = listMarketingDesigns(figma.graph)
-    if (designs.length > 1) {
-      return {
-        error: `Multiple marketing designs — pass an explicit id. Candidates: ${designs.map((design) => `"${design.rootFrameId}" (${design.materialTypeId})`).join(', ')}`
-      }
-    }
-    return {
-      error: 'No id given and no marketing session root frame — pass an explicit node id'
-    }
-  }
-  touchMarketingState(figma.graph, state.rootFrameId)
-  return state.rootFrameId
 }
 
 function addTextLegibilityNote(
@@ -156,11 +130,13 @@ async function analyzeViaVisionChannel(
 export const lookTool = defineTool({
   name: 'look',
   description:
-    'Visually inspect a node by rendering it to an image you can actually see. Use for questions describe cannot answer: text over busy backgrounds, visual style consistency, generated-image content (e.g. garbled text in AI images), or what a user-provided image shows. Omit id to inspect the marketing design root frame. For text legibility on a large design, look at the section or text-bearing child node, not the root — the tool tells you when text is too small to read and lists child node ids to drill into. Observations are advisory — confirm structural or readonly concerns with validate, never from the image alone.',
+    'Visually inspect a node by rendering it to an image you can actually see. Use for questions describe cannot answer: text over busy backgrounds, visual style consistency, generated-image content (e.g. garbled text in AI images), or what a user-provided image shows. For text legibility on a large design, look at the section or text-bearing child node, not the root — the tool tells you when text is too small to read and lists child node ids to drill into. Observations are advisory — confirm structural or readonly concerns with validate, never from the image alone.',
   params: {
     id: {
       type: 'string',
-      description: 'Node id to inspect. Omit to use the marketing design root frame.'
+      description:
+        'Node id to inspect — e.g. the design root frame id returned by setup_material_type.',
+      required: true
     },
     focus: {
       type: 'string',
@@ -172,8 +148,13 @@ export const lookTool = defineTool({
     if (!figma.exportImage) {
       return { error: 'Visual inspection is not available in this environment' }
     }
-    const targetId = resolveTargetId(figma, id)
-    if (typeof targetId !== 'string') return targetId
+    if (typeof id !== 'string' || !id) {
+      return {
+        error:
+          'Pass an explicit node id — the design root frame id is returned by setup_material_type'
+      }
+    }
+    const targetId = id
 
     const node = figma.graph.getNode(targetId)
     if (!node) return { error: `Node "${targetId}" not found` }

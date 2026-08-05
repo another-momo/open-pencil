@@ -11,11 +11,7 @@
  */
 
 import type { FigmaAPI } from '#core/figma-api'
-import {
-  getMarketingState,
-  listMarketingDesigns,
-  touchMarketingState
-} from '#core/tools/marketing/registry'
+import { getMarketingState } from '#core/tools/marketing/registry'
 import type { MarketingDocumentState } from '#core/tools/marketing/restore'
 
 export interface ValidateViolation {
@@ -72,15 +68,14 @@ function checkAnchors(
   }
 }
 
-export function validateMarketingDesign(figma: FigmaAPI, rootFrameId?: string): ValidateResult {
+export function validateMarketingDesign(figma: FigmaAPI, rootFrameId: string): ValidateResult {
   const graph = figma.graph
   const state = getMarketingState(graph, rootFrameId)
   if (!state) {
-    const designs = listMarketingDesigns(graph)
-    // If an explicit id was given but resolved to nothing, it likely means
-    // the root frame was deleted and the registry was pruned. Surface a
-    // root_deleted violation so the user sees the specific reason.
-    if (rootFrameId && !graph.getNode(rootFrameId)) {
+    // The id resolved to nothing — if the root frame itself is gone, the
+    // registry entry was pruned; surface root_deleted so the user sees the
+    // specific reason.
+    if (!graph.getNode(rootFrameId)) {
       return {
         valid: false,
         violations: [
@@ -93,13 +88,11 @@ export function validateMarketingDesign(figma: FigmaAPI, rootFrameId?: string): 
         ]
       }
     }
-    const message =
-      !rootFrameId && designs.length > 1
-        ? `Multiple marketing designs — pass an explicit id. Candidates: ${designs.map((design) => `"${design.rootFrameId}" (${design.materialTypeId})`).join(', ')}`
-        : 'No marketing design state found. Call setup_material_type first to set up a marketing design.'
-    return { valid: false, note: message }
+    return {
+      valid: false,
+      note: 'No marketing design state found for this root frame. Call setup_material_type first to set up a marketing design.'
+    }
   }
-  touchMarketingState(graph, state.rootFrameId)
 
   const violations: ValidateViolation[] = []
   checkAnchors(figma, state, violations)

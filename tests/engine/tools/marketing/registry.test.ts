@@ -4,8 +4,7 @@ import {
   clearMarketingState,
   getMarketingState,
   listMarketingDesigns,
-  setMarketingState,
-  touchMarketingState
+  setMarketingState
 } from '#core/tools/marketing/registry'
 
 import { setupToolTest } from '#tests/helpers/tools'
@@ -38,9 +37,6 @@ describe('marketing registry (per-rootFrame)', () => {
     setMarketingState(graph, design(frameB.id, 'xiaohongshu'))
 
     expect(getMarketingState(graph)?.rootFrameId).toBe(frameB.id)
-
-    touchMarketingState(graph, frameA.id)
-    expect(getMarketingState(graph)?.rootFrameId).toBe(frameA.id)
   })
 
   test('stale active root in a multi-design document returns undefined and surfaces candidates', () => {

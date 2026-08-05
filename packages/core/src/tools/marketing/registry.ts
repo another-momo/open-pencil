@@ -102,11 +102,6 @@ export function setMarketingState(
   designsOf(graph).set(state.rootFrameId, { ...state, lastActiveAt: ++activityClock })
 }
 
-export function touchMarketingState(graph: SceneGraph, rootFrameId: string): void {
-  const design = states.get(graph)?.get(rootFrameId)
-  if (design) design.lastActiveAt = ++activityClock
-}
-
 export function clearMarketingState(graph: SceneGraph, rootFrameId?: string): void {
   if (!rootFrameId) {
     states.delete(graph)

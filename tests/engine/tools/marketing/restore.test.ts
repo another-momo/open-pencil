@@ -36,10 +36,13 @@ describe('restoreStateFromCanvas', () => {
   })
 
   test('restored anchors make validate work again', () => {
-    const { graph, figma } = setupDesign('product_long')
+    const { graph, figma, result } = setupDesign('product_long')
     clearMarketingState(graph)
 
-    const validate = getTool('validate').execute(figma, {}) as { valid: boolean; note?: string }
+    const validate = getTool('validate').execute(figma, { id: result.rootFrameId as string }) as {
+      valid: boolean
+      note?: string
+    }
     expect(validate.valid).toBe(true)
   })
 

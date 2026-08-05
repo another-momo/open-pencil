@@ -66,10 +66,15 @@ export const validateTool = defineTool({
   params: {
     id: {
       type: 'string',
-      description:
-        'Root frame id of the design to validate. Omit to use the most recently active design.'
+      description: 'Root frame id of the design to validate (returned by setup_material_type).',
+      required: true
     }
   },
   execute: (figma, { id }) =>
-    validateMarketingDesign(figma, typeof id === 'string' ? id : undefined)
+    typeof id === 'string' && id
+      ? validateMarketingDesign(figma, id)
+      : {
+          valid: false,
+          note: 'Pass the design root frame id (returned by setup_material_type).'
+        }
 })

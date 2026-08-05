@@ -20,7 +20,9 @@ export const stockPhoto = defineTool({
   mutates: true,
   description:
     'Search stock photos and apply to nodes. Pass a JSON array — all fetched in parallel. ' +
-    'Each item: {id, query, index?, orientation?}. Fills leaf shapes (Rectangle/Ellipse) directly, or a Frame as its background image (children are kept — this is how you put text over a photo hero).',
+    'Each item: {id, query, index?, orientation?}. Fills leaf shapes (Rectangle/Ellipse) directly, or a Frame as its background image (children are kept — this is how you put text over a photo hero). ' +
+    'Batch ALL photos in ONE call — never loop with repeated single calls. Use descriptive English queries ("aerial city skyline sunset", not "image1"). orientation: "landscape" (default), "portrait" for tall cards, "square" for avatars. ' +
+    'If no key is configured or the API returns 401, tell the user to add/check it in AI chat settings — do NOT fall back to eval-drawn gradients; leave placeholder colors as-is.',
   params: {
     requests: {
       type: 'string',

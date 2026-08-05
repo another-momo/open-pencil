@@ -12,6 +12,7 @@ import {
   inlineMediaToolResultsAsUserMessages
 } from '@/app/ai/chat/media-tool-results'
 import { resolveLanguageModelID } from '@/app/ai/chat/model'
+import SYSTEM_PROMPT_MARKETING_BASE from '@/app/ai/chat/system-prompt-base.md?raw'
 import SYSTEM_PROMPT_MARKETING from '@/app/ai/chat/system-prompt-marketing.md?raw'
 import SYSTEM_PROMPT from '@/app/ai/chat/system-prompt.md?raw'
 import { bindMarketingLibrary, buildMarketingOverlay } from '@/app/ai/marketing/library'
@@ -52,6 +53,12 @@ type ToolLoopTransportOptions = {
 const ANTHROPIC_CACHE_CONTROL = {
   anthropic: { cacheControl: { type: 'ephemeral' } }
 } as const
+
+// The marketing prompt is assembled from two fork-owned files: the shared
+// design-DSL base (identity + props/layout reference) and the marketing
+// workflow. Keep them concatenated in this order — the per-turn library
+// overlay is appended after both in prepareCall.
+const SYSTEM_PROMPT_MARKETING_FULL = SYSTEM_PROMPT_MARKETING_BASE + SYSTEM_PROMPT_MARKETING
 
 function supportsAnthropicCaching(providerID: AIProviderID, modelID: string): boolean {
   return (
@@ -99,7 +106,7 @@ export function createToolLoopTransport({
     ? ANTHROPIC_CACHE_CONTROL
     : undefined
 
-  const instructions = chatMode === 'marketing' ? SYSTEM_PROMPT_MARKETING : SYSTEM_PROMPT
+  const instructions = chatMode === 'marketing' ? SYSTEM_PROMPT_MARKETING_FULL : SYSTEM_PROMPT
 
   const agent = new ToolLoopAgent({
     model,
@@ -117,7 +124,7 @@ export function createToolLoopTransport({
       let instructions: string | undefined
       if (chatMode === 'marketing') {
         bindMarketingLibrary(store.graph)
-        instructions = SYSTEM_PROMPT_MARKETING + buildMarketingOverlay(store)
+        instructions = SYSTEM_PROMPT_MARKETING_FULL + buildMarketingOverlay(store)
       }
       const keep = Math.min(3, Math.max(1, Math.round(lookImagesKept.value) || 2))
       const rewrite = needsImageAsUserMessage(providerID, customAPIType)

@@ -91,12 +91,17 @@ watch(input, (text) => {
   setInferredMaterialType(inferMaterialTypeFromText(text))
 })
 
-function handleSubmit(e: Event) {
+async function handleSubmit(e: Event) {
   e.preventDefault()
   const text = input.value.trim()
   if (!text) return
   if (chatMode.value === 'marketing') {
-    void ensureMarketingLibrary().then(() => bindMarketingLibrary(getActiveEditorStore().graph))
+    // Await the library load so the first turn's system-prompt overlay
+    // already contains the material types list — otherwise a fast submit
+    // right after switching to marketing mode would make the model see
+    // "No material types available" and fall back to custom.
+    await ensureMarketingLibrary()
+    bindMarketingLibrary(getActiveEditorStore().graph)
   }
   emit('submit', text)
   input.value = ''

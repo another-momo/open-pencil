@@ -4,11 +4,13 @@
  * The shipped default-library.fig (public/ build-time asset, Q11) loads on
  * first marketing use and binds to each document's SceneGraph so core tools
  * resolve types and components. Users can replace it with their own .fig.
- * Also owns the per-store active-profile pointer: setup_material_type
- * returns activeProfileId, the chat tool-log hook records it here, and the
- * The transport appends the profile markdown to the system prompt's "Active
- * style profile" section on each turn, so the AI sees the active style guidance.
- * the next turn (Q6). Marketing runs only in the built-in AI chat (Q12).
+ * Also builds the per-turn system-prompt overlay: the transport appends the
+ * active profile markdown to the prompt's "Active style profile" section on
+ * each turn (buildMarketingOverlay), so the AI sees the active style
+ * guidance. The profile selection lives in marketing/settings
+ * (`profileSelection`) and is written only by the MarketingConfigBar —
+ * setup_material_type no longer echoes any profile information (P8v3,
+ * 2026-08-01). Marketing runs only in the built-in AI chat (Q12).
  */
 
 import { ref, shallowRef, computed, type Ref } from 'vue'

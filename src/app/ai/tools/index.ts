@@ -166,14 +166,10 @@ export function createAITools(store: EditorStore, chatMode: ChatMode = 'ui') {
         }
       },
       onToolLog: (entry) => {
-        // P8 (2026-08-01): profile is a user-driven asset. Setup may
-        // return `activeProfileId` (because the user has locked one in the
-        // config bar), but the AI must NOT echo it back into
-        // `profileSelection` — that would imply the AI picked the profile,
-        // polluting the user-picked profile semantics and changing the chip display.
-        // The MarketingConfigBar → `bindMarketingLibrary` path is the
-        // single writer for the active profile; this hook is intentionally
-        // a no-op for `setup_material_type`.
+        // P8v3 (2026-08-01): profile is a user-driven asset whose single
+        // writer is the MarketingConfigBar → `profileSelection` path.
+        // setup_material_type no longer returns any profile information,
+        // so there is nothing profile-related to record here.
         runState.toolLog.push(entry)
       },
       getStepBudget: (): StepBudget => ({

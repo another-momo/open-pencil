@@ -46,6 +46,22 @@ describe('marketing library service', () => {
     expect(overlay).not.toContain('No style profile is active')
   })
 
+  test('buildMarketingOverlay emits the 参考区 note only when the page exists', () => {
+    __resetMarketingLibraryForTest()
+    const doc = new SceneGraph()
+
+    // No 参考区 page → the overlay says nothing about it, so the AI never
+    // probes for the page.
+    expect(buildMarketingOverlay(doc)).not.toContain('参考区')
+
+    // Page appears (user injected references mid-session) → the next
+    // overlay call carries the reference-only note.
+    doc.addPage('参考区')
+    const overlay = buildMarketingOverlay(doc)
+    expect(overlay).toContain('## 参考区')
+    expect(overlay).toContain('reference-only')
+  })
+
   test('buildMarketingOverlay omits the profile catalog and emits the picked profile markdown (P8)', async () => {
     const bytes = await exportFigFile(makeMiniLibraryGraph())
     const result = await replaceMarketingLibrary(new File([bytes], 'lib.fig'))

@@ -5,6 +5,7 @@ import { describe } from './describe'
 import { generateImage } from './image-gen'
 import {
   lookTool,
+  appendBriefConclusionTool,
   createBriefTool,
   readBriefTool,
   setupMaterialTypeTool,
@@ -36,7 +37,7 @@ export const CORE_TOOLS: ToolDef[] = [
   getNode,
   findNodes,
   getJsx,
-  // list_pages: the marketing prompt's 参考区 check needs page enumeration
+  // list_pages: page enumeration for multi-page documents
   listPages,
   // Create
   render,
@@ -64,6 +65,7 @@ export const CORE_TOOLS: ToolDef[] = [
   lookTool,
   readBriefTool,
   createBriefTool,
+  appendBriefConclusionTool,
   // Inspect & utility
   describe,
   calc,

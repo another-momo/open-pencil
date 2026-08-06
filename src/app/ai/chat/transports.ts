@@ -124,7 +124,7 @@ export function createToolLoopTransport({
       let instructions: string | undefined
       if (chatMode === 'marketing') {
         bindMarketingLibrary(store.graph)
-        instructions = SYSTEM_PROMPT_MARKETING_FULL + buildMarketingOverlay(store)
+        instructions = SYSTEM_PROMPT_MARKETING_FULL + buildMarketingOverlay(store.graph)
       }
       const keep = Math.min(3, Math.max(1, Math.round(lookImagesKept.value) || 2))
       const rewrite = needsImageAsUserMessage(providerID, customAPIType)

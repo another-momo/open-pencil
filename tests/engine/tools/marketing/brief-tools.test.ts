@@ -91,6 +91,50 @@ describe('create_brief tool', () => {
   })
 })
 
+interface AppendConclusionResult {
+  ok: boolean
+  note?: string
+}
+
+describe('append_brief_conclusion tool', () => {
+  test('returns { ok: false } when no brief exists', () => {
+    const { figma } = setupToolTest()
+    const result = getTool('append_brief_conclusion').execute(figma, {
+      text: '方向A：水彩萌趣'
+    }) as AppendConclusionResult
+    expect(result.ok).toBe(false)
+  })
+
+  test('appends a styled line readable via read_brief, in call order', () => {
+    const { figma } = setupToolTest()
+    createBrief(figma)
+
+    const tool = getTool('append_brief_conclusion')
+    expect((tool.execute(figma, { text: '方向A：水彩萌趣' }) as AppendConclusionResult).ok).toBe(
+      true
+    )
+    expect((tool.execute(figma, { text: '字体：Alibaba PuHuiTi' }) as AppendConclusionResult).ok).toBe(
+      true
+    )
+
+    const view = getTool('read_brief').execute(figma, {}) as ReadBriefResult
+    expect(view.conclusions).toEqual(['· 方向A：水彩萌趣', '· 字体：Alibaba PuHuiTi'])
+  })
+
+  test('rejects blank text without touching the brief', () => {
+    const { figma } = setupToolTest()
+    createBrief(figma)
+
+    const result = getTool('append_brief_conclusion').execute(figma, {
+      text: '   '
+    }) as AppendConclusionResult
+    expect(result.ok).toBe(false)
+
+    const view = getTool('read_brief').execute(figma, {}) as ReadBriefResult
+    expect(view.conclusions).toEqual([])
+  })
+})
+
 describe('brief placement (collision detection)', () => {
   const center = { x: 0, y: 0 }
 

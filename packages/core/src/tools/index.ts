@@ -38,6 +38,7 @@ export {
   markLibraryReference
 } from './marketing'
 export {
+  MATERIALS_PAGE_NAME,
   getDefaultLibrary,
   getLibrarySession,
   injectLibraryReferences,

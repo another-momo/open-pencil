@@ -17,6 +17,7 @@ import { ref, shallowRef, computed, type Ref } from 'vue'
 
 import { computeAllLayouts } from '@open-pencil/core/layout'
 import {
+  MATERIALS_PAGE_NAME,
   getLibrarySession,
   injectLibraryReferences as injectLibraryReferencesCore,
   listDocumentLibraryNames,
@@ -170,8 +171,10 @@ export function getActiveProfileId(_store: EditorStore): string | undefined {
 
 /**
  * Library context for marketing mode: the system prompt's "Material types in
- * the current library" section (so the AI can infer type ids) plus, when the
- * user has locked a profile, the "Active style profile" markdown (Q6).
+ * the current library" section (so the AI can infer type ids), a 参考区
+ * presence note (only when the page exists — the AI never needs to probe for
+ * it), plus, when the user has locked a profile, the "Active style profile"
+ * markdown (Q6).
  *
  * Profile information is ONLY injected into the agent context when the user
  * has explicitly picked one (per review §2.5.8 / P8, 2026-08-01). Without a
@@ -186,7 +189,7 @@ export function getActiveProfileId(_store: EditorStore): string | undefined {
  * The Material types section is ALWAYS emitted (so the AI can still infer
  * type ids and surface library-load failures to the user).
  */
-export function buildMarketingOverlay(_store: EditorStore): string {
+export function buildMarketingOverlay(graph: SceneGraph): string {
   const parts: string[] = []
 
   const library = current.value
@@ -204,6 +207,20 @@ export function buildMarketingOverlay(_store: EditorStore): string {
         `_No material types available. The default marketing library may have failed to load, ` +
         `or the bound library has no Types page. Ask the user to reopen the library dialog ` +
         `or use \`setup_material_type\` with \`materialType: "custom"\` and width+height._`
+    )
+  }
+
+  // 参考区 presence: emitted only when the page exists, so the AI never has
+  // to probe for it (the overlay is rebuilt per model call, so mid-session
+  // injection is reflected on the next call).
+  const hasReferencePage = graph.getPages().some((page) => page.name === MATERIALS_PAGE_NAME)
+  if (hasReferencePage) {
+    parts.push(
+      `## 参考区 (library references)\n` +
+        `This document has a 参考区 page with library reference designs the user injected. ` +
+        `They are reference-only: extract style, palette, composition, and structure ideas ` +
+        `(\`look\` for appearance, \`describe\` for layout details) — never copy their content ` +
+        `onto the design canvas, and never modify nodes on that page.`
     )
   }
 

@@ -8,6 +8,8 @@ import { decodeTauriStderr } from '@/app/shell/ui'
 import { resolvePlatformCommand } from '@/app/tauri/command'
 import { isTauri } from '@/app/tauri/env'
 
+import { isMCPUnavailable, markMCPAvailable, markMCPUnavailable } from './availability'
+
 interface AutomationHealth {
   status: 'ok' | 'no_app'
   version?: string
@@ -219,8 +221,15 @@ export async function spawnMCPIfNeeded(): Promise<AutomationServerHandle | null>
       : null
   }
 
+  if (isMCPUnavailable()) {
+    throw new Error(
+      `Failed to start MCP server. Install @open-pencil/mcp@${APP_VERSION} globally with your package manager, then restart OpenPencil.`
+    )
+  }
+
   const existing = await readHealth()
   if (existing) {
+    markMCPAvailable()
     assertCompatibleMcpVersion(existing)
     const discoveryPath = await resolveDiscoveryPath(existing.discoveryPath)
     const token = await readDiscoveryToken(discoveryPath)
@@ -274,6 +283,7 @@ export async function spawnMCPIfNeeded(): Promise<AutomationServerHandle | null>
   const health = await pollHealth(5, 1000)
 
   if (health) {
+    markMCPAvailable()
     try {
       assertCompatibleMcpVersion(health)
       const discoveryPath = await resolveDiscoveryPath(health.discoveryPath)
@@ -304,6 +314,7 @@ export async function spawnMCPIfNeeded(): Promise<AutomationServerHandle | null>
   } finally {
     runtimeAutomationAuthToken = null
   }
+  markMCPUnavailable()
   throw new Error(
     `Failed to start MCP server. Install @open-pencil/mcp@${APP_VERSION} globally with your package manager, then restart OpenPencil.`
   )

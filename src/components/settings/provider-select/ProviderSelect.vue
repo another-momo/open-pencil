@@ -4,6 +4,11 @@ import { computed, onMounted, ref } from 'vue'
 
 import AppGroupedSelect from '@/components/ui/AppGroupedSelect.vue'
 import {
+  isMCPUnavailable,
+  markMCPAvailable,
+  markMCPUnavailable
+} from '@/app/automation/mcp/availability'
+import {
   ACP_AGENTS,
   AI_PROVIDERS,
   AUTOMATION_HTTP_PORT,
@@ -15,12 +20,14 @@ const mcpAvailable = ref(false)
 
 async function checkMCPHealth(retries = 3, delayMs = 1000) {
   for (let i = 0; i < retries; i++) {
+    if (isMCPUnavailable()) return
     try {
       const res = await fetch(`http://127.0.0.1:${AUTOMATION_HTTP_PORT}/health`, {
         signal: AbortSignal.timeout(2000)
       })
       if (res.ok) {
         mcpAvailable.value = true
+        markMCPAvailable()
         return
       }
     } catch (e) {
@@ -33,6 +40,7 @@ async function checkMCPHealth(retries = 3, delayMs = 1000) {
       if (i < retries - 1) await promiseTimeout(delayMs)
     }
   }
+  markMCPUnavailable()
 }
 
 interface ProviderSelectProps {
@@ -50,7 +58,7 @@ const { allowAgents = true, ui } = defineProps<ProviderSelectProps>()
 
 if (IS_TAURI) {
   onMounted(() => {
-    void checkMCPHealth()
+    if (!isMCPUnavailable()) void checkMCPHealth()
   })
 }
 

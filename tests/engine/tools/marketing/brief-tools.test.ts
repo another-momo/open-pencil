@@ -113,9 +113,9 @@ describe('append_brief_conclusion tool', () => {
     expect((tool.execute(figma, { text: '方向A：水彩萌趣' }) as AppendConclusionResult).ok).toBe(
       true
     )
-    expect((tool.execute(figma, { text: '字体：Alibaba PuHuiTi' }) as AppendConclusionResult).ok).toBe(
-      true
-    )
+    expect(
+      (tool.execute(figma, { text: '字体：Alibaba PuHuiTi' }) as AppendConclusionResult).ok
+    ).toBe(true)
 
     const view = getTool('read_brief').execute(figma, {}) as ReadBriefResult
     expect(view.conclusions).toEqual(['· 方向A：水彩萌趣', '· 字体：Alibaba PuHuiTi'])

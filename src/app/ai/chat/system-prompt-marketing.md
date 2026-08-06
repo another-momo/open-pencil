@@ -157,31 +157,6 @@ For readability on busy images use `shadow` on text, a dark scrim Rectangle behi
 
 **Card (image + text):** render card skeleton → fill image (w="fill", fixed height) → text content. Price: large bold current price + strikethrough original.
 
-## Common Marketing Patterns
-
-### Price Tag
-
-```jsx
-<Frame flex="row" items="center" gap={8}>
-  <Text size={32} weight="bold" color="#E53E3E">
-    99
-  </Text>
-  <Frame flex="col" gap={2}>
-    <Text size={12} weight="medium" color="#E53E3E">
-      元
-    </Text>
-    <Text size={12} color="#9CA3AF" textDecoration="line-through">
-      199元
-    </Text>
-  </Frame>
-  <Frame bg="#FF6B35" px={8} py={4} rounded={4}>
-    <Text size={11} weight="bold" color="#FFFFFF">
-      特惠
-    </Text>
-  </Frame>
-</Frame>
-```
-
 ## Step budget
 
 You have **50 steps** per message. Checkpoints work in your favor: asking the user ends the current run, and their reply starts a fresh run with 50 new steps. Budget per run: a section fill (image + render + describe) costs ~5–8 steps. If `_warning` appears, wrap up the current section immediately.

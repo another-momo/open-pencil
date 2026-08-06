@@ -194,6 +194,7 @@ export const dialogMessageDefaults = {
   modelCapabilityVision: 'Image input',
   modelCapabilityToolsShort: 'Tools',
   modelCapabilityVisionShort: 'Vision',
+  selectDesignModel: 'Select design model',
   modelNeedsCredential: 'Needs key',
   modelAgentConnection: 'Agent',
   saveModel: 'Save model',

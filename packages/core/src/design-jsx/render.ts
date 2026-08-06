@@ -141,13 +141,17 @@ const JSX_WRAPPER_TAG_RE = /<\/?jsx\b[^>]*>/gi
 const SELF_CLOSE_PLUS_CLOSE_RE = /(<([A-Za-z][A-Za-z0-9]*)\b[^>]*\/>)\s*<\/\2\s*>/g
 
 /**
- * Tolerate the two most common model slips before handing JSX to sucrase
- * (both produced hard "Unexpected token" failures with zero recovery):
- * literal `</jsx>` wrappers and self-closing tags trailed by their own
- * closing tag. Anything still invalid after this falls to the parser error.
+ * Collapse self-closing tags trailed by their own closing tag
+ * (`<Frame .../></Frame>` → `<Frame .../>`), a common model slip that
+ * otherwise surfaces as a hard parse failure.
+ *
+ * RECOVERY ONLY — never run this on input that might be valid: the regex is
+ * nesting-blind and also matches a self-closing last child followed by its
+ * parent's same-named closing tag (`<Frame><Frame .../></Frame>`), which is
+ * legal JSX. Applied only after the raw parse has failed, it can only help.
  */
-function sanitizeModelJsx(jsxString: string): string {
-  let out = jsxString.replace(JSX_WRAPPER_TAG_RE, '')
+function collapseRedundantClosingTags(jsxString: string): string {
+  let out = jsxString
   let prev: string
   do {
     prev = out
@@ -202,7 +206,7 @@ function collectInvalidColorWarnings(tree: TreeNode, warnings: string[]): void {
 }
 
 export function buildComponent(jsxString: string): React.ComponentType {
-  const trimmed = sanitizeModelJsx(stripHtmlComments(jsxString)).trim()
+  const trimmed = stripHtmlComments(jsxString).replace(JSX_WRAPPER_TAG_RE, '').trim()
 
   const aliases = `
     const __h = React.createElement
@@ -239,11 +243,33 @@ export function buildComponent(jsxString: string): React.ComponentType {
     production: true
   }
 
-  let code: string
-  try {
-    code = transform(`${aliases}\nreturn function __render() { return ${trimmed} }`, opts).code
-  } catch {
-    code = transform(`${aliases}\nreturn function __render() { return <>${trimmed}</> }`, opts).code
+  let code: string | undefined
+  let parseError: unknown
+  // Try the raw JSX first. collapseRedundantClosingTags is nesting-blind and
+  // rewrites legal nesting, so it runs only as a recovery pass once the
+  // untouched input has failed to parse.
+  const candidates = [trimmed]
+  const recovered = collapseRedundantClosingTags(trimmed)
+  if (recovered !== trimmed) candidates.push(recovered)
+  for (const candidate of candidates) {
+    for (const source of [
+      `${aliases}\nreturn function __render() { return ${candidate} }`,
+      `${aliases}\nreturn function __render() { return <>${candidate}</> }`
+    ]) {
+      try {
+        code = transform(source, opts).code
+        break
+      } catch (error) {
+        parseError = error
+      }
+    }
+    if (code !== undefined) break
+  }
+  if (code === undefined) {
+    const detail = parseError instanceof Error ? ` — parser said: ${parseError.message}` : ''
+    throw new Error(
+      `JSX failed to parse. Check for unclosed or mismatched tags, fix the JSX, and retry.${detail}`
+    )
   }
 
   // eslint-disable-next-line typescript-eslint/no-implied-eval -- sucrase output must be evaluated at runtime

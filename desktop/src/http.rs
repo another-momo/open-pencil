@@ -22,14 +22,6 @@ pub struct ProxyHttpRequest {
     timeout_ms: Option<u64>,
 }
 
-#[derive(Serialize)]
-pub struct ProxyHttpResponse {
-    status: u16,
-    headers: Vec<ProxyHttpHeader>,
-    body: Vec<u8>,
-    url: String,
-}
-
 fn request_headers(headers: Option<Vec<ProxyHttpHeader>>) -> HeaderMap {
     let mut mapped = HeaderMap::new();
     for header in headers.unwrap_or_default() {
@@ -50,7 +42,7 @@ fn request_method(method: Option<String>) -> Result<Method, String> {
 }
 
 #[tauri::command]
-pub async fn proxy_http_request(request: ProxyHttpRequest) -> Result<ProxyHttpResponse, String> {
+pub async fn proxy_http_request(request: ProxyHttpRequest) -> Result<tauri::ipc::Response, String> {
     let parsed = reqwest::Url::parse(&request.url).map_err(|e| e.to_string())?;
     if !matches!(parsed.scheme(), "http" | "https") {
         return Err("Only HTTP(S) requests are supported".into());
@@ -76,7 +68,7 @@ pub async fn proxy_http_request(request: ProxyHttpRequest) -> Result<ProxyHttpRe
     let mut response = builder.send().await.map_err(|e| e.to_string())?;
     let status = response.status().as_u16();
     let url = response.url().to_string();
-    let headers = response
+    let headers: Vec<ProxyHttpHeader> = response
         .headers()
         .iter()
         .filter_map(|(name, value)| {
@@ -104,10 +96,18 @@ pub async fn proxy_http_request(request: ProxyHttpRequest) -> Result<ProxyHttpRe
         body.extend_from_slice(&chunk);
     }
 
-    Ok(ProxyHttpResponse {
-        status,
-        headers,
-        body,
-        url,
-    })
+    // Frame as [4-byte LE meta length][JSON meta][raw body] and return raw
+    // bytes — a Vec<u8> body would cross IPC as a JSON number array (~4x text
+    // and ~8x JS heap per byte), which spikes memory on multi-MB responses.
+    let meta = serde_json::json!({
+        "status": status,
+        "headers": headers,
+        "url": url,
+    });
+    let meta_bytes = serde_json::to_vec(&meta).map_err(|e| e.to_string())?;
+    let mut out = Vec::with_capacity(4 + meta_bytes.len() + body.len());
+    out.extend_from_slice(&(meta_bytes.len() as u32).to_le_bytes());
+    out.extend_from_slice(&meta_bytes);
+    out.extend_from_slice(&body);
+    Ok(tauri::ipc::Response::new(out))
 }

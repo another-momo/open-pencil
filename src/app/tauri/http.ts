@@ -13,10 +13,9 @@ interface ProxyHttpRequest {
   timeout_ms?: number
 }
 
-interface ProxyHttpResponse {
+interface ProxyHttpResponseMeta {
   status: number
   headers: ProxyHttpHeader[]
-  body: number[]
   url: string
 }
 
@@ -79,14 +78,19 @@ export async function tauriFetch(
     timeout_ms: timeoutMs
   }
   request.signal.throwIfAborted()
-  const response = await withAbortSignal(
-    invoke<ProxyHttpResponse>('proxy_http_request', { request: payload }),
+  const raw = await withAbortSignal(
+    invoke<Uint8Array>('proxy_http_request', { request: payload }),
     request.signal
   )
-  const proxiedResponse = new Response(new Uint8Array(response.body), {
-    status: response.status,
-    headers: response.headers.map(({ name, value }): [string, string] => [name, value])
+  // The command returns [4-byte LE meta length][JSON meta][raw body].
+  const metaLen = new DataView(raw.buffer, raw.byteOffset).getUint32(0, true)
+  const meta = JSON.parse(
+    new TextDecoder().decode(raw.subarray(4, 4 + metaLen))
+  ) as ProxyHttpResponseMeta
+  const proxiedResponse = new Response(new Uint8Array(raw.subarray(4 + metaLen)), {
+    status: meta.status,
+    headers: meta.headers.map(({ name, value }): [string, string] => [name, value])
   })
-  Object.defineProperty(proxiedResponse, 'url', { value: response.url })
+  Object.defineProperty(proxiedResponse, 'url', { value: meta.url })
   return proxiedResponse
 }

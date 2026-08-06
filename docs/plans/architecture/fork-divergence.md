@@ -55,7 +55,7 @@
 
 **低危（纯追加或 upstream 冷区，实测不撞）**
 
-`packages/core/src/tools/index.ts`（+44/-0 纯追加导出）、`tools/registry-core.ts`（+8/-0）、stock-photo 系列、fonts 系列（普惠体打包）、`tools/calc.ts`、`tools/describe/issues.ts`、`tools/structure/*`、`packages/fig` 2 文件、`desktop/tauri.conf.json`（1 行）、`vite/server.ts`（dev server 图片投递）、`AGENTS.md`、测试文件。
+`packages/core/src/tools/index.ts`（+44/-0 纯追加导出）、`tools/registry-core.ts`（+8/-0）、stock-photo 系列、fonts 系列（普惠体打包）、`tools/calc.ts`、`tools/describe/issues.ts`、`tools/structure/*`、`packages/fig` 2 文件、`desktop/tauri.conf.json`（1 行）、`vite/server.ts`（dev server 图片投递）、`src/components/CodePanel.vue`（1 行 import 改向 fork 新增的 `src/components/prism.ts`，见 §6 2026-08-06）、`AGENTS.md`、测试文件。
 
 ---
 
@@ -138,3 +138,4 @@
 - 2026-08-04：**R2 已落地**（`9f109acf`）——fork 设置状态迁至 `src/app/ai/marketing/settings.ts`，`chat/storage.ts` 与 upstream 逐字节一致。**R3 已落地**（`99f25cbf`）——fork 发版记录迁至 `CHANGELOG.fork.md`，`CHANGELOG.md` 与 upstream 逐字节一致。
 - 2026-08-04：修复 review §3.2-3（restore 扫描深度不一致）——`restoreStateFromCanvas` 改为递归，与 `listDocumentLibraryNames` 对齐，补嵌套 group 回归测试（70/70 marketing 测试通过）。§3.2 六个实质缺陷至此全部清零。
 - 2026-08-04：CI 首次全绿（run 30906679583）。红源 #1（格式漂移，21 个 fork 文件 oxfmt 修复，`062cb3fc`）与红源 #2（LFS 指向上游私有网关 → 改指 fork 的 GitHub LFS 并上传 15 对象/228MB，`0e37d170`）均清零；quality 链条后续暴露的 lint/arch/type-shapes 问题同批修复（`eb2a2973`/`104a21e7`/`efd2fb3c`/`1fc8b4b8`/`d1c5d713`）。**`.lfsconfig` 列入 §2.2 高危清单**——fork 必须永远指向自己的 GitHub LFS。
+- 2026-08-06：修复生产构建启动即崩（`5c7724f2`）——`prism-jsx` 引用裸全局 `Prism`，而 `prism.js` 仅在 `typeof global !== 'undefined'` 时赋值，浏览器 bundle 中永不成立 → `ReferenceError` 杀死模块图，app 停在 boot-splash（web preview 与 Tauri 包同症；dev 正常是因为 esbuild 预打包垫了 `global`）。经 worktree 对照实验确认 **upstream e6ba419e 同样复现，非 fork 改动引入**。修法：新增 `src/components/prism.ts`（显式挂 `globalThis.Prism`），`CodePanel.vue` 改 1 行 import 指向它。**若 upstream 日后修复此问题，合并时丢弃 fork 这个 hunk 即可**。教训：web 版只跑 dev 验证不出生产构建问题，发 Tauri 包前应过一次 `vite build && vite preview` 冒烟。

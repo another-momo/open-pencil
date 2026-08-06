@@ -55,7 +55,7 @@
 
 **低危（纯追加或 upstream 冷区，实测不撞）**
 
-`packages/core/src/tools/index.ts`（+44/-0 纯追加导出）、`tools/registry-core.ts`（+8/-0）、stock-photo 系列、fonts 系列（普惠体打包）、`tools/calc.ts`、`tools/describe/issues.ts`、`tools/structure/*`、`packages/fig` 2 文件、`desktop/tauri.conf.json`（1 行）、`vite/server.ts`（dev server 图片投递）、`src/components/CodePanel.vue`（1 行 import 改向 fork 新增的 `src/components/prism.ts`，见 §6 2026-08-06）、`AGENTS.md`、测试文件。
+`packages/core/src/tools/index.ts`（+44/-0 纯追加导出）、`tools/registry-core.ts`（+8/-0）、stock-photo 系列、fonts 系列（普惠体打包）、`tools/calc.ts`、`tools/describe/issues.ts`、`tools/structure/*`、`packages/fig` 2 文件、`desktop/tauri.conf.json`（1 行）、`vite/server.ts`（dev server 图片投递）、`src/components/CodePanel.vue`（1 行 import 改向 fork 新增的 `src/components/prism.ts`，见 §6 2026-08-06）、`src/app/automation/mcp/spawn.ts` 与 `src/components/settings/provider-select/ProviderSelect.vue`（MCP 不可用会话级记忆，各 2 处小 hunk，见 §6 2026-08-06）、`AGENTS.md`、测试文件。
 
 ---
 
@@ -140,3 +140,4 @@
 - 2026-08-04：CI 首次全绿（run 30906679583）。红源 #1（格式漂移，21 个 fork 文件 oxfmt 修复，`062cb3fc`）与红源 #2（LFS 指向上游私有网关 → 改指 fork 的 GitHub LFS 并上传 15 对象/228MB，`0e37d170`）均清零；quality 链条后续暴露的 lint/arch/type-shapes 问题同批修复（`eb2a2973`/`104a21e7`/`efd2fb3c`/`1fc8b4b8`/`d1c5d713`）。**`.lfsconfig` 列入 §2.2 高危清单**——fork 必须永远指向自己的 GitHub LFS。
 - 2026-08-06：修复生产构建启动即崩（`5c7724f2`）——`prism-jsx` 引用裸全局 `Prism`，而 `prism.js` 仅在 `typeof global !== 'undefined'` 时赋值，浏览器 bundle 中永不成立 → `ReferenceError` 杀死模块图，app 停在 boot-splash（web preview 与 Tauri 包同症；dev 正常是因为 esbuild 预打包垫了 `global`）。经 worktree 对照实验确认 **upstream e6ba419e 同样复现，非 fork 改动引入**。修法：新增 `src/components/prism.ts`（显式挂 `globalThis.Prism`），`CodePanel.vue` 改 1 行 import 指向它。**若 upstream 日后修复此问题，合并时丢弃 fork 这个 hunk 即可**。教训：web 版只跑 dev 验证不出生产构建问题，发 Tauri 包前应过一次 `vite build && vite preview` 冒烟。
 - 2026-08-06：修复 Tauri 包字体损坏与卡顿（`ae2f1050`）——`build.yml` 的 checkout 漏了 `lfs: true`（`ci.yml` 有），打包进应用的 18 个普惠体 ttf 全是 LFS 指针文本（启动报 `invalid sfntVersion: 1986359923`，即指针头 `"vers"`），普惠体不可用导致全部中文走 `ensureFallbackPack` 联网下载回退字体，表现为持续卡顿 + 高内存；dev 本地文件是真字体故无感。已验证 fork 的 GitHub LFS 上字体对象齐全（`git lfs fetch` 重下成功）。**教训：新增依赖 LFS 产物的 CI job 时必须核对 checkout 的 `lfs` 开关；fork 特有的 `public/AlibabaPuHuiTi*.ttf` 与 `packages/core/assets/*.ttf` 都在 LFS 里。** 另记录：Tauri 生产模式 `spawnMCPIfNeeded` 在无全局 `@open-pencil/mcp` 的机器上有一次有界的启动报错爆发（spawn + 5 轮 health 轮询 + ProviderSelect 健康检查），营销场景不需要 ACP，后续可考虑关闭或失败即不重试。
+- 2026-08-06：MCP 报错爆发收敛 + clipboard.ts 回归 upstream（`cde5e59d`）——新增 `src/app/automation/mcp/availability.ts`（fork 自有），`spawn.ts` 与 `ProviderSelect.vue` 各打 2 处小 hunk：首次探测失败后本会话不再重复健康检查爆发（此前每开一个设置面板就多一轮 3×2s 超时）。`shell/keyboard/clipboard.ts` 删除调试 warn 后与 upstream 逐字节一致（移出 M 类）。`spawn.ts`、`ProviderSelect.vue` 自此进入 M 类低危清单。

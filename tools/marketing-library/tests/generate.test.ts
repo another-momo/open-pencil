@@ -42,11 +42,26 @@ describe('default-library.fig round-trip', () => {
     const xiaohongshu = expectDefined(index.types.find((type) => type.id === 'xiaohongshu'))
     expect(xiaohongshu.anchors).toEqual([{ template: 'BrandBar', position: 'bottom' }])
 
-    expect(index.profiles.map((profile) => profile.id)).toEqual(['casual_v1'])
+    expect(index.profiles.map((profile) => profile.id)).toEqual([
+      'casual_v1',
+      'chinese_festival_v1'
+    ])
     expect(index.profiles[0].label).toBe('休闲活泼风格')
     expect(index.profiles[0].description).toContain('配色')
     expect(index.profiles[0].markdown).toContain('休闲活泼风格')
     expect(index.profiles[0].applicableTo).toContain('xiaohongshu')
+
+    const festival = expectDefined(
+      index.profiles.find((profile) => profile.id === 'chinese_festival_v1')
+    )
+    expect(festival.label).toBe('国风节日长图')
+    expect(festival.applicableTo).toEqual(['product_long', 'event_poster', 'xiaohongshu'])
+    // The profile exists to override base.md's UI-density defaults — if these
+    // numbers stop surviving the .fig round-trip the experiment silently
+    // degrades back to a UI-scale design.
+    expect(festival.markdown).toContain('主标题 88')
+    expect(festival.markdown).toContain('blendMode="hue"')
+    expect(festival.markdown).toContain('段间 96–160')
 
     expect(index.components.map((component) => component.name)).toEqual(['BrandBar', 'CTABar'])
     const brandBar = expectDefined(

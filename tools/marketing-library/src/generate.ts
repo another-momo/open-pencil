@@ -254,6 +254,63 @@ export function buildDefaultLibraryGraph(): SceneGraph {
   })
   kv(graph, casual.id, 'applicable_to: wechat_moments, xiaohongshu, dsp_banner')
 
+  // Poster-quality experiment (docs/plans/tasks/poster-quality-experiment.md T2):
+  // carries the expressive type scale, spacing scale and backdrop recipe that
+  // base.md's UI-density defaults would otherwise cap. Profile markdown is the
+  // highest-priority overlay, so the numbers here override the base scale.
+  const festival = makeEntry(graph, profilesPage.id, 'chinese_festival_v1')
+  graph.createNode('TEXT', festival.id, {
+    fontFamily: FONT,
+    text: [
+      '# 国风节日长图',
+      '',
+      '水彩晕染 + 留白的中式节日风格，用于端午/中秋/春节一类的活动长图。整体清淡，靠大面积连续底纹和极端字阶对比撑画面，不靠色块分区。',
+      '',
+      '## 配色',
+      '- 主调 #4A7C3F（竹青），辅 #FDFCF7（宣纸白）、#E8F0E2（淡青）',
+      '- 强调色 #C1442E（朱砂）全图只用一处：主标题的一个字，或一枚印章',
+      '- 禁用 UI 灰阶（#6B7280 一类）。正文 #3D4A35，弱文字 #7A8A6E',
+      '',
+      '## 字阶（覆盖 base 的 UI 字阶）',
+      '- 主标题 88 / 段标题 40 / 副标题 34 / 正文 24 / 注释 18',
+      '- 主标题 Heavy 或 Black，正文 Regular',
+      '- 主标题同时叠加字号、字重、颜色、阴影——不受 base"一次只改一个属性"限制',
+      '- 750 宽画布下，主标题 6–8 字应占满一行',
+      '',
+      '## 间距（覆盖 base 的 4px 栅格上限）',
+      '- 段间 96–160，段内组间 32–48，组内 12–20',
+      '- 节奏必须不均匀：hero 段后留大白，信息密集段收紧',
+      '',
+      '## 背景层（先于任何内容层完成）',
+      '1. 全画布 BaseWash 竖向渐变兜底（#E8F0E2 → #FDFCF7）',
+      '2. 分 3 段生图，相邻段重叠约 1/5 画布高度',
+      '3. 每处接缝用 alpha 渐变蒙版羽化，不留硬边',
+      '4. 顶层全画布 #4A7C3F blendMode="hue" opacity 0.2 统一色调',
+      '配方见 system prompt 的 Composition primitives 段。',
+      '',
+      '## 标题处理',
+      '主标题下方垫一枚 AI 生成的透明底粗毛笔笔触（淡青），文字压在其上，并带 shadow 提可读性。',
+      '笔触生图 prompt 片段："中国风水墨粗毛笔笔触，淡绿色，透明背景，横向一笔，边缘飞白"',
+      '',
+      '## 分隔',
+      '不用分隔线。段与段靠底纹深浅变化和留白区分。段标题用小色块或印章形状标记，不用整行色条。',
+      '',
+      '## 装饰元素（生图 prompt 片段）',
+      '- 竹叶："中国风水彩竹叶，淡绿，透明背景，几片散落"',
+      '- 飞白："水墨飞白笔触，米黄与淡绿，透明背景"',
+      '- 印章："中式朱砂印章，方形，留白边，透明背景"',
+      '- 云纹："简约中式祥云纹样，线稿，淡青色，透明背景"',
+      '装饰绕开文字可读区，允许压在图片边缘并跨越段界。',
+      '',
+      '## 语气',
+      '克制、有文化感；短句；不堆感叹号；不写"限时秒杀"一类硬促销词。'
+    ].join('\n'),
+    fontSize: 12,
+    fills: solid(DARK),
+    textAutoResize: 'WIDTH_AND_HEIGHT'
+  })
+  kv(graph, festival.id, 'applicable_to: product_long, event_poster, xiaohongshu')
+
   const componentsPage = makeZonePage(graph, 'Components', 1000)
   buildBrandBar(graph, componentsPage.id, logoHash)
   buildCtaBar(graph, componentsPage.id)

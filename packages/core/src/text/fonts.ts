@@ -442,6 +442,10 @@ export class FontManager {
         !targetFamilies.includes(family)
       ) {
         targetFamilies.push(family)
+        // One local fallback family covers the whole script; loading every
+        // candidate (7 full CJK system fonts on Windows, ~100MB plus CanvasKit
+        // copies) OOMs low-memory desktop machines.
+        break
       }
     }
 

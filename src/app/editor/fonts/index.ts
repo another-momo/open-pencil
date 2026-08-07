@@ -224,15 +224,28 @@ function clearTextPictures(graph: SceneGraph, nodeIds: string[]): void {
   for (const id of nodeIds) clear(id)
 }
 
+// Session cache for system font bytes. The CJK fallback loop in fontManager
+// calls the host loader directly (bypassing its own loadedFamilies cache), so
+// without this every text/font operation re-fetches up to 7 full CJK system
+// fonts (~100MB) over IPC and re-registers them in CanvasKit — leaking WASM
+// memory each time until the webview OOMs. Returning the same ArrayBuffer
+// reference lets registerAndCache dedupe and skips re-registration.
+const systemFontDataCache = new Map<string, ArrayBuffer | null>()
+
 async function loadSystemFont(family: string, style = 'Regular'): Promise<ArrayBuffer | null> {
   if (!isTauri()) return null
+  const key = `${family}|${style}`
+  const cached = systemFontDataCache.get(key)
+  if (cached !== undefined) return cached
   try {
     const { invoke } = await import('@tauri-apps/api/core')
     // The command returns raw bytes (tauri::ipc::Response), delivered as Uint8Array.
     const data = await invoke<Uint8Array | null>('load_system_font', { family, style })
-    if (!data?.length) return null
-    return new Uint8Array(data).buffer
+    const buffer = data?.length ? new Uint8Array(data).buffer : null
+    systemFontDataCache.set(key, buffer)
+    return buffer
   } catch {
+    systemFontDataCache.set(key, null)
     return null
   }
 }

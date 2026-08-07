@@ -23,6 +23,11 @@ import type {
   LocalFontAccessState
 } from '#core/text/font-sources'
 import { collectGraphFontKeys } from '#core/text/requirements'
+import {
+  SINGLE_FONT_FAMILY,
+  puHuiTiStyleForWeight,
+  singleFontModeEnabled
+} from '#core/text/single-font'
 import { normalizedCoverageText, WebFontResolver } from '#core/text/web-fonts'
 import type { WebFontFetch, WebFontProviderId } from '#core/text/web-fonts'
 
@@ -246,6 +251,35 @@ export class FontManager {
     return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
   }
 
+  // Fork single-font mode: serve every family from the bundled PuHuiTi,
+  // weight-mapped and registered under the requested family name so any
+  // document renders without touching system/web font sources. Glyphs PuHuiTi
+  // lacks still flow into the (cached, single-family) fallback path.
+  private singleFontBuffers = new Map<string, ArrayBuffer>()
+
+  private async loadSingleFontAliased(family: string, style: string): Promise<ArrayBuffer | null> {
+    const cacheKey = `${family}|${style}`
+    const loaded = this.loadedFamilies.get(cacheKey)
+    if (loaded) return loaded
+    const mapped = puHuiTiStyleForWeight(styleToWeight(style))
+    let buffer = this.singleFontBuffers.get(mapped)
+    if (!buffer) {
+      const bundledUrl = BUNDLED_FONTS[`${SINGLE_FONT_FAMILY}|${mapped}`]
+      if (!bundledUrl) return null
+      try {
+        const fetched = await this.fetchBundledFont(bundledUrl)
+        if (!fetched) return null
+        buffer = fetched
+        this.singleFontBuffers.set(mapped, buffer)
+      } catch {
+        return null
+      }
+    }
+    // Register the shared buffer under the requested family — JS heap holds
+    // one copy per weight regardless of how many family names a document uses.
+    return this.registerAndCache(family, style, buffer)
+  }
+
   async loadLocalFont(family: string, style = 'Regular'): Promise<ArrayBuffer | null> {
     const cacheKey = `${family}|${style}`
     const loaded = this.loadedFamilies.get(cacheKey)
@@ -308,6 +342,7 @@ export class FontManager {
   }
 
   async loadFont(family: string, style = 'Regular', characters = ''): Promise<ArrayBuffer | null> {
+    if (singleFontModeEnabled()) return this.loadSingleFontAliased(family, style)
     const loaded = this.loadedData(family, style)
     if (loaded) {
       this.registerFontInCanvasKit(family, loaded)

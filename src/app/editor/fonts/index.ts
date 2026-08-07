@@ -5,9 +5,12 @@ import { IS_BROWSER } from '@open-pencil/core/constants'
 import {
   DEFAULT_WEB_FONT_PROVIDER_SETTINGS,
   WEB_FONT_PROVIDER_IDS,
+  SINGLE_FONT_FAMILY,
   collectGraphFontRequirements,
   fontManager,
   missingGraphFontScripts,
+  setSingleFontMode,
+  singleFontModeEnabled,
   type FontFamilyOption,
   type LocalFontAccessState,
   type WebFontProviderId
@@ -117,6 +120,10 @@ async function getTauriFonts(): Promise<TauriFontFamily[]> {
 
 export function preloadFonts(): void {
   configureTauriFontCache()
+  // Fork: single-font mode is the product default — every family resolves to
+  // bundled PuHuiTi, so skip system enumeration and web font preloads.
+  setSingleFontMode(true)
+  if (singleFontModeEnabled()) return
   if (isTauri()) {
     void getTauriFonts().then(registerFontFaces)
     return
@@ -125,10 +132,12 @@ export function preloadFonts(): void {
 }
 
 export function localFontAccessState(): LocalFontAccessState {
+  if (singleFontModeEnabled()) return 'unsupported'
   return isTauri() ? 'granted' : fontManager.localAccessState()
 }
 
 export async function requestLocalFontAccess(): Promise<FontFamilyOption[]> {
+  if (singleFontModeEnabled()) return listFamilies()
   if (isTauri()) return listFamilies()
   await fontManager.requestLocalFontAccess()
   return listFamilies()
@@ -160,6 +169,7 @@ function registerFontFaces(fonts: TauriFontFamily[]): void {
 
 export async function listFamilies(): Promise<FontFamilyOption[]> {
   configureTauriFontCache()
+  if (singleFontModeEnabled()) return [{ family: SINGLE_FONT_FAMILY, source: 'bundled' }]
   if (isTauri()) {
     const [systemFonts, webFonts] = await Promise.all([
       getTauriFonts(),
@@ -176,6 +186,7 @@ export async function listFamilies(): Promise<FontFamilyOption[]> {
 
 export async function listFonts(): Promise<TauriFontFamily[]> {
   configureTauriFontCache()
+  if (singleFontModeEnabled()) return []
   if (isTauri()) {
     return getTauriFonts()
   }

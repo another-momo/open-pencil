@@ -1,9 +1,12 @@
 # 评审记录索引
 
-按时间倒序，9 份评审。每份标注：讨论主题 / 主要影响的架构文档 / 状态（已被设计文档吸收 / 仍是 ORPHAN）。
+按时间倒序。每份标注：讨论主题 / 主要影响的架构文档 / 状态（已被设计文档吸收 / 仍是 ORPHAN）。
+
+> ⚠ **本索引落后于目录**：`docs/review/` 现有 15 份评审，下表列出 10 份。缺 5 份待补：`2026-08-03-anchor-design-review.md`、`2026-08-03-fork-ci-known-issues.md`、`2026-08-04-look-tool-review.md`、`2026-08-05-state-mechanisms-review.md`、`2026-08-06-system-prompt-marketing-review.md`。
 
 | 日期 | 文件 | 主题 | 主要影响 | 状态 |
 |---|---|---|---|---|
+| 2026-08-07 | long-image-design-quality-review.md | 长图设计质量：UI 感 vs 海报感。三层根因（能力披露缺口 / base 数值常量锁死比例 / 度量与流程只优化一致性）；核心实证：引擎已支持渐变·多重填充·蒙版·17 种 blend，prompt 明确否认其存在 | system-prompt-base.md + architecture/l2-agent-mode.md §1.2/§1.3/§9.3 + knowledge/methodology.md §4 | 待吸收（新） |
 | 2026-08-01 | marketing-workbench-branch-review.md | 营销工作台分支全景评审（67 commits / 161 文件 / +15,280 / -340） | 全 architecture/ | 待吸收（最新 8-1 写） |
 | 2026-07-31 | l2-resource-library-review-verification.md | 实习生 review 复核：抓 4 真问题 + 1 失真 + 1 错位；3 个 P0 标只有 1 个成立 | architecture/l2-resource-library.md | 已被 #4 吸收 |
 | 2026-07-31 | l2-resource-library-post-iteration-review.md | 资源库 v1 迭代后 review：增量 6 commit、5 项新增；3 项必改（状态双源 P0、跨 graph refInjections P1、注入后 chip 不更新 P1） | architecture/l2-resource-library.md | 部分吸收（见 §9.3 实施记录） |

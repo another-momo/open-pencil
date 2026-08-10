@@ -62,6 +62,9 @@ describe('default-library.fig round-trip', () => {
     expect(poster.markdown).toContain('sample_hero_color')
     expect(poster.markdown).toContain('72–110px')
     expect(poster.markdown).toContain('Three linear-gradient stops')
+    // The 100px geometric overlap is the entire point of the recipe.
+    // If this stops surviving the .fig round-trip the agent loses the kiss effect.
+    expect(poster.markdown).toContain('100px')
 
     expect(index.components.map((component) => component.name)).toEqual(['BrandBar', 'CTABar'])
     const brandBar = expectDefined(

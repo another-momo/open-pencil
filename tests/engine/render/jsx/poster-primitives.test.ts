@@ -190,4 +190,44 @@ describe('composition primitives (prompt recipes)', () => {
     expect(endpoints.start).toEqual({ x: 0, y: 0 })
     expect(endpoints.end).toEqual({ x: 0, y: overlayHeight })
   })
+
+  /**
+   * Regression for the 8-10 smoke run. The agent had to position the
+   * BackdropOverlay at y = heroBottom − 100 to get the kiss effect, but
+   * plain x/y in an auto-layout parent silently lands the overlay on top
+   * of content sections instead of behind them. The fix is
+   * `position="absolute"`, which sets `layoutPositioning = 'ABSOLUTE'` and
+   * excludes the node from auto-layout flow while keeping it inside the
+   * same parent for z-ordering.
+   *
+   * This test pins the contract so future prompt changes don't lose it.
+   */
+  it('position="absolute" escapes auto-layout flow but stays in the parent for z-order', async () => {
+    const g = makeSceneGraph()
+    const [result] = await renderJSX(
+      g,
+      `<Frame name="Root" w={750} h={2120} flex="col">
+         <Rectangle name="BackdropOverlay" position="absolute" x={0} y={400} w={750} h={1720} bg="#FFFFFF" />
+         <Frame name="HeroImg" w="fill" h={500} bg="#E2E8F0" />
+         <Frame name="Part2" w="fill" h={500} bg="#FFFFFF" />
+       </Frame>`
+    )
+
+    const root = getNodeOrThrow(g, expectDefined(result, 'render result').id)
+    const overlay = getNodeOrThrow(g, expectDefined(root.childIds[0], 'overlay child'))
+    const hero = getNodeOrThrow(g, expectDefined(root.childIds[1], 'hero child'))
+    const part2 = getNodeOrThrow(g, expectDefined(root.childIds[2], 'part2 child'))
+
+    expect(overlay.name).toBe('BackdropOverlay')
+    expect(overlay.layoutPositioning).toBe('ABSOLUTE')
+    expect(overlay.x).toBe(0)
+    expect(overlay.y).toBe(400)
+
+    // Hero and Part2 stay in the auto-layout flow — they stack at y=0 and
+    // y=500 respectively, NOT at y=overlay_h. This is what keeps content
+    // visible after the overlay renders on top of them (wrong) or behind
+    // them (right). Z-order is by sibling order — overlay first = bottom.
+    expect(hero.layoutPositioning).toBe('AUTO')
+    expect(part2.layoutPositioning).toBe('AUTO')
+  })
 })

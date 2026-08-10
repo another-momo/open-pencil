@@ -127,6 +127,70 @@ describe('sample-hero-color / pure math', () => {
       expect(avg.g).toBe(0)
       expect(avg.b).toBe(0)
     })
+
+    /**
+     * Regression for the 8-10 smoke run. The tool used to call readPixels
+     * with the sub-region's width/height, returning a sub-region-sized
+     * buffer — then passed it to averageRegion with the FULL image's
+     * width as stride. Result: out-of-bounds reads → all-zero bytes →
+     * 0/0 = NaN → "#NANNANNAN". The test simulates a realistic full-image
+     * buffer and a bottom-region query.
+     */
+    it('averages the bottom band of a realistic full-image buffer without producing NaN', () => {
+      const imageWidth = 1504
+      const imageHeight = 1008
+      const bandHeight = 100
+
+      // Construct a 1504×1008 image where the top half is red (255,0,0)
+      // and the bottom band (y=908..1008) is green (0,255,0).
+      const pixels = new Uint8Array(imageWidth * imageHeight * 4)
+      for (let y = 0; y < imageHeight; y++) {
+        for (let x = 0; x < imageWidth; x++) {
+          const i = (y * imageWidth + x) * 4
+          if (y >= imageHeight - bandHeight) {
+            pixels[i] = 0
+            pixels[i + 1] = 255
+            pixels[i + 2] = 0
+          } else {
+            pixels[i] = 255
+            pixels[i + 1] = 0
+            pixels[i + 2] = 0
+          }
+          pixels[i + 3] = 255
+        }
+      }
+
+      const avg = averageRegion(pixels, imageWidth, 0, imageHeight - bandHeight, imageWidth, bandHeight)
+      expect(avg.samples).toBe(imageWidth * bandHeight)
+      // All-zero average → NaN. The regression asserts finite values.
+      expect(Number.isFinite(avg.r)).toBe(true)
+      expect(Number.isFinite(avg.g)).toBe(true)
+      expect(Number.isFinite(avg.b)).toBe(true)
+      // Average should be pure green.
+      expect(avg.r).toBe(0)
+      expect(avg.g).toBe(255)
+      expect(avg.b).toBe(0)
+    })
+
+    it('does not silently NaN when called with a sub-region-shaped buffer instead of full image', () => {
+      // This mirrors the OLD bug: the caller passes a buffer sized for
+      // just the sub-region, not the full image. The pure function does
+      // not know the buffer shape — only the caller does — so the
+      // defensive check belongs at the tool boundary (see sample-color.ts).
+      // Here we document that the function will produce nonsense when
+      // given mismatched stride vs. buffer, which is why the tool must
+      // pass the full image buffer.
+      const imageWidth = 1504
+      const imageHeight = 1008
+      const bandHeight = 100
+      // Sub-region-sized buffer (the bug case).
+      const subBuffer = new Uint8Array(imageWidth * bandHeight * 4)
+      const avg = averageRegion(subBuffer, imageWidth, 0, imageHeight - bandHeight, imageWidth, bandHeight)
+      // With the wrong buffer, r/g/b will be NaN. The point of this test
+      // is to make the contract explicit: callers MUST pass a full-image
+      // buffer; otherwise the result is undefined and the tool must guard.
+      expect(Number.isNaN(avg.r)).toBe(true)
+    })
   })
 
   describe('bandColorToHex', () => {

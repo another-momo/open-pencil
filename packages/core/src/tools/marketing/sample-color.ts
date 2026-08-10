@@ -90,12 +90,15 @@ export const sampleHeroColorTool = defineTool({
     const height = skImg.height()
     const region = bandRegion(direction, width, height, bandSize)
 
-    const pixels = skImg.readPixels(region.x, region.y, {
+    // Read the full image buffer, not a sub-region. `averageRegion` expects
+    // a full-image buffer and uses `imageWidth` as the row stride — passing
+    // a sub-region buffer causes out-of-bounds reads and produces NaN.
+    const pixels = skImg.readPixels(0, 0, {
       alphaType: ck.AlphaType.Unpremul,
       colorSpace: ck.ColorSpace.SRGB,
       colorType: ck.ColorType.RGBA_8888,
-      width: region.width,
-      height: region.height
+      width,
+      height
     })
     skImg.delete()
 
@@ -104,15 +107,26 @@ export const sampleHeroColorTool = defineTool({
     }
 
     const avg = averageRegion(pixels, width, region.x, region.y, region.width, region.height)
+    if (avg.samples === 0) {
+      return { error: `Hero image returned no pixels in the ${direction} band.` }
+    }
+    if (!Number.isFinite(avg.r) || !Number.isFinite(avg.g) || !Number.isFinite(avg.b)) {
+      // Defensive: NaN here means the buffer shape did not match the stride
+      // we asked the pure function to use. Surface as an error rather than
+      // returning a fake "#NANNANNAN" hex.
+      return {
+        error: `Sampled color is not finite (got r=${avg.r}, g=${avg.g}, b=${avg.b}). This is a tool bug — please report it.`
+      }
+    }
     const hex = bandColorToHex(avg)
 
     return {
-        id,
-        direction,
-        region,
-        imageSize: { width, height },
-        hex,
-        note: `Averaged ${direction} band of hero "${node.name}" (${width}×${height}, ${region.width}×${region.height} starting at ${region.x},${region.y}). Drop this hex into the gradient stop that sits on this edge.`
-      }
+      id,
+      direction,
+      region,
+      imageSize: { width, height },
+      hex,
+      note: `Averaged ${direction} band of hero "${node.name}" (${width}×${height}, ${region.width}×${region.height} starting at ${region.x},${region.y}). Drop this hex into the gradient stop that sits on this edge.`
+    }
   }
 })

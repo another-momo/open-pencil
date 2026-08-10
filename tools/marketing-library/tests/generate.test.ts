@@ -61,7 +61,7 @@ describe('default-library.fig round-trip', () => {
     // .fig round-trip the experiment silently degrades to a UI-scale design.
     expect(poster.markdown).toContain('sample_hero_color')
     expect(poster.markdown).toContain('72–110px')
-    expect(poster.markdown).toContain('three linear-gradient stops')
+    expect(poster.markdown).toContain('Three linear-gradient stops')
 
     expect(index.components.map((component) => component.name)).toEqual(['BrandBar', 'CTABar'])
     const brandBar = expectDefined(

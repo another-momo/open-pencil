@@ -1,26 +1,31 @@
 /**
  * sample-hero-color tool (poster-quality experiment)
  *
- * Reads the actual pixels of an image-filled hero node's bottom band and
- * returns a representative hex color. Used by the long-image backdrop recipe
- * to pick the middle stop of the white-tinted transition gradient — sampling
- * from the image itself removes the "guess the theme color" failure mode that
- * leaves the gradient visually disconnected from the hero above it.
+ * Reads the actual pixels of an image-filled hero node and returns a
+ * representative hex color from a configurable edge band. Used by profile
+ * backdrop recipes to pick the middle stop of a transition gradient —
+ * sampling from the image itself removes the "guess the theme color"
+ * failure mode that leaves the gradient visually disconnected from the
+ * hero above it.
  *
- * The averaging and color-adjustment logic is kept pure (see pure.ts) so it
- * can be tested without the CanvasKit runtime.
+ * Direction is configurable (default bottom) so profiles can target any
+ * edge. The averaging and region math live in sample-color-pure.ts and
+ * are CanvasKit-free for unit testing.
  */
 
 import { getCanvasKit } from '#core/canvaskit'
 import { defineTool } from '#core/tools/schema'
-import { adjustChannel, averageBandColor, bandColorToHex } from './sample-color-pure'
+import { averageRegion, bandColorToHex, bandRegion, type SampleDirection } from './sample-color-pure'
 
-const DEFAULT_BAND_HEIGHT = 100
+const DEFAULT_DIRECTION: SampleDirection = 'bottom'
+const DEFAULT_BAND_SIZE = 100
+
+const DIRECTIONS: SampleDirection[] = ['top', 'bottom', 'left', 'right', 'center']
 
 export const sampleHeroColorTool = defineTool({
   name: 'sample_hero_color',
   description:
-    'Read the actual pixels of an image-filled hero node and return a representative hex color from its bottom band (default 100px tall). Use this to pick the middle stop of a backdrop gradient so the transition matches the hero image instead of guessing the theme color. Pass the hero node id (a Frame or Rectangle with an IMAGE fill, or a child whose parent holds the image). Returns "#RRGGBB".',
+    'Read the actual pixels of an image-filled hero node and return a representative hex color from a configurable edge band. Use this to pick gradient stops so the transition matches the hero image instead of guessing the theme color. Pass the hero node id (a Frame or Rectangle with an IMAGE fill, or a child of such a Frame). Returns "#RRGGBB".',
   params: {
     id: {
       type: 'string',
@@ -28,21 +33,20 @@ export const sampleHeroColorTool = defineTool({
         'Node id of the hero element. May be the Frame/Rectangle that holds the IMAGE fill, or a text/image child of such a Frame.',
       required: true
     },
-    band_height: {
+    direction: {
+      type: 'string',
+      description:
+        'Which edge of the image to sample. Default "bottom" — typical for backdrop gradients that fade into a hero above. "top" for overlays above the hero, "left"/"right" for side-fade designs, "center" for flat moody fields.',
+      default: DEFAULT_DIRECTION,
+      enum: DIRECTIONS
+    },
+    band_size: {
       type: 'number',
       description:
-        'Pixel height of the band sampled from the bottom of the image. Default 100 covers a typical hero footer; raise it for moody/flat color fields.',
-      default: DEFAULT_BAND_HEIGHT,
+        'Thickness of the band in pixels along the chosen direction (rows for top/bottom/center, columns for left/right). Default 100 covers a typical hero footer; raise it for moody/flat color fields, lower it for tight gradients.',
+      default: DEFAULT_BAND_SIZE,
       min: 16,
       max: 1024
-    },
-    lighten: {
-      type: 'number',
-      description:
-        'Pull the result toward white by this fraction (0–1, default 0.4). Long-image backdrops usually need a tinted, softer version of the hero color to coexist with white text.',
-      default: 0.4,
-      min: 0,
-      max: 1
     }
   },
   execute: async (figma, args) => {
@@ -50,8 +54,11 @@ export const sampleHeroColorTool = defineTool({
     if (typeof id !== 'string' || id.length === 0) {
       return { error: 'Pass a hero node id (non-empty string).' }
     }
-    const bandHeight = typeof args.band_height === 'number' ? args.band_height : DEFAULT_BAND_HEIGHT
-    const lighten = typeof args.lighten === 'number' ? args.lighten : 0.4
+    const direction =
+      typeof args.direction === 'string' && DIRECTIONS.includes(args.direction as SampleDirection)
+        ? (args.direction as SampleDirection)
+        : DEFAULT_DIRECTION
+    const bandSize = typeof args.band_size === 'number' ? args.band_size : DEFAULT_BAND_SIZE
 
     const node = figma.graph.getNode(id)
     if (!node) return { error: `Node "${id}" not found` }
@@ -81,33 +88,31 @@ export const sampleHeroColorTool = defineTool({
 
     const width = skImg.width()
     const height = skImg.height()
-    const bandTop = Math.max(0, height - bandHeight)
-    const pixels = skImg.readPixels(0, bandTop, {
+    const region = bandRegion(direction, width, height, bandSize)
+
+    const pixels = skImg.readPixels(region.x, region.y, {
       alphaType: ck.AlphaType.Unpremul,
-      colorType: ck.ColorType.RGBA_8888,
       colorSpace: ck.ColorSpace.SRGB,
-      width,
-      height: bandHeight
+      colorType: ck.ColorType.RGBA_8888,
+      width: region.width,
+      height: region.height
     })
     skImg.delete()
 
     if (!pixels || !(pixels instanceof Uint8Array)) {
-      return { error: 'Could not read pixels from hero image bottom band.' }
+      return { error: `Could not read pixels from hero image (${direction} band).` }
     }
 
-    const avg = averageBandColor(pixels, width, bandHeight)
-    const adjusted = {
-      r: adjustChannel(avg.r, lighten),
-      g: adjustChannel(avg.g, lighten),
-      b: adjustChannel(avg.b, lighten)
-    }
-    const hex = bandColorToHex(adjusted)
+    const avg = averageRegion(pixels, width, region.x, region.y, region.width, region.height)
+    const hex = bandColorToHex(avg)
 
     return {
         id,
-        band: { top: bandTop, height: bandHeight, width, fullHeight: height },
+        direction,
+        region,
+        imageSize: { width, height },
         hex,
-        note: `Averaged bottom band of hero "${node.name}" (${width}×${height}, sampled last ${bandHeight}px), lightened ${(lighten * 100).toFixed(0)}% toward white. Drop this hex into the middle stop of the backdrop gradient — it the hero theme color, not a guess.`
+        note: `Averaged ${direction} band of hero "${node.name}" (${width}×${height}, ${region.width}×${region.height} starting at ${region.x},${region.y}). Drop this hex into the gradient stop that sits on this edge.`
       }
   }
 })

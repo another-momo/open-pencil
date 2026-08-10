@@ -66,15 +66,15 @@ describe('sample_hero_color tool', () => {
     expect(result).toMatchObject({ error: expect.stringContaining('bytes') })
   })
 
-  it('accepts lighten values in [0,1] and band_height in [16,1024]', () => {
-    const band = sampleHeroColorTool.params.band_height
-    const lighten = sampleHeroColorTool.params.lighten
+  it('exposes direction (default bottom) and band_size (default 100) as params', () => {
+    const direction = sampleHeroColorTool.params.direction
+    const band = sampleHeroColorTool.params.band_size
+    expect(direction.type).toBe('string')
+    expect(direction.default).toBe('bottom')
+    expect(direction.enum).toEqual(['top', 'bottom', 'left', 'right', 'center'])
     expect(band.type).toBe('number')
     expect(band.min).toBe(16)
     expect(band.max).toBe(1024)
-    expect(lighten.type).toBe('number')
-    expect(lighten.min).toBe(0)
-    expect(lighten.max).toBe(1)
-    expect(lighten.default).toBe(0.4)
+    expect(band.default).toBe(100)
   })
 })

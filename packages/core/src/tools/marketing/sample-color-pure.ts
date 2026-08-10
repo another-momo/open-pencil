@@ -1,7 +1,9 @@
 /**
- * Pure color math for sample-hero-color. Kept CanvasKit-free so the averaging,
- * lightening, and hex-formatting can be unit tested without a renderer.
+ * Pure color math for sample-hero-color. CanvasKit-free so the averaging,
+ * region math, and hex formatting can be unit tested without a renderer.
  */
+
+export type SampleDirection = 'top' | 'bottom' | 'left' | 'right' | 'center'
 
 export interface Rgb {
   r: number
@@ -14,21 +16,66 @@ export interface BandColor extends Rgb {
 }
 
 /**
- * Average the sRGB pixels of a single horizontal band. `pixels` is an
- * RGBA_8888 buffer laid out row-major; alpha is ignored (we treat opaque and
- * translucent samples uniformly — translucent pixels of the hero bleed
- * underlying fills and would skew the average if weighted).
+ * Slice a single band of an RGBA_8888 buffer. Returns the (offset, width, height)
+ * of the band in pixel units — same coordinates the readPixels call would use.
+ * Caller passes the full image buffer, this returns the region to average.
+ *
+ * `size` is the band thickness (rows for top/bottom/center, columns for
+ * left/right). The band is always contiguous on the chosen edge.
  */
-export function averageBandColor(pixels: Uint8Array, width: number, height: number): BandColor {
+export function bandRegion(
+  direction: SampleDirection,
+  imageWidth: number,
+  imageHeight: number,
+  size: number
+): { x: number; y: number; width: number; height: number } {
+  const clamped = Math.max(1, Math.min(size, direction === 'left' || direction === 'right' ? imageWidth : imageHeight))
+  switch (direction) {
+    case 'top':
+      return { x: 0, y: 0, width: imageWidth, height: clamped }
+    case 'bottom':
+      return { x: 0, y: imageHeight - clamped, width: imageWidth, height: clamped }
+    case 'left':
+      return { x: 0, y: 0, width: clamped, height: imageHeight }
+    case 'right':
+      return { x: imageWidth - clamped, y: 0, width: clamped, height: imageHeight }
+    case 'center':
+      if (imageHeight <= clamped) {
+        return { x: 0, y: 0, width: imageWidth, height: imageHeight }
+      }
+      return {
+        x: 0,
+        y: Math.floor((imageHeight - clamped) / 2),
+        width: imageWidth,
+        height: clamped
+      }
+  }
+}
+
+/**
+ * Average the sRGB pixels of an arbitrary rectangular region. `pixels` is an
+ * RGBA_8888 buffer for the full image; `x`/`y`/`width`/`height` describe the
+ * region to average. Alpha is ignored (translucent pixels are not weighted —
+ * they bleed underlying fills and would skew the average).
+ */
+export function averageRegion(
+  pixels: Uint8Array,
+  imageWidth: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): BandColor {
   let r = 0
   let g = 0
   let b = 0
   let samples = 0
-  const stride = width * 4
-  for (let y = 0; y < height; y++) {
-    const row = y * stride
-    for (let x = 0; x < width; x++) {
-      const i = row + x * 4
+  const stride = imageWidth * 4
+  for (let row = 0; row < height; row++) {
+    const pixelY = y + row
+    const rowStart = pixelY * stride + x * 4
+    for (let col = 0; col < width; col++) {
+      const i = rowStart + col * 4
       r += pixels[i]
       g += pixels[i + 1]
       b += pixels[i + 2]
@@ -42,17 +89,6 @@ export function averageBandColor(pixels: Uint8Array, width: number, height: numb
     b: Math.round(b / samples),
     samples
   }
-}
-
-/**
- * Move a 0–255 channel toward white by `t` (0 = unchanged, 1 = pure white).
- * Long-image backdrops want a tinted, softer version of the hero color so it
- * sits behind white text without competing; this is the gentlest way.
- */
-export function adjustChannel(value: number, t: number): number {
-  if (t <= 0) return Math.round(value)
-  if (t >= 1) return 255
-  return Math.round(value + (255 - value) * t)
 }
 
 export function bandColorToHex(color: Rgb): string {

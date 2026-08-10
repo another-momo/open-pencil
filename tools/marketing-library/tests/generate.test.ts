@@ -44,23 +44,24 @@ describe('default-library.fig round-trip', () => {
 
     expect(index.profiles.map((profile) => profile.id)).toEqual([
       'casual_v1',
-      'chinese_festival_v1'
+      'watercolor_poster_v1'
     ])
     expect(index.profiles[0].label).toBe('休闲活泼风格')
     expect(index.profiles[0].description).toContain('配色')
     expect(index.profiles[0].markdown).toContain('休闲活泼风格')
     expect(index.profiles[0].applicableTo).toContain('xiaohongshu')
 
-    const festival = expectDefined(
-      index.profiles.find((profile) => profile.id === 'chinese_festival_v1')
+    const poster = expectDefined(
+      index.profiles.find((profile) => profile.id === 'watercolor_poster_v1')
     )
-    expect(festival.label).toBe('国风节日长图')
-    expect(festival.applicableTo).toEqual(['product_long', 'event_poster', 'xiaohongshu'])
-    // The profile exists to override base.md's UI-density defaults — if these
-    // numbers stop surviving the .fig round-trip the experiment silently
-    // degrades back to a UI-scale design.
-    expect(festival.markdown).toContain('sample_hero_color')
-    expect(festival.markdown).toContain('alpha=1')
+    expect(poster.label).toBe('Watercolor poster')
+    expect(poster.applicableTo).toEqual(['product_long', 'event_poster', 'xiaohongshu'])
+    // The profile carries an extreme-contrast type scale and a backdrop recipe
+    // that depends on sample_hero_color — if these specifics stop surviving the
+    // .fig round-trip the experiment silently degrades to a UI-scale design.
+    expect(poster.markdown).toContain('sample_hero_color')
+    expect(poster.markdown).toContain('72–110px')
+    expect(poster.markdown).toContain('three linear-gradient stops')
 
     expect(index.components.map((component) => component.name)).toEqual(['BrandBar', 'CTABar'])
     const brandBar = expectDefined(

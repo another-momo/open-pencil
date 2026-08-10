@@ -8,15 +8,14 @@ import { expectDefined, getNodeOrThrow } from '#tests/helpers/assert'
 import { makeSceneGraph } from '#tests/helpers/scene'
 
 /**
- * Pins the poster-composition primitives that system-prompt-base.md documents
- * (docs/plans/tasks/poster-quality-experiment.md T1). Each test mirrors a
- * recipe verbatim from the prompt — if a recipe silently stops producing the
- * intended node, the agent would emit valid-looking JSX that renders nothing,
- * which is exactly the failure mode the experiment must not confound with
- * "the model has no taste".
+ * Pins the composition primitives that the marketing prompt and the
+ * watercolor_poster_v1 profile use. Each test mirrors a recipe verbatim —
+ * if a recipe silently stops producing the intended node, the agent would
+ * emit valid-looking JSX that renders nothing, which is exactly the
+ * failure mode these tests must not allow to slip through.
  */
-describe('poster composition primitives (prompt recipes)', () => {
-  it('VERTICAL_GRADIENT transform runs top-to-bottom, unlike the identity default', async () => {
+describe('composition primitives (prompt recipes)', () => {
+  it('vertical-gradient transform runs top-to-bottom, unlike the identity default', async () => {
     const g = makeSceneGraph()
     const [result] = await renderJSX(
       g,
@@ -31,7 +30,6 @@ describe('poster composition primitives (prompt recipes)', () => {
     expect(fill.type).toBe('GRADIENT_LINEAR')
     expect(fill.gradientStops?.length).toBe(2)
 
-    // The prompt tells the agent this transform means "top to bottom".
     const endpoints = linearGradientEndpoints(
       node.width,
       node.height,
@@ -95,7 +93,7 @@ describe('poster composition primitives (prompt recipes)', () => {
     expect(node.opacity).toBe(0.2)
   })
 
-  it('stacks multiple fills in paint order for texture over base color', async () => {
+  it('stacks multiple fills in paint order for color-on-base', async () => {
     const g = makeSceneGraph()
     const [result] = await renderJSX(
       g,
@@ -124,23 +122,21 @@ describe('poster composition primitives (prompt recipes)', () => {
   })
 
   /**
-   * Backdrop v2 — a single hero image is overlaid by a gradient rectangle
-   * whose three stops form a smooth fade-in/cover over the hero bottom and
-   * a fade-out into opaque white at the canvas foot. Replaces v1's
-   * 4-recipe backdrop (multi-segment generation + per-seam mask + global
-   * tint) which proved visually disconnected in the first smoke run.
+   * Watercolor poster backdrop: a single hero image is overlaid by a
+   * gradient rectangle whose three stops form a fade-in/cover over the
+   * hero bottom and a fade-out into opaque white at the canvas foot.
+   * The overlay y = heroBottom − 100; the middle stop sits at
+   * 100 / overlayHeight so it lands exactly on the hero bottom edge.
    *
-   * Anchor at heroBottom + 100 — the gradient's middle stop sits at 100px
-   * from the top of the overlay, i.e. exactly on the hero's bottom edge,
-   * so the overlay appears to "land" on the hero.
+   * The middle stop's color comes from sample_hero_color and is opaque
+   * here only because the test pins the recipe shape — a real run would
+   * substitute whatever hex the tool returned.
    */
-  it('backdrop v2: three-stop overlay with the middle stop pinned to the hero bottom edge', async () => {
+  it('watercolor backdrop: three-stop overlay with the middle stop pinned to the hero bottom edge', async () => {
     const g = makeSceneGraph()
     const heroBottom = 800
     const overlayHeight = 5400 - heroBottom
     const overlayTopY = heroBottom - 100
-    // position 0.1 sits at 100/overlayHeight of the way down — i.e. on the
-    // hero bottom edge, regardless of how tall the rest of the canvas is.
     const middlePos = 100 / overlayHeight
     const heroColor = '#4A7C3F'
 
@@ -172,24 +168,20 @@ describe('poster composition primitives (prompt recipes)', () => {
     expect(top.color).toEqual({ r: 1, g: 1, b: 1, a: 0 })
     expect(top.position).toBe(0)
 
+    // Stop 1 (the hero bottom edge): the sampled hero color, fully opaque.
+    expect(middlePos).toBeCloseTo(100 / overlayHeight, 10)
+    expect(stops[1].position).toBeCloseTo(middlePos, 10)
+    expect(stops[1].color.a).toBe(1)
+    expect(stops[1].color).not.toEqual({ r: 1, g: 1, b: 1, a: 1 })
+
     // Stop 2: pure white again, fully opaque.
     const bottom = expectDefined(stops[2], 'bottom stop')
     expect(bottom.color).toEqual({ r: 1, g: 1, b: 1, a: 1 })
     expect(bottom.position).toBe(1)
 
-    // Stop 1 (the hero bottom edge): the sampled hero color, fully opaque.
-    expect(middlePos).toBeCloseTo(100 / overlayHeight, 10)
-    expect(stops[1].position).toBeCloseTo(middlePos, 10)
-    expect(stops[1].color.a).toBe(1)
-    // The middle stop carries the hero's RGB, not pure white.
-    expect(stops[1].color).not.toEqual({ r: 1, g: 1, b: 1, a: 1 })
-
-    // Position must sit inside the overlay node (0..1), not outside it.
     expect(stops[1].position).toBeGreaterThan(0)
     expect(stops[1].position).toBeLessThan(1)
 
-    // Endpoints must be top-to-bottom — otherwise the hero stays at the
-    // bottom of the canvas, not where we drew it.
     const endpoints = linearGradientEndpoints(
       node.width,
       node.height,

@@ -255,38 +255,41 @@ export function buildDefaultLibraryGraph(): SceneGraph {
   kv(graph, casual.id, 'applicable_to: wechat_moments, xiaohongshu, dsp_banner')
 
   // Poster-quality experiment (docs/plans/tasks/poster-quality-experiment.md T2):
-  // carries the expressive type scale, spacing scale and backdrop recipe that
-  // base.md's UI-density defaults would otherwise cap. Profile markdown is the
-  // highest-priority overlay, so the numbers here override the base scale.
-  const festival = makeEntry(graph, profilesPage.id, 'chinese_festival_v1')
-  graph.createNode('TEXT', festival.id, {
+  // A poster/long-image style that needs more than the UI-density defaults.
+  // Carries its own type scale (extreme contrast for hero headlines),
+  // spacing rhythm, and a specific 3-stop overlay backdrop that needs the
+  // sample_hero_color tool's output for the middle stop.
+  const watercolor = makeEntry(graph, profilesPage.id, 'watercolor_poster_v1')
+  graph.createNode('TEXT', watercolor.id, {
     fontFamily: FONT,
     text: [
-      '# 国风节日长图',
+      '# Watercolor poster',
       '',
-      '水彩晕染 + 大量留白的中式节日风格，用于端午 / 中秋 / 春节一类的活动长图。整体清淡，靠大面积连续底纹和极端字阶对比撑画面，不靠色块分区。',
+      'Wash-heavy poster style for long-form images and campaign key visuals. Visual weight comes from one continuous backdrop running under every section, not from per-section color blocks. Title sits on the image with strong contrast (heavy weight + shadow), not on top of transparent decorative layers.',
       '',
-      '## 字阶',
-      '走极端对比，主标题在 750 宽画布上 6–8 字应占满一整行；正文随内容密度可缩到 20–24。注意：主动突破 base.md 一次性只改一个属性的限制——主标题同时叠加字号、字重、颜色、阴影是预期行为，不是越界。',
+      '## Type scale',
+      'Extreme contrast. Hero title 72–110px on a 750px-wide canvas (a 6–8 character title fills a line). Section titles 36–48. Body 20–24, captions 16–18. Weights: Hero Heavy or Black, body Regular. A hero headline stacks size + weight + color + shadow at the same time — single-property hierarchy is for information-dense layouts, not this style.',
       '',
-      '## 间距',
-      '节奏**不**均匀。hero 段之后留大片空白，信息密集段收得紧。给视觉重量分布服务，不给可读性服务。',
+      '## Spacing rhythm',
+      'Deliberately uneven. Hero segment → large breathing space → information-dense segment → tight space → breathing space again. Variance in section spacing carries visual weight; constant rhythm reads as a screen.',
       '',
-      '## 背景层（v2 简化版）',
-      '一张 hero 图铺顶，加一块与之有 100px 重叠的渐变矩形盖下，矩形撑到底；渐变三段 stop：',
-      '- 0（顶）：白色，alpha=0',
-      '- 100/矩形高度（hero 底缘）：hero 主题色，alpha=1——颜色由 `sample_hero_color` 工具从图里抽，不靠猜',
-      '- 1（底）：白色，alpha=1',
-      '配方与 stop 计算见 base.md 的 Composition primitives 段。',
+      '## Backdrop recipe',
+      'A single hero image at the top of the canvas, with one gradient rectangle overlaid that runs to the canvas foot. The overlay starts at `heroBottom − 100` (100px overlap with the hero), and uses three linear-gradient stops:',
       '',
-      '## 语气',
-      '克制、有文化感；短句；不堆感叹号；不写"限时秒杀"一类硬促销词。'
+      '- Position 0 (top of overlay): `#FFFFFF` at alpha 0 — fully transparent so the hero shows through.',
+      '- Position `100 / overlayHeight` (hero bottom edge): the hero theme color at alpha 1 — fill the stop with the hex returned by `sample_hero_color({ id: hero.id, direction: "bottom" })`. Do not invent a theme color; the tool averages actual hero pixels.',
+      '- Position 1 (canvas foot): `#FFFFFF` at alpha 1 — opaque white so content below the overlay sits on a clean surface.',
+      '',
+      'Always pass an explicit top-to-bottom gradient `transform` — the default direction is right-to-left and will silently produce the wrong fade.',
+      '',
+      '## Tone',
+      'Restrained, atmospheric. Short sentences. No hard-sell phrasing ("限时秒杀", "最后一天"). Decorative elements live inside generated hero images, not as separate transparent overlays stacked on top — AI-generated PNGs do not reliably produce clean alpha channels, so do not plan around transparent brush strokes, ink splashes, or floating calligraphy.'
     ].join('\n'),
     fontSize: 12,
     fills: solid(DARK),
     textAutoResize: 'WIDTH_AND_HEIGHT'
   })
-  kv(graph, festival.id, 'applicable_to: product_long, event_poster, xiaohongshu')
+  kv(graph, watercolor.id, 'applicable_to: product_long, event_poster, xiaohongshu')
 
   const componentsPage = makeZonePage(graph, 'Components', 1000)
   buildBrandBar(graph, componentsPage.id, logoHash)

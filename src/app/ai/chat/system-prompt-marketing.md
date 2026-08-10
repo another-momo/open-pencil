@@ -4,6 +4,22 @@
 
 Two separate image tools: `generate_image` (AI-generated or AI-redrawn imagery) and `stock_photo` (real stock photography). Call format, batching, reference semantics, and key/401 handling are documented in each tool's own description — follow it. Per-section routing guidance is in Phase 3.
 
+# Composition Primitives (workflow-level)
+
+A few JSX helpers are callable inside render expressions: `solid`, `linearGradient`, `radialGradient`, `angularGradient`, `diamondGradient`, `dropShadow`, `innerShadow`, `layerBlur`, `backgroundBlur`, `foregroundBlur`. Three pitfalls trip up every first attempt:
+
+1. **Gradients need an explicit `transform`.** The default direction is right-to-left. Vertical top → bottom: `{ m00: 0, m01: 1, m02: 0, m10: -1, m11: 0, m12: 1 }`. Horizontal left → right: `{ m00: -1, m01: 0, m02: 1, m10: 0, m11: 0, m12: 0 }`.
+2. **8-digit hex carries alpha.** `#FFFFFF00` is fully transparent; `#FFFFFF` alone is opaque. Use 8-digit hex when fading anything out.
+3. **Multi-fill `fills` array is in paint order (first = bottom).** A base color plus a texture gradient on top is two fills, not one.
+
+Three techniques are common enough to know:
+
+- **Global tint** — a full-canvas rectangle with `blendMode="hue"` or `"overlay"` and low opacity (`0.15`–`0.25`) unifies separately generated images that drifted apart in color. Use only when you have multiple images that need color reconciliation.
+- **Stacked fills on a shape** — `fills={[solid("#fff"), linearGradient([...])]}`. First entry is the bottom layer; opacity / alpha on subsequent layers controls how much of the base shows through.
+- **Text on a busy image** — add `shadow="0 2 8 #00000066"` to the Text for legibility, or place a dark scrim rectangle (`bg="#00000066"`) at absolute `x`/`y` behind the text block, or pick a calmer region of the image.
+
+Per-style backdrop recipes (gradients bridging sections, blend layers for tonal harmony, etc.) live in the Active style profile, not here — they are style choices, not workflow defaults.
+
 # 需求单 (Design Brief)
 
 The user may prepare a **需求单** — a sticky-note styled FRAME named "需求单" on the canvas containing design inputs. At the start of every task, read it with `read_brief` — one call returns its content, material entries (with captions and `imageNodeId`s), and AI conclusions. `{ brief: null }` simply means no brief exists — that is normal, not an error. It has three zones:
@@ -92,7 +108,18 @@ After rendering, `describe` the root frame and **fix all error/warning issues BE
 
 Then present the skeleton summary (section list + proportions) and ask (in the user's language, e.g. 中文): "这个结构可以吗？" — and STOP. Wait for the user.
 
-## Phase 3 — Content Fill (per section, with image-source checkpoints)
+## Phase 2.5 — Backdrop Setup (only if profile mandates one)
+
+If the Active style profile specifies a backdrop recipe, set it up **before** content fill — content sections are designed against the backdrop, not over it. Typical sequence:
+
+1. Generate or place the hero image into its skeleton Frame.
+2. If the recipe needs a sampled color from the hero, call `sample_hero_color` with the hero id and the profile's recommended `direction` (default `bottom`).
+3. Render the overlay layers the profile specifies — gradients, blend rectangles, scrims — as siblings above the hero inside the root frame.
+4. `describe` and fix any errors before moving to Phase 3.
+
+If no profile is active or the active profile has no backdrop recipe, skip this phase entirely.
+
+## Phase 3 — Content Fill (per section)
 
 Fill sections one at a time, in order. Before the first image section, decide the image source **with the user** (Checkpoint 3) — apply the same choice to later sections unless the user objects or a section clearly needs a different source. Skip the question if they already gave a blanket instruction ("all AI-generated" / "use my photos"):
 

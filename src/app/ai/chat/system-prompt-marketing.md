@@ -108,16 +108,21 @@ After rendering, `describe` the root frame and **fix all error/warning issues BE
 
 Then present the skeleton summary (section list + proportions) and ask (in the user's language, e.g. 中文): "这个结构可以吗？" — and STOP. Wait for the user.
 
-## Phase 2.5 — Backdrop Setup (only if profile mandates one)
+## Phase 2.5 — Visual environment setup
 
-If the Active style profile specifies a backdrop recipe, set it up **before** content fill — content sections are designed against the backdrop, not over it. Typical sequence:
+**This phase is profile-driven, not a fixed workflow.** Each style defines its own visual environment (background, hero treatment, decorative layers) under the profile's `## Visual environment setup (Phase 2.5)` section. The general flow:
 
-1. Generate or place the hero image into its skeleton Frame.
-2. If the recipe needs a sampled color from the hero, call `sample_hero_color` with the hero id and the profile's recommended `direction` (default `bottom`).
-3. Render the overlay layers the profile specifies — gradients, blend rectangles, scrims — as siblings above the hero inside the root frame.
-4. `describe` and fix any errors before moving to Phase 3.
+- **No active profile, or profile has no setup section** → skip this phase; build sections directly in Phase 3 on a default white canvas.
+- **Profile mandates a backdrop or visual treatment** → follow its recipe. Profiles typically call 1–3 of: `generate_image`, `sample_hero_color`, `compose_backdrop`, or other helpers. The tool note tells you what was built and where to fill content next.
+- **Always verify with `look` after the setup phase** — the profile's recipe specifies success criteria ("no visible seam at hero bottom", "color matches sampled hero hex", etc.).
 
-If no profile is active or the active profile has no backdrop recipe, skip this phase entirely.
+Examples of profile styles:
+- *Watercolor long image*: 1 hero image + 3-stop gradient overlay → use `compose_backdrop` after `generate_image`.
+- *Multi-segment*: 3 generated images + gradient-mask seams → use a `compose_segmented_backdrop` helper.
+- *Solid color*: no hero, single background rectangle → just `set_fill` on the root frame.
+- *Photo-led*: one full-bleed photo, no overlay → call `stock_photo` on a hero Frame and skip the overlay.
+
+The tool descriptions are authoritative for what each helper takes and returns; profile recipes are authoritative for which helpers a given style uses.
 
 ## Phase 3 — Content Fill (per section)
 

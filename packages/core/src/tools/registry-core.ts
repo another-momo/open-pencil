@@ -6,6 +6,7 @@ import { generateImage } from './image-gen'
 import {
   lookTool,
   appendBriefConclusionTool,
+  composeBackdropTool,
   createBriefTool,
   readBriefTool,
   sampleHeroColorTool,
@@ -68,6 +69,7 @@ export const CORE_TOOLS: ToolDef[] = [
   createBriefTool,
   appendBriefConclusionTool,
   sampleHeroColorTool,
+  composeBackdropTool,
   // Inspect & utility
   describe,
   calc,

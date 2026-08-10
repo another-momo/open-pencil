@@ -13,6 +13,7 @@ import { defineTool } from './schema'
 
 export { lookTool } from './marketing/look'
 export { sampleHeroColorTool } from './marketing/sample-color'
+export { composeBackdropTool } from './marketing/compose-backdrop'
 
 export {
   BRIEF_CONCLUSIONS_NAME,

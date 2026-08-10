@@ -254,11 +254,10 @@ export function buildDefaultLibraryGraph(): SceneGraph {
   })
   kv(graph, casual.id, 'applicable_to: wechat_moments, xiaohongshu, dsp_banner')
 
-  // Poster-quality experiment (docs/plans/tasks/poster-quality-experiment.md T2):
-  // A poster/long-image style that needs more than the UI-density defaults.
-  // Carries its own type scale (extreme contrast for hero headlines),
-  // spacing rhythm, and a specific 3-stop overlay backdrop that needs the
-  // sample_hero_color tool's output for the middle stop.
+  // Poster-quality experiment (docs/plans/tasks/poster-quality-experiment.md T2).
+  // Style-only profile. The Phase 2.5 visual-environment workflow lives in
+  // this markdown under "## Visual environment setup (Phase 2.5)" — agents
+  // read it directly instead of having it hardcoded into marketing.md.
   const watercolor = makeEntry(graph, profilesPage.id, 'watercolor_poster_v1')
   graph.createNode('TEXT', watercolor.id, {
     fontFamily: FONT,
@@ -273,23 +272,16 @@ export function buildDefaultLibraryGraph(): SceneGraph {
       '## Spacing rhythm',
       'Deliberately uneven. Hero segment → large breathing space → information-dense segment → tight space → breathing space again. Variance in section spacing carries visual weight; constant rhythm reads as a screen.',
       '',
-      '## Backdrop recipe',
-      '**The 100px geometric overlap is the entire point.** Without it, the alpha-0 top stop ends exactly at the hero bottom edge and produces a visible seam. With it, the overlay\'s top region fades from invisible to fully colored *while* sitting on top of the hero — that is the "kiss". Do not delete the overlap requirement, do not try to achieve the kiss effect with alpha-0 alone.',
+      '## Visual environment setup (Phase 2.5)',
+      'Use the `compose_backdrop` tool to build the Background Layer for this style. Typical sequence:',
       '',
-      'A single hero image at the top of the canvas, with one gradient rectangle that runs from `heroBottom − 100` (100px overlap with the hero) to the canvas foot. The root frame stays in `flex="col"` auto-layout so content sections below the hero stack normally — the overlay is **NOT** in the auto-layout flow.',
+      '1. Render an empty Frame named `HeroImg` at the top of the root frame (h=500, w=canvas width). This is the hero placeholder.',
+      '2. Call `generate_image` against the HeroImg id with a watercolor-style prompt that leaves the bottom ~100px calm (so the overlay\'s fade-in is smooth).',
+      '3. Call `sample_hero_color({ id: heroImg.id, direction: "bottom", band_size: 100 })` — this returns the hex of the hero\'s bottom band.',
+      '4. Call `compose_backdrop({ root_id, canvas_width: 750, canvas_height: 2120, hero_height: 500, hero_color: <hex> })`. The tool builds the Background Layer Frame with BaseWash + HeroImg placeholder + BackdropOverlay, places it as the first child of root, and sets the overlay\'s middle stop to the sampled hex.',
+      '5. Verify with `look`: the hero should fade smoothly into the overlay\'s middle color with no visible seam at the hero bottom. Content sections painted later will sit on top of the overlay\'s white bottom.',
       '',
-      '**Render order matters for z-order:**',
-      '',
-      '1. Render the BackdropOverlay FIRST (as the first child of the root frame), with `position="absolute"`, `x={0}`, `y={heroBottom − 100}`, `w={750}`, `h={canvasHeight − (heroBottom − 100)}`. The `position="absolute"` prop escapes auto-layout (do NOT use `mt`/`mx`/negative margins — they are not valid props). The first-child position puts it at the bottom of the z-stack so everything else paints on top.',
-      '2. Render the hero, Part2, Part3, CTABar in their natural auto-layout order. They paint on top of the overlay.',
-      '',
-      'Three linear-gradient stops (always pass an explicit top-to-bottom `transform`; the default is right-to-left):',
-      '',
-      '- Position 0 (top of overlay): `#FFFFFF` at alpha 0 — fully transparent so the hero shows through during the 100px overlap.',
-      '- Position `100 / overlayHeight` (where the hero bottom edge sits inside the overlay): the hero theme color at alpha 1 — fill this stop with the hex returned by `sample_hero_color({ id: hero.id, direction: "bottom" })`. Do not invent a theme color; the tool averages actual hero pixels.',
-      '- Position 1 (canvas foot): `#FFFFFF` at alpha 1 — opaque white. Content sections sit on top of this white region; the visible backdrop through inter-section gaps is what carries the wash.',
-      '',
-      '**Verify with `look` after rendering.** The hero should appear to fade smoothly into the overlay\'s middle color (no visible seam at y=heroBottom). Content sections should be visible — their white fills obscure the overlay beneath them, which is intentional (white cards on a wash backdrop is the layout pattern). If content sections are completely missing, the overlay has wrong z-order (it is not the first child) or the root frame has wrong dimensions.',
+      'If `compose_backdrop` returns an error, read it carefully — it usually means a node id was wrong or the hero image has not been generated yet. Do not invent geometry: the tool handles 100px overlap, `position="absolute"`, the 8-digit hex alpha trick, and the gradient transform internally.',
       '',
       '## Tone',
       'Restrained, atmospheric. Short sentences. No hard-sell phrasing ("限时秒杀", "最后一天"). Decorative elements live inside generated hero images, not as separate transparent overlays stacked on top — AI-generated PNGs do not reliably produce clean alpha channels, so do not plan around transparent brush strokes, ink splashes, or floating calligraphy.'

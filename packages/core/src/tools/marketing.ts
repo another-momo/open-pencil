@@ -12,6 +12,7 @@ import { validateMarketingDesign } from './marketing/validate'
 import { defineTool } from './schema'
 
 export { lookTool } from './marketing/look'
+export { sampleHeroColorTool } from './marketing/sample-color'
 
 export {
   BRIEF_CONCLUSIONS_NAME,

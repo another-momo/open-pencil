@@ -118,7 +118,36 @@ Gradient stops take 8-digit hex, so `#4A7C3F00` is a fully transparent stop — 
 />
 ```
 
-**2. Feathered seam between two stacked background images.** A mask node masks the siblings that come **after** it, so the mask goes first:
+**2. Long-image backdrop v2 (single hero + overlay).** The first smoke run of v1's four-step backdrop (multi-segment generation + per-seam mask + global hue tint) came out visually disconnected, so v2 collapses to one hero image and one overlay gradient. The hero sits at the top; the overlay rectangle starts at `heroBottom − 100` and runs to the canvas foot, and its three gradient stops are tuned to make the overlay land on the hero and fade into opaque white:
+
+```jsx
+<Frame name="Hero" x={0} y={0} w={750} h={800} bg="#E2E8F0" />
+<Rectangle
+  name="FadeOverlay"
+  x={0}
+  y={700}
+  w={750}
+  h={4600}
+  fills={[
+    linearGradient(
+      [
+        ["#FFFFFF00", 0],
+        ["#{sample_hero_color("Hero").hex}FF", 100 / 4600],
+        ["#FFFFFF", 1]
+      ],
+      { transform: { m00: 0, m01: 1, m02: 0, m10: -1, m11: 0, m12: 1 } }
+    )
+  ]}
+/>
+```
+
+- Stop 0 (top of the overlay) is pure white at alpha 0, so the hero underneath shows through.
+- Stop at `100 / overlayHeight` lands exactly on the hero's bottom edge — the overlay visually "kisses" the hero instead of covering it.
+- Stop 2 (canvas foot) is pure white at alpha 1, so content below the overlay has a clean white surface to sit on.
+
+**Use the `sample_hero_color` tool to fill in the middle stop** — it averages the bottom band of the hero image's actual pixels. Do not guess a theme color; an agent that does that ends up with a gradient that fights the hero.
+
+**3. Feathered seam between two stacked background images.** A mask node masks the siblings that come **after** it, so the mask goes first:
 
 ```jsx
 <Frame name="SegmentB" x={0} y={760} w={750} h={800}>
@@ -143,7 +172,7 @@ Gradient stops take 8-digit hex, so `#4A7C3F00` is a fully transparent stop — 
 </Frame>
 ```
 
-**3. Global tint** — unifies separately generated images that drifted apart in color. Full-canvas rectangle, topmost, `hue` or `overlay`, low opacity:
+**4. Global tint** — unifies separately generated images that drifted apart in color. Full-canvas rectangle, topmost, `hue` or `overlay`, low opacity:
 
 ```jsx
 <Rectangle
@@ -158,7 +187,7 @@ Gradient stops take 8-digit hex, so `#4A7C3F00` is a fully transparent stop — 
 />
 ```
 
-**4. Stacked fills** paint in array order (first = bottom) — base color plus a texture or vignette on top:
+**5. Stacked fills** paint in array order (first = bottom) — base color plus a texture or vignette on top:
 
 ```jsx
 fills={[
@@ -168,7 +197,7 @@ fills={[
 ]}
 ```
 
-**5. Text as graphic** — a hero title may carry a shadow, sit on a decorative brush stroke, and overlap the image above it. Overlap is achieved with absolute `x`/`y` on a decorative layer, or by making the section a Frame whose background is the image and whose flex children are the text.
+**6. Text as graphic** — a hero title may carry a shadow, sit on a decorative brush stroke, and overlap the image above it. Overlap is achieved with absolute `x`/`y` on a decorative layer, or by making the section a Frame whose background is the image and whose flex children are the text.
 
 ## Prohibited
 

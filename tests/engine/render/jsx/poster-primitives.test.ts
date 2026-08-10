@@ -122,4 +122,80 @@ describe('poster composition primitives (prompt recipes)', () => {
     const node = getNodeOrThrow(g, expectDefined(result, 'render result').id)
     expect(expectDefined(node.fills[0], 'radial fill').type).toBe('GRADIENT_RADIAL')
   })
+
+  /**
+   * Backdrop v2 — a single hero image is overlaid by a gradient rectangle
+   * whose three stops form a smooth fade-in/cover over the hero bottom and
+   * a fade-out into opaque white at the canvas foot. Replaces v1's
+   * 4-recipe backdrop (multi-segment generation + per-seam mask + global
+   * tint) which proved visually disconnected in the first smoke run.
+   *
+   * Anchor at heroBottom + 100 — the gradient's middle stop sits at 100px
+   * from the top of the overlay, i.e. exactly on the hero's bottom edge,
+   * so the overlay appears to "land" on the hero.
+   */
+  it('backdrop v2: three-stop overlay with the middle stop pinned to the hero bottom edge', async () => {
+    const g = makeSceneGraph()
+    const heroBottom = 800
+    const overlayHeight = 5400 - heroBottom
+    const overlayTopY = heroBottom - 100
+    // position 0.1 sits at 100/overlayHeight of the way down — i.e. on the
+    // hero bottom edge, regardless of how tall the rest of the canvas is.
+    const middlePos = 100 / overlayHeight
+    const heroColor = '#4A7C3F'
+
+    const [result] = await renderJSX(
+      g,
+      `<Rectangle name="FadeOverlay" x={0} y={${overlayTopY}} w={750} h={${overlayHeight}} fills={[
+        linearGradient([
+          ["#FFFFFF00", 0],
+          ["${heroColor}", ${middlePos}],
+          ["#FFFFFF", 1]
+        ], { transform: { m00: 0, m01: 1, m02: 0, m10: -1, m11: 0, m12: 1 } })
+      ]} />`
+    )
+
+    const node = getNodeOrThrow(g, expectDefined(result, 'render result').id)
+    expect(node.x).toBe(0)
+    expect(node.y).toBe(overlayTopY)
+    expect(node.height).toBe(overlayHeight)
+
+    const fill = expectDefined(node.fills[0], 'overlay fill')
+    expect(fill.type).toBe('GRADIENT_LINEAR')
+    const stops = expectDefined(fill.gradientStops, 'gradient stops')
+    expect(stops.length).toBe(3)
+
+    // Stop 0: pure white, fully transparent — #FFFFFF00 must be passed as
+    // 8-digit hex (alpha channel), because #FFFFFF alone parses to a=1 and
+    // the overlay would visibly cover the hero instead of fading out.
+    const top = stops[0]
+    expect(top.color).toEqual({ r: 1, g: 1, b: 1, a: 0 })
+    expect(top.position).toBe(0)
+
+    // Stop 2: pure white again, fully opaque.
+    const bottom = expectDefined(stops[2], 'bottom stop')
+    expect(bottom.color).toEqual({ r: 1, g: 1, b: 1, a: 1 })
+    expect(bottom.position).toBe(1)
+
+    // Stop 1 (the hero bottom edge): the sampled hero color, fully opaque.
+    expect(middlePos).toBeCloseTo(100 / overlayHeight, 10)
+    expect(stops[1].position).toBeCloseTo(middlePos, 10)
+    expect(stops[1].color.a).toBe(1)
+    // The middle stop carries the hero's RGB, not pure white.
+    expect(stops[1].color).not.toEqual({ r: 1, g: 1, b: 1, a: 1 })
+
+    // Position must sit inside the overlay node (0..1), not outside it.
+    expect(stops[1].position).toBeGreaterThan(0)
+    expect(stops[1].position).toBeLessThan(1)
+
+    // Endpoints must be top-to-bottom — otherwise the hero stays at the
+    // bottom of the canvas, not where we drew it.
+    const endpoints = linearGradientEndpoints(
+      node.width,
+      node.height,
+      expectDefined(fill.gradientTransform, 'gradient transform')
+    )
+    expect(endpoints.start).toEqual({ x: 0, y: 0 })
+    expect(endpoints.end).toEqual({ x: 0, y: overlayHeight })
+  })
 })

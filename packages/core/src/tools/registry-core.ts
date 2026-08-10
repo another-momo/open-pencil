@@ -8,6 +8,7 @@ import {
   appendBriefConclusionTool,
   createBriefTool,
   readBriefTool,
+  sampleHeroColorTool,
   setupMaterialTypeTool,
   validateTool
 } from './marketing'
@@ -66,6 +67,7 @@ export const CORE_TOOLS: ToolDef[] = [
   readBriefTool,
   createBriefTool,
   appendBriefConclusionTool,
+  sampleHeroColorTool,
   // Inspect & utility
   describe,
   calc,

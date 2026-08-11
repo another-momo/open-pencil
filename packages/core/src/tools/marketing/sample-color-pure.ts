@@ -3,6 +3,8 @@
  * region math, and hex formatting can be unit tested without a renderer.
  */
 
+import type { Rect } from '@open-pencil/scene-graph/primitives'
+
 export type SampleDirection = 'top' | 'bottom' | 'left' | 'right' | 'center'
 
 export interface Rgb {
@@ -28,8 +30,9 @@ export function bandRegion(
   imageWidth: number,
   imageHeight: number,
   size: number
-): { x: number; y: number; width: number; height: number } {
-  const clamped = Math.max(1, Math.min(size, direction === 'left' || direction === 'right' ? imageWidth : imageHeight))
+): Rect {
+  const bandAxis = direction === 'left' || direction === 'right' ? imageWidth : imageHeight
+  const clamped = Math.max(1, Math.min(size, bandAxis))
   switch (direction) {
     case 'top':
       return { x: 0, y: 0, width: imageWidth, height: clamped }
@@ -50,6 +53,9 @@ export function bandRegion(
         height: clamped
       }
   }
+  // Unreachable — SampleDirection is exhaustive — but consistent-return
+  // requires a value on the implicit fall-through path.
+  return { x: 0, y: 0, width: imageWidth, height: imageHeight }
 }
 
 /**

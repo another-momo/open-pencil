@@ -12,7 +12,7 @@ import { sampleHeroColorTool } from '#core/tools/marketing/sample-color'
  */
 describe('sample_hero_color tool', () => {
   function makeFigmaStub(graph: SceneGraph) {
-    return { graph, getCk: async () => null } as never
+    return { graph } as never
   }
 
   it('returns an error when the id is missing or empty', async () => {
@@ -42,6 +42,33 @@ describe('sample_hero_color tool', () => {
     })
     const result = await sampleHeroColorTool.execute(makeFigmaStub(g), { id: rect.id })
     expect(result).toMatchObject({ error: expect.stringContaining('no IMAGE fill') })
+  })
+
+  it('walks up to an ancestor with an IMAGE fill when given a child of the hero Frame', async () => {
+    const g = new SceneGraph()
+    const page = g.addPage('Page')
+    const hero = g.createNode('FRAME', page.id, {
+      name: 'HeroWithImage',
+      width: 100,
+      height: 100,
+      fills: [
+        {
+          type: 'IMAGE',
+          color: { r: 0, g: 0, b: 0, a: 0 },
+          opacity: 1,
+          visible: true,
+          imageHash: 'deadbeef',
+          imageScaleMode: 'FILL'
+        }
+      ]
+    })
+    const title = g.createNode('TEXT', hero.id, { name: 'HeroTitle', text: '夏' })
+
+    // The documented contract allows passing a child of the image-bearing
+    // Frame. The bytes check failing proves the walk found the parent's
+    // IMAGE fill — before the traversal fix this returned "no IMAGE fill".
+    const result = await sampleHeroColorTool.execute(makeFigmaStub(g), { id: title.id })
+    expect(result).toMatchObject({ error: expect.stringContaining('bytes') })
   })
 
   it('returns an error when image bytes are not loaded into the graph', async () => {

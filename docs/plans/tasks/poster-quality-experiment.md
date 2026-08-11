@@ -1,8 +1,8 @@
 # Task: 海报感实验 — Prompt-only 臂
 
-日期：2026-08-07（首版）/ 2026-08-10（重写）
-状态：施工中（Prompt-only 臂，Prompt + sample_hero_color 工具 + profile）
-范围：`system-prompt-base.md`、`system-prompt-marketing.md`、`tools/marketing-library/src/generate.ts`、`public/default-library.fig`、`packages/core/src/tools/marketing/sample-color*.ts`、对应测试
+日期：2026-08-07（首版）/ 2026-08-10（重写 + P2 落地）
+状态：施工中（Prompt + sample_hero_color + compose_backdrop + profile；P2 已落地，见文末 8-10 附记）
+范围：`system-prompt-base.md`、`system-prompt-marketing.md`、`tools/marketing-library/src/generate.ts`、`public/default-library.fig`、`packages/core/src/tools/marketing/sample-color*.ts`、`packages/core/src/tools/marketing/compose-backdrop.ts`、对应测试
 设计依据：`../../review/2026-08-07-long-image-design-quality-review.md`
 
 ## 背景与目标
@@ -132,14 +132,16 @@
 
 ### 验收标准（精简版）
 
-背景层（v2 单渐变 overlay）：
+背景层（wrapper v2：`BackgroundLayer`（absolute, root[0]）内含 BaseWash < HeroImg < BackdropOverlay;`HeroContent`（flow, root[1], h=750）占住 hero 槽位并承载标题）：
 
 | # | 条目 | 通过判据 |
 |---|---|---|
-| 1 | 单 hero 图 + overlay | root frame 内存在 1 张 hero 图（AI生成）+ 1 块与之重叠 100px 的渐变矩形 |
+| 1 | 结构落地 | root 子节点序 = BackgroundLayer（ABSOLUTE, [0]) → HeroContent（AUTO, [1], h=750) → 内容 sections；layer 内部子节点序 = BaseWash → HeroImg → BackdropOverlay |
 | 2 | 三段 stop 落地 | overlay 的 fills[0] 包含 3 个 gradientStops；position 0 = 0、position 1 = 1、中间 stop position ≈ `100/overlayHeight` |
-| 3 | 中间 stop 颜色真实 | `sample_hero_color` 工具被调用并返回 hex，Agent 没有编一个 |
+| 3 | 中间 stop 颜色真实 | `compose_backdrop` 返回 `color_source: "sampled"`（自动采样自 hero 底部 100px);Agent 没有编 hex |
 | 4 | 全白底承接 | overlay 底部 stop 为 `#FFFFFF` alpha=1 |
+| 5 | bleed 遮缝 | HeroImg 高度 = 750 + hero_bleed（默认 100),fade 区落在下一个内容 section 的内容区内，接缝被内容打断而非通长横线 |
+| 6 | 标题不洗色 | HeroContent 透明底、位于整个 BackgroundLayer 之上；标题文字不被 overlay 淡入区覆盖 |
 
 海报感指标（评审第二部分 8 条中取可快速判读的 5 条）：
 
@@ -157,11 +159,12 @@
 
 ## 明确不做
 
-- **不做 `compose_backdrop`**（P2）——本实验的对照项，取决于本轮结论
+- ~~**不做 `compose_backdrop`**（P2）~~——**已落地**（见文末附记）。原定为对照项，8-10 第三轮决定提前实现
 - **不动 base.md 的字阶/间距数值本身**（P1）——base 已恢复纯 DSL 词汇表，不再有 marketing 痕迹；P1 字体分档若需要则在 profile 层做
 - **不做 `critique` 工具**（P3）——本轮手工判读
 - **不做三槽 section / `place_decor`**（P4）、**不做构图先行**（P5）、**不做参考库**（P7）
 - **不做装饰元素库**（profile 显式删除——AI 生图做不出可靠透明底）
+- **不实现 `compose_segmented_backdrop`**——multi-segment 风格暂无专用 helper，agent 按 profile 配方手写渐变蒙版
 
 ## 结论去向
 
@@ -170,3 +173,43 @@
 - **成效明显** → 把 base/marketing/profile 三层边界固化下来；profile 配方升格为模板；P2 降级为可选优化
 - **成效不明显** → 实证了方法论 §1（prompt 层不足以约束确定性合成），直接上 P2 `compose_backdrop` + P3 `critique`，并记录"prompt-only 不足"这个结论本身
 - **部分成效**（预期最可能）→ 记录哪几条落地了、哪几条没有；没落地的条目按"是否确定性可代码化"分流到 P2/P4
+
+## 附记 2026-08-10：P2 `compose_backdrop` 落地 + Review 修复轮
+
+### 为什么 P2 提前落地
+
+8-10 第三轮冒烟中 agent 按 prompt 配方手写 overlay 时连续踩坑（NaN 采样、overlay 压内容、overlap 丢失）——这正是方法论 §1 预言的"prompt 层不足以约束确定性合成"。`compose_backdrop` 从对照项转为正式交付，实验归因不受影响：prompt-only 臂的失败模式已被充分记录，工具化是结论而非干扰项。
+
+### Review 发现并已修复的问题
+
+1. **拓扑重设计：放弃 BackgroundLayer wrapper，改扁平三元组**。初版把 BaseWash/HeroImg/BackdropOverlay 包在一个 wrapper frame 里，但 wrapper 未设 `layoutPositioning: 'ABSOLUTE'` 时会以 2120px 全高参与 root 的 auto-layout 流，把所有内容顶出画布；且 wrapper 垫底与"overlay 必须压在 hero 上"结构上互斥。修复后三节点直接作为 root 子节点：BaseWash（absolute, [0]）→ HeroImg（flow, [1]，占住 hero 槽位）→ BackdropOverlay（absolute, [2]）——与冒烟验证过的 `poster-primitives.test.ts` 配方结构一致。
+2. **HeroImg 双重创建 + 循环依赖**：初版 profile 让 agent 自建 HeroImg 并填图，工具又建一个空占位，且采样（依赖图已生成）在 compose（依赖采样色）之前成环。修复：工具新增 `hero_id` adopt 模式（复用已有 hero 节点，overlay 几何取 hero 真实高度），并按名字幂等重入——重复调用原地更新，给了"生成后回填采样色"一条路径。
+3. **BaseWash 淡 tint 丢失**：`opacity: 0.05` 在构建 gradientStops 时被静默丢弃，实测 stop alpha=1（全强度主题色铺顶）。已修复为折进 `color.a`，并有回归测试钉住。
+4. **`sample_hero_color` 文档承诺"可传子节点"但未实现**：已补上带循环保护的父级遍历。
+5. **CI 质量门**：12 个 lint error（parseInt、inline 具名类型、超长行、测试复杂度）+ 3 个文件 oxfmt 不合格，全部修复；新增 NaN 校验、root 类型校验。
+
+### 当前测试矩阵
+
+- `sample-color-pure.test.ts`（15 case）+ `sample-color.test.ts`（6 case，含父级遍历）
+- `compose-backdrop.test.ts`（18 case：校验 10 + 扁平拓扑 5 + adopt 1 + 幂等 1 + 参数形状 1）
+- `poster-primitives.test.ts`（8 case，渲染层配方钉扎）
+- `generate.test.ts`（profile markdown 关键片段 .fig 往返存活）
+
+## 附记 2026-08-10（之二）：设计评审迭代 → wrapper v2 终稿
+
+第一轮修复（扁平三元组 + hero_id adopt）经设计评审后被推翻，演进为当前的 **wrapper v2**。决策记录：
+
+1. **回归 wrapper（带 HeroContent 分离）**。评审结论：扁平三元组把 z-order 不变量暴露在 root 的兄弟序里、没人把守（agent 重渲/插节点可拆散）；且标题只能作为 HeroImg 子节点，会被 overlay 淡入区洗色。wrapper v2:BackgroundLayer（absolute, root[0]）内部封装 BaseWash < HeroImg < BackdropOverlay(kiss 不变量外部不可破坏）;HeroContent（flow, root[1]，透明，h=750）占住流内槽位并承载标题/logo（压在整个背景层之上，永不洗色）。"spacer 魔法节点"批评不成立：HeroContent 是内容框，不是空占位。
+2. **去掉 reparent adopt，改 `hero_image_from` 值拷贝**。"先建后搬"是 workaround;fills 是值对象，把 IMAGE fill 拷给层内 HeroImg、清空 HeroContent，节点身份零扰动。非 HeroContent 源（用户自带素材）只拷不清。
+3. **采样内化**:`compose_backdrop` 自动采 hero 底部 100px（恰好=重叠带，几何必然一致），优先级 显式 `hero_color` > 自动采样 > 白色兜底（`#FFFFFFFF`，退化为纯白过渡，视觉安全）。`sample_hero_color` 保留给非常规方向（side-fade/center），结果走 `hero_color` 覆盖。验收第 3 条从抽查变为结构保证。
+4. **hero 高度 500 → 750**;**新增 `hero_bleed`（默认 100 = OVERLAP_PX）**:HeroImg 比 hero 槽位高 100px,fade 区恰好全部没入下一 section 的内容区——通长水平接缝是人眼最敏感的形态，被内容打断后显著更隐蔽，且结构性满足叠压率指标。
+5. **工作流时序修正**:profile 要求的读取点前移到 Phase 1 末/Phase 2 渲染前（hero 槽位、透明 section 属于骨架结构，必须在 checkpoint 确认前就位）;Phase 2.5 收窄为"物化"槽位（只含依赖像素的操作：generate_image → compose_backdrop 一次调用 → look)，无 profile 时整段不存在。
+6. **无强制两段式调用**：主路径 = 先生图、后一次 compose；"重调一次"只在像素变化时发生（重新生图后重新同步颜色），幂等重入保证安全。
+
+主路径 agent 负担：Phase 2.5 三个调用（generate_image / compose_backdrop / look)，零几何、零 hex 转抄、零采样参数。
+
+### 当前测试矩阵（wrapper v2)
+
+- `compose-backdrop.test.ts`(22 case：校验 7 + 拓扑 4 + 渐变契约 2 + 颜色管线 4 + fill 转移 3 + 幂等 1 + 参数 1)
+- `sample-color-pure.test.ts`(15)+ `sample-color.test.ts`(6)——共享 helper `sampleImageFillColor` 抽出后行为不变
+- `poster-primitives.test.ts`(8)+ `generate.test.ts`（往返）

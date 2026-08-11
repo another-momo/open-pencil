@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  averageRegion,
-  bandColorToHex,
-  bandRegion
-} from '#core/tools/marketing/sample-color-pure'
+import { averageRegion, bandColorToHex, bandRegion } from '#core/tools/marketing/sample-color-pure'
 
 /**
  * Pure color math for sample-hero-color. CanvasKit-free so the gradient
@@ -69,10 +65,7 @@ describe('sample-hero-color / pure math', () => {
     })
 
     it('averages a mixed band down to the mean of each channel', () => {
-      const pixels = new Uint8Array([
-        10, 40, 20, 255,
-        200, 240, 210, 255
-      ])
+      const pixels = new Uint8Array([10, 40, 20, 255, 200, 240, 210, 255])
       const avg = averageRegion(pixels, 2, 0, 0, 2, 1)
       expect(avg.r).toBe(105)
       expect(avg.g).toBe(140)
@@ -81,10 +74,7 @@ describe('sample-hero-color / pure math', () => {
     })
 
     it('ignores alpha when averaging (translucent pixels are not weighted)', () => {
-      const pixels = new Uint8Array([
-        100, 50, 25, 255,
-        100, 50, 25, 0
-      ])
+      const pixels = new Uint8Array([100, 50, 25, 255, 100, 50, 25, 0])
       const avg = averageRegion(pixels, 2, 0, 0, 2, 1)
       expect(avg.r).toBe(100)
       expect(avg.g).toBe(50)
@@ -95,10 +85,7 @@ describe('sample-hero-color / pure math', () => {
       // 2x2 image, region = bottom row only (y=1).
       // Top row is all red; bottom row is all green. Average should be pure green.
       const pixels = new Uint8Array([
-        255, 0, 0, 255,
-        255, 0, 0, 255,
-        0, 255, 0, 255,
-        0, 255, 0, 255
+        255, 0, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255
       ])
       const avg = averageRegion(pixels, 2, 0, 1, 2, 1)
       expect(avg.r).toBe(0)
@@ -108,11 +95,7 @@ describe('sample-hero-color / pure math', () => {
 
     it('averages only the requested rectangle (skip columns left of the region)', () => {
       // 3x1 row: left is red, middle/right are green. Region = right column only.
-      const pixels = new Uint8Array([
-        255, 0, 0, 255,
-        0, 255, 0, 255,
-        0, 255, 0, 255
-      ])
+      const pixels = new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255])
       const avg = averageRegion(pixels, 3, 1, 0, 2, 1)
       expect(avg.r).toBe(0)
       expect(avg.g).toBe(255)
@@ -160,7 +143,14 @@ describe('sample-hero-color / pure math', () => {
         }
       }
 
-      const avg = averageRegion(pixels, imageWidth, 0, imageHeight - bandHeight, imageWidth, bandHeight)
+      const avg = averageRegion(
+        pixels,
+        imageWidth,
+        0,
+        imageHeight - bandHeight,
+        imageWidth,
+        bandHeight
+      )
       expect(avg.samples).toBe(imageWidth * bandHeight)
       // All-zero average → NaN. The regression asserts finite values.
       expect(Number.isFinite(avg.r)).toBe(true)
@@ -185,7 +175,14 @@ describe('sample-hero-color / pure math', () => {
       const bandHeight = 100
       // Sub-region-sized buffer (the bug case).
       const subBuffer = new Uint8Array(imageWidth * bandHeight * 4)
-      const avg = averageRegion(subBuffer, imageWidth, 0, imageHeight - bandHeight, imageWidth, bandHeight)
+      const avg = averageRegion(
+        subBuffer,
+        imageWidth,
+        0,
+        imageHeight - bandHeight,
+        imageWidth,
+        bandHeight
+      )
       // With the wrong buffer, r/g/b will be NaN. The point of this test
       // is to make the contract explicit: callers MUST pass a full-image
       // buffer; otherwise the result is undefined and the tool must guard.

@@ -98,7 +98,9 @@ Once the user picks a direction, **lock it**: the color scheme, fonts, and style
 
 ## Phase 2 — Skeleton + Checkpoint 2
 
-Build the section skeleton inside the root frame (between anchors): decide the section list from the material type's description and the user's content — one named Frame per section, using `flex="col"` on the root and proportional heights for each section.
+**Before rendering anything, re-read the Active style profile (if any)** — its type-scale overrides, spacing rhythm, and `## Visual environment setup (Phase 2.5)` section determine the skeleton's structure: whether a hero slot exists and how tall it is, and whether sections share a continuous backdrop (→ section frames MUST have transparent fills, no per-section color blocks) or carry their own backgrounds. The skeleton you present at Checkpoint 2 must already reflect these requirements — never confirm a hero-less skeleton and retrofit the hero later.
+
+Build the section skeleton inside the root frame (between anchors): decide the section list from the material type's description and the user's content — one named Frame per section, using `flex="col"` on the root and proportional heights for each section. If the profile mandates a hero, render the first flow child as a transparent Frame named `HeroContent` at the profile's height — this is the hero slot that Phase 2.5 fills and Phase 3 overlays text onto.
 
 **CRITICAL — every section render MUST pass `parent_id` (the rootFrameId from setup):** `render({ parent_id: "0:3", jsx: "..." })`. A section rendered without `parent_id` lands on the page as an orphaned sibling — its `w="fill"` collapses and the root frame stays empty. Never put `id="..."` in JSX; it is ignored and does NOT target a parent.
 
@@ -106,21 +108,24 @@ Use `calc` for ALL height arithmetic (batch expressions in one call: `calc({ exp
 
 After rendering, `describe` the root frame and **fix all error/warning issues BEFORE presenting the checkpoint** — never show the user a skeleton with known errors. Then `look` at the root frame to confirm the skeleton reads correctly (proportions, hierarchy) — fix anything obviously wrong before presenting.
 
-Then present the skeleton summary (section list + proportions) and ask (in the user's language, e.g. 中文): "这个结构可以吗？" — and STOP. Wait for the user.
+Then present the skeleton summary (section list + proportions; when a profile mandates a visual environment, include the plan — e.g. "顶部 750px hero + 连续背景，section 透明底") and ask (in the user's language, e.g. 中文): "这个结构可以吗？" — and STOP. Wait for the user.
 
-## Phase 2.5 — Visual environment setup
+## Phase 2.5 — Visual environment materialization
 
-**This phase is profile-driven, not a fixed workflow.** Each style defines its own visual environment (background, hero treatment, decorative layers) under the profile's `## Visual environment setup (Phase 2.5)` section. The general flow:
+**This phase is a profile-driven slot, not a fixed workflow.** The workflow only fixes WHEN it runs (after Checkpoint 2, before any content fill — image generation costs real time and must not precede structure confirmation) and the exit contract (verify with `look`). WHAT runs here is supplied by the Active profile's `## Visual environment setup (Phase 2.5)` section:
 
-- **No active profile, or profile has no setup section** → skip this phase; build sections directly in Phase 3 on a default white canvas.
-- **Profile mandates a backdrop or visual treatment** → follow its recipe. Profiles typically call 1–3 of: `generate_image`, `sample_hero_color`, `compose_backdrop`, or other helpers. The tool note tells you what was built and where to fill content next.
-- **Always verify with `look` after the setup phase** — the profile's recipe specifies success criteria ("no visible seam at hero bottom", "color matches sampled hero hex", etc.).
+- **No active profile, or profile has no setup section** → this phase does not exist; go straight to Phase 3 on a default white canvas.
+- **Profile mandates a backdrop or visual treatment** → follow its recipe. The generic shape: generate/place the hero image first (into the `HeroContent` slot from the skeleton), then one `compose_backdrop` call — it moves the image into the BackgroundLayer, auto-samples the hero's bottom band, and colors the overlay. No geometry, no hex passing.
+- **Always verify with `look` before Phase 3** — the profile's recipe specifies success criteria ("no visible seam", "overlay text crisp", etc.).
 
 Examples of profile styles:
-- *Watercolor long image*: 1 hero image + 3-stop gradient overlay → use `compose_backdrop` after `generate_image`.
-- *Multi-segment*: 3 generated images + gradient-mask seams → use a `compose_segmented_backdrop` helper.
-- *Solid color*: no hero, single background rectangle → just `set_fill` on the root frame.
-- *Photo-led*: one full-bleed photo, no overlay → call `stock_photo` on a hero Frame and skip the overlay.
+
+- _Watercolor long image_: 1 hero image + continuous backdrop → `generate_image` into `HeroContent` (size it canvas_width × hero_height + 100 bleed, e.g. 750×850 — that is the hero's final display size), then `compose_backdrop({ root_id, canvas_width, canvas_height, hero_image_from: HeroContent.id })`.
+- _Multi-segment_: 3 generated images + gradient-mask seams → no dedicated helper exists yet; build the segments and alpha-mask gradients by hand per the profile recipe.
+- _Solid color_: no hero, single background rectangle → just `set_fill` on the root frame.
+- _Photo-led_: one full-bleed photo, no overlay → call `stock_photo` on a hero Frame and skip the overlay.
+
+Only call tools that actually exist in your tool list — if a profile recipe names a helper you don't have, follow the recipe's intent with `render` instead of inventing the call.
 
 The tool descriptions are authoritative for what each helper takes and returns; profile recipes are authoritative for which helpers a given style uses.
 

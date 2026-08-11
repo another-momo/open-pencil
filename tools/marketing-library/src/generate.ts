@@ -14,10 +14,18 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { exportFigFile } from '@open-pencil/core/io'
+import { computeAllLayouts } from '@open-pencil/core/layout'
 import { computeImageHash, SceneGraph, type SceneNode } from '@open-pencil/scene-graph'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const OUTPUT = join(here, '..', '..', '..', 'public', 'default-library.fig')
+
+/** Entry cards within a page: vertical stack with this gap. */
+const ENTRY_GAP = 40
+/** Horizontal gap between zone pages. */
+const PAGE_GAP = 200
+/** Long markdown texts wrap at this width so entries stay inspectable. */
+const MARKDOWN_WRAP_WIDTH = 560
 
 /** 32x32 solid brand-orange placeholder logo (same bytes as the retired code-side fallback) */
 const DEFAULT_LOGO_BASE64 =
@@ -43,12 +51,15 @@ function kv(graph: SceneGraph, parentId: string, line: string): void {
   })
 }
 
-function makeZonePage(graph: SceneGraph, name: string, x: number): SceneNode {
+function makeZonePage(graph: SceneGraph, name: string): SceneNode {
+  // x is assigned by layoutLibrary once content sizes are known.
   const page = graph.addPage(name)
-  page.x = x
+  page.x = 0
   page.y = 0
   return page
 }
+
+const ENTRY_FILL = { r: 0.96, g: 0.96, b: 0.96, a: 1 }
 
 function makeEntry(graph: SceneGraph, parentId: string, name: string): SceneNode {
   return graph.createNode('FRAME', parentId, {
@@ -57,7 +68,12 @@ function makeEntry(graph: SceneGraph, parentId: string, name: string): SceneNode
     itemSpacing: 4,
     primaryAxisSizing: 'HUG',
     counterAxisSizing: 'HUG',
-    fills: []
+    paddingTop: 16,
+    paddingBottom: 16,
+    paddingLeft: 16,
+    paddingRight: 16,
+    cornerRadius: 8,
+    fills: solid(ENTRY_FILL)
   })
 }
 
@@ -69,8 +85,6 @@ function addType(
     label: string
     size: string
     description: string
-    anchorFirst?: string
-    anchorLast?: string
   }
 ): void {
   const entry = makeEntry(graph, parentId, type.id)
@@ -78,8 +92,6 @@ function addType(
   kv(graph, entry.id, `label: ${type.label}`)
   kv(graph, entry.id, `size: ${type.size}`)
   kv(graph, entry.id, `description: ${type.description}`)
-  kv(graph, entry.id, `anchor_first: ${type.anchorFirst ?? ''}`)
-  kv(graph, entry.id, `anchor_last: ${type.anchorLast ?? ''}`)
 }
 
 /** Marker texts live inside the component but outside its auto-layout flow */
@@ -187,7 +199,7 @@ export function buildDefaultLibraryGraph(): SceneGraph {
   const logoHash = computeImageHash(logoBytes)
   graph.images.set(logoHash, logoBytes)
 
-  const typesPage = makeZonePage(graph, 'Types', 0)
+  const typesPage = makeZonePage(graph, 'Types')
   addType(graph, typesPage.id, {
     id: 'wechat_moments',
     label: '朋友圈广告',
@@ -204,16 +216,13 @@ export function buildDefaultLibraryGraph(): SceneGraph {
     id: 'xiaohongshu',
     label: '小红书图',
     size: '1080x1440',
-    description: '小红书种草图，生活化真实感',
-    anchorLast: 'BrandBar'
+    description: '小红书种草图，生活化真实感'
   })
   addType(graph, typesPage.id, {
     id: 'ecommerce_detail',
     label: '电商详情页',
     size: '750x',
-    description: '电商产品详情长图，卖点清晰有信任感',
-    anchorFirst: 'BrandBar',
-    anchorLast: 'CTABar'
+    description: '电商产品详情长图，卖点清晰有信任感'
   })
   addType(graph, typesPage.id, {
     id: 'event_poster',
@@ -231,12 +240,10 @@ export function buildDefaultLibraryGraph(): SceneGraph {
     id: 'product_long',
     label: '产品长图',
     size: '750x',
-    description: '产品叙事长图，高级感品质路线',
-    anchorFirst: 'BrandBar',
-    anchorLast: 'CTABar'
+    description: '产品叙事长图，高级感品质路线'
   })
 
-  const profilesPage = makeZonePage(graph, 'Profiles', 500)
+  const profilesPage = makeZonePage(graph, 'Profiles')
   const casual = makeEntry(graph, profilesPage.id, 'casual_v1')
   graph.createNode('TEXT', casual.id, {
     fontFamily: FONT,
@@ -249,8 +256,9 @@ export function buildDefaultLibraryGraph(): SceneGraph {
       '- 版式：留白充足，卖点用图标 + 短文案成组出现'
     ].join('\n'),
     fontSize: 12,
+    width: MARKDOWN_WRAP_WIDTH,
     fills: solid(DARK),
-    textAutoResize: 'WIDTH_AND_HEIGHT'
+    textAutoResize: 'HEIGHT'
   })
   kv(graph, casual.id, 'applicable_to: wechat_moments, xiaohongshu, dsp_banner')
 
@@ -286,16 +294,17 @@ export function buildDefaultLibraryGraph(): SceneGraph {
       'Restrained, atmospheric. Short sentences. No hard-sell phrasing ("限时秒杀", "最后一天"). Decorative elements live inside generated hero images, not as separate transparent overlays stacked on top — AI-generated PNGs do not reliably produce clean alpha channels, so do not plan around transparent brush strokes, ink splashes, or floating calligraphy.'
     ].join('\n'),
     fontSize: 12,
+    width: MARKDOWN_WRAP_WIDTH,
     fills: solid(DARK),
-    textAutoResize: 'WIDTH_AND_HEIGHT'
+    textAutoResize: 'HEIGHT'
   })
   kv(graph, watercolor.id, 'applicable_to: product_long, event_poster, xiaohongshu')
 
-  const componentsPage = makeZonePage(graph, 'Components', 1000)
+  const componentsPage = makeZonePage(graph, 'Components')
   buildBrandBar(graph, componentsPage.id, logoHash)
   buildCtaBar(graph, componentsPage.id)
 
-  const referencesPage = makeZonePage(graph, 'References', 1500)
+  const referencesPage = makeZonePage(graph, 'References')
   const ref = graph.createNode('FRAME', referencesPage.id, {
     name: 'ref-product-long-001',
     width: 375,
@@ -314,7 +323,35 @@ export function buildDefaultLibraryGraph(): SceneGraph {
   markerText(graph, ref.id, 'applicable_to: product_long', 160)
   markerText(graph, ref.id, 'tag: luxury_v1', 180)
 
+  layoutLibrary(graph)
+
   return graph
+}
+
+/**
+ * Pages don't auto-layout their children — without explicit positions every
+ * entry stacks at (0,0) and the zones sit 500px apart regardless of content
+ * width, making the shipped .fig unreadable by hand. Run the real layout
+ * engine once (hug sizes become concrete), then stack each page's entries
+ * vertically and place the pages side by side with generous gaps.
+ */
+function layoutLibrary(graph: SceneGraph): void {
+  computeAllLayouts(graph)
+  let cursorX = 0
+  for (const page of graph.getPages()) {
+    page.x = cursorX
+    page.y = 0
+    let cursorY = 0
+    let contentRight = 0
+    for (const childId of page.childIds) {
+      const child = graph.getNode(childId)
+      if (!child) continue
+      graph.updateNode(child.id, { x: 0, y: cursorY })
+      cursorY += child.height + ENTRY_GAP
+      contentRight = Math.max(contentRight, child.width)
+    }
+    cursorX += contentRight + PAGE_GAP
+  }
 }
 
 if (import.meta.main) {

@@ -447,6 +447,8 @@ export function setupMaterialType(
 
   const warnings = session?.index.warnings ?? []
 
+  const anchorPart =
+    anchors.length > 0 ? 'Root frame and anchor instances are ready.' : 'Root frame is ready.'
   return {
     materialType: id,
     label: config.label,
@@ -459,6 +461,6 @@ export function setupMaterialType(
     })),
     ...(warnings.length > 0 ? { warnings } : {}),
     ...(repaired.length > 0 ? { repaired } : {}),
-    note: `Root frame and anchor instances are ready. CRITICAL: render every section INTO the root frame with render({ parent_id: "${rootFrameId}", jsx: ... }) — sections rendered without parent_id land on the page as orphaned siblings and w="fill" collapses. Never pass id as a JSX prop.${collectReadonlyNote(session, config)}`
+    note: `${anchorPart} CRITICAL: render every section INTO the root frame with render({ parent_id: "${rootFrameId}", jsx: ... }) — sections rendered without parent_id land on the page as orphaned siblings and w="fill" collapses. Never pass id as a JSX prop.${collectReadonlyNote(session, config)}`
   }
 }

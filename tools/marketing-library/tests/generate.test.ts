@@ -43,6 +43,7 @@ describe('default-library.fig round-trip', () => {
 
     expect(index.profiles.map((profile) => profile.id)).toEqual([
       'casual_v1',
+      'watercolor_poster_v0',
       'watercolor_poster_v1',
       'editorial_poster_v1',
       'solid_poster_v1',
@@ -98,6 +99,16 @@ describe('default-library.fig round-trip', () => {
     )
     expect(variant.markdown).toContain('`watercolor_poster_v1`')
     expect(variant.markdown).toContain('center-left')
+
+    // 方法论对照组:v0 是 R0 重写前的扁平格式基线。反向断言是实验设计的
+    // 一部分——它若被"升级"成三段体系,同风格 A/B 对照即静默失效。
+    const legacy = expectDefined(
+      index.profiles.find((profile) => profile.id === 'watercolor_poster_v0')
+    )
+    expect(legacy.markdown).toContain('## Type scale')
+    expect(legacy.markdown).toContain('compose_backdrop')
+    expect(legacy.markdown).not.toContain('## Fixed system')
+    expect(legacy.markdown).not.toContain('## Anti-identity')
 
     expect(index.components.map((component) => component.name)).toEqual(['BrandBar', 'CTABar'])
     const brandBar = expectDefined(

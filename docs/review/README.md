@@ -4,8 +4,11 @@
 
 > ⚠ **本索引落后于目录**：`docs/review/` 现有 15 份评审，下表列出 10 份。缺 5 份待补：`2026-08-03-anchor-design-review.md`、`2026-08-03-fork-ci-known-issues.md`、`2026-08-04-look-tool-review.md`、`2026-08-05-state-mechanisms-review.md`、`2026-08-06-system-prompt-marketing-review.md`。
 
+> 📂 **跨项目方法论对照**见 `docs/research/`（与本目录并列，对象是外部材料而非 fork 自身代码/文档）。
+
 | 日期 | 文件 | 主题 | 主要影响 | 状态 |
 |---|---|---|---|---|
+| 2026-08-11 | research/2026-08-11-poster-quality-methodology-borrow.md | 海报感方法论借鉴评审：gc-minimal-zine-poster 的风格系统学——profile 三段式（Fixed / Variable / Anti-identity）+ 区间值 + 6 轴变体引擎 + 质量门；指出 openpencil 把风格当作"一段 markdown 注释"而非"工程产物"，R0+R1 是元动作 | docs/plans/tasks/poster-quality-experiment.md 下一轮 + knowledge/methodology.md | 新（待吸收） |
 | 2026-08-07 | long-image-design-quality-review.md | 长图设计质量：UI 感 vs 海报感。三层根因（能力披露缺口 / base 数值常量锁死比例 / 度量与流程只优化一致性）；核心实证：引擎已支持渐变·多重填充·蒙版·17 种 blend，prompt 明确否认其存在 | system-prompt-base.md + architecture/l2-agent-mode.md §1.2/§1.3/§9.3 + knowledge/methodology.md §4 | 待吸收（新） |
 | 2026-08-01 | marketing-workbench-branch-review.md | 营销工作台分支全景评审（67 commits / 161 文件 / +15,280 / -340） | 全 architecture/ | 待吸收（最新 8-1 写） |
 | 2026-07-31 | l2-resource-library-review-verification.md | 实习生 review 复核：抓 4 真问题 + 1 失真 + 1 错位；3 个 P0 标只有 1 个成立 | architecture/l2-resource-library.md | 已被 #4 吸收 |

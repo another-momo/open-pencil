@@ -151,25 +151,27 @@ describe('default-library.fig round-trip', () => {
 
   test('entries are laid out for human inspection (no overlap, pages side by side)', () => {
     // Pages don't auto-layout their children — the generator must assign
-    // explicit positions or every entry stacks at (0,0).
+    // explicit positions or every entry stacks at (0,0). Entries go
+    // horizontally: long profile markdown overflows its baked-in entry
+    // height (real text metrics only exist in-app), and a vertical stack
+    // would spill each entry onto the one below.
     const graph = buildDefaultLibraryGraph()
     const pages = graph.getPages()
     expect(pages.length).toBe(4)
 
     let previousPageRight = -Infinity
     for (const page of pages) {
-      let cursorBottom = 0
-      let contentRight = 0
+      let cursorRight = 0
       for (const childId of page.childIds) {
         const child = expectDefined(graph.getNode(childId), `child ${childId}`)
-        expect(child.y).toBeGreaterThanOrEqual(cursorBottom)
-        cursorBottom = child.y + child.height
-        contentRight = Math.max(contentRight, child.width)
-        expect(child.height).toBeGreaterThan(0)
+        expect(child.y).toBe(0)
+        expect(child.x).toBeGreaterThanOrEqual(cursorRight)
+        cursorRight = child.x + child.width
+        expect(child.width).toBeGreaterThan(0)
       }
       // Pages sit side by side with a real gap, ordered by creation.
       expect(page.x).toBeGreaterThanOrEqual(previousPageRight)
-      previousPageRight = page.x + contentRight
+      previousPageRight = page.x + cursorRight
     }
 
     // Long profile markdown wraps instead of running thousands of px wide.

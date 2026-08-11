@@ -523,25 +523,30 @@ export function buildDefaultLibraryGraph(): SceneGraph {
  * Pages don't auto-layout their children — without explicit positions every
  * entry stacks at (0,0) and the zones sit 500px apart regardless of content
  * width, making the shipped .fig unreadable by hand. Run the real layout
- * engine once (hug sizes become concrete), then stack each page's entries
- * vertically and place the pages side by side with generous gaps.
+ * engine once (hug sizes become concrete), then place each page's entries
+ * SIDE BY SIDE and the pages left to right with generous gaps.
+ *
+ * Entries go horizontally, not vertically: profile markdown is long, and its
+ * true rendered height only exists once the app measures text with real
+ * fonts — any height baked in here is an under-estimate, so in a vertical
+ * stack the overflow spills onto the entry below. In a horizontal row the
+ * overflow extends harmlessly downward.
  */
 function layoutLibrary(graph: SceneGraph): void {
   computeAllLayouts(graph)
-  let cursorX = 0
+  let pageCursorX = 0
   for (const page of graph.getPages()) {
-    page.x = cursorX
+    page.x = pageCursorX
     page.y = 0
-    let cursorY = 0
-    let contentRight = 0
+    let entryCursorX = 0
     for (const childId of page.childIds) {
       const child = graph.getNode(childId)
       if (!child) continue
-      graph.updateNode(child.id, { x: 0, y: cursorY })
-      cursorY += child.height + ENTRY_GAP
-      contentRight = Math.max(contentRight, child.width)
+      graph.updateNode(child.id, { x: entryCursorX, y: 0 })
+      entryCursorX += child.width + ENTRY_GAP
     }
-    cursorX += contentRight + PAGE_GAP
+    const pageWidth = entryCursorX > 0 ? entryCursorX - ENTRY_GAP : 0
+    pageCursorX += pageWidth + PAGE_GAP
   }
 }
 

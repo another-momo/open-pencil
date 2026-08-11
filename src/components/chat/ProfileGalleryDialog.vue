@@ -25,6 +25,16 @@ const cls = useDialogUI({
   overlay: 'z-50',
   content: 'w-[640px] max-w-[90vw] rounded-lg p-4 shadow-xl'
 })
+// The markdown preview is a real NESTED dialog (not a raw fixed div):
+// reka-ui's dismissable-layer stack lets only the topmost layer answer
+// outside clicks and Escape, and pointer events inside the content layer
+// are untouched — a hand-rolled overlay outside DialogContent gets its
+// scrollbar drag eaten by the modal layer and its clicks dismiss the
+// gallery dialog underneath.
+const previewCls = useDialogUI({
+  overlay: 'z-[60]',
+  content: 'z-[60] max-h-[85vh] w-[560px] max-w-[90vw] rounded-lg p-4 shadow-xl'
+})
 
 const profiles = computed(() => library.value?.index.profiles ?? [])
 const selectedId = computed(() => profileSelection.value?.id ?? null)
@@ -49,6 +59,13 @@ const previewProfile = computed(() =>
     : null
 )
 
+const previewOpen = computed({
+  get: () => previewProfile.value !== null,
+  set: (value: boolean) => {
+    if (!value) previewId.value = null
+  }
+})
+
 function pick(id: string) {
   setUserProfile(id)
   open.value = false
@@ -70,11 +87,7 @@ watch(open, (isOpen) => {
   <DialogRoot v-model:open="open">
     <DialogPortal>
       <DialogOverlay :class="cls.overlay" />
-      <DialogContent
-        data-test-id="profile-gallery-dialog"
-        :class="cls.content"
-        @escape-key-down="previewId = null"
-      >
+      <DialogContent data-test-id="profile-gallery-dialog" :class="cls.content">
         <DialogTitle class="text-sm font-semibold text-surface">
           {{ dialogs.profileGalleryTitle }}
         </DialogTitle>
@@ -175,44 +188,40 @@ watch(open, (isOpen) => {
           </DialogClose>
         </div>
       </DialogContent>
+    </DialogPortal>
+  </DialogRoot>
 
-      <!--
-        Markdown preview overlay. Must live OUTSIDE DialogContent: the content
-        slot centers itself with a CSS transform, which makes it the
-        containing block for `fixed` descendants — combined with its
-        `overflow-hidden`, a nested overlay would be clipped to the dialog
-        bounds and long profiles would render cut off.
-      -->
-      <div
-        v-if="previewProfile"
-        class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
-        @click.self="previewId = null"
-      >
-        <div
-          class="flex max-h-[85vh] w-[560px] max-w-[90vw] flex-col rounded-lg bg-panel p-4 shadow-2xl"
-        >
+  <!-- Nested preview dialog: the layer stack closes only this top layer on
+       overlay click / Escape, leaving the gallery dialog open underneath. -->
+  <DialogRoot v-model:open="previewOpen">
+    <DialogPortal>
+      <DialogOverlay :class="previewCls.overlay" />
+      <DialogContent data-test-id="profile-preview-dialog" :class="previewCls.content">
+        <template v-if="previewProfile">
           <div class="mb-2 flex shrink-0 items-center justify-between gap-3">
             <div class="min-w-0">
-              <div class="truncate text-sm font-semibold text-surface">
+              <DialogTitle class="truncate text-sm font-semibold text-surface">
                 {{ previewProfile.label || previewProfile.id }}
-              </div>
+              </DialogTitle>
               <div v-if="previewProfile.label" class="truncate font-mono text-[11px] text-muted">
                 {{ previewProfile.id }}
               </div>
             </div>
-            <button
-              type="button"
+            <DialogClose
               class="shrink-0 rounded p-1 text-muted hover:bg-hover hover:text-surface"
-              @click="previewId = null"
+              :aria-label="dialogs.close"
             >
               <icon-lucide-x class="size-3.5" />
-            </button>
+            </DialogClose>
           </div>
+          <DialogDescription class="sr-only">
+            {{ dialogs.profileGalleryShowMarkdown }}
+          </DialogDescription>
           <pre
             class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap rounded border border-border bg-panel-field p-3 text-[11px] leading-relaxed text-surface"
           ><code>{{ previewProfile.markdown }}</code></pre>
-        </div>
-      </div>
+        </template>
+      </DialogContent>
     </DialogPortal>
   </DialogRoot>
 </template>

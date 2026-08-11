@@ -271,7 +271,7 @@ export function buildDefaultLibraryGraph(): SceneGraph {
   graph.createNode('TEXT', watercolorLegacy.id, {
     fontFamily: FONT,
     text: [
-      '# Watercolor poster — legacy baseline (v0)',
+      '# Watercolor poster',
       '',
       'Wash-heavy poster style for long-form images and campaign key visuals. Visual weight comes from one continuous backdrop running under every section, not from per-section color blocks. Title sits on the image with strong contrast (heavy weight + shadow), not on top of transparent decorative layers.',
       '',
@@ -476,16 +476,13 @@ export function buildDefaultLibraryGraph(): SceneGraph {
     text: [
       '# Watercolor poster — center-left recipe',
       '',
-      'A locked-recipe variant of `watercolor_poster_v1` for A/B testing. ALL Fixed system rules, Anti-identity rules, and the Phase 2.5 recipe of `watercolor_poster_v1` apply unchanged — read that profile first and follow it exactly. Only the Variable picks below are locked for this recipe.',
+      'A locked-recipe variant of `watercolor_poster_v1`. ALL Fixed system rules, Anti-identity rules, and the Phase 2.5 recipe of `watercolor_poster_v1` apply unchanged — read that profile first and follow it exactly. Only the Variable picks below are locked for this recipe.',
       '',
       '## Locked picks (everything else per `watercolor_poster_v1`)',
       '',
       '- hero lockup: center-left — the title block sits vertically centered, left-aligned, inset by the side margin. The generation prompt must keep the center-left region calm and low-detail.',
       '- motif: ONE dominant wash mass right of center; the title counterweights it on the left. Not a symmetrical wash field.',
-      '- spacing: bias the uneven rhythm toward ONE oversized breathing gap right after the hero, before the first dense section.',
-      '',
-      '## Purpose',
-      'Same style system, different locked picks — use this recipe to compare against the base `watercolor_poster_v1` (lower-third default) and judge whether the Variable system produces visibly different layouts. Record which recipe produced each design.'
+      '- spacing: bias the uneven rhythm toward ONE oversized breathing gap right after the hero, before the first dense section.'
     ].join('\n'),
     fontSize: 12,
     width: MARKDOWN_WRAP_WIDTH,

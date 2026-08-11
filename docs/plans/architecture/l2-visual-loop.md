@@ -93,7 +93,7 @@ look({ id?, focus? })
 
 **原理**（评审 §3.2）：可读性是逐元素的局部属性，整图缩略承载的是关系属性（节奏、配比、重心）。拿 overview 问局部问题，给到原图也是错的——要修的不是"把 overview 变清楚"，而是"别拿 overview 问局部问题"。overview 糊是特性（等价于眯眼测试），不是缺陷。
 
-`scale = min(1, 1024/longEdge)` 本身是确定性函数，**只要 look 的对象正确，精度自动正确**：750×1050 的 section 得到 0.98 缩放、23px 文字，1024 单档足够。已实现的三条机制：
+`scale = min(1, 1024/longEdge)` 本身是确定性函数（**2026-08-11 起改为双向：大设计仍缩小至 ≤1024 长边，小节点放大至 512px 最小可判读边、×4 封顶——见下方修订小节**），**只要 look 的对象正确，精度自动正确**：750×1050 的 section 得到 0.98 缩放、23px 文字，1024 单档足够。已实现的三条机制：
 
 - **单一长边 1024，无分档**（原 zoom 级 1568 第二档属伪需求，已砍）
 - **look 算出可读性并在 note 中声明能力边界**：`minTextPx = min(子树内 Text.fontSize) × scale`，低于 12px 时 note 明确"可判断结构比例/视觉重心/色彩分布；⚠ 文字约 N px，不可判读"
@@ -102,6 +102,16 @@ look({ id?, focus? })
 配套用法（评审 §3.6）：describe 先定位文字风险候选（叠图文字、偏小字号、低对比度，确定性且便宜）→ look 只确认候选节点（1-2 次）→ CP4 前 look 一次整图（构图/重心）。一轮 CP4 全套约 2-3k tokens。
 
 明确砍掉（评审 §3.7）：`mode: 'overview' | 'read'`、`screen` 分屏、1568 第二档、按屏/按 section 的 look 预算硬约束、Set-of-Mark 叠层标注。
+
+### 2026-08-11 修订：原位合成导出 / 放大预检 / 导出元数据（look 三层改造）
+
+海报感实验的端午冒烟暴露了 V0 的三类系统性误判（透明节点与浅字在白底导出下白-on-白、放大失真被当设计元素），据此做了三层改造（实现与验收见 `docs/plans/tasks/poster-quality-experiment.md` 附记 8-11 §7）：
+
+- **L1 原位合成导出（in-context）**：无可见自有填充的节点（透明 HeroContent 等——内容漂浮在下层绘制之上）与近白文字（为深图设计、白底下不可见）自动改为**设计语境合成导出**：渲染管线新增 `renderInContext`（渲染活页而非抽取选区，复用 blend/BACKGROUND_BLUR 分支形态）与绝对坐标 `clip`（节点视觉包围盒 +48px margin，夹在设计 root 内）。设计 root 本身保持 isolated（其语境就是裸页面）。近白判定折入 fill 不透明度（低透明灰字同样触发）。supersample 网格跟随输出尺度（>2x 放大不再线性上采样模糊）。
+- **L2 放大预检**：小节点自动放大到 512px 最小可判读边（上限 ×4），note 声明放大倍率与"重采样伪影非设计属性"。
+- **L3 导出元数据 + 置信协议**：结果新增 `exportInfo(mode: original-bytes | isolated | in-context, scale, upscaled)`；vision prompt 增加置信协议——失真/条纹/块化区域必须声明为导出/重采样伪影，**禁止当作设计元素或缺陷描述**（对治"竖条纹"误判）。
+
+**明确不做"同一节点重复 look 去重省 token"**：节点自身未变 ≠ 其视觉上下文未变（HeroContent 没变不代表下层 HeroImg 没变），假阴性比浪费 token 代价高。`renderInContext` 的像素级回归测试：`tests/engine/io/raster-in-context.test.ts`（真实 CanvasKit：in-context 含下层绘制、isolated 不含）。
 
 ### 去重与上下文控制
 

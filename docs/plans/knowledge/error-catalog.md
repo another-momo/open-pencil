@@ -92,6 +92,7 @@
 | R5-6 | `generate_image` 请求 750×850 被 API 对齐为 768×864，静默打破 profile "1:1 无 cover-crop" 承诺（内容图更夸张：288×384→704×944） | API 16px 对齐 + 尺寸约束（工具描述与 prompt 矛盾的近似形态——note 有披露但 profile 措辞绝对化） | ✅ profile 措辞降级 approximately + plan 已知限制之二；采样带映射误差 ~2% 视觉无害 |
 | R5-7 | 需求单首句"画布命名为端午海报"，全程 38 次调用未 rename——根帧最终仍叫"产品长图" | 工作流无命名承接步骤，checkpoint 不覆盖命名类要求（prompt 规则缺失） | ❌ 忽略不做（2026-08-11 决策：小问题，用户可在画布侧自改；若复发再升级为 setup/CP1 承接） |
 | R5-8 | SachetImg 首次 "Failed to fetch"（重试成功）；GiftBox1 首图薄荷绿不符"白色带传统图案"（look 后重生成功） | 暂态网络错误 / 生图 prompt 色彩主导词不突出 | 观察——look-after-generate 纪律两次都接住了，流程内自愈 |
+| R5-9 | 日志头部媒体投递告警："media tool-result outputs are NOT in content form — the image was serialized as JSON text (toModelOutput wiring broken)"，1 degraded | toModelOutput 接线断——通道 A 下图片会被序列化为 JSON 文本喂给主模型（本环境主模型无视觉，靠通道 B 未受影响）（工具/代码缺陷） | ❌ 未修（合并面决策：真修碰 transports.ts 高危文件，收益不抵合并成本；若将来修，优先在 media-tool-results.ts 单侧解决） |
 
 **结论去向**：三层边界固化成立（结构 6/6），profile 驱动的 Phase 2.5 骨架通用性待 R6 对照组验证。量化指标本阶段停用（见 task plan 附记之三决议一）。
 

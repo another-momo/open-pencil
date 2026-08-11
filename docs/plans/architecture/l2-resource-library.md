@@ -93,6 +93,14 @@
 - **库组件禁用 variables 与嵌套实例**（Q10）——跨文档克隆不迁移变量引用；嵌套实例使 componentId 重映射跨组件依赖化
 - **物化机制**：`cloneSubtreeAcrossGraphs`（v1 任务 3）做跨文档子树克隆——递归建节点 + `cloneNodeProps` 拷属性 + old→new id 映射表 + 子树内 componentId 重映射 + imageHash 内容寻址搬运（`targetGraph.images.set`），收尾 `computeAllLayouts`
 
+### 4.1 2026-08-11 形态更新（海报感实验落地）
+
+- **Profiles 区扩为 6 个**（`casual_v1` / `watercolor_poster_v0` / `watercolor_poster_v1` / `editorial_poster_v1` / `solid_poster_v1` / `watercolor_poster_v1_center_left`），海报系 profile 采用**三段式风格系统**（`## Fixed system` 不变量 / `## Variable system` 离散轴 / `## Anti-identity` 反模式）+ `## Visual environment setup (Phase 2.5)` 工序节——方法论依据见 `docs/research/2026-08-11-poster-quality-methodology-borrow.md`；`watercolor_poster_v0` 是方法论对照组（扁平四件套冻结基线，测试含反向断言防"升级"污染）
+- **Profile 自包含规则（硬约束）**：profile markdown 是用户选中后**唯一**注入 agent 上下文的 profile 内容（`buildMarketingOverlay` 只注入选中者、目录不泄漏）——因此必须自包含，禁止跨 profile 引用（"read X first" 在运行时不可达）、禁止实验脚手架信息（对照组身份、A/B 目的、baseline 标签）。该规则源于三次同型的"注入面污染"（详见 `../knowledge/error-catalog.md` 错误分类约定），由 `tools/marketing-library/tests/generate.test.ts` 的跨引用守卫测试强制执行
+- **Types 区锚点声明移除**：`anchor_first` / `anchor_last` 解析契约保留（机制与 Components 区均在），但 shipped 预设类型暂不再声明锚点——锚点机制待重新设计
+- **条目横向排版**：生成器跑一次真实布局后把各区条目**横向**排列（长 profile 文本的真实高度只在 app 内测量才存在，纵向堆叠会互相压盖）；page 级坐标不持久化（.fig 不保存 page 位置）
+- **同步守卫**：`generate.test.ts` 含 shipped `.fig` 与生成器的内容级同步健康检查——改了 `generate.ts` 忘跑 `bun run generate` 会测试红
+
 ## 5. Reference：用户勾选注入素材区（2026-07-30 评审决议，Q8）
 
 **问题**：`look` / `describe` / `generate_image` 的 references 都只寻址当前文档 graph（`look.ts:57-79`、`apply.ts:42-51`）——库文件里的 reference 节点 AI 看不见。

@@ -32,13 +32,15 @@ Agent 不应该试图一次性完成整个设计。关键决策点交由用户�
 
 ## 2. 工作流概览
 
-### 2.1 四阶段流程
+### 2.1 四阶段流程（2026-08-11 修订：插入 Phase 2.5 物化槽）
 
 Phase 0 需求解析：从用户自然语言中推断素材类型、内容主题、风格倾向、约束条件，调用 `setup_material_type` 工具加载配置（见 §5）。
 
 Phase 1 方案规划 + Checkpoint 1：AI 提供 2-3 个方向选项（风格/配色/构图），用户选择方向后锁定。
 
-Phase 2 骨架生成 + Checkpoint 2：在根 frame 内生成 section 骨架（有锚点时位于锚点组件之间；section 划分、比例）和视觉骨架（色彩方案、字体方案），用户确认后锁定。
+Phase 2 骨架生成 + Checkpoint 2：在根 frame 内生成 section 骨架（有锚点时位于锚点组件之间；section 划分、比例）和视觉骨架（色彩方案、字体方案），用户确认后锁定。**若 Active profile 带 `## Visual environment setup (Phase 2.5)` 节，骨架必须前置其结构要求（hero 槽位、透明 section 等）——不得先确认无 hero 骨架再返工。**
+
+**Phase 2.5 视觉环境物化（2026-08-11 新增；实验中——已过单 profile 端午冒烟，R6 对照验证后转正）**：CP2 之后、Phase 3 之前的 profile 驱动槽位。工作流只固定**时机**（骨架确认后——图片生成耗时不许先于结构确认）与**出口契约**（`look` 验证）；**做什么由 profile 的 Phase 2.5 节供给**，无 profile 或无 setup 节则整段不存在。典型形态（水彩长图）：`generate_image` 入 hero 槽 → `compose_backdrop` 一次调用建立连续背景（自动采样中间 stop、bleed 遮缝）→ `look` 验证。设计依据、验收与冒烟结论见 `docs/plans/tasks/poster-quality-experiment.md`。
 
 Phase 3 内容填充 + Checkpoint 3（循环）：对每个 section，判断图片来源 → 获取/生成图片 → 填充文字/装饰 → 验证协调性。每次需要图片时由用户决定来源。
 
@@ -103,11 +105,13 @@ Checkpoint 交互是纯对话，不消耗步数。AI 在等待用户输入时暂
 |---|---|---|---|
 | `wechat_moments` | 朋友圈广告 | 1080×1080 | 无 |
 | `wechat_article_cover` | 公众号封面 | 900×500 | 无 |
-| `xiaohongshu` | 小红书图 | 1080×1440 | `BrandBar(bottom)` |
-| `ecommerce_detail` | 电商详情页 | 750×N | `BrandBar(top)` + `CTABar(bottom)` |
+| `xiaohongshu` | 小红书图 | 1080×1440 | 无 |
+| `ecommerce_detail` | 电商详情页 | 750×N | 无 |
 | `event_poster` | 活动海报 | 1080×1920 | 无 |
 | `dsp_banner` | DSP 广告 | 300×250（IAB） | 无 |
-| `product_long` | 产品长图 | 750×N | `BrandBar(top)` + `CTABar(bottom)` |
+| `product_long` | 产品长图 | 750×N | 无 |
+
+> **2026-08-11 变更**：所有预设类型的锚点声明已移除（`xiaohongshu` / `ecommerce_detail` / `product_long` 原分别声明 BrandBar / CTABar）——**锚点机制本身保留**（Components 区、物化、validate 结构校验均在），但 shipped 类型暂不再声明锚点，机制待重新设计。`setup_material_type` 的 note 与 marketing prompt 的锚点规则已同步改为"无锚点时不提锚点"。
 
 无预设覆盖的尺寸走 `custom` 兜底（AI 传 width/height）。
 

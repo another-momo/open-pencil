@@ -19,30 +19,25 @@
  *     [2+] content sections (appended later; paint on top)
  *
  * The kiss invariant (BaseWash < HeroImg < BackdropOverlay) is INTERNAL to
- * the BackgroundLayer — sibling insertions elsewhere in the root can never
- * break it.
+ * the BackgroundLayer — root-sibling insertions can never break it.
  *
  * Why HeroImg is taller than HeroContent (heroBleed, default 100): the fade
  * zone then lands inside the NEXT section's content area instead of running
  * as one full-width horizontal edge — the most visible seam shape.
  *
- * Color pipeline (no agent color reasoning required):
- *   explicit hero_color > auto-sample of the hero's bottom OVERLAP_PX band
- *   > white fallback. In the default flow the sampled band is exactly the
- *   strip the overlay covers (the hero is generated at the holder's final
- *   size, so pixels map 1:1). With cover-cropped user assets
- *   (hero_image_from) the sample is the pixel-space bottom band, which may
- *   not coincide with the displayed band — a color nuance, not an error.
+ * Color pipeline (no agent color reasoning required): explicit hero_color >
+ * auto-sample of the hero's bottom OVERLAP_PX band > white fallback. The
+ * sampled band is exactly the strip the overlay covers when pixels map 1:1;
+ * with cover-cropped user assets it is the pixel-space band — a nuance, not
+ * an error.
  *
  * Typical agent sequence (hero pixels first, one compose call):
  *   1. Phase 2 skeleton renders HeroContent (flow frame, h=heroHeight)
  *   2. generate_image into HeroContent
- *   3. compose_backdrop({ root_id, canvas_width, canvas_height,
- *      hero_image_from: HeroContent.id }) — the IMAGE fill is COPIED into
- *      the layer's HeroImg (HeroContent's own fills are cleared), the hero's
- *      bottom band is auto-sampled, and the overlay is colored
- *   4. Verify with look. Re-call any time the hero pixels change — the
- *      tool is idempotent (nodes are found by name and updated in place).
+ *   3. compose_backdrop({ ..., hero_image_from: HeroContent.id }) — the fill
+ *      is COPIED into HeroImg (HeroContent's fills are cleared), the hero
+ *      bottom band auto-sampled, the overlay colored
+ *   4. Verify with look. Idempotent — re-call any time hero pixels change.
  */
 
 import type { Fill, SceneGraph, SceneNode } from '@open-pencil/scene-graph'
@@ -96,7 +91,7 @@ export const composeBackdropTool = defineTool({
     hero_height: {
       type: 'number',
       description:
-        'Height of the hero slot in pixels (the HeroContent flow reservation). Default 750. Ignored when hero_image_from is given — the real height of the source node is used instead.',
+        'Height of the hero slot in pixels (the HeroContent flow reservation). Default 750. Ignored when hero_image_from is given — the slot then follows the source: a HeroContent source keeps its height; an external source counts as the full display height and the slot is hero_bleed shorter.',
       default: DEFAULT_HERO_HEIGHT,
       min: 100,
       max: 4000
@@ -117,7 +112,7 @@ export const composeBackdropTool = defineTool({
     hero_image_from: {
       type: 'string',
       description:
-        "Optional. Node id whose IMAGE fill should become the hero — typically the HeroContent frame you generated into. The fill is COPIED onto the layer's HeroImg; when the source is HeroContent its fills are then cleared to transparent (other source nodes are left untouched). The hero slot height follows the source node's real height."
+        "Optional. Node id whose IMAGE fill should become the hero — typically the HeroContent frame you generated into. The fill is COPIED onto the layer's HeroImg; when the source is HeroContent its fills are then cleared to transparent (other source nodes are left untouched). Geometry: HeroContent keeps its height as the slot (image bleeds hero_bleed past it); an external node's height is the full hero display height and the slot is hero_bleed shorter, so its pixels show 1:1 without upscaling."
     }
   },
   execute: async (figma, args) => {
@@ -134,8 +129,22 @@ export const composeBackdropTool = defineTool({
 
     const source = resolveImageSource(figma.graph, inputs)
     if ('error' in source) return { error: source.error }
-    const heroHeight = source.node ? source.node.height : inputs.heroHeight
+
+    // Geometry. Invariant: HeroImg = hero slot + heroBleed. A HeroContent
+    // source's height IS the slot (the image bleeds past it); an external
+    // source's height IS the display height — derive the slot by subtracting
+    // bleed, so adopted pixels are never upscaled.
+    const sourceIsSlot = source.node?.name === HERO_CONTENT_NAME
+    let heroHeight = inputs.heroHeight
+    if (source.node) {
+      heroHeight = sourceIsSlot ? source.node.height : source.node.height - inputs.heroBleed
+    }
     if (!Number.isFinite(heroHeight) || heroHeight < 100 || heroHeight >= inputs.canvasHeight) {
+      if (source.node && !sourceIsSlot) {
+        return {
+          error: `hero_image_from is ${source.node.height}px tall; minus hero_bleed (${inputs.heroBleed}) that leaves a ${heroHeight}px hero slot (minimum 100). Pass a smaller hero_bleed or a taller source.`
+        }
+      }
       return {
         error: `hero_height (${heroHeight}) must be a finite number in [100, canvas_height).`
       }
@@ -310,9 +319,8 @@ function resolveImageSource(
 }
 
 /**
- * Copy the source's IMAGE fill onto the layer-owned HeroImg. If the source
- * has no IMAGE fill but HeroImg already does (idempotent re-call after a
- * transfer), that is fine — nothing to do.
+ * Copy the source's IMAGE fill onto the layer-owned HeroImg. A missing
+ * source fill is fine on idempotent re-calls (already transferred).
  */
 function transferImageFill(
   graph: SceneGraph,
@@ -339,9 +347,8 @@ type HeroColorResolution = {
 
 /**
  * explicit hero_color > auto-sample of the hero's bottom OVERLAP_PX band >
- * white fallback. Sampling failures degrade to white (a plain white
- * transition) rather than erroring — structure must not fail because of
- * pixels.
+ * white fallback. Sampling failures degrade to white rather than erroring —
+ * structure must not fail because of pixels.
  */
 async function resolveHeroColor(
   graph: SceneGraph,
@@ -402,10 +409,9 @@ function findChildByName(
 }
 
 /**
- * The name-based upsert contract assumes the hero slot is named HeroContent.
- * A differently-named source keeps its IMAGE fill and stays in the flow —
- * painting above the BackgroundLayer and showing the hero twice. Detect any
- * other root child carrying an IMAGE fill so the note can warn.
+ * A root child other than the layer/HeroContent carrying an IMAGE fill means
+ * the hero likely paints twice (the flow copy sits above the overlay and
+ * defeats the fade). Detect it so the note can warn.
  */
 function findStrayImageName(
   graph: SceneGraph,
@@ -479,10 +485,9 @@ function upsertHeroContent(
 ): SceneNode {
   const existing = findChildByName(root, graph, HERO_CONTENT_NAME)
   if (existing) {
-    // Sync the flow reservation to the hero slot height; leave layout
-    // settings and children (agent's title/logo) untouched. Transparency is
-    // the slot's structural contract — an agent-set background fill would
-    // paint above the BackgroundLayer and hide it, so force it off.
+    // Sync the flow reservation to the hero slot height; leave layout and
+    // children (title/logo) untouched. Force fills=[] — the slot must stay
+    // transparent or it paints above the BackgroundLayer and hides it.
     graph.updateNode(existing.id, { width: canvasWidth, height: heroHeight, fills: [] })
     return existing
   }
@@ -580,21 +585,7 @@ function buildNote(input: {
 
 function hexToColor(hex: string): Color {
   const clean = hex.replace('#', '')
-  if (clean.length === 6) {
-    return {
-      r: Number.parseInt(clean.slice(0, 2), 16) / 255,
-      g: Number.parseInt(clean.slice(2, 4), 16) / 255,
-      b: Number.parseInt(clean.slice(4, 6), 16) / 255,
-      a: 1
-    }
-  }
-  if (clean.length === 8) {
-    return {
-      r: Number.parseInt(clean.slice(0, 2), 16) / 255,
-      g: Number.parseInt(clean.slice(2, 4), 16) / 255,
-      b: Number.parseInt(clean.slice(4, 6), 16) / 255,
-      a: Number.parseInt(clean.slice(6, 8), 16) / 255
-    }
-  }
-  return { r: 1, g: 1, b: 1, a: 1 }
+  if (clean.length !== 6 && clean.length !== 8) return { r: 1, g: 1, b: 1, a: 1 }
+  const channel = (i: number) => Number.parseInt(clean.slice(i, i + 2), 16) / 255
+  return { r: channel(0), g: channel(2), b: channel(4), a: clean.length === 8 ? channel(6) : 1 }
 }

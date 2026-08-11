@@ -227,6 +227,7 @@
 3. **双份图检测（命名契约的保险丝）**。工具的幂等与 adopt 都建立在"hero 槽命名 HeroContent"上；agent 用别的名字时会新建空 HeroContent 且源节点保留图像，hero 双份显示、fade 失效、无任何告警。现在检测 root 下其他携带 IMAGE fill 的子节点，命中即在 note 输出 WARNING 与修复指引。
 4. **非法 hero_color 不再静默吞掉**。校验失败仍降级走采样/白色兜底（结构不因拼错的 hex 失败），但 note 显式输出 "WARNING: hero_color ... was ignored"，agent 能知道自己拼错了。
 5. **注释与行为对齐**：`averageRegion` 的 alpha 注释改为描述真实行为（忽略 alpha 通道、透明像素贡献原始 RGB——对全不透明的 AI 生图精确），测试名同步修正；文件头的"采样带=覆盖带"不变量限定为默认流程成立（cover-crop 用户素材下见已知限制）。
+6. **hero 几何语义修正（端午冒烟的 850→964 问题）**。外部源 adopt 原来把源节点高度直接当 hero 槽高、再加 bleed 得 HeroImg——agent 未传 `id` 生出的 768×864 独立节点被 adopt 后变成槽 864 / HeroImg 964，HeroContent 也被静默撑高 114px。现在按源类型区分：**HeroContent 源**高度=槽（图像按 bleed 外溢，生成配方不变）；**外部源**高度=HeroImg 显示高度，槽=源高−bleed，adopt 像素永不上采样（同例变成槽 764 / HeroImg 864，与 API 对齐后的生图原生尺寸 1:1）。过矮外部源（减 bleed 后槽 <100px）返回带修复指引的错误，不再静默通过。测试 +2 case（768×864 原生尺寸 adopt 含幂等不动点、过矮源报错），29/29 全绿。
 
 **已知限制（记录，暂不修）**：`hero_image_from` 接 cover-crop 用户素材时，自动采样取的是图像素空间 bottom 100px，与 cover-crop 后实际显示的底带可能不重合——结果是中间 stop 颜色与视觉底带有色差，属颜色偏差而非结构错误。默认流程（按 holder 最终尺寸生图）不受影响。若未来要修：在工具内按 FILL 模式 cover-crop 公式把采样区换算到显示空间。
 

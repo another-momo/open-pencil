@@ -349,8 +349,9 @@ describe('compose_backdrop tool', () => {
       // Source IS the HeroContent node (found by name) → cleared to transparent.
       expect(g.getNode(hero.id)?.fills).toEqual([])
       expect(ids.hero_content_id).toBe(hero.id)
-      // Hero slot height follows the source node's real height.
+      // HeroContent keeps its height as the slot; the image bleeds past it.
       expect(ids.hero_height).toBe(750)
+      expect(g.getNode(ids.hero_img_id)?.height).toBe(850)
     })
 
     it('leaves non-HeroContent source nodes untouched', async () => {
@@ -367,9 +368,63 @@ describe('compose_backdrop tool', () => {
 
       expect(g.getNode(ids.hero_img_id)?.fills[0]?.type).toBe('IMAGE')
       expect(g.getNode(asset.id)?.fills[0]?.type).toBe('IMAGE')
-      // hero slot = source height 600; HeroImg = 600 + 100 bleed.
-      expect(g.getNode(ids.hero_content_id)?.height).toBe(600)
-      expect(g.getNode(ids.hero_img_id)?.height).toBe(700)
+      // External source: its height IS the hero display height — HeroImg
+      // matches it 1:1 (no upscale), and the slot is bleed shorter.
+      expect(g.getNode(ids.hero_img_id)?.height).toBe(600)
+      expect(g.getNode(ids.hero_content_id)?.height).toBe(500)
+    })
+
+    it('adopts a generated-size external image at native height (the 768×864 smoke-run case)', async () => {
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      // The API-aligned generation the smoke run produced: agent generated
+      // standalone instead of into HeroContent, source node = 768×864.
+      const generated = g.createNode('FRAME', root.id, {
+        name: 'Watercolor wash illustration',
+        width: 768,
+        height: 864,
+        fills: [makeImageFill()]
+      })
+
+      const ids = await build(g, root.id, { hero_image_from: generated.id })
+
+      // HeroImg = 864 (image native height, not 864+100=964), slot = 764.
+      expect(g.getNode(ids.hero_img_id)?.height).toBe(864)
+      expect(ids.hero_height).toBe(764)
+      expect(g.getNode(ids.hero_content_id)?.height).toBe(764)
+      // Overlay fade spans the image's actual bottom 100px.
+      expect(ids.overlay_position.y).toBe(764)
+
+      // Idempotent re-call with the now-synced HeroContent stays at the
+      // fixed point (slot 764 → HeroImg 864), no geometric drift.
+      const second = await build(g, root.id, { hero_image_from: ids.hero_content_id })
+      expect(second.hero_height).toBe(764)
+      expect(g.getNode(second.hero_img_id)?.height).toBe(864)
+    })
+
+    it('returns a helpful error when an external source is too short for hero_bleed', async () => {
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      const tiny = g.createNode('RECTANGLE', root.id, {
+        name: 'TinyPhoto',
+        width: 750,
+        height: 150,
+        fills: [makeImageFill()]
+      })
+
+      const result = await composeBackdropTool.execute(makeFigma(g), {
+        root_id: root.id,
+        canvas_width: 750,
+        canvas_height: 2120,
+        hero_image_from: tiny.id
+      })
+      // NOTE: bun's toMatchObject writes asymmetric matchers into the received
+      // object — two toMatchObject calls with different stringContaining on
+      // the same property make the second see the first's matcher. Match the
+      // error string directly instead.
+      if (!('error' in result)) throw new Error('expected an error result')
+      expect(result.error).toEqual(expect.stringContaining('hero_bleed'))
+      expect(result.error).toEqual(expect.stringContaining('150px'))
     })
 
     it('says "copied" (not "moved") in the note and flags the uncleared source as a stray image', async () => {

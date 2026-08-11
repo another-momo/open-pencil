@@ -147,19 +147,11 @@
 | 5 | bleed 遮缝 | HeroImg 高度 = 750 + hero_bleed（默认 100),fade 区落在下一个内容 section 的内容区内，接缝被内容打断而非通长横线 |
 | 6 | 标题不洗色 | HeroContent 透明底、位于整个 BackgroundLayer 之上；标题文字不被 overlay 淡入区覆盖 |
 
-海报感指标（评审第二部分 8 条中取可快速判读的 5 条）：
-
-| 指标 | 阈值 |
-|---|---|
-| 字阶跨度 `max/median fontSize` | ≥ 5 |
-| 背景连续性 | overlay 跨越 ≥60% 画布高度 |
-| 叠压率 | 内容节点与图片节点包围盒相交 > 0 |
-| 留白变异系数 | > 0.3 |
-| 出血 | ≥1 个元素触达画布边缘 |
-
 **装饰元素检查**（必查）：设计中**不应**出现依靠"AI 生成透明 PNG"做垫底装饰的做法——这在 profile 里被明令禁止。
 
 本轮**手工判读**，不建 `critique` 工具（那是 P3，取决于本轮结论）。
+
+> ⚠ **海报感量化指标本阶段停用（2026-08-11 决议）**：原在此处的 5 条指标（字阶跨度 ≥5 / 背景连续性 ≥60% / 叠压率 >0 / 留白 CV >0.3 / 出血 ≥1）已移除，不再要求实测数值。理由有三：① **同义反复**——背景连续性/叠压率/出血在 wrapper v2 后被 `compose_backdrop` 结构性保证，度量的是"工具跑没跑"而非海报感；② **口径漂移 + 不可达**——字阶 max/median 转写自评审一的 Display/Body 比（6–10×），median 被正文稀释，且 ≥5 在 profile 字阶区间（hero≤110、body≥20）下数学不可达（拉满仅 4.2）；③ **未校准**——留白 CV>0.3 无参考分布支撑。指标体系（含接缝像素差分、标题带对比度自动化等新判据）留待 `critique` 工具阶段统一设计。本轮验收只看结构 6 条 + 装饰元素检查 + 手工判读。
 
 ## 明确不做
 
@@ -237,6 +229,26 @@
 
 **已知限制（记录，暂不修）**：`hero_image_from` 接 cover-crop 用户素材时，自动采样取的是图像素空间 bottom 100px，与 cover-crop 后实际显示的底带可能不重合——结果是中间 stop 颜色与视觉底带有色差，属颜色偏差而非结构错误。默认流程（按 holder 最终尺寸生图）不受影响。若未来要修：在工具内按 FILL 模式 cover-crop 公式把采样区换算到显示空间。
 
+**已知限制（之二，2026-08-11 端午冒烟补）**：`generate_image` 的 API 尺寸调整同样打破 1:1 映射——默认流程请求 750×850 被对齐为 768×864（FILL 显示于 750×850 holder ≈0.984 缩放，采样带映射误差 ~2%，视觉无害）；内容图更夸张（288×384 → 704×944，2.44 倍）。profile 措辞已从 "exactly what is shown (no cover-crop)" 降级为 "approximately"（见附记之三 ④）。若未来要彻底消除：生图工具按 holder 尺寸反向请求（先对齐再生成），或在 compose_backdrop 内按实际像素比换算采样带。
+
 **测试矩阵更新**：`compose-backdrop.test.ts` 27 case（+非法 hex 警告 2、note 语义 2、stray 检测 1——其中 2 个复用现有 describe);50/50 全绿。
 
-**冒烟记录要求（补）**：跑端午用例时，5 条量化指标（字阶跨度 / 背景连续性 / 叠压率 / 留白变异系数 / 出血）要记录**实测数值**，不是只打勾；手工判读的可靠性靠留痕弥补。若本轮结论为"成效明显"，固化三层边界前先补一个非水彩 profile（哪怕 solid-color）验证 Phase 2.5 骨架通用性——目前 profile-driven 抽象只有 n=1 证据。
+## 附记 2026-08-11（之三）：端午冒烟结论 + 两项决议
+
+**端午冒烟已跑**（watercolor_poster_v1，MiniMax-M3 + 通道 B，34 步 / 38 调用）。结构验收 6/6 全落地（BackgroundLayer 拓扑、三段 stop、`color_source: sampled`、bleed 遮缝、标题不洗色）；主路径恰好 3 调用（generate_image → compose_backdrop → look）如设计；Anti-identity 拦截了一次垫字色块。判定：**部分成效**——结构层全通，标题可读性经一轮修复（白字 × 米白平静底 ≈1.1:1，agent 自行改深墨字 + 白发光解决）。完整分析待归档 error-catalog 第 5 轮。
+
+**决议一：海报感量化指标本阶段停用**（见 §验证的 ⚠ 注）。指标体系设计本身有问题（同义反复 / 口径漂移 / 未校准），留待 `critique` 工具阶段统一重构；当前阶段不再计算这些值。
+
+**决议二：profile 自包含规则立规**。center_left 变体的 recipe-as-overlay 形态证伪——`buildMarketingOverlay` 只注入选中的 profile，"read `watercolor_poster_v1` first" 在运行时不可达，变体实际在无约束下运行（R6 对照 c 臂失效）。这是"注入面污染"的第三次同型出现（前两次见 8-11 附记 §12）。处理：变体已改写为**自包含三段体系**（锁定 pick 作为本配方的既定选择写入正文，无任何跨 profile 引用）；规则已写入 `knowledge/error-catalog.md` 错误分类约定，并由 `generate.test.ts` 的跨引用守卫测试强制执行。
+
+**已落地（2026-08-11 终审修复批，全部完成）**：
+
+1. **渐变首 stop 透明主题色**（实测配方）：BackdropOverlay 首 stop 由透明白改为透明主题色——fade 区变为纯 alpha 渐变，hero 底带直接溶入自身色相，消除白色污染带；白色兜底路径逐像素等价旧行为。`compose-backdrop.ts` + 测试钉扎更新（含白色兜底退化用例）。
+2. **Anti-identity 作用域**：拆为 "In the HERO slot"（禁 alpha=1 垫字色块）与 "In CONTENT sections"（禁割裂共享背景的色块；正文密集区允许 alpha<0.5 半透明可读性辅助）——端午冒烟中 agent 把 hero 禁令泛化到正文区（且误引 "opaque" 条款于 50% 透明卡）。v1 + R6 三 profile 同步，v0 冻结（测试含反向断言防渗入）。
+3. **标题带影调 ↔ 字色配对规则**：Fixed 段新增"平静浅底 → 深墨字 / 浓郁底 → 白字，生图 prompt 显式声明选择"——1.1:1 对比度事故的根因修复；Phase 2.5 step 2/4 同步（不可读时按字色调影调重生，而非加遮罩）。
+4. **1:1 措辞降级**：profile 与 step 2 的 "exactly what is shown (no cover-crop)" 改为 approximately（API 16px 对齐的实测偏差，见已知限制之二）。
+5. **compose_backdrop 零静默失败收尾**（终审 M1/m1/m2/m3）：① 漏传 `hero_image_from` 且 HeroContent 携带 IMAGE fill 时**隐式 adopt**（此前会静默清掉新图且 note 谎报 "No hero image yet"）+ note 声明隐式来源；② `sourceIsSlot` 由名字判定改**身份判定**（恰好同名的嵌套节点不再触发上采样语义）；③ stray 检测收窄为**叶子节点**（带内容子树的 section 背景图不再误报）；④ 校验补齐——canvas/bleed/hero_height 上限落实、root 非 auto-layout 报错、canvas_width 与 root 宽度不符时 note WARNING。
+6. **小修**：`sample_hero_color` 非法 direction 在 note 声明回退；`look` 近白判定折入 fill 不透明度（50% 浅灰字也触发 in-context）；marketing prompt 的 CP 段接线 `set_effects`（改已有节点效果不再走 eval）；R6 三 profile + v1 + center_left 的 Phase 2.5 公共段抽为共享常量防漂移。
+7. **测试**：compose-backdrop 36 case（+8 新）、sample-color 7（+CanvasKit mock 成功路径）、look 22（+透明度折入）、generate 6（+shipped .fig 内容级同步健康检查 + v0 冻结反向断言延伸）；全部绿。
+
+**仍未做（明确决策）**：batch_update 不支持 props 静默 `updated:0`（T1）、renderScale 像素预算（M2，拟改道 files.ts 包装层）、通道 A media wiring——三项因合并面考量本轮不动（见 fork-divergence.md §6 2026-08-11 条目与分支终审 §五）。

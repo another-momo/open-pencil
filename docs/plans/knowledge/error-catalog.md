@@ -76,6 +76,25 @@
 - **叠字 hero ✅ 已修**：`generate_image`/`stock_photo` 开放 Frame 背景填充（stock 删 has-children guard，两工具描述同步），prompt Hero pattern 改为 Frame 背景图 + flex 文字子节点（附 JSX 配方 + 可读性三件套：text shadow / 深色 scrim / 避开图像繁忙区）。
 - **待下轮冒烟验证**：叠字 hero 产出、look 去重行为、R4-1 显式尺寸生效、护栏场景回归。
 
+## 第 5 轮（2026-08-11）— 海报感实验：端午长图冒烟（watercolor_poster_v1）
+
+测试需求：端午活动 product_long 长图（需求单驱动，方向 C 淡彩薄荷，全部图片 AI 生成）。环境：MiniMax-M3 + 视觉通道 B；34 步 / 38 次工具调用（15 次 mutation）/ 输入 1.29M tokens（cache 命中 97%）。
+
+**总判：部分成效（偏好）**——结构验收 6/6 全落地（BackgroundLayer 拓扑 / 三段 stop / `color_source: sampled` / bleed 遮缝 / 标题不洗色）；Phase 2.5 主路径恰好 3 调用（generate_image → compose_backdrop → look），零几何零 hex 转抄如设计。正面信号：Anti-identity 主动拦截了一次垫字色块（agent 自述引用禁令撤回 `#FFFFFF80` 卡片——但见 R5-4 的精度问题）；vision 置信协议两次起效（R5-5）。
+
+| # | 现象 | 根因 | 修复 |
+|---|---|---|---|
+| R5-1 | hero 标题 88px 白字落在"平静米白底"（采样实测 #EFEDD9）上，对比度 ≈1.1:1；profile 官方补救（重生图）对此无解——底带已是最佳平静度，问题在影调方向 | **profile Fixed 段内部矛盾**："浅色平静低细节底带"与"白字 + 阴影"预设天然冲突（prompt 规则缺失/打偏，profile 层） | ✅ profile 写入"影调 ↔ 字色"配对规则（浅平静底→深墨字 / 浓郁底→白字，生图 prompt 显式声明）；agent 当轮自行改深墨 #2E3A33 + 白发光解决 |
+| R5-2 | `batch_update` 传 color/shadow 返回 `{"updated":0}`，无 errors 无 warning | `applyBatchProps` 不支持的 props 使 op 凭空消失（工具/代码缺陷） | ❌ 未修——合并面决策（batch.ts 为 M 类低危，本轮不动；见 fork-divergence §6 2026-08-11）。agent 当轮自行降级到 set_fill |
+| R5-3 | agent 用 `eval` 手写 raw API 给文字加白色发光，而不知有 `set_effects` 专用工具 | prompt 只提 render 期 `shadow=` helper，未提修改期工具（prompt 规则缺失） | ✅ marketing.md CP 段接线"改已有节点效果用 set_effects，不要用 eval" |
+| R5-4 | agent 引用 Anti-identity "No opaque plates" 撤掉了 `#FFFFFF80`（50% 透明）信息卡——**字面上该卡并不 opaque**；禁令被从 hero 标题带泛化到正文区 | Anti-identity 条目无作用域与可判定判据（prompt 规则打偏，profile 层）。所幸结果无害（look 证实无卡也可读） | ✅ 禁令拆作用域："In the HERO slot"（禁 alpha=1 垫块）/ "In CONTENT sections"（禁割裂背景色块，允许 alpha<0.5 可读性辅助） |
+| R5-5 | 通道 B 两次误判：①幻觉"标题粉色描边"；②误判"流苏压字"并建议加 scrim（恰好是 profile 明令禁止的反模式） | 视觉模型固有噪声（视觉误判——**该预留分类首次启用**） | ✅ 无需修：agent 零采纳违规建议，用 original-bytes look（纯图无字）结构性解决冲突——L1/L3 设计起效。代价 +2 次 look |
+| R5-6 | `generate_image` 请求 750×850 被 API 对齐为 768×864，静默打破 profile "1:1 无 cover-crop" 承诺（内容图更夸张：288×384→704×944） | API 16px 对齐 + 尺寸约束（工具描述与 prompt 矛盾的近似形态——note 有披露但 profile 措辞绝对化） | ✅ profile 措辞降级 approximately + plan 已知限制之二；采样带映射误差 ~2% 视觉无害 |
+| R5-7 | 需求单首句"画布命名为端午海报"，全程 38 次调用未 rename——根帧最终仍叫"产品长图" | 工作流无命名承接步骤，checkpoint 不覆盖命名类要求（prompt 规则缺失） | ❌ 忽略不做（2026-08-11 决策：小问题，用户可在画布侧自改；若复发再升级为 setup/CP1 承接） |
+| R5-8 | SachetImg 首次 "Failed to fetch"（重试成功）；GiftBox1 首图薄荷绿不符"白色带传统图案"（look 后重生成功） | 暂态网络错误 / 生图 prompt 色彩主导词不突出 | 观察——look-after-generate 纪律两次都接住了，流程内自愈 |
+
+**结论去向**：三层边界固化成立（结构 6/6），profile 驱动的 Phase 2.5 骨架通用性待 R6 对照组验证。量化指标本阶段停用（见 task plan 附记之三决议一）。
+
 ## 错误分类约定
 
 后续追加时按类标记，便于统计模式：
@@ -86,3 +105,4 @@
 - **lint 信噪比**（R3-4）
 - **致命工作流断裂**（R2-1）
 - **视觉误判**（预留，视觉回路接入后启用）
+- **注入面污染（实验/开发脚手架信息泄露进 agent 可见内容）**——海报感实验中三次同型（2026-08-10/11，评审发现而非冒烟发现）：① `watercolor_poster_v1_center_left` 含 `## Purpose` 节与 "for A/B testing" 表述；② v0 标题带 "(legacy baseline)" 标签；③ center_left 正文引用 `watercolor_poster_v1`（"read that profile first"）。①② 是评估者视角元信息偏置 agent 行为；③ 更隐蔽——profile markdown 是选中后**唯一**注入 agent 上下文的 profile 内容（`buildMarketingOverlay` 只注入选中者、目录不泄漏），跨 profile 引用在运行时不可达，被引规则静默失效（若未发现，R6 对照 c 臂在无约束下运行，A/B 结论失真）。**规则：profile 必须自包含、只承载风格指令；实验设计只存在于 id 命名、代码注释与任务文档。** 守卫：`tools/marketing-library/tests/generate.test.ts` "profiles never cross-reference each other"（词边界正则，防 id 前缀误报）。

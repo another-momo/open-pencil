@@ -2,12 +2,13 @@
 
 按时间倒序。每份标注：讨论主题 / 主要影响的架构文档 / 状态（已被设计文档吸收 / 仍是 ORPHAN）。
 
-> ⚠ **本索引落后于目录**：`docs/review/` 现有 15 份评审，下表列出 10 份。缺 5 份待补：`2026-08-03-anchor-design-review.md`、`2026-08-03-fork-ci-known-issues.md`、`2026-08-04-look-tool-review.md`、`2026-08-05-state-mechanisms-review.md`、`2026-08-06-system-prompt-marketing-review.md`。
+> ⚠ **本索引落后于目录**：`docs/review/` 现有 16 份评审，下表列出 12 份。缺 5 份待补：`2026-08-03-anchor-design-review.md`、`2026-08-03-fork-ci-known-issues.md`、`2026-08-04-look-tool-review.md`、`2026-08-05-state-mechanisms-review.md`、`2026-08-06-system-prompt-marketing-review.md`。
 
 > 📂 **跨项目方法论对照**见 `docs/research/`（与本目录并列，对象是外部材料而非 fork 自身代码/文档）。
 
 | 日期 | 文件 | 主题 | 主要影响 | 状态 |
 |---|---|---|---|---|
+| 2026-08-11 | 2026-08-11-poster-quality-experiment-branch-review.md | 海报感实验分支终审（23 commits / +3448）：方案与代码一致、测试真实钉扎；1 Critical（center_left overlay 形态 × 单 profile 注入机制不兼容，R6 对照 c 臂在无约束下运行）+ 2 Major（compose_backdrop 漏传 hero_image_from 静默清图；renderScale 无像素预算）+ 3 Minor；含 shipped .fig 语义同步实证 | docs/plans/tasks/poster-quality-experiment.md 下一轮修复 | 部分吸收（C1 已闭环：变体自包含 + 守卫测试；量化指标经讨论后本阶段停用） |
 | 2026-08-11 | research/2026-08-11-poster-quality-methodology-borrow.md | 海报感方法论借鉴评审：gc-minimal-zine-poster 的风格系统学——profile 三段式（Fixed / Variable / Anti-identity）+ 区间值 + 6 轴变体引擎 + 质量门；指出 openpencil 把风格当作"一段 markdown 注释"而非"工程产物"，R0+R1 是元动作 | docs/plans/tasks/poster-quality-experiment.md 下一轮 + knowledge/methodology.md | 新（待吸收） |
 | 2026-08-07 | long-image-design-quality-review.md | 长图设计质量：UI 感 vs 海报感。三层根因（能力披露缺口 / base 数值常量锁死比例 / 度量与流程只优化一致性）；核心实证：引擎已支持渐变·多重填充·蒙版·17 种 blend，prompt 明确否认其存在 | system-prompt-base.md + architecture/l2-agent-mode.md §1.2/§1.3/§9.3 + knowledge/methodology.md §4 | 待吸收（新） |
 | 2026-08-01 | marketing-workbench-branch-review.md | 营销工作台分支全景评审（67 commits / 161 文件 / +15,280 / -340） | 全 architecture/ | 待吸收（最新 8-1 写） |

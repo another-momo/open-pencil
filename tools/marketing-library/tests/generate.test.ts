@@ -43,7 +43,10 @@ describe('default-library.fig round-trip', () => {
 
     expect(index.profiles.map((profile) => profile.id)).toEqual([
       'casual_v1',
-      'watercolor_poster_v1'
+      'watercolor_poster_v1',
+      'editorial_poster_v1',
+      'solid_poster_v1',
+      'watercolor_poster_v1_center_left'
     ])
     expect(index.profiles[0].label).toBe('休闲活泼风格')
     expect(index.profiles[0].description).toContain('配色')
@@ -72,6 +75,29 @@ describe('default-library.fig round-trip', () => {
     expect(poster.markdown).toContain('## Variable system')
     expect(poster.markdown).toContain('## Anti-identity')
     expect(poster.markdown).toContain('No opaque plates behind text')
+
+    // R6 对照组:editorial / solid 共享同一 Phase 2.5 骨架但视觉语言不同;
+    // center_left 是 watercolor 的锁定配方变体(recipe-as-overlay,正文指向
+    // 基底 profile)。三者丢失即对照实验静默缩水。
+    const editorial = expectDefined(
+      index.profiles.find((profile) => profile.id === 'editorial_poster_v1')
+    )
+    expect(editorial.markdown).toContain('## Fixed system')
+    expect(editorial.markdown).toContain('## Anti-identity')
+    expect(editorial.markdown).toContain('compose_backdrop')
+    expect(editorial.markdown).toContain('88–128px')
+    const solidGeo = expectDefined(
+      index.profiles.find((profile) => profile.id === 'solid_poster_v1')
+    )
+    expect(solidGeo.markdown).toContain('## Fixed system')
+    expect(solidGeo.markdown).toContain('## Anti-identity')
+    expect(solidGeo.markdown).toContain('compose_backdrop')
+    expect(solidGeo.markdown).toContain('56–84px')
+    const variant = expectDefined(
+      index.profiles.find((profile) => profile.id === 'watercolor_poster_v1_center_left')
+    )
+    expect(variant.markdown).toContain('`watercolor_poster_v1`')
+    expect(variant.markdown).toContain('center-left')
 
     expect(index.components.map((component) => component.name)).toEqual(['BrandBar', 'CTABar'])
     const brandBar = expectDefined(

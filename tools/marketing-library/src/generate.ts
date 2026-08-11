@@ -281,13 +281,13 @@ export function buildDefaultLibraryGraph(): SceneGraph {
       '- One continuous backdrop under EVERY section. Per-section color blocks are a different style.',
       '- Extreme type contrast: hero title 72–110px on a 750px-wide canvas (a 6–8 character title fills a line). Section titles 36–48. Body 20–24, captions 16–18. Weights: Hero Heavy or Black, body Regular. A hero headline stacks size + weight + color + shadow at the same time — single-property hierarchy is for information-dense layouts, not this style.',
       '- Deliberately uneven spacing: hero segment → large breathing space → information-dense segment → tight space → breathing space again. Constant rhythm reads as a screen.',
-      '- Hero title legibility comes from the IMAGE\'s own tonal design: the title band of your lockup pick (below) must sit on a calm, low-detail region of the hero image, requested in the generation prompt. Never patch legibility afterwards.',
-      '- Hero pixels are generated at the holder\'s final size (750×850 = slot 750 + bleed 100) with the bottom ~100px calm — that band maps 1:1 onto the fade zone.',
+      "- Hero title legibility comes from the IMAGE's own tonal design: the title band of your lockup pick (below) must sit on a calm, low-detail region of the hero image, requested in the generation prompt. Never patch legibility afterwards.",
+      "- Hero pixels are generated at the holder's final size (750×850 = slot 750 + bleed 100) with the bottom ~100px calm — that band maps 1:1 onto the fade zone.",
       '',
       '## Variable system (choose per design; record your picks)',
       '',
       '- hero lockup: { lower-third (default), center-left, upper-float } — where the title block sits inside the hero slot. The generation prompt must keep THAT region calm and low-detail.',
-      '- palette: auto-sampled from the hero\'s bottom band by compose_backdrop — never a fixed hex.',
+      "- palette: auto-sampled from the hero's bottom band by compose_backdrop — never a fixed hex.",
       '- section sequence and density: content-driven, but keep the uneven rhythm.',
       '- motif: the watercolor metaphor follows the brief (a season, a place, a mood) — one motif per design, not a collage.',
       '',
@@ -305,7 +305,7 @@ export function buildDefaultLibraryGraph(): SceneGraph {
       '1. (Phase 2 skeleton) Render a transparent Frame named `HeroContent` as the first flow child of the root frame, h=750, w=canvas width. All content sections have transparent fills — visual weight comes from the shared backdrop, not per-section color blocks.',
       '2. Pick your hero lockup (Variable system). Call `generate_image` with `width: 750, height: 850` and `id: HeroContent.id` — 850 = hero slot (750) + bleed (100), the FINAL display size of the hero image holder, so what you compose is exactly what is shown (no cover-crop). Watercolor-style prompt; keep the bottom ~100px calm (maps 1:1 onto the fade zone) AND keep the title-band region of your lockup pick calm and low-detail — that is where the headline sits.',
       "3. Call `compose_backdrop({ root_id, canvas_width: 750, canvas_height: <design height>, hero_image_from: HeroContent.id })` — one call. The tool moves the image into the BackgroundLayer's HeroImg (extended 100px past the slot so the fade seam hides inside the next section), auto-samples the hero's bottom 100px for the overlay middle stop, leaves HeroContent transparent for the title, and fades the canvas to white at the foot.",
-      '4. Verify with `look`: no visible seam around the hero bottom, title band legible against the image\'s own tones. If the title band is illegible, regenerate the hero (step 2) — do NOT add plates or scrims. If the hero is regenerated later, re-call `compose_backdrop` with the same arguments — it re-samples and recolors in place.',
+      "4. Verify with `look`: no visible seam around the hero bottom, title band legible against the image's own tones. If the title band is illegible, regenerate the hero (step 2) — do NOT add plates or scrims. If the hero is regenerated later, re-call `compose_backdrop` with the same arguments — it re-samples and recolors in place.",
       '',
       'Do NOT pass `hero_color` in the standard recipe — auto-sampling is the point. (`sample_hero_color` still exists for non-standard edges, e.g. a side-fade design; pass its result as `hero_color` to override.) If `compose_backdrop` returns an error, read it carefully — it usually means the hero image has not been generated yet. Do not invent geometry: the 100px overlap, bleed extension, absolute positioning, and gradient transform are all handled internally.',
       '',
@@ -318,6 +318,142 @@ export function buildDefaultLibraryGraph(): SceneGraph {
     textAutoResize: 'HEIGHT'
   })
   kv(graph, watercolor.id, 'applicable_to: product_long, event_poster, xiaohongshu')
+
+  // R6 comparison group (docs/research/2026-08-11-poster-quality-methodology-
+  // borrow.md): three profiles sharing the EXACT same Phase 2.5 backbone
+  // (HeroContent → generate_image 750×850 → compose_backdrop → look) so A/B
+  // results attribute to the style system, not the mechanics. editorial and
+  // solid test backbone generality across visual languages; the center-left
+  // variant tests whether locked Variable picks produce visibly different
+  // layouts from the same system (recipe-as-overlay form).
+  const editorial = makeEntry(graph, profilesPage.id, 'editorial_poster_v1')
+  graph.createNode('TEXT', editorial.id, {
+    fontFamily: FONT,
+    text: [
+      '# Editorial poster',
+      '',
+      'Magazine-cover poster style: typography leads, the hero image is a tonal stage for the headline. Visual weight comes from extreme type scale and disciplined margins, not from decoration.',
+      '',
+      '## Fixed system (never break)',
+      '',
+      '- One continuous backdrop under EVERY section. Per-section color blocks are a different style.',
+      '- Typography leads: hero title 88–128px on a 750px-wide canvas, stacked over 2–4 short lines with tight line-height (1.0–1.1). Section titles 32–40. Body 20–24, captions 16–18. Weights: hero Black, body Regular.',
+      '- Disciplined margins: 56–72px side margins everywhere; exactly ONE element per section may break them.',
+      '- Restrained palette: paper white + ink black + ONE accent auto-sampled from the hero image. No second accent.',
+      "- Hero title legibility comes from the IMAGE's own tonal design: the title band of your lockup pick (below) must sit on a calm, low-detail region of the hero image, requested in the generation prompt. Never patch legibility afterwards.",
+      "- Hero pixels are generated at the holder's final size (750×850 = slot 750 + bleed 100) with the bottom ~100px calm — that band maps 1:1 onto the fade zone.",
+      '',
+      '## Variable system (choose per design; record your picks)',
+      '',
+      '- hero lockup: { upper-left stack (default), lower-third, full-bleed center } — where the stacked headline sits inside the hero slot. The generation prompt must keep THAT region calm and low-detail.',
+      '- accent usage: { headline keyword, thin rule, small block } — one accent, one role.',
+      '- section sequence and density: content-driven, but keep margin discipline.',
+      '- motif: the hero image follows the brief as ONE quiet scene or object with large negative space — never a busy collage.',
+      '',
+      '## Anti-identity (this style never does)',
+      '',
+      '- No opaque plates behind text — no scrim rectangles, no solid bands, no blurred backing cards.',
+      '- No watercolor washes, soft gradients, or grain textures in content — editorial is flat ink on paper.',
+      '- No centered, symmetric compositions — editorial rhythm is asymmetric.',
+      '- No decorative icons, emojis, or sticker-like elements.',
+      '- No rescuing an illegible title band by dialing overlay opacity — regenerate the hero with a calmer title region instead.',
+      '',
+      '## Visual environment setup (Phase 2.5)',
+      'One continuous backdrop under every section. The hero slot is part of the Phase 2 skeleton; this phase only materializes pixels:',
+      '',
+      '1. (Phase 2 skeleton) Render a transparent Frame named `HeroContent` as the first flow child of the root frame, h=750, w=canvas width. All content sections have transparent fills.',
+      '2. Pick your hero lockup (Variable system). Call `generate_image` with `width: 750, height: 850` and `id: HeroContent.id` — 850 = hero slot (750) + bleed (100), the FINAL display size of the hero image holder. Prompt for a minimal editorial composition: ONE quiet subject, large calm negative space in your lockup region, flat light, no texture noise; keep the bottom ~100px calm (maps 1:1 onto the fade zone).',
+      "3. Call `compose_backdrop({ root_id, canvas_width: 750, canvas_height: <design height>, hero_image_from: HeroContent.id })` — one call. The tool moves the image into the BackgroundLayer's HeroImg, auto-samples the hero's bottom 100px for the overlay middle stop, leaves HeroContent transparent for the title, and fades the canvas to white at the foot.",
+      "4. Verify with `look`: no visible seam around the hero bottom, title band legible against the image's own tones. If the title band is illegible, regenerate the hero (step 2) — do NOT add plates or scrims. If the hero is regenerated later, re-call `compose_backdrop` — it re-samples and recolors in place.",
+      '',
+      'Do NOT pass `hero_color` in the standard recipe — auto-sampling is the point. (`sample_hero_color` still exists for non-standard edges.) If `compose_backdrop` returns an error, read it carefully — it usually means the hero image has not been generated yet. Do not invent geometry: overlap, bleed, absolute positioning, and gradient transform are all handled internally.',
+      '',
+      '## Tone',
+      'Confident, terse, magazine-like. Headlines are short statements, not slogans.'
+    ].join('\n'),
+    fontSize: 12,
+    width: MARKDOWN_WRAP_WIDTH,
+    fills: solid(DARK),
+    textAutoResize: 'HEIGHT'
+  })
+  kv(graph, editorial.id, 'applicable_to: product_long, event_poster, xiaohongshu')
+
+  const solidGeo = makeEntry(graph, profilesPage.id, 'solid_poster_v1')
+  graph.createNode('TEXT', solidGeo.id, {
+    fontFamily: FONT,
+    text: [
+      '# Solid geometry poster',
+      '',
+      'Flat geometric poster style: a few solid-color shapes carry the whole composition. Visual weight comes from scale contrast between one oversized form and quiet type, not from texture or imagery.',
+      '',
+      '## Fixed system (never break)',
+      '',
+      '- One continuous backdrop under EVERY section. Per-section color blocks are a different style.',
+      '- Flat color only in content: no gradients, no textures, no shadows, no photography. (The tool-made backdrop fade is the one allowed gradient.)',
+      '- At most 3 colors per design: white ground, the hero-sampled theme color, ink black.',
+      "- Type is quiet in this style: hero title 56–84px, section titles 32–40, body 20–24, captions 16–18 — the oversized SHAPE is the headline's counterpart, so type does not need extreme scale.",
+      '- Exactly ONE oversized geometric form in the hero (circle, horizontal band, or quarter-block), occupying 30–60% of the hero area.',
+      "- Hero title legibility comes from the IMAGE's own tonal design: the title band of your lockup pick (below) must sit on a calm flat-color region, requested in the generation prompt. Never patch legibility afterwards.",
+      "- Hero pixels are generated at the holder's final size (750×850 = slot 750 + bleed 100) with the bottom ~100px calm — that band maps 1:1 onto the fade zone.",
+      '',
+      '## Variable system (choose per design; record your picks)',
+      '',
+      '- hero lockup: { lower-left (default), center, upper-right } — where the title block sits inside the hero slot. The generation prompt must keep THAT region flat and calm.',
+      '- hero form: { circle, horizontal band, quarter-block } — one form, one role.',
+      '- section sequence and density: content-driven; EVEN spacing is allowed in this style — flat geometry reads as designed rhythm, not as a screen.',
+      '- motif: the geometric form abstracts the brief (a sun, a horizon, a gate) — one idea, not a scene.',
+      '',
+      '## Anti-identity (this style never does)',
+      '',
+      '- No opaque plates behind text — the title sits on the flat color of the image itself.',
+      '- No gradients, textures, shadows, blurs, or photographic elements in content.',
+      '- No more than 3 colors; no second accent "for balance".',
+      '- No Light font weights anywhere; no body text below 20px.',
+      '- No rescuing an illegible title band by dialing overlay opacity — regenerate the hero with a calmer title region instead.',
+      '',
+      '## Visual environment setup (Phase 2.5)',
+      'One continuous backdrop under every section. The hero slot is part of the Phase 2 skeleton; this phase only materializes pixels:',
+      '',
+      '1. (Phase 2 skeleton) Render a transparent Frame named `HeroContent` as the first flow child of the root frame, h=750, w=canvas width. All content sections have transparent fills.',
+      '2. Pick your hero lockup (Variable system). Call `generate_image` with `width: 750, height: 850` and `id: HeroContent.id` — 850 = hero slot (750) + bleed (100), the FINAL display size of the hero image holder. Prompt for a flat vector-style composition: ONE oversized solid-color geometric form on a quiet ground, a large flat calm region for your lockup pick, no gradients, no texture; keep the bottom ~100px calm (maps 1:1 onto the fade zone).',
+      "3. Call `compose_backdrop({ root_id, canvas_width: 750, canvas_height: <design height>, hero_image_from: HeroContent.id })` — one call. The tool moves the image into the BackgroundLayer's HeroImg, auto-samples the hero's bottom 100px for the overlay middle stop, leaves HeroContent transparent for the title, and fades the canvas to white at the foot.",
+      "4. Verify with `look`: no visible seam around the hero bottom, title band legible against the image's own tones. If the title band is illegible, regenerate the hero (step 2) — do NOT add plates or scrims. If the hero is regenerated later, re-call `compose_backdrop` — it re-samples and recolors in place.",
+      '',
+      'Do NOT pass `hero_color` in the standard recipe — auto-sampling is the point. (`sample_hero_color` still exists for non-standard edges.) If `compose_backdrop` returns an error, read it carefully — it usually means the hero image has not been generated yet. Do not invent geometry: overlap, bleed, absolute positioning, and gradient transform are all handled internally.',
+      '',
+      '## Tone',
+      'Direct, clean, optimistic. Short declaratives.'
+    ].join('\n'),
+    fontSize: 12,
+    width: MARKDOWN_WRAP_WIDTH,
+    fills: solid(DARK),
+    textAutoResize: 'HEIGHT'
+  })
+  kv(graph, solidGeo.id, 'applicable_to: product_long, event_poster, xiaohongshu')
+
+  const watercolorCL = makeEntry(graph, profilesPage.id, 'watercolor_poster_v1_center_left')
+  graph.createNode('TEXT', watercolorCL.id, {
+    fontFamily: FONT,
+    text: [
+      '# Watercolor poster — center-left recipe',
+      '',
+      'A locked-recipe variant of `watercolor_poster_v1` for A/B testing. ALL Fixed system rules, Anti-identity rules, and the Phase 2.5 recipe of `watercolor_poster_v1` apply unchanged — read that profile first and follow it exactly. Only the Variable picks below are locked for this recipe.',
+      '',
+      '## Locked picks (everything else per `watercolor_poster_v1`)',
+      '',
+      '- hero lockup: center-left — the title block sits vertically centered, left-aligned, inset by the side margin. The generation prompt must keep the center-left region calm and low-detail.',
+      '- motif: ONE dominant wash mass right of center; the title counterweights it on the left. Not a symmetrical wash field.',
+      '- spacing: bias the uneven rhythm toward ONE oversized breathing gap right after the hero, before the first dense section.',
+      '',
+      '## Purpose',
+      'Same style system, different locked picks — use this recipe to compare against the base `watercolor_poster_v1` (lower-third default) and judge whether the Variable system produces visibly different layouts. Record which recipe produced each design.'
+    ].join('\n'),
+    fontSize: 12,
+    width: MARKDOWN_WRAP_WIDTH,
+    fills: solid(DARK),
+    textAutoResize: 'HEIGHT'
+  })
+  kv(graph, watercolorCL.id, 'applicable_to: product_long, event_poster, xiaohongshu')
 
   const componentsPage = makeZonePage(graph, 'Components')
   buildBrandBar(graph, componentsPage.id, logoHash)

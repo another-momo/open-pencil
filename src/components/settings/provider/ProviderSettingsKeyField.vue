@@ -14,8 +14,8 @@ const {
   kind,
   type = 'password',
   placeholder,
-  keyUrl,
-  keyUrlLabel
+  keyURL,
+  keyURLLabel
 } = defineProps<{
   label: string
   modelValue: string
@@ -23,8 +23,8 @@ const {
   kind: 'api' | 'pexels' | 'unsplash' | 'url' | 'model' | 'image-gen'
   type?: 'text' | 'password'
   placeholder: string
-  keyUrl?: string
-  keyUrlLabel?: string
+  keyURL?: string
+  keyURLLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -64,8 +64,8 @@ const clearDataTestId = computed(() => {
       @change="emit('change')"
     />
     <template #hint>
-      <ProviderSettingsLink v-if="keyUrl && keyUrlLabel" :href="keyUrl">
-        {{ keyUrlLabel }}
+      <ProviderSettingsLink v-if="keyURL && keyURLLabel" :href="keyURL">
+        {{ keyURLLabel }}
       </ProviderSettingsLink>
     </template>
   </ProviderSettingsField>

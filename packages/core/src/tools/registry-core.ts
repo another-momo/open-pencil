@@ -23,7 +23,7 @@ import {
   setTextProperties,
   updateNode
 } from './modify'
-import { findNodes, getJsx, getNode, getSelection, listPages } from './read'
+import { findNodes, getJSX, getNode, getSelection, listPages } from './read'
 import type { ToolDef } from './schema'
 import { stockPhoto } from './stock-photo'
 import { batchUpdate, deleteNode, nodeResize, reparentNode } from './structure'
@@ -38,7 +38,7 @@ export const CORE_TOOLS: ToolDef[] = [
   getSelection,
   getNode,
   findNodes,
-  getJsx,
+  getJSX,
   // list_pages: page enumeration for multi-page documents
   listPages,
   // Create

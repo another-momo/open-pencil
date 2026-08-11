@@ -131,7 +131,7 @@ const SUPPORTED_PROPS = new Set([
   'of'
 ])
 
-function stripHtmlComments(jsxString: string): string {
+function stripHTMLComments(jsxString: string): string {
   return jsxString.replace(/<!--[\s\S]*?-->/g, '')
 }
 
@@ -206,7 +206,7 @@ function collectInvalidColorWarnings(tree: TreeNode, warnings: string[]): void {
 }
 
 export function buildComponent(jsxString: string): React.ComponentType {
-  const trimmed = stripHtmlComments(jsxString).replace(JSX_WRAPPER_TAG_RE, '').trim()
+  const trimmed = stripHTMLComments(jsxString).replace(JSX_WRAPPER_TAG_RE, '').trim()
 
   const aliases = `
     const __h = React.createElement

@@ -9,7 +9,7 @@ import type { valibotSchema as createValibotSchema } from '@ai-sdk/valibot'
 import type { ToolSet, tool as createTool } from 'ai'
 import type * as valibot from 'valibot'
 
-import type { JsonObject } from '@open-pencil/scene-graph/primitives'
+import type { JSONObject } from '@open-pencil/scene-graph/primitives'
 
 import type { FigmaAPI } from '#core/figma-api'
 
@@ -222,7 +222,7 @@ export function toolsToAI(
           value.push({ type: 'media', mediaType: output.mimeType, data: output.base64 })
           return { type: 'content' as const, value }
         }
-        return { type: 'json' as const, value: output as JsonObject }
+        return { type: 'json' as const, value: output as JSONObject }
       }
     }
 

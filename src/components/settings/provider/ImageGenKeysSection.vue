@@ -17,8 +17,8 @@ const { dialogs } = useI18n()
     :placeholder="
       ctx.hasExistingImageGenKey ? dialogs.keySavedReplace : dialogs.imageGenAPIKeyPlaceholder
     "
-    key-url="https://doc.dmxapi.cn/gpt-image-2-text-to-image.html"
-    :key-url-label="dialogs.imageGenAPIDocs"
+    key-u-r-l="https://doc.dmxapi.cn/gpt-image-2-text-to-image.html"
+    :key-u-r-l-label="dialogs.imageGenAPIDocs"
     @clear="ctx.clearImageGenKey"
     @change="ctx.save"
   />

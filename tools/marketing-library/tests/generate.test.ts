@@ -65,6 +65,13 @@ describe('default-library.fig round-trip', () => {
     // pointer to the tool.
     expect(poster.markdown).toContain('compose_backdrop')
     expect(poster.markdown).toContain('Visual environment setup (Phase 2.5)')
+    // R0 style-system skeleton (docs/research/2026-08-11-poster-quality-
+    // methodology-borrow.md): Fixed / Variable / Anti-identity三段是 profile
+    // 契约,丢失即退回"一段 markdown 注释"的旧形态。
+    expect(poster.markdown).toContain('## Fixed system')
+    expect(poster.markdown).toContain('## Variable system')
+    expect(poster.markdown).toContain('## Anti-identity')
+    expect(poster.markdown).toContain('No opaque plates behind text')
 
     expect(index.components.map((component) => component.name)).toEqual(['BrandBar', 'CTABar'])
     const brandBar = expectDefined(

@@ -1,7 +1,7 @@
-# Task: 海报感实验 — Prompt-only 臂
+# Task: 海报感实验
 
-日期：2026-08-07（首版）/ 2026-08-10（重写 + P2 落地）
-状态：施工中（Prompt + sample_hero_color + compose_backdrop + profile；P2 已落地，见文末 8-10 附记）
+日期：2026-08-07（首版）/ 2026-08-10（重写 + P2 落地）/ 2026-08-11（两阶段叙事重写 + review 修复落地）
+状态：阶段二交付中（prompt + sample_hero_color + compose_backdrop wrapper v2 + profile；历史见文末附记）
 范围：`system-prompt-base.md`、`system-prompt-marketing.md`、`tools/marketing-library/src/generate.ts`、`public/default-library.fig`、`packages/core/src/tools/marketing/sample-color*.ts`、`packages/core/src/tools/marketing/compose-backdrop.ts`、对应测试
 设计依据：`../../review/2026-08-07-long-image-design-quality-review.md`
 
@@ -9,9 +9,23 @@
 
 评审结论：长图"像界面不像海报"的三层根因中，**第一层是能力披露缺口**——引擎支持 4 种渐变 / 多重填充 / 3 种蒙版 / 17 种混合模式，`design-jsx` 的属性通道全部打通，而 system prompt 明确写着 "Colors are hex only" 与 "These are ALL available props. Nothing else exists."
 
-本实验只验证一件事：
+本实验验证的是：
 
 > 把已有能力如实告诉 Agent，再给它一份带海报数值的风格档案，产出能否从"UI 感"跨到"海报感"？
+
+## 实验设计：两阶段
+
+**阶段一（prompt-only 臂）——已完成，结论已记录。** 最初刻意只动 prompt 不上工具，理由有三：
+
+1. **可可证伪**。prompt层是方法论 §1 注入可靠性排序里的**次低档**（工具返回值 > prompt 硬规则 > prompt 指引）。如果只补 prompt 就能出效果，说明此前纯粹是能力被藏起来了；如果补了没效果，正好实证方法论 §1——确定性合成必须工具化。
+2. **可归因**。两层同时动，成功也分不清是谁起的作用。
+3. **成本**。改动集中在 prompt + 1 个工具 + 库生成器，完全可逆。
+
+阶段一的结局是**失败但有信息量**：8-10 第三轮冒烟中 agent 按 prompt 配方手写 overlay 时连续踩坑（NaN 采样、overlay 压内容、overlap 丢失）——正是方法论 §1 预言的"prompt 层不足以约束确定性合成"。
+
+**阶段二（prompt + 工具化）——当前交付。** `compose_backdrop` 从对照项转为正式交付，实验归因不受影响：prompt-only 臂的失败模式已被充分记录，工具化是阶段一的**结论**而非干扰项。阶段二验证的问题变为：
+
+> 确定性合成工具化（compose_backdrop 一次调用、零几何零 hex 转抄）+ profile 数值档案，能否稳定跨过"海报感"阈值？
 
 ## 三层职责边界（已重写）
 
@@ -22,16 +36,6 @@
 | **base.md** | DSL 词汇表（共享） | props 字典、布局规则、可用元素、字体声明、Corner radius、4px 间距栅格、字阶**默认档**、Prohibited、Tool discipline | 任何 marketing 概念、Composition primitives、backdrop 配方、profile 反向引用 |
 | **marketing.md** | 营销工作流 + 通用合成技术 | 5 阶段 + CP、需求单协议、图片来源、**30 行 Composition primitives**（通用技术：helpers、transform陷阱、8 位 hex、Global tint、Stacked fills）、Phase 2.5 backdrop setup 子步骤 | 任何具体风格配方、profile 反向引用 |
 | **profile** | 风格化应用 | 字阶**覆盖值**、间距节奏、色彩哲学、**本风格的 backdrop 配方**、装饰词汇库、语气 | 反向引用 base/marketing、钦定具体 stop 数与位置、强加装饰元素库 |
-
-## 实验设计：为什么是 Prompt-only 臂
-
-刻意**不**同时上 `compose_backdrop` 工具。理由：
-
-1. **可可证伪**。prompt层是方法论 §1 注入可靠性排序里的**次低档**（工具返回值 > prompt 硬规则 > prompt 指引）。如果只补 prompt 就能出效果，说明此前纯粹是能力被藏起来了；如果补了没效果，正好实证方法论 §1——确定性合成必须工具化。
-2. **可归因**。两层同时动，成功也分不清是谁起的作用。
-3. **成本**。改动集中在 prompt + 1 个工具 + 库生成器，完全可逆。
-
-**失败也是有信息量的结果**，不是白跑。
 
 ## T1 — `system-prompt-base.md` 还原为纯 DSL 词汇表（已完成）
 
@@ -213,3 +217,19 @@
 - `compose-backdrop.test.ts`(22 case：校验 7 + 拓扑 4 + 渐变契约 2 + 颜色管线 4 + fill 转移 3 + 幂等 1 + 参数 1)
 - `sample-color-pure.test.ts`(15)+ `sample-color.test.ts`(6)——共享 helper `sampleImageFillColor` 抽出后行为不变
 - `poster-primitives.test.ts`(8)+ `generate.test.ts`（往返）
+
+## 附记 2026-08-11：第二轮深度 review + 修复
+
+8-10 对整个分支做了一轮深度 review（代码 + prompt + profile + 测试矩阵一致性逐条核对），结论：设计前提成立（fill 值拷贝无几何缓存、z-order 内生化、默认流程采样带=覆盖带），但发现若干静默失败路径。本轮全部修复：
+
+1. **note 语义 moved → copied**。非 HeroContent 源的 fill 转移是拷贝（源节点保留 IMAGE fill），旧 note 说 "moved" 会误导 agent 以为源节点已空。现在 note 区分两种清理行为：HeroContent 源 → "copied + cleared"；其他源 → "copied + left untouched"，并提示 agent 自行决定是否删除源节点图像。
+2. **HeroContent 透明从约定升级为结构契约**。幂等重入路径原来只同步宽高、不动 fills——agent 若给 HeroContent 上过底色，作为 flow 子节点会糊住整个 BackgroundLayer 且静默通过。现在 upsert 强制 `fills: []`（标题/Logo 子节点不受影响）。
+3. **双份图检测（命名契约的保险丝）**。工具的幂等与 adopt 都建立在"hero 槽命名 HeroContent"上；agent 用别的名字时会新建空 HeroContent 且源节点保留图像，hero 双份显示、fade 失效、无任何告警。现在检测 root 下其他携带 IMAGE fill 的子节点，命中即在 note 输出 WARNING 与修复指引。
+4. **非法 hero_color 不再静默吞掉**。校验失败仍降级走采样/白色兜底（结构不因拼错的 hex 失败），但 note 显式输出 "WARNING: hero_color ... was ignored"，agent 能知道自己拼错了。
+5. **注释与行为对齐**：`averageRegion` 的 alpha 注释改为描述真实行为（忽略 alpha 通道、透明像素贡献原始 RGB——对全不透明的 AI 生图精确），测试名同步修正；文件头的"采样带=覆盖带"不变量限定为默认流程成立（cover-crop 用户素材下见已知限制）。
+
+**已知限制（记录，暂不修）**：`hero_image_from` 接 cover-crop 用户素材时，自动采样取的是图像素空间 bottom 100px，与 cover-crop 后实际显示的底带可能不重合——结果是中间 stop 颜色与视觉底带有色差，属颜色偏差而非结构错误。默认流程（按 holder 最终尺寸生图）不受影响。若未来要修：在工具内按 FILL 模式 cover-crop 公式把采样区换算到显示空间。
+
+**测试矩阵更新**：`compose-backdrop.test.ts` 27 case（+非法 hex 警告 2、note 语义 2、stray 检测 1——其中 2 个复用现有 describe);50/50 全绿。
+
+**冒烟记录要求（补）**：跑端午用例时，5 条量化指标（字阶跨度 / 背景连续性 / 叠压率 / 留白变异系数 / 出血）要记录**实测数值**，不是只打勾；手工判读的可靠性靠留痕弥补。若本轮结论为"成效明显"，固化三层边界前先补一个非水彩 profile（哪怕 solid-color）验证 Phase 2.5 骨架通用性——目前 profile-driven 抽象只有 n=1 证据。

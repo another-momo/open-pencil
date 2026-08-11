@@ -40,6 +40,12 @@ describe('compose_backdrop tool', () => {
     }
   }
 
+  function graph_updateFill(g: SceneGraph, nodeId: string) {
+    g.updateNode(nodeId, {
+      fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 }, opacity: 1, visible: true }]
+    })
+  }
+
   interface Built {
     background_layer_id: string
     base_wash_id: string
@@ -308,6 +314,22 @@ describe('compose_backdrop tool', () => {
       expect(ids.color_source).toBe('fallback')
       expect(ids.hero_color).toBe('#FFFFFFFF')
     })
+
+    it('warns in the note when a provided hero_color fails hex validation', async () => {
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      const ids = await build(g, root.id, { hero_color: 'not-a-hex' })
+      expect(ids.note).toContain('WARNING')
+      expect(ids.note).toContain('"not-a-hex"')
+      expect(ids.note).toContain('ignored')
+    })
+
+    it('does not warn when no hero_color was provided at all', async () => {
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      const ids = await build(g, root.id)
+      expect(ids.note).not.toContain('WARNING')
+    })
   })
 
   describe('hero_image_from (fill transfer)', () => {
@@ -348,6 +370,44 @@ describe('compose_backdrop tool', () => {
       // hero slot = source height 600; HeroImg = 600 + 100 bleed.
       expect(g.getNode(ids.hero_content_id)?.height).toBe(600)
       expect(g.getNode(ids.hero_img_id)?.height).toBe(700)
+    })
+
+    it('says "copied" (not "moved") in the note and flags the uncleared source as a stray image', async () => {
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      const asset = g.createNode('RECTANGLE', root.id, {
+        name: 'UserPhoto',
+        width: 750,
+        height: 600,
+        fills: [makeImageFill()]
+      })
+
+      const ids = await build(g, root.id, { hero_image_from: asset.id })
+
+      expect(ids.note).toContain('copied')
+      expect(ids.note).not.toContain('moved')
+      expect(ids.note).toContain('left untouched')
+      // The uncleared source still paints above the overlay — the note must
+      // surface that instead of failing silently.
+      expect(ids.note).toContain('WARNING')
+      expect(ids.note).toContain('"UserPhoto"')
+    })
+
+    it('reports the HeroContent transfer without a stray-image warning', async () => {
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      const hero = g.createNode('FRAME', root.id, {
+        name: 'HeroContent',
+        width: 750,
+        height: 750,
+        fills: [makeImageFill()]
+      })
+
+      const ids = await build(g, root.id, { hero_image_from: hero.id })
+
+      expect(ids.note).toContain('copied')
+      expect(ids.note).toContain('cleared')
+      expect(ids.note).not.toContain('WARNING')
     })
 
     it('tolerates an idempotent re-call whose source was already cleared', async () => {
@@ -395,6 +455,19 @@ describe('compose_backdrop tool', () => {
       // Z-positions re-pinned on every call.
       expect(root.childIds[0]).toBe(second.background_layer_id)
       expect(root.childIds[1]).toBe(second.hero_content_id)
+    })
+
+    it('forces HeroContent back to transparent if the agent gave it a fill between calls', async () => {
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      const first = await build(g, root.id, { hero_color: '#5A7F5BFF' })
+
+      // Agent mistakenly paints the hero slot between calls — an opaque fill
+      // here would hide the whole BackgroundLayer.
+      graph_updateFill(g, first.hero_content_id)
+
+      const second = await build(g, root.id, { hero_color: '#5A7F5BFF' })
+      expect(g.getNode(second.hero_content_id)?.fills).toEqual([])
     })
   })
 

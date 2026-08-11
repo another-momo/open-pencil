@@ -61,8 +61,9 @@ export function bandRegion(
 /**
  * Average the sRGB pixels of an arbitrary rectangular region. `pixels` is an
  * RGBA_8888 buffer for the full image; `x`/`y`/`width`/`height` describe the
- * region to average. Alpha is ignored (translucent pixels are not weighted —
- * they bleed underlying fills and would skew the average).
+ * region to average. The alpha channel is ignored: a translucent pixel
+ * contributes its raw (unpremultiplied) RGB like any other. For AI-generated
+ * heroes — fully opaque — this is exact.
  */
 export function averageRegion(
   pixels: Uint8Array,

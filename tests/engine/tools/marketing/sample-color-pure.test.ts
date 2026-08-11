@@ -73,7 +73,7 @@ describe('sample-hero-color / pure math', () => {
       expect(avg.samples).toBe(2)
     })
 
-    it('ignores alpha when averaging (translucent pixels are not weighted)', () => {
+    it('ignores the alpha channel when averaging (translucent pixels contribute raw RGB)', () => {
       const pixels = new Uint8Array([100, 50, 25, 255, 100, 50, 25, 0])
       const avg = averageRegion(pixels, 2, 0, 0, 2, 1)
       expect(avg.r).toBe(100)

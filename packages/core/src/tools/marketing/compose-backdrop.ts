@@ -18,27 +18,28 @@
  *                          BackgroundLayer, so copy never gets washed
  *     [2+] content sections (appended later; paint on top)
  *
- * Why HeroImg is taller than HeroContent (heroBleed, default 100): the fade
- * zone then lands inside the NEXT section's content area instead of running
- * as one uninterrupted full-width horizontal edge — the single most visible
- * seam shape. Sections with transparent backgrounds let the extended image
- * show through while their content breaks up the transition line.
- *
  * The kiss invariant (BaseWash < HeroImg < BackdropOverlay) is INTERNAL to
  * the BackgroundLayer — sibling insertions elsewhere in the root can never
  * break it.
  *
+ * Why HeroImg is taller than HeroContent (heroBleed, default 100): the fade
+ * zone then lands inside the NEXT section's content area instead of running
+ * as one full-width horizontal edge — the most visible seam shape.
+ *
  * Color pipeline (no agent color reasoning required):
  *   explicit hero_color > auto-sample of the hero's bottom OVERLAP_PX band
- *   > white fallback. The sampled band is exactly the strip the overlay
- *   covers, so sampled color and overlap geometry can never disagree.
+ *   > white fallback. In the default flow the sampled band is exactly the
+ *   strip the overlay covers (the hero is generated at the holder's final
+ *   size, so pixels map 1:1). With cover-cropped user assets
+ *   (hero_image_from) the sample is the pixel-space bottom band, which may
+ *   not coincide with the displayed band — a color nuance, not an error.
  *
  * Typical agent sequence (hero pixels first, one compose call):
  *   1. Phase 2 skeleton renders HeroContent (flow frame, h=heroHeight)
  *   2. generate_image into HeroContent
  *   3. compose_backdrop({ root_id, canvas_width, canvas_height,
- *      hero_image_from: HeroContent.id }) — the IMAGE fill is MOVED into
- *      the layer's HeroImg (HeroContent becomes transparent), the hero's
+ *      hero_image_from: HeroContent.id }) — the IMAGE fill is COPIED into
+ *      the layer's HeroImg (HeroContent's own fills are cleared), the hero's
  *      bottom band is auto-sampled, and the overlay is colored
  *   4. Verify with look. Re-call any time the hero pixels change — the
  *      tool is idempotent (nodes are found by name and updated in place).
@@ -70,7 +71,7 @@ export const composeBackdropTool = defineTool({
   name: 'compose_backdrop',
   mutates: true,
   description:
-    'Build the visual environment of a long-image design in one call. Creates/updates a BackgroundLayer (absolute, bottom of z-order) containing BaseWash (full-canvas gradient), HeroImg (hero image holder, extended hero_bleed past the hero slot so the fade seam hides inside the next section), and BackdropOverlay (3-stop gradient fading over the hero bottom into opaque white), plus a transparent HeroContent flow frame that reserves the hero slot and hosts overlay text. Typical sequence: render HeroContent in the skeleton → generate_image into it → compose_backdrop with hero_image_from = HeroContent id. The image fill is moved into HeroImg, the hero bottom band is auto-sampled for the overlay middle stop (pass hero_color only to override), and HeroContent is left transparent for text. Re-call after regenerating the hero — fully idempotent.',
+    'Build the visual environment of a long-image design in one call. Creates/updates a BackgroundLayer (absolute, bottom of z-order) containing BaseWash (full-canvas gradient), HeroImg (hero image holder, extended hero_bleed past the hero slot so the fade seam hides inside the next section), and BackdropOverlay (3-stop gradient fading over the hero bottom into opaque white), plus a transparent HeroContent flow frame that reserves the hero slot and hosts overlay text. Typical sequence: render HeroContent in the skeleton → generate_image into it → compose_backdrop with hero_image_from = HeroContent id. The image fill is copied into HeroImg (and HeroContent is cleared to transparent), the hero bottom band is auto-sampled for the overlay middle stop (pass hero_color only to override), and HeroContent is left transparent for text. Re-call after regenerating the hero — fully idempotent.',
   params: {
     root_id: {
       type: 'string',
@@ -160,12 +161,16 @@ export const composeBackdropTool = defineTool({
     graph.reorderChild(heroImg.id, layer.id, 1)
 
     // --- HeroContent flow slot (transparent, reserves heroHeight in flow) ---
+    // upsert forces fills=[] — the image must not ALSO paint above the
+    // overlay from the flow slot.
     const heroContent = upsertHeroContent(graph, root, canvasWidth, heroHeight)
     graph.reorderChild(heroContent.id, rootId, 1)
-    // The image must not ALSO paint above the overlay from the flow slot.
-    if (source.node && source.node.id === heroContent.id) {
-      graph.updateNode(heroContent.id, { fills: [] })
-    }
+    const sourceCleared = source.node?.id === heroContent.id
+
+    // A second root-level node carrying an IMAGE fill means the hero likely
+    // exists twice: inside the layer AND in the flow, where it paints above
+    // the overlay and defeats the fade. Detect and warn via the note.
+    const strayImageName = findStrayImageName(graph, root, layer.id, heroContent.id)
 
     // --- Color: explicit > auto-sample > white fallback ---
     const color = await resolveHeroColor(graph, heroImg, inputs.heroColor)
@@ -222,7 +227,10 @@ export const composeBackdropTool = defineTool({
         overlayY,
         canvasHeight,
         transfer,
-        color
+        sourceCleared,
+        color,
+        heroColorRejected: inputs.heroColorRejected,
+        strayImageName
       })
     }
   }
@@ -235,6 +243,8 @@ interface ValidatedInputs {
   heroHeight: number
   heroBleed: number
   heroColor?: string
+  /** A hero_color the caller passed but that failed hex validation — surfaced as a note warning instead of silently dropped. */
+  heroColorRejected?: string
   heroImageFrom?: string
 }
 
@@ -265,11 +275,24 @@ function validateInputs(args: Record<string, unknown>): { error: string } | Vali
     typeof args.hero_color === 'string' && HEX_REGEX.test(args.hero_color)
       ? args.hero_color
       : undefined
+  const heroColorRejected =
+    typeof args.hero_color === 'string' && args.hero_color.length > 0 && heroColor === undefined
+      ? args.hero_color
+      : undefined
   const heroImageFrom =
     typeof args.hero_image_from === 'string' && args.hero_image_from.length > 0
       ? args.hero_image_from
       : undefined
-  return { rootId, canvasWidth, canvasHeight, heroHeight, heroBleed, heroColor, heroImageFrom }
+  return {
+    rootId,
+    canvasWidth,
+    canvasHeight,
+    heroHeight,
+    heroBleed,
+    heroColor,
+    heroColorRejected,
+    heroImageFrom
+  }
 }
 
 function resolveImageSource(
@@ -287,9 +310,9 @@ function resolveImageSource(
 }
 
 /**
- * Move semantics for the hero image: copy the source's IMAGE fill onto the
- * layer-owned HeroImg. If the source has no IMAGE fill but HeroImg already
- * does (idempotent re-call after a transfer), that is fine — nothing to do.
+ * Copy the source's IMAGE fill onto the layer-owned HeroImg. If the source
+ * has no IMAGE fill but HeroImg already does (idempotent re-call after a
+ * transfer), that is fine — nothing to do.
  */
 function transferImageFill(
   graph: SceneGraph,
@@ -316,10 +339,9 @@ type HeroColorResolution = {
 
 /**
  * explicit hero_color > auto-sample of the hero's bottom OVERLAP_PX band >
- * white fallback. The sampled band is exactly the strip the overlay covers,
- * so sampled color and overlap geometry can never disagree. Sampling
- * failures degrade to white (a plain white transition) rather than erroring —
- * structure must not fail because of pixels.
+ * white fallback. Sampling failures degrade to white (a plain white
+ * transition) rather than erroring — structure must not fail because of
+ * pixels.
  */
 async function resolveHeroColor(
   graph: SceneGraph,
@@ -375,6 +397,26 @@ function findChildByName(
   for (const childId of parent.childIds) {
     const child = graph.getNode(childId)
     if (child?.name === name) return child
+  }
+  return undefined
+}
+
+/**
+ * The name-based upsert contract assumes the hero slot is named HeroContent.
+ * A differently-named source keeps its IMAGE fill and stays in the flow —
+ * painting above the BackgroundLayer and showing the hero twice. Detect any
+ * other root child carrying an IMAGE fill so the note can warn.
+ */
+function findStrayImageName(
+  graph: SceneGraph,
+  root: SceneNode,
+  layerId: string,
+  heroContentId: string
+): string | undefined {
+  for (const childId of root.childIds) {
+    if (childId === layerId || childId === heroContentId) continue
+    const child = graph.getNode(childId)
+    if (child?.fills.some((f) => f.type === 'IMAGE')) return child.name
   }
   return undefined
 }
@@ -438,8 +480,10 @@ function upsertHeroContent(
   const existing = findChildByName(root, graph, HERO_CONTENT_NAME)
   if (existing) {
     // Sync the flow reservation to the hero slot height; leave layout
-    // settings and children (agent's title/logo) untouched.
-    graph.updateNode(existing.id, { width: canvasWidth, height: heroHeight })
+    // settings and children (agent's title/logo) untouched. Transparency is
+    // the slot's structural contract — an agent-set background fill would
+    // paint above the BackgroundLayer and hide it, so force it off.
+    graph.updateNode(existing.id, { width: canvasWidth, height: heroHeight, fills: [] })
     return existing
   }
   return graph.createNode('FRAME', root.id, {
@@ -498,23 +542,37 @@ function buildNote(input: {
   overlayY: number
   canvasHeight: number
   transfer: { transferred: boolean }
+  sourceCleared: boolean
   color: HeroColorResolution
+  heroColorRejected?: string
+  strayImageName?: string
 }): string {
-  const transferPart = input.transfer.transferred
-    ? "The image fill was moved into the BackgroundLayer's HeroImg; HeroContent is now transparent (title/logo there paint above everything)."
-    : ''
+  let transferPart = ''
+  if (input.transfer.transferred) {
+    transferPart = input.sourceCleared
+      ? "The image fill was copied into the BackgroundLayer's HeroImg and HeroContent's own fills were cleared — title/logo there paint above everything."
+      : "The image fill was copied into the BackgroundLayer's HeroImg; the source node was left untouched (its IMAGE fill is still in place — remove it yourself if it should not keep painting)."
+  }
   const bleed = input.heroImgHeight - input.heroHeight
   const bleedPart =
     bleed > 0
       ? `HeroImg extends ${bleed}px past the hero slot (to y=${input.heroImgHeight}) so the fade seam hides inside the next section's content area.`
       : ''
+  const rejectedPart = input.heroColorRejected
+    ? `WARNING: hero_color "${input.heroColorRejected}" is not valid 6- or 8-digit hex and was ignored.`
+    : ''
+  const strayPart = input.strayImageName
+    ? `WARNING: root child "${input.strayImageName}" also carries an IMAGE fill — the hero image may be painting twice (the flow copy sits above the overlay and breaks the fade). If that node was meant to be the hero, pass it as hero_image_from and use HeroContent as the slot name.`
+    : ''
   return [
     `Backdrop built under root "${input.rootName}": BackgroundLayer (absolute, index 0: BaseWash < HeroImg < BackdropOverlay) + HeroContent (flow, index 1, h=${input.heroHeight}).`,
     transferPart,
     bleedPart,
     `BackdropOverlay spans y=${input.overlayY}..${input.canvasHeight}, fading over the hero's bottom ${OVERLAP_PX}px then into opaque white. ${describeColor(input.color)}`,
     `Content sections rendered later append after HeroContent and paint on top. Re-call this tool whenever the hero pixels change — it updates in place.`,
-    `Verify with look: no visible seam around the hero bottom, overlay text in HeroContent stays crisp.`
+    `Verify with look: no visible seam around the hero bottom, overlay text in HeroContent stays crisp.`,
+    rejectedPart,
+    strayPart
   ]
     .filter(Boolean)
     .join(' ')

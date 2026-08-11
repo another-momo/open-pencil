@@ -534,6 +534,14 @@ export class FigmaAPI implements NodeProxyHost {
 
   exportImage?: (
     nodeIds: string[],
-    options: { scale?: number; format?: RasterExportFormat; quality?: number }
+    options: {
+      scale?: number
+      format?: RasterExportFormat
+      quality?: number
+      /** Render the nodes composited in their live page context (everything painting beneath/above them included) instead of isolated on a blank background. */
+      renderInContext?: boolean
+      /** Output window in absolute canvas coordinates; defaults to the selection's content bounds. */
+      clip?: { minX: number; minY: number; maxX: number; maxY: number }
+    }
   ) => Promise<Uint8Array | null>
 }

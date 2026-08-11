@@ -13,7 +13,13 @@ import { getTool, setupToolTest } from '#tests/helpers/tools'
 
 interface ExportCall {
   nodeIds: string[]
-  options: { scale?: number; format?: string; quality?: number }
+  options: {
+    scale?: number
+    format?: string
+    quality?: number
+    renderInContext?: boolean
+    clip?: { minX: number; minY: number; maxX: number; maxY: number }
+  }
 }
 
 interface LookResult {
@@ -25,6 +31,11 @@ interface LookResult {
   analysis?: string
   channel?: 'A' | 'B'
   node?: { id: string; name: string; width: number; height: number }
+  exportInfo?: {
+    mode: 'original-bytes' | 'isolated' | 'in-context'
+    scale?: number
+    upscaled?: boolean
+  }
 }
 
 function mockExportImage(figma: FigmaAPI, calls: ExportCall[]) {
@@ -100,7 +111,7 @@ describe('look tool', () => {
     expect(result.note).toContain('Aspect ratio distorted')
   })
 
-  test('small nodes export at scale 1', async () => {
+  test('small nodes are upscaled to the 512px minimum legible edge', async () => {
     const { graph, figma } = setupToolTest()
     const calls: ExportCall[] = []
     mockExportImage(figma, calls)
@@ -109,8 +120,94 @@ describe('look tool', () => {
 
     const result = await runLook(figma, { id: frame.id })
 
-    expect(expectDefined(calls[0]).options.scale).toBe(1)
+    expect(expectDefined(calls[0]).options.scale).toBeCloseTo(512 / 300, 5)
+    expect(result.note).toContain('Upscaled')
     expect(result.note).not.toContain('Aspect ratio distorted')
+    expect(result.exportInfo?.mode).toBe('isolated')
+    expect(result.exportInfo?.upscaled).toBe(true)
+  })
+
+  test('transparent flow frames export composited in context with a clamped margin clip', async () => {
+    const { graph, figma } = setupToolTest()
+    const calls: ExportCall[] = []
+    mockExportImage(figma, calls)
+    const pageId = graph.getPages()[0].id
+    const root = graph.createNode('FRAME', pageId, { name: 'Detail', width: 750, height: 2000 })
+    // No fills — like HeroContent, the frame's content floats on whatever the
+    // design paints beneath it; an isolated export would be white-on-white.
+    const hero = graph.createNode('FRAME', root.id, {
+      name: 'HeroContent',
+      width: 750,
+      height: 750,
+      y: 100
+    })
+
+    const result = await runLook(figma, { id: hero.id })
+
+    const call = expectDefined(calls[0])
+    expect(call.options.renderInContext).toBe(true)
+    // Visual bounds (0,100)-(750,850) + 48px margin, clamped to the root's
+    // (0,0)-(750,2000) so the export never shows bare page canvas.
+    expect(call.options.clip).toEqual({ minX: 0, minY: 52, maxX: 750, maxY: 898 })
+    expect(result.exportInfo?.mode).toBe('in-context')
+    expect(result.note).toContain('design context')
+  })
+
+  test('near-white text exports in context — it is invisible on a blank export', async () => {
+    const { graph, figma } = setupToolTest()
+    const calls: ExportCall[] = []
+    mockExportImage(figma, calls)
+    const pageId = graph.getPages()[0].id
+    const root = graph.createNode('FRAME', pageId, { name: 'Detail', width: 750, height: 2000 })
+    const title = graph.createNode('TEXT', root.id, { name: 'Title', text: '端午', fontSize: 96 })
+    graph.updateNode(title.id, {
+      fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 }, opacity: 1, visible: true }]
+    })
+
+    const result = await runLook(figma, { id: title.id })
+
+    expect(expectDefined(calls[0]).options.renderInContext).toBe(true)
+    expect(result.exportInfo?.mode).toBe('in-context')
+  })
+
+  test('frames with their own visible fill keep the isolated export', async () => {
+    const { graph, figma } = setupToolTest()
+    const calls: ExportCall[] = []
+    mockExportImage(figma, calls)
+    const pageId = graph.getPages()[0].id
+    const root = graph.createNode('FRAME', pageId, { name: 'Detail', width: 750, height: 2000 })
+    const card = graph.createNode('FRAME', root.id, {
+      name: 'Card',
+      width: 600,
+      height: 400,
+      fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.3, a: 1 }, opacity: 1, visible: true }]
+    })
+
+    const result = await runLook(figma, { id: card.id })
+
+    expect(expectDefined(calls[0]).options.renderInContext).toBeUndefined()
+    expect(result.exportInfo?.mode).toBe('isolated')
+    expect(result.note).not.toContain('design context')
+  })
+
+  test('upscaling can clear the small-text legibility warning', async () => {
+    const { graph, figma } = setupToolTest()
+    mockExportImage(figma, [])
+    const pageId = graph.getPages()[0].id
+    const root = graph.createNode('FRAME', pageId, { name: 'Detail', width: 750, height: 2000 })
+    const card = graph.createNode('FRAME', root.id, {
+      name: 'Card',
+      width: 300,
+      height: 100,
+      fills: [{ type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5, a: 1 }, opacity: 1, visible: true }]
+    })
+    graph.createNode('TEXT', card.id, { name: 'Body', text: 'x', fontSize: 8 })
+
+    const result = await runLook(figma, { id: card.id })
+
+    // scale = 512/300 ≈ 1.71 → the 8px text renders at ~14px, above the 12px floor.
+    expect(result.note).toContain('Upscaled')
+    expect(result.note).not.toContain('too small to read')
   })
 
   test('image-bearing nodes bypass rendering and return the original bytes', async () => {
@@ -311,6 +408,9 @@ describe('look tool — vision channel B', () => {
     expect(result.note).not.toContain('secondary judgment')
     expect(seenPrompt).toContain('Visual inspection of "Card"')
     expect(seenPrompt).toContain('Focus: what does this image show.')
+    // The confidence protocol must reach the vision model: artifacts are
+    // declared, never described as design defects.
+    expect(seenPrompt).toContain('artifact')
   })
 
   test('no caching — every look triggers a fresh vision call, even for the same image', async () => {

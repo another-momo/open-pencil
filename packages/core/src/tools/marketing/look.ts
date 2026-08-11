@@ -1,7 +1,9 @@
 import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
+import type { Color } from '@open-pencil/scene-graph/primitives'
 
 import { detectImageMime, encodeBase64 } from '#core/bytes'
 import type { FigmaAPI } from '#core/figma-api'
+import { computeContentBounds } from '#core/io/formats/raster/render'
 import {
   analyzeImageWithVisionModel,
   getVisionMode,
@@ -10,11 +12,89 @@ import {
 import { defineTool } from '#core/tools/schema'
 
 const MAX_LONG_EDGE = 1024
+const MIN_EXPORT_LONG_EDGE = 512
+const MAX_UPSCALE = 4
+const CONTEXT_MARGIN = 48
+const NEAR_WHITE_LUMINANCE = 0.92
 const MIN_LEGIBLE_TEXT_PX = 12
 const JPEG_QUALITY = 80
 const MAX_DRILL_DEPTH = 2
 const MAX_DRILL_TARGETS = 5
 const MAX_DRILL_NAME = 40
+
+type ExportMode = 'original-bytes' | 'isolated' | 'in-context'
+
+interface ExportInfo {
+  mode: ExportMode
+  scale?: number
+  upscaled?: boolean
+}
+
+interface ClipRect {
+  minX: number
+  minY: number
+  maxX: number
+  maxY: number
+}
+
+function fillLuminance(color: Color): number {
+  return 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b
+}
+
+/**
+ * Structural preflight: an isolated export paints the node on a blank
+ * background (white for JPG), so two node shapes are guaranteed-unreadable
+ * there and must be exported IN CONTEXT instead:
+ * - nodes with no visible fill of their own — their content floats on
+ *   whatever paints beneath them in the design (e.g. a transparent
+ *   HeroContent frame whose white title sits over the BackgroundLayer);
+ * - near-white text — designed against a dark image, invisible on white.
+ */
+function needsContextExport(node: SceneNode): boolean {
+  const own = node.fills.filter((f) => f.visible && f.opacity > 0)
+  if (own.length === 0) return true
+  if (node.type === 'TEXT') {
+    return own.every((f) => f.type === 'SOLID' && fillLuminance(f.color) >= NEAR_WHITE_LUMINANCE)
+  }
+  return false
+}
+
+/** The node's design root: topmost ancestor below the CANVAS page. */
+function designRootId(graph: SceneGraph, node: SceneNode): string | undefined {
+  let current = node
+  while (current.parentId) {
+    const parent = graph.getNode(current.parentId)
+    if (!parent || parent.type === 'CANVAS') return current.id
+    current = parent
+  }
+  return undefined
+}
+
+/**
+ * The in-context output window: the target's visual bounds plus a margin of
+ * its surroundings, clamped to the design root so the export never shows
+ * bare page canvas outside the design.
+ */
+function contextClip(graph: SceneGraph, rootId: string, targetId: string): ClipRect | null {
+  const target = computeContentBounds(graph, [targetId])
+  const root = computeContentBounds(graph, [rootId])
+  if (!target || !root) return null
+  return {
+    minX: Math.max(target.minX - CONTEXT_MARGIN, root.minX),
+    minY: Math.max(target.minY - CONTEXT_MARGIN, root.minY),
+    maxX: Math.min(target.maxX + CONTEXT_MARGIN, root.maxX),
+    maxY: Math.min(target.maxY + CONTEXT_MARGIN, root.maxY)
+  }
+}
+
+/** Big designs scale down to [0.1, 1]; small nodes upscale toward the minimum legible edge (capped). */
+function exportScale(longEdge: number): { scale: number; upscaled: boolean } {
+  if (longEdge > 0 && longEdge < MIN_EXPORT_LONG_EDGE) {
+    return { scale: Math.min(MAX_UPSCALE, MIN_EXPORT_LONG_EDGE / longEdge), upscaled: true }
+  }
+  const scale = longEdge > 0 ? Math.max(0.1, Math.min(1, MAX_LONG_EDGE / longEdge)) : 1
+  return { scale, upscaled: false }
+}
 
 /**
  * When the target is a plain image bearer (a single visible IMAGE fill —
@@ -104,14 +184,85 @@ function addTextLegibilityNote(
   }
 }
 
+/**
+ * Render the node to JPEG bytes for inspection. Nodes whose appearance
+ * depends on what paints beneath them would export as white-on-white in
+ * isolation — they export composited in their design context, clipped to
+ * their bounds plus a margin. The design root itself stays isolated: its
+ * context is the bare page.
+ */
+async function renderNodeForInspection(
+  figma: FigmaAPI,
+  targetId: string,
+  node: SceneNode,
+  noteParts: string[]
+): Promise<
+  { error: string } | { image: { data: Uint8Array; mimeType: string }; exportInfo: ExportInfo }
+> {
+  if (!figma.exportImage) {
+    return { error: 'Visual inspection is not available in this environment' }
+  }
+  const rootId = designRootId(figma.graph, node)
+  const clip =
+    rootId !== undefined && rootId !== node.id && needsContextExport(node)
+      ? contextClip(figma.graph, rootId, node.id)
+      : null
+  const exportW = clip ? clip.maxX - clip.minX : node.width
+  const exportH = clip ? clip.maxY - clip.minY : node.height
+  const { scale, upscaled } = exportScale(Math.max(exportW, exportH))
+  const exportInfo: ExportInfo = {
+    mode: clip ? 'in-context' : 'isolated',
+    scale,
+    ...(upscaled ? { upscaled: true } : {})
+  }
+
+  if (clip) {
+    noteParts.push(
+      `Visual inspection of "${node.name}" (${node.width}×${node.height}) composited in its design context — the node has no opaque background of its own, so the export shows it plus a ~${CONTEXT_MARGIN}px band of what paints beneath/above it in the design.`
+    )
+  } else {
+    noteParts.push(
+      `Visual inspection of "${node.name}" (${node.width}×${node.height}, exported at ${Math.round(scale * 100)}%).`
+    )
+  }
+  if (upscaled) {
+    noteParts.push(
+      `Upscaled ×${scale.toFixed(2)} to reach the ${MIN_EXPORT_LONG_EDGE}px minimum legible edge — slight softness is a resampling artifact, not a design property.`
+    )
+  }
+  if (exportW > 4 * exportH || exportH > 4 * exportW) {
+    noteParts.push(
+      'Aspect ratio distorted at this scale — judge colors and presence, not proportions.'
+    )
+  }
+  addTextLegibilityNote(figma.graph, targetId, scale, noteParts)
+
+  const data = await figma.exportImage([targetId], {
+    scale,
+    format: 'JPG',
+    quality: JPEG_QUALITY,
+    ...(clip ? { renderInContext: true, clip } : {})
+  })
+  if (!data || data.length === 0) return { error: 'Nothing visible to inspect' }
+  return { image: { data, mimeType: 'image/jpeg' }, exportInfo }
+}
+
 async function analyzeViaVisionChannel(
   image: { data: Uint8Array; mimeType: string },
   nodeInfo: { id: string; name: string; width: number; height: number },
   noteParts: string[],
+  exportInfo: ExportInfo,
   focus: string | undefined
 ): Promise<
   | { error: string }
-  | { analysis: string; channel: 'B'; node: typeof nodeInfo; focus?: string; note: string }
+  | {
+      analysis: string
+      channel: 'B'
+      node: typeof nodeInfo
+      exportInfo: ExportInfo
+      focus?: string
+      note: string
+    }
 > {
   if (!isVisionChannelBReady()) {
     return {
@@ -125,13 +276,14 @@ async function analyzeViaVisionChannel(
     prompt: [
       'You are the vision subsystem of a design agent. Analyze this design screenshot factually and answer concisely.',
       ...noteParts,
-      'If text is too small to read, say so explicitly instead of guessing its content.'
+      'If text is too small to read, say so explicitly instead of guessing its content. If a region looks blurred, streaked, or blocky, treat it as an export or resampling artifact and say so — never describe a rendering artifact as a deliberate design element or defect.'
     ].join('\n')
   })
   return {
     analysis,
     channel: 'B' as const,
     node: nodeInfo,
+    exportInfo,
     ...(focus ? { focus } : {}),
     note: `${noteParts.join(' ')} (Text analysis from the independent vision model.)`
   }
@@ -140,7 +292,7 @@ async function analyzeViaVisionChannel(
 export const lookTool = defineTool({
   name: 'look',
   description:
-    'Visually inspect a node by rendering it to an image you can actually see. Use for questions describe cannot answer: text over busy backgrounds, visual style consistency, generated-image content (e.g. garbled text in AI images), or what a user-provided image shows. For text legibility on a large design, look at the section or text-bearing child node, not the root — the tool tells you when text is too small to read and lists child node ids to drill into. Observations are advisory — confirm structural or readonly concerns with validate, never from the image alone.',
+    'Visually inspect a node by rendering it to an image you can actually see. Use for questions describe cannot answer: text over busy backgrounds, visual style consistency, generated-image content (e.g. garbled text in AI images), or what a user-provided image shows. For text legibility on a large design, look at the section or text-bearing child node, not the root — the tool tells you when text is too small to read and lists child node ids to drill into. Nodes whose appearance depends on their surroundings (transparent frames, light text over images) are automatically rendered in their design context, and small nodes are upscaled to a legible size — both declared in the note. Observations are advisory — confirm structural or readonly concerns with validate, never from the image alone.',
   params: {
     id: {
       type: 'string',
@@ -170,42 +322,25 @@ export const lookTool = defineTool({
     const noteParts: string[] = []
 
     let image: { data: Uint8Array; mimeType: string }
+    let exportInfo: ExportInfo
     const original = originalImageData(figma, node)
     if (original) {
       noteParts.push(
         `Original image bytes of "${node.name}" at full resolution — on canvas it appears as ${node.width}×${node.height}, possibly cropped or scaled. Judge the image itself, not its canvas presentation.`
       )
       image = original
+      exportInfo = { mode: 'original-bytes' }
     } else {
-      if (!figma.exportImage) {
-        return { error: 'Visual inspection is not available in this environment' }
-      }
-      const longEdge = Math.max(node.width, node.height)
-      const scale = longEdge > 0 ? Math.max(0.1, Math.min(1, MAX_LONG_EDGE / longEdge)) : 1
-
-      noteParts.push(
-        `Visual inspection of "${node.name}" (${node.width}×${node.height}, exported at ${Math.round(scale * 100)}%).`
-      )
-      if (node.width > 4 * node.height || node.height > 4 * node.width) {
-        noteParts.push(
-          'Aspect ratio distorted at this scale — judge colors and presence, not proportions.'
-        )
-      }
-      addTextLegibilityNote(figma.graph, targetId, scale, noteParts)
-
-      const data = await figma.exportImage([targetId], {
-        scale,
-        format: 'JPG',
-        quality: JPEG_QUALITY
-      })
-      if (!data || data.length === 0) return { error: 'Nothing visible to inspect' }
-      image = { data, mimeType: 'image/jpeg' }
+      const rendered = await renderNodeForInspection(figma, targetId, node, noteParts)
+      if ('error' in rendered) return { error: rendered.error }
+      image = rendered.image
+      exportInfo = rendered.exportInfo
     }
 
     if (focus) noteParts.push(`Focus: ${focus}.`)
 
     if (getVisionMode() === 'B') {
-      return analyzeViaVisionChannel(image, nodeInfo, noteParts, focus)
+      return analyzeViaVisionChannel(image, nodeInfo, noteParts, exportInfo, focus)
     }
 
     return {
@@ -214,6 +349,7 @@ export const lookTool = defineTool({
       byteLength: image.data.length,
       channel: 'A' as const,
       node: nodeInfo,
+      exportInfo,
       ...(focus ? { focus } : {}),
       note: noteParts.join(' ')
     }

@@ -149,17 +149,18 @@ describe('default-library.fig round-trip', () => {
     expect(brandName?.fontFamily).toBe('Alibaba PuHuiTi')
   })
 
-  test('entries are laid out for human inspection (no overlap, pages side by side)', () => {
+  test('entries are laid out for human inspection (no overlap within a page)', () => {
     // Pages don't auto-layout their children — the generator must assign
     // explicit positions or every entry stacks at (0,0). Entries go
     // horizontally: long profile markdown overflows its baked-in entry
     // height (real text metrics only exist in-app), and a vertical stack
-    // would spill each entry onto the one below.
+    // would spill each entry onto the one below. Pages themselves need no
+    // position: .fig doesn't persist page coordinates and the app renders
+    // one active page at a time.
     const graph = buildDefaultLibraryGraph()
     const pages = graph.getPages()
     expect(pages.length).toBe(4)
 
-    let previousPageRight = -Infinity
     for (const page of pages) {
       let cursorRight = 0
       for (const childId of page.childIds) {
@@ -169,9 +170,6 @@ describe('default-library.fig round-trip', () => {
         cursorRight = child.x + child.width
         expect(child.width).toBeGreaterThan(0)
       }
-      // Pages sit side by side with a real gap, ordered by creation.
-      expect(page.x).toBeGreaterThanOrEqual(previousPageRight)
-      previousPageRight = page.x + cursorRight
     }
 
     // Long profile markdown wraps instead of running thousands of px wide.

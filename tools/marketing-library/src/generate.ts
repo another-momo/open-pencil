@@ -20,10 +20,8 @@ import { computeImageHash, SceneGraph, type SceneNode } from '@open-pencil/scene
 const here = dirname(fileURLToPath(import.meta.url))
 const OUTPUT = join(here, '..', '..', '..', 'public', 'default-library.fig')
 
-/** Entry cards within a page: vertical stack with this gap. */
+/** Entry cards within a page: horizontal row with this gap. */
 const ENTRY_GAP = 40
-/** Horizontal gap between zone pages. */
-const PAGE_GAP = 200
 /** Long markdown texts wrap at this width so entries stay inspectable. */
 const MARKDOWN_WRAP_WIDTH = 560
 
@@ -521,10 +519,11 @@ export function buildDefaultLibraryGraph(): SceneGraph {
 
 /**
  * Pages don't auto-layout their children — without explicit positions every
- * entry stacks at (0,0) and the zones sit 500px apart regardless of content
- * width, making the shipped .fig unreadable by hand. Run the real layout
- * engine once (hug sizes become concrete), then place each page's entries
- * SIDE BY SIDE and the pages left to right with generous gaps.
+ * entry stacks at (0,0), making the shipped .fig unreadable by hand. Run the
+ * real layout engine once (hug sizes become concrete), then place each
+ * page's entries SIDE BY SIDE. Pages themselves get no position: the .fig
+ * format doesn't persist page coordinates and the app renders one active
+ * page at a time, so a page-level offset would have no consumer.
  *
  * Entries go horizontally, not vertically: profile markdown is long, and its
  * true rendered height only exists once the app measures text with real
@@ -534,10 +533,7 @@ export function buildDefaultLibraryGraph(): SceneGraph {
  */
 function layoutLibrary(graph: SceneGraph): void {
   computeAllLayouts(graph)
-  let pageCursorX = 0
   for (const page of graph.getPages()) {
-    page.x = pageCursorX
-    page.y = 0
     let entryCursorX = 0
     for (const childId of page.childIds) {
       const child = graph.getNode(childId)
@@ -545,8 +541,6 @@ function layoutLibrary(graph: SceneGraph): void {
       graph.updateNode(child.id, { x: entryCursorX, y: 0 })
       entryCursorX += child.width + ENTRY_GAP
     }
-    const pageWidth = entryCursorX > 0 ? entryCursorX - ENTRY_GAP : 0
-    pageCursorX += pageWidth + PAGE_GAP
   }
 }
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.14.0 - 2026-08-10
+
 ### Breaking changes
 
 - **Core SDK:** Import scene graph types, geometry, coordinate, matrix, snapping, undo, and path helpers from `@open-pencil/scene-graph`; import `.pen` parsing from `@open-pencil/pen`; and import synchronous Kiwi decompression from `@open-pencil/kiwi` instead of the `@open-pencil/core` compatibility barrel.
@@ -38,6 +40,7 @@
 
 ### Changed
 
+- Simplify AI model setup with clearly separated model, connection, and advanced settings, automatic compatibility and output-limit defaults for recognized models, and an explicit custom-model option.
 - Redesign the editor chrome and Design panel with denser, better-aligned controls, clearer selection and section states, improved menus and overlays, consistent light/dark theming, and better keyboard and screen-reader support.
 - Choose Freeform, vertical, horizontal, or grid flow directly from the contextual Layout section, with sizing controls grouped alongside it.
 - Choose Auto width, Auto height, or Fixed size directly from the Layout section for text layers.
@@ -49,6 +52,8 @@
 
 ### Fixed
 
+- Preserve Figma’s imported glyph outlines through layout and appearance updates so text keeps its intended weight and shape.
+- Keep swapped image avatars and thin stepper dividers at their effective imported size and position.
 - Scale proportion-constrained `.fig` instance geometry through fixed wrapper layers so imported logos and icons retain their intended size.
 - Match Figma auto-layout spacing, padding, min/max constraints, scalar variable bindings, CanvasKit-shaped generated text, imported text bounds, and nested instance geometry more closely.
 - Match Figma Plugin API vector path and network editing, including bounds, transforms, winding rules, region fills, validation, and handle mirroring. (#444)

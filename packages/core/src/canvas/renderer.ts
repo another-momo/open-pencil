@@ -122,6 +122,7 @@ export class SkiaRenderer {
   } | null = null
   sceneBackingPreviewUntil = 0
   sceneBackingNeedsCrispRender = false
+  sceneBackingAllocationFailed = false
   sceneBackingBuild: {
     surface: Surface
     graph: SceneGraph
@@ -268,7 +269,8 @@ export class SkiaRenderer {
     nodeId: string,
     overlays: RenderOverlays,
     parentAbsX?: number,
-    parentAbsY?: number
+    parentAbsY?: number,
+    hasTransformedAncestor?: boolean
   ) => void
   declare renderSection: (canvas: Canvas, node: SceneNode, graph: SceneGraph) => void
   declare renderComponentSet: (canvas: Canvas, node: SceneNode, graph: SceneGraph) => void
@@ -451,6 +453,7 @@ export class SkiaRenderer {
   replaceSurface(surface: Surface): void {
     this.surface.delete()
     this.surface = surface
+    this.sceneBackingAllocationFailed = false
     this.invalidateScenePicture()
   }
 

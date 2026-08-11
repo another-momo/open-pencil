@@ -1,7 +1,7 @@
 import { computed, inject, provide, proxyRefs, ref } from 'vue'
 import type { InjectionKey, ShallowUnwrapRef } from 'vue'
 
-import { resolveProviderApiFormat, resolveProviderBaseURL } from '@/app/ai/chat/model'
+import { resolveProviderAPIFormat, resolveProviderBaseURL } from '@/app/ai/chat/model'
 import { useAIChat } from '@/app/ai/chat/use'
 import type { ChatMode } from '@/app/ai/marketing/settings'
 import {
@@ -25,11 +25,11 @@ function createProviderSettingsContext() {
     customModelID,
     modelID,
     lookImagesKept,
-    imageGenApiKey,
+    imageGenAPIKey,
     imageGenBaseURL,
     imageGenModel,
     visionMode,
-    visionApiKey,
+    visionAPIKey,
     visionBaseURL,
     visionModel,
     visionProvider,
@@ -41,11 +41,11 @@ function createProviderSettingsContext() {
   const imageGenKeyInput = ref('')
   const imageGenBaseURLInput = ref(imageGenBaseURL.value)
   const imageGenModelInput = ref(imageGenModel.value)
-  const hasExistingImageGenKey = ref(!!imageGenApiKey.value)
+  const hasExistingImageGenKey = ref(!!imageGenAPIKey.value)
   const visionKeyInput = ref('')
   const visionBaseURLInput = ref(visionBaseURL.value)
   const visionModelInput = ref(visionModel.value)
-  const hasExistingVisionKey = ref(!!visionApiKey.value)
+  const hasExistingVisionKey = ref(!!visionAPIKey.value)
   const mainModelValue = computed(() => customModelID.value.trim() || modelID.value)
   const mainBaseURLValue = computed(() =>
     resolveProviderBaseURL(providerID.value, customBaseURL.value)
@@ -56,7 +56,7 @@ function createProviderSettingsContext() {
 
   async function save() {
     if (imageGenKeyInput.value.trim()) {
-      imageGenApiKey.value = imageGenKeyInput.value.trim()
+      imageGenAPIKey.value = imageGenKeyInput.value.trim()
       hasExistingImageGenKey.value = true
       imageGenKeyInput.value = ''
     }
@@ -67,18 +67,18 @@ function createProviderSettingsContext() {
       imageGenModel.value = imageGenModelInput.value.trim()
     }
     saveVisionSettings(
-      { visionApiKey, visionBaseURL, visionModel },
+      { visionAPIKey, visionBaseURL, visionModel },
       { visionKeyInput, visionBaseURLInput, visionModelInput, hasExistingVisionKey }
     )
   }
 
   function clearImageGenKey() {
-    imageGenApiKey.value = ''
+    imageGenAPIKey.value = ''
     imageGenKeyInput.value = ''
     hasExistingImageGenKey.value = false
   }
 
-  const visionStorage = { visionApiKey, visionBaseURL, visionModel }
+  const visionStorage = { visionAPIKey, visionBaseURL, visionModel }
   const visionInputs = {
     visionKeyInput,
     visionBaseURLInput,
@@ -103,7 +103,7 @@ function createProviderSettingsContext() {
     visionBaseURLInput.value = baseURL
     // Align the provider type with the endpoint's request format when known,
     // so the copied URL isn't combined with a mismatched format.
-    const format = resolveProviderApiFormat(providerID.value)
+    const format = resolveProviderAPIFormat(providerID.value)
     if (format) visionProvider.value = format
     saveVisionSettings(visionStorage, visionInputs)
   }
@@ -122,11 +122,11 @@ function createProviderSettingsContext() {
   return {
     isACP,
     lookImagesKept,
-    imageGenApiKey,
+    imageGenAPIKey,
     imageGenBaseURL,
     imageGenModel,
     visionMode,
-    visionApiKey,
+    visionAPIKey,
     visionBaseURL,
     visionModel,
     visionProvider,

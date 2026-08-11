@@ -46,7 +46,7 @@ export function resolveProviderBaseURL(
 }
 
 /** Which request format a provider speaks — for aligning the vision provider type. */
-export function resolveProviderApiFormat(
+export function resolveProviderAPIFormat(
   providerID: AIProviderID
 ): 'openai-compatible' | 'anthropic-compatible' | undefined {
   switch (providerID) {

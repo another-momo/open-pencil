@@ -26,7 +26,7 @@ export type ChatMode = 'ui' | 'marketing'
 // kept as base64 in each LLM request; older ones become text placeholders.
 export const lookImagesKept = useLocalStorage(`${STORAGE_PREFIX}ai-look-images-kept`, 2)
 // Image-generation credentials — independent from the chat LLM key/base URL.
-export const imageGenApiKey = useLocalStorage(`${STORAGE_PREFIX}image-gen-api-key`, '')
+export const imageGenAPIKey = useLocalStorage(`${STORAGE_PREFIX}image-gen-api-key`, '')
 export const imageGenBaseURL = useLocalStorage(
   `${STORAGE_PREFIX}image-gen-base-url`,
   'https://www.dmxapi.cn/v1'
@@ -44,7 +44,7 @@ export const visionProvider = useLocalStorage<VisionProvider>(
   `${STORAGE_PREFIX}vision-provider`,
   'openai-compatible'
 )
-export const visionApiKey = useLocalStorage(`${STORAGE_PREFIX}vision-api-key`, '')
+export const visionAPIKey = useLocalStorage(`${STORAGE_PREFIX}vision-api-key`, '')
 export const visionBaseURL = useLocalStorage(`${STORAGE_PREFIX}vision-base-url`, '')
 export const visionModel = useLocalStorage(`${STORAGE_PREFIX}vision-model`, '')
 
@@ -106,7 +106,7 @@ export function syncMaterialTypeFromAI(id: string): void {
  */
 export function registerMarketingSettingsEffects(markTransportDirty: () => void) {
   watch(
-    [imageGenApiKey, imageGenBaseURL, imageGenModel],
+    [imageGenAPIKey, imageGenBaseURL, imageGenModel],
     ([key, baseURL, model]) => {
       setImageGenCredentials(key || null, baseURL || undefined, model || undefined)
     },
@@ -130,7 +130,7 @@ export function registerMarketingSettingsEffects(markTransportDirty: () => void)
   )
 
   watch(
-    [visionApiKey, visionBaseURL, visionModel],
+    [visionAPIKey, visionBaseURL, visionModel],
     ([key, baseURL, model]) => {
       setVisionCredentials(key || null, baseURL, model)
     },

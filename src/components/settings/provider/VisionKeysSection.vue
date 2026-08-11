@@ -49,7 +49,7 @@ function onProviderChange(event: Event) {
         <ProviderSettingsKeyField
           v-model="ctx.visionKeyInput"
           :label="dialogs.visionAPIKey"
-          :saved="!!ctx.visionApiKey"
+          :saved="!!ctx.visionAPIKey"
           kind="api"
           :placeholder="
             ctx.hasExistingVisionKey ? dialogs.keySavedReplace : dialogs.visionAPIKeyPlaceholder

@@ -481,7 +481,7 @@ export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
 }
 
 /** Append one confirmed conclusion line into the brief's AI zone */
-export function appendToBriefAiZone(figma: FigmaAPI, briefId: string, text: string): boolean {
+export function appendToBriefAIZone(figma: FigmaAPI, briefId: string, text: string): boolean {
   const graph = figma.graph
   const brief = graph.getNode(briefId)
   if (!isBrief(brief)) return false

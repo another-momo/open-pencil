@@ -7,13 +7,13 @@ import type { Rect } from '@open-pencil/scene-graph/primitives'
 
 export type SampleDirection = 'top' | 'bottom' | 'left' | 'right' | 'center'
 
-export interface Rgb {
+export interface RGB {
   r: number
   g: number
   b: number
 }
 
-export interface BandColor extends Rgb {
+export interface BandColor extends RGB {
   samples: number
 }
 
@@ -98,7 +98,7 @@ export function averageRegion(
   }
 }
 
-export function bandColorToHex(color: Rgb): string {
+export function bandColorToHex(color: RGB): string {
   const toHex = (n: number) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0')
   return `#${toHex(color.r)}${toHex(color.g)}${toHex(color.b)}`.toUpperCase()
 }

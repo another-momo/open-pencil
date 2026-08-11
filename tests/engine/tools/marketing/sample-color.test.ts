@@ -116,7 +116,7 @@ describe('sample_hero_color tool', () => {
       width: () => width,
       height: () => height,
       readPixels: () => new Uint8Array(width * height * 4).fill(255),
-      delete: () => {}
+      delete: () => undefined
     }
     mock.module('#core/canvaskit', () => ({
       getCanvasKit: async () => ({

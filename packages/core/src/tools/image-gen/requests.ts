@@ -1,4 +1,4 @@
-import { parseJsonArrayParam } from '#core/tools/json-array'
+import { parseJSONArrayParam } from '#core/tools/json-array'
 
 import type { ImageGenReference, ImageGenRequest } from './providers'
 
@@ -111,7 +111,7 @@ function parseReferences(value: unknown): ImageGenReference[] | { error: string 
 }
 
 export function parseImageGenRequests(value: unknown): ParsedImageGenRequests | { error: string } {
-  const parsed = parseJsonArrayParam(value, 'requests')
+  const parsed = parseJSONArrayParam(value, 'requests')
   if ('error' in parsed) return parsed
 
   interface RawRequest {

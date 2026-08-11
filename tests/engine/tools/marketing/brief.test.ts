@@ -8,7 +8,7 @@ import {
   BRIEF_ZONE_AI_NAME,
   BRIEF_ZONE_MATERIALS_NAME,
   BRIEF_ZONE_USER_NAME,
-  appendToBriefAiZone,
+  appendToBriefAIZone,
   createBrief,
   findBrief,
   isBrief
@@ -116,11 +116,11 @@ test('brief layout computes sane geometry (no sizing collapse)', () => {
   expect(aiCard.height).toBe(fresh.height - 72)
 })
 
-test('appendToBriefAiZone appends text only into the AI conclusions list', () => {
+test('appendToBriefAIZone appends text only into the AI conclusions list', () => {
   const { graph, figma } = setupToolTest()
   const brief = createBrief(figma)
 
-  expect(appendToBriefAiZone(figma, brief.id, '方向B：活力潮流')).toBe(true)
+  expect(appendToBriefAIZone(figma, brief.id, '方向B：活力潮流')).toBe(true)
 
   const walk = (id: string, visit: (nodeId: string) => void): void => {
     visit(id)
@@ -133,5 +133,5 @@ test('appendToBriefAiZone appends text only into the AI conclusions list', () =>
   })
   expect(texts.some((t) => t.includes('方向B：活力潮流'))).toBe(true)
 
-  expect(appendToBriefAiZone(figma, 'nonexistent', 'x')).toBe(false)
+  expect(appendToBriefAIZone(figma, 'nonexistent', 'x')).toBe(false)
 })

@@ -3,7 +3,7 @@
  * tree. The canvas node tree stays the single source of truth — the panel
  * rebuilds its view via readBrief on every open and re-reads before every
  * apply. Children are located BY NAME (same convention as
- * appendToBriefAiZone); structurally broken briefs (user renamed zones) read
+ * appendToBriefAIZone); structurally broken briefs (user renamed zones) read
  * as null instead of attempting repair.
  */
 

@@ -11,7 +11,7 @@ import {
 
 function setup(storageValues = { key: '', baseURL: '', model: '' }) {
   const storage = {
-    visionApiKey: ref(storageValues.key),
+    visionAPIKey: ref(storageValues.key),
     visionBaseURL: ref(storageValues.baseURL),
     visionModel: ref(storageValues.model)
   }
@@ -33,7 +33,7 @@ describe('vision settings save/clear', () => {
 
     saveVisionSettings(storage, inputs)
 
-    expect(storage.visionApiKey.value).toBe('sk-new')
+    expect(storage.visionAPIKey.value).toBe('sk-new')
     expect(storage.visionBaseURL.value).toBe('https://vision.example/v1')
     expect(storage.visionModel.value).toBe('vision-model')
     expect(inputs.visionKeyInput.value).toBe('')
@@ -51,7 +51,7 @@ describe('vision settings save/clear', () => {
 
     saveVisionSettings(storage, inputs)
 
-    expect(storage.visionApiKey.value).toBe('sk-stored')
+    expect(storage.visionAPIKey.value).toBe('sk-stored')
     expect(storage.visionModel.value).toBe('new-model')
   })
 
@@ -68,7 +68,7 @@ describe('vision settings save/clear', () => {
 
     expect(storage.visionBaseURL.value).toBe('')
     expect(storage.visionModel.value).toBe('')
-    expect(storage.visionApiKey.value).toBe('sk-stored')
+    expect(storage.visionAPIKey.value).toBe('sk-stored')
   })
 
   test('each clear button clears only its own field', () => {
@@ -81,16 +81,16 @@ describe('vision settings save/clear', () => {
     clearVisionBaseURL(storage, inputs)
     expect(storage.visionBaseURL.value).toBe('')
     expect(inputs.visionBaseURLInput.value).toBe('')
-    expect(storage.visionApiKey.value).toBe('sk-stored')
+    expect(storage.visionAPIKey.value).toBe('sk-stored')
     expect(storage.visionModel.value).toBe('old-model')
 
     clearVisionModel(storage, inputs)
     expect(storage.visionModel.value).toBe('')
     expect(inputs.visionModelInput.value).toBe('')
-    expect(storage.visionApiKey.value).toBe('sk-stored')
+    expect(storage.visionAPIKey.value).toBe('sk-stored')
 
     clearVisionKey(storage, inputs)
-    expect(storage.visionApiKey.value).toBe('')
+    expect(storage.visionAPIKey.value).toBe('')
     expect(inputs.visionKeyInput.value).toBe('')
     expect(inputs.hasExistingVisionKey.value).toBe(false)
   })

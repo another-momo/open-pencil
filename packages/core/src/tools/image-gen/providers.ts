@@ -89,16 +89,16 @@ export function setImageGenCredentials(
   }
 }
 
-interface ImageApiItem {
+interface ImageAPIItem {
   b64_json?: string
   url?: string
 }
 
-interface ImageApiResponse {
-  data?: ImageApiItem[]
+interface ImageAPIResponse {
+  data?: ImageAPIItem[]
 }
 
-async function extractImageBytes(data: ImageApiResponse): Promise<Uint8Array> {
+async function extractImageBytes(data: ImageAPIResponse): Promise<Uint8Array> {
   const item = data.data?.[0]
   if (!item) throw new Error('Image API returned no image data')
   if (item.b64_json) return decodeBase64(item.b64_json)
@@ -110,7 +110,7 @@ async function extractImageBytes(data: ImageApiResponse): Promise<Uint8Array> {
   throw new Error('Image API response missing b64_json and url')
 }
 
-interface ApiErrorBody {
+interface APIErrorBody {
   error?: { message?: string } | string
   detail?: string
   message?: string
@@ -125,7 +125,7 @@ function apiErrorMessage(err: unknown, fallback: string): string {
     const data: unknown = err.data
     if (typeof data === 'string' && data.trim()) return data
     if (data && typeof data === 'object') {
-      const body = data as ApiErrorBody
+      const body = data as APIErrorBody
       if (body.error && typeof body.error === 'object') {
         const message = body.error.message
         if (typeof message === 'string' && message) return message
@@ -182,14 +182,14 @@ const dmxImageProvider: ImageGenProvider = {
           )
         })
 
-        const response = await ofetch.raw<ImageApiResponse>(`${imageGenBaseURL}/images/edits`, {
+        const response = await ofetch.raw<ImageAPIResponse>(`${imageGenBaseURL}/images/edits`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${imageGenKey}` },
           body: form,
           retry: 0,
           timeout: imageGenTimeoutMs
         })
-        const bytes = await extractImageBytes(response._data as ImageApiResponse)
+        const bytes = await extractImageBytes(response._data as ImageAPIResponse)
         return { bytes, width: resultWidth, height: resultHeight }
       }
 
@@ -205,7 +205,7 @@ const dmxImageProvider: ImageGenProvider = {
       }
       withCompression(body)
 
-      const response = await ofetch.raw<ImageApiResponse>(`${imageGenBaseURL}/images/generations`, {
+      const response = await ofetch.raw<ImageAPIResponse>(`${imageGenBaseURL}/images/generations`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${imageGenKey}`,
@@ -215,7 +215,7 @@ const dmxImageProvider: ImageGenProvider = {
         retry: 0,
         timeout: imageGenTimeoutMs
       })
-      const bytes = await extractImageBytes(response._data as ImageApiResponse)
+      const bytes = await extractImageBytes(response._data as ImageAPIResponse)
       return { bytes, width: resultWidth, height: resultHeight }
     } catch (err) {
       throw new Error(apiErrorMessage(err, String(err)))

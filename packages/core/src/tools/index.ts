@@ -62,7 +62,7 @@ export {
   BRIEF_ZONE_MATERIALS_NAME,
   BRIEF_ZONE_USER_NAME,
   addBriefMaterialEntry,
-  appendToBriefAiZone,
+  appendToBriefAIZone,
   createBrief,
   createBriefPlaced,
   findBrief,

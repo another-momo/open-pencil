@@ -14,25 +14,25 @@
 
 import { safeDestr } from 'destr'
 
-export interface JsonArrayParam {
+export interface JSONArrayParam {
   items: unknown[]
   warning?: string
 }
 
 const INSIGNIFICANT_TAIL = /^[\s"',}]*$/
 
-function tryParse(text: string, strictJson: boolean): unknown {
+function tryParse(text: string, strictJSON: boolean): unknown {
   try {
-    return strictJson ? JSON.parse(text) : safeDestr(text)
+    return strictJSON ? JSON.parse(text) : safeDestr(text)
   } catch {
     return undefined
   }
 }
 
-export function parseJsonArrayParam(
+export function parseJSONArrayParam(
   raw: unknown,
   label: string
-): JsonArrayParam | { error: string } {
+): JSONArrayParam | { error: string } {
   const text = String(raw)
   const parsed = tryParse(text, false)
   if (parsed !== undefined) {

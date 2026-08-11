@@ -1,7 +1,7 @@
 import {
   BRIEF_ESTIMATED_HEIGHT,
   BRIEF_WIDTH,
-  appendToBriefAiZone,
+  appendToBriefAIZone,
   createBriefPlaced,
   findBrief,
   getPageContentBounds
@@ -28,7 +28,7 @@ export {
   BRIEF_ZONE_MATERIALS_NAME,
   BRIEF_ZONE_USER_NAME,
   addBriefMaterialEntry,
-  appendToBriefAiZone,
+  appendToBriefAIZone,
   createBrief,
   createBriefPlaced,
   findBrief,
@@ -149,7 +149,7 @@ export const appendBriefConclusionTool = defineTool({
     }
     const brief = findBrief(figma)
     if (!brief) return { ok: false, note: 'No 需求单 exists in this document.' }
-    const appended = appendToBriefAiZone(figma, brief.id, text.trim())
+    const appended = appendToBriefAIZone(figma, brief.id, text.trim())
     return appended
       ? { ok: true }
       : { ok: false, note: 'The brief exists but its AI结论区 could not be located.' }

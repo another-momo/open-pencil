@@ -5,7 +5,7 @@ import {
   BRIEF_ENTRY_NAME,
   BRIEF_ZONE_MATERIALS_NAME,
   addBriefMaterialEntry,
-  appendToBriefAiZone,
+  appendToBriefAIZone,
   createBrief,
   readBrief,
   removeBriefMaterial,
@@ -48,11 +48,11 @@ test('readBrief reads back default content, no materials, and empty conclusions'
   expect(view.conclusions).toEqual([])
 })
 
-test('readBrief returns conclusions appended via appendToBriefAiZone', () => {
+test('readBrief returns conclusions appended via appendToBriefAIZone', () => {
   const { figma } = setupToolTest()
   const brief = createBrief(figma)
 
-  expect(appendToBriefAiZone(figma, brief.id, '方向B：活力潮流')).toBe(true)
+  expect(appendToBriefAIZone(figma, brief.id, '方向B：活力潮流')).toBe(true)
   const view = expectDefined(readBrief(figma))
   expect(view.conclusions).toEqual(['· 方向B：活力潮流'])
 })

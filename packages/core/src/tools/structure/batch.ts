@@ -1,6 +1,6 @@
 import type { FigmaNodeProxy } from '#core/figma-api'
 import { recordInstanceOverrides } from '#core/tools/instance-overrides'
-import { parseJsonArrayParam } from '#core/tools/json-array'
+import { parseJSONArrayParam } from '#core/tools/json-array'
 import { defineTool } from '#core/tools/schema'
 
 interface BatchOp {
@@ -126,7 +126,7 @@ export const batchUpdate = defineTool({
     }
   },
   execute: (figma, { operations }) => {
-    const parsed = parseJsonArrayParam(operations, 'operations')
+    const parsed = parseJSONArrayParam(operations, 'operations')
     if ('error' in parsed) return { error: parsed.error }
     const ops = parsed.items as BatchOp[]
 

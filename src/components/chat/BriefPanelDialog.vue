@@ -60,7 +60,7 @@ function refresh(): void {
 
 const thumbUrls = new Map<string, string>()
 
-function thumbUrl(hash: string): string {
+function thumbURL(hash: string): string {
   const cached = thumbUrls.get(hash)
   if (cached) return cached
   const bytes = getActiveEditorStoreOrNull()?.graph.images.get(hash)
@@ -237,8 +237,8 @@ function onChooseSelectionMode(mode: SelectionAddMode): void {
               class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-input"
             >
               <img
-                v-if="material.imageHash && thumbUrl(material.imageHash)"
-                :src="thumbUrl(material.imageHash)"
+                v-if="material.imageHash && thumbURL(material.imageHash)"
+                :src="thumbURL(material.imageHash)"
                 :alt="material.caption"
                 class="size-full object-cover"
               />

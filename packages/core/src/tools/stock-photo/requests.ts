@@ -1,4 +1,4 @@
-import { parseJsonArrayParam } from '#core/tools/json-array'
+import { parseJSONArrayParam } from '#core/tools/json-array'
 
 import type { PhotoRequest } from './apply'
 
@@ -8,7 +8,7 @@ export interface ParsedPhotoRequests {
 }
 
 export function parsePhotoRequests(value: unknown): ParsedPhotoRequests | { error: string } {
-  const parsed = parseJsonArrayParam(value, 'requests')
+  const parsed = parseJSONArrayParam(value, 'requests')
   if ('error' in parsed) return parsed
 
   if (parsed.items.length === 0) return { error: 'Empty requests array' }

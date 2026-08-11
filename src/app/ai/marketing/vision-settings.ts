@@ -9,7 +9,7 @@ import type { Ref } from 'vue'
  * refs in tests); input refs are the dialog's edit buffers.
  */
 export interface VisionSettingsStorage {
-  visionApiKey: Ref<string>
+  visionAPIKey: Ref<string>
   visionBaseURL: Ref<string>
   visionModel: Ref<string>
 }
@@ -34,7 +34,7 @@ export function saveVisionSettings(
 ): void {
   const key = inputs.visionKeyInput.value.trim()
   if (key) {
-    storage.visionApiKey.value = key
+    storage.visionAPIKey.value = key
     inputs.hasExistingVisionKey.value = true
     inputs.visionKeyInput.value = ''
   }
@@ -43,7 +43,7 @@ export function saveVisionSettings(
 }
 
 export function clearVisionKey(storage: VisionSettingsStorage, inputs: VisionSettingsInputs): void {
-  storage.visionApiKey.value = ''
+  storage.visionAPIKey.value = ''
   inputs.visionKeyInput.value = ''
   inputs.hasExistingVisionKey.value = false
 }

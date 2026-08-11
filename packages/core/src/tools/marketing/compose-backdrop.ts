@@ -280,6 +280,29 @@ interface ValidatedInputs {
   heroImageFrom?: string
 }
 
+function validateCanvasSize(canvasWidth: number, canvasHeight: number): string | undefined {
+  if (!Number.isFinite(canvasWidth) || !Number.isFinite(canvasHeight)) {
+    return `canvas_width and canvas_height must be finite numbers (got ${canvasWidth}×${canvasHeight}).`
+  }
+  if (canvasWidth < 100 || canvasHeight < 200) {
+    return `Canvas too small (got ${canvasWidth}×${canvasHeight}, minimum 100×200).`
+  }
+  if (canvasWidth > 8000 || canvasHeight > 20000) {
+    return `Canvas too large (got ${canvasWidth}×${canvasHeight}, maximum 8000×20000) — check for a typo.`
+  }
+  return undefined
+}
+
+function validateHeroBleed(heroBleed: number): string | undefined {
+  if (!Number.isFinite(heroBleed) || heroBleed < 0) {
+    return `hero_bleed must be a finite number ≥ 0 (got ${heroBleed}).`
+  }
+  if (heroBleed > 1000) {
+    return `hero_bleed ${heroBleed} exceeds the 1000px maximum — check for a typo.`
+  }
+  return undefined
+}
+
 function validateInputs(args: Record<string, unknown>): { error: string } | ValidatedInputs {
   const rootId = args.root_id
   if (typeof rootId !== 'string' || rootId.length === 0) {
@@ -290,27 +313,12 @@ function validateInputs(args: Record<string, unknown>): { error: string } | Vali
   if (typeof canvasWidth !== 'number' || typeof canvasHeight !== 'number') {
     return { error: 'canvas_width and canvas_height are required numbers.' }
   }
-  if (!Number.isFinite(canvasWidth) || !Number.isFinite(canvasHeight)) {
-    return {
-      error: `canvas_width and canvas_height must be finite numbers (got ${canvasWidth}×${canvasHeight}).`
-    }
-  }
-  if (canvasWidth < 100 || canvasHeight < 200) {
-    return { error: `Canvas too small (got ${canvasWidth}×${canvasHeight}, minimum 100×200).` }
-  }
-  if (canvasWidth > 8000 || canvasHeight > 20000) {
-    return {
-      error: `Canvas too large (got ${canvasWidth}×${canvasHeight}, maximum 8000×20000) — check for a typo.`
-    }
-  }
+  const canvasError = validateCanvasSize(canvasWidth, canvasHeight)
+  if (canvasError) return { error: canvasError }
   const heroHeight = typeof args.hero_height === 'number' ? args.hero_height : DEFAULT_HERO_HEIGHT
   const heroBleed = typeof args.hero_bleed === 'number' ? args.hero_bleed : DEFAULT_HERO_BLEED
-  if (!Number.isFinite(heroBleed) || heroBleed < 0) {
-    return { error: `hero_bleed must be a finite number ≥ 0 (got ${heroBleed}).` }
-  }
-  if (heroBleed > 1000) {
-    return { error: `hero_bleed ${heroBleed} exceeds the 1000px maximum — check for a typo.` }
-  }
+  const bleedError = validateHeroBleed(heroBleed)
+  if (bleedError) return { error: bleedError }
   if (typeof args.hero_height === 'number' && args.hero_height > 4000) {
     return {
       error: `hero_height ${args.hero_height} exceeds the 4000px maximum — check for a typo.`
@@ -470,7 +478,7 @@ function findStrayImageName(
   for (const childId of root.childIds) {
     if (childId === layerId || childId === heroContentId) continue
     const child = graph.getNode(childId)
-    if (child && child.childIds.length === 0 && child.fills.some((f) => f.type === 'IMAGE')) {
+    if (child?.childIds.length === 0 && child.fills.some((f) => f.type === 'IMAGE')) {
       return child.name
     }
   }

@@ -12,7 +12,7 @@ const { dialogs } = useI18n()
   <ProviderSettingsKeyField
     v-model="ctx.imageGenKeyInput"
     :label="dialogs.imageGenAPIKey"
-    :saved="!!ctx.imageGenApiKey"
+    :saved="!!ctx.imageGenAPIKey"
     kind="image-gen"
     :placeholder="
       ctx.hasExistingImageGenKey ? dialogs.keySavedReplace : dialogs.imageGenAPIKeyPlaceholder

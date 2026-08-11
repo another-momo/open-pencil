@@ -1,6 +1,6 @@
 import ExprEval from 'expr-eval'
 
-import { parseJsonArrayParam } from './json-array'
+import { parseJSONArrayParam } from './json-array'
 import { defineTool } from './schema'
 
 const parser = new ExprEval.Parser()
@@ -37,7 +37,7 @@ export const calc = defineTool({
     const trimmed = expr.trim()
     if (!trimmed.startsWith('[')) return evalExpr(expr)
 
-    const parsed = parseJsonArrayParam(trimmed, 'expr')
+    const parsed = parseJSONArrayParam(trimmed, 'expr')
     if ('error' in parsed) {
       return {
         expr,

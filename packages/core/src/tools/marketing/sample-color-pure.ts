@@ -3,15 +3,13 @@
  * region math, and hex formatting can be unit tested without a renderer.
  */
 
+import type { Rgb as CuloriRGB } from 'culori'
+
 import type { Rect } from '@open-pencil/scene-graph/primitives'
 
 export type SampleDirection = 'top' | 'bottom' | 'left' | 'right' | 'center'
 
-export interface RGB {
-  r: number
-  g: number
-  b: number
-}
+export type RGB = Pick<CuloriRGB, 'r' | 'g' | 'b'>
 
 export interface BandColor extends RGB {
   samples: number

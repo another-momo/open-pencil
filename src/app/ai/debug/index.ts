@@ -32,15 +32,15 @@ function asMediaOutput(value: unknown): MediaOutputShape | undefined {
 function sanitizeMediaOutput(value: unknown): unknown {
   const media = asMediaOutput(value)
   if (!media) return value
-  const record = value as JsonObject
+  const record = value as JSONObject
   const { base64: _base64, ...rest } = record
   return { ...rest, base64: `[omitted ${media.base64.length} chars]` }
 }
 
-function sanitizeToolPart(part: JsonObject): JsonObject {
-  const clone: JsonObject = { ...part }
+function sanitizeToolPart(part: JSONObject): JSONObject {
+  const clone: JSONObject = { ...part }
   if ('output' in clone) clone.output = sanitizeMediaOutput(clone.output)
-  const inv = clone.toolInvocation as JsonObject | undefined
+  const inv = clone.toolInvocation as JSONObject | undefined
   if (inv && 'result' in inv) {
     clone.toolInvocation = { ...inv, result: sanitizeMediaOutput(inv.result) }
   }
@@ -258,7 +258,7 @@ function formatMessageStats(messages: UIMessage[]): string {
         (typeof p.type === 'string' && p.type.startsWith('tool-'))
       ) {
         toolCalls++
-        const inv = p.toolInvocation as JsonObject | undefined
+        const inv = p.toolInvocation as JSONObject | undefined
         const output = inv ? inv.result : p.output
         const media = asMediaOutput(output)
         if (media) {

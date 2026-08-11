@@ -1,6 +1,7 @@
 # Fork 与 upstream 差异全景与演进策略
 
-> 基线：2026-08-04，`merge/upstream-2026-08` 分支已同步至 upstream `de8578c4`（72 commits 三阶段合并完成）。
+> 基线：2026-08-11，`merge/upstream-2026-08-v2` 分支已同步至 upstream `c29654cd`（v0.14.0，67 commits 两段式合并完成）。
+> 上一次合并：2026-08-04，`merge/upstream-2026-08` 同步至 `de8578c4`（72 commits 三阶段）。
 > 用途：fork 治理的单一参考——差异在哪、哪些可丢、哪些该重构、哪些冗余先接受。
 > 维护规则：每次合并 upstream 后刷新 §2 的文件清单与 §3 的处置状态；处置决策的变更记录追加到文末 §6。
 
@@ -8,16 +9,16 @@
 
 ## 1. 现状基线
 
-- fork 点：`8561d73e`（2026-07-21）；2026-08-04 完成 72 commits 合并（三阶段：`e358a44a` / `e213f7ce` / `2267bb95`）。
-- 当前差异：**176 文件（108 新增 / 68 修改 / 0 删除），+16,736 / -844**。
-- 关键结构事实：**新增面（A 类）合并零风险**；冲突只来自 68 个修改面（M 类）文件，且本次合并实测冲突高度集中——真正反复撞的不到 10 个文件。
+- fork 点：`8561d73e`（2026-07-21）；2026-08-04 完成 72 commits 合并（三阶段：`e358a44a` / `e213f7ce` / `2267bb95`）；2026-08-11 完成 67 commits 合并（两段式：`c82daea5` 合到 acronym 重构前 / `d154cdff` 合重构段到 `c29654cd`）。
+- 当前差异：**220 文件（143 新增 / 77 修改 / 0 删除），+24,740 / -913**，领先 upstream 162 commits。
+- 关键结构事实：**新增面（A 类）合并零风险**；冲突只来自修改面（M 类）文件，且两次合并实测冲突高度集中——本轮 67 commits 只有 6 个冲突文件，其中 4 个是 acronym casing 重构的机械擦撞。
 - fork 无删除（D 类 = 0）：fork 从未删除任何 upstream 文件，这是好纪律，继续保持。
 
 ---
 
 ## 2. 差异全景
 
-### 2.1 A 类：fork 新增（108 文件，合并零冲突风险）
+### 2.1 A 类：fork 新增（143 文件，合并零冲突风险）
 
 | 域 | 文件 | 说明 |
 |---|---|---|
@@ -31,7 +32,7 @@
 | 文档体系 | `docs/plans/`、`docs/review/` | upstream 零触达 |
 | 测试 | `tests/engine/tools/marketing/`（8 文件 68+ 用例）、`tests/engine/chat/`（2 文件）、`tests/engine/app/marketing-library.test.ts` | fork 自维护回归基线 |
 
-### 2.2 M 类：修改 upstream 原文件（68 文件，合并冲突唯一来源）
+### 2.2 M 类：修改 upstream 原文件（77 文件，合并冲突唯一来源）
 
 按 2026-08-04 合并实测的冲突烈度分三级：
 
@@ -55,7 +56,7 @@
 
 **低危（纯追加或 upstream 冷区，实测不撞）**
 
-`packages/core/src/tools/index.ts`（+44/-0 纯追加导出）、`tools/registry-core.ts`（+8/-0）、stock-photo 系列、fonts 系列（普惠体打包）、`tools/calc.ts`、`tools/describe/issues.ts`、`tools/structure/*`、`packages/fig` 2 文件、`desktop/tauri.conf.json`（1 行）、`vite/server.ts`（dev server 图片投递）、`src/components/CodePanel.vue`（1 行 import 改向 fork 新增的 `src/components/prism.ts`，见 §6 2026-08-06）、`src/app/automation/mcp/spawn.ts` 与 `src/components/settings/provider-select/ProviderSelect.vue`（MCP 不可用会话级记忆，各 2 处小 hunk，见 §6 2026-08-06）、`AGENTS.md`、测试文件。
+`packages/core/src/tools/index.ts`（纯追加导出；本轮被 acronym 重构擦撞一次，机械解）、`tools/registry-core.ts`（纯追加，同上）、stock-photo 系列、fonts 系列（普惠体打包）、`tools/calc.ts`、`tools/describe/issues.ts`、`tools/structure/*`、`packages/fig` 2 文件、`desktop/tauri.conf.json`（1 行）、`vite/server.ts`（dev server 图片投递）、`src/app/automation/mcp/spawn.ts` 与 `src/components/settings/provider-select/ProviderSelect.vue`（MCP 会话级记忆标记，见 §6 2026-08-06；本轮 spawn.ts 已采用 upstream 新结构，见 §6 2026-08-11）、`AGENTS.md`、测试文件。
 
 ---
 
@@ -143,6 +144,14 @@
 - 2026-08-06：MCP 报错爆发收敛 + clipboard.ts 回归 upstream（`cde5e59d`）——新增 `src/app/automation/mcp/availability.ts`（fork 自有），`spawn.ts` 与 `ProviderSelect.vue` 各打 2 处小 hunk：首次探测失败后本会话不再重复健康检查爆发（此前每开一个设置面板就多一轮 3×2s 超时）。`shell/keyboard/clipboard.ts` 删除调试 warn 后与 upstream 逐字节一致（移出 M 类）。`spawn.ts`、`ProviderSelect.vue` 自此进入 M 类低危清单。
 - 2026-08-06：修复 Tauri 开大文件内存飙升/崩溃（`81a6b3ee`）——Tauri 命令返回 `Vec<u8>` 时 IPC 走 JSON 数字数组（每字节 ~4 倍文本 + JS 侧 ~8 倍堆），15MB 的 CJK 字体 / 数 MB 的字体子集下载单次调用产生 100+MB 瞬时堆，弱机上开大文档直接 OOM。`desktop/src/fonts.rs` 与 `desktop/src/http.rs` 改为返回 `tauri::ipc::Response` 原始字节（http 侧帧格式 `[4字节LE长度][JSON元信息][原始body]`），JS 侧 `fonts/index.ts`、`src/app/tauri/http.ts` 同步。**`desktop/src/fonts.rs`、`desktop/src/http.rs`、`src/app/tauri/http.ts` 自此进入 M 类低危清单**；upstream 若改 IPC 形态（如官方修此问题）需人工对齐。待办：`build_fig_file`（保存链路）的入参/返回仍是 JSON 数组，保存大文件时有同类开销，暂未修。
 - 2026-08-06：修复 CJK 字体回退内存炸弹（`fd8618a1`）——Tauri 专属双重泄漏（浏览器 dev 无 host loader 故永不触发）：①fontManager 回退循环直调 `loadHostFont` 绕过自身缓存，每次文字/字体操作都经 IPC 重拉最多 7 个完整 CJK 系统字体（~100MB）并以新 ArrayBuffer 重复注册进 CanvasKit（WASM 内存不释放）；②`ensureFallbackFamilies` 把全部候选本地族都加载。修法：fork 侧 `loadSystemFont` 加会话级缓存（同引用返回使 registerAndCache/CanvasKit 去重生效），`packages/core/src/text/fonts.ts` 回退循环首个可用族即 `break`（1 处 hunk，**该文件自此进入 M 类低危清单**；upstream 若动回退逻辑需人工对齐）。症状实锤路径：设字体→缺字形→回退级联→OOM。
+- 2026-08-11：第二次合并完成（`merge/upstream-2026-08-v2`，两段式：`c82daea5` / `d154cdff`）——67 commits（`de8578c4..c29654cd`，v0.14.0 发布 + 存储工作区预览 + 聊天面板模型切换 + FIG 保真一批 + acronym casing 重构 159 文件）。第一段（合到 `4d6ddd3f`，重构前）**零冲突**；第二段 6 个冲突文件全部机械级，半天内完成。处置明细：
+  - **`CodePanel.vue` 退出 M 类**：按 2026-08-06 预案丢弃 fork prism hunk——upstream `8f357460` 已把高亮挪到 `@/app/code/highlight`（顺带消灭裸全局 `Prism` 崩溃根因）；`src/components/prism.ts` 无引用，已删。文件与 upstream 逐字节一致。
+  - **`spawn.ts` 采用 upstream 新结构**：upstream 的 discovery-file 门控（无 discovery 文件时不发 health 请求）+ `rememberStartupError`（启动错误记忆、后续 probe 快速失败）已覆盖 fork 早期门 `isMCPUnavailable()` 的防爆发意图，**丢弃 fork 早期门**（原则 3 又一例）；保留 `markMCPAvailable`/`markMCPUnavailable` 标记——`ProviderSelect.vue` 的健康检查门仍依赖 `availability.ts`（upstream 本轮未碰该文件）。`spawnMCPIfNeeded` 更名为 `startMCPIfNeeded` + 外包装的记忆语义也一并采用。
+  - **acronym 改名连锁**：`ProviderSettingsKeyField.vue` 采用 `keyURL`/`keyURLLabel` 命名 + 保留 fork 的 `type` prop；fork 侧 `ImageGenKeysSection.vue` 调用点改 `key-u-r-l`（`StockPhotoKeysSection.vue` 是 upstream 自有文件，upstream 自己在 `55b368dc` 改了）；`src/app/ai/debug/index.ts` 6 处 `JsonObject`→`JSONObject`（`4b39e190`，typecheck 兜底抓到——再次验证 SOP 第 4 步的必要性）。
+  - **本轮无 LFS 雷**：`.lfsconfig` upstream 零触达，fork 指向不变。
+  - **R2/R3 持续生效**：`storage.ts`（upstream 本轮 1 commit 自动合入）、`CHANGELOG.md`（15 commits）均保持与 upstream 逐字节一致。
+  - 差异全景刷新：**220 文件（143 A / 77 M / 0 D），+24,740 / -913，领先 162 commits**。M 类增加 9 个主要来自 poster-quality-experiment 的 render 管道线程（见下条）。
+  - 验证：本机 `build:packages` + tsgo/vue-tsc 双 typecheck + 182 定点测试全绿；全量测试交 CI。
 - 2026-08-11：海报感实验分支（`feature/poster-quality-experiment`，相对父分支 23 commits）的 M 类登记——本分支 26 个改动文件中 22 个为 A 类零风险，合并面增量集中在 4 个文件，全部属于同一条逻辑线程（look 原位合成导出的 render 管道，`renderInContext`/`clip`/`renderScale`）：
   - **`packages/core/src/io/formats/raster/render.ts`（中危，深化）**：既有 4 行分歧（JPEG quality）深化为 ~47 行——`renderToSurface` 的 renderScale 固定 2 改为 `Math.max(2, scale)` 跟随输出尺度（消 >2x 放大的线性上采样模糊）；`renderNodesToImage` 的 extractExportGraph 改为条件化（`renderInContext` 或 blend/BACKGROUND_BLUR 需求时渲染活页而非抽取选区）。**注意这不是纯追加，是控制流重构**——upstream 若动选区导出逻辑需语义级合并。已知风险：renderScale 无像素预算上限（大画布高倍导出内存回归，待办 M2 将再碰此文件）。不启用 `renderInContext` 时行为与 upstream 一致。
   - **`packages/core/src/figma-api/index.ts`（新入 M 类低危）**：父分支零分歧；本分支给 `exportImage` options 加 2 个可选字段（`renderInContext`、`clip`）。纯追加类型字段，冲突概率低。

@@ -128,6 +128,9 @@ watch(open, (isOpen) => {
                   <div class="truncate text-xs font-medium text-surface">
                     {{ profile.label || profile.id }}
                   </div>
+                  <div v-if="profile.label" class="truncate font-mono text-[10px] text-muted">
+                    {{ profile.id }}
+                  </div>
                   <div v-if="profile.description" class="mt-1 line-clamp-3 text-[10px] text-muted">
                     {{ profile.description }}
                   </div>
@@ -171,32 +174,45 @@ watch(open, (isOpen) => {
             {{ dialogs.done }}
           </DialogClose>
         </div>
+      </DialogContent>
 
-        <!-- Markdown preview overlay -->
+      <!--
+        Markdown preview overlay. Must live OUTSIDE DialogContent: the content
+        slot centers itself with a CSS transform, which makes it the
+        containing block for `fixed` descendants — combined with its
+        `overflow-hidden`, a nested overlay would be clipped to the dialog
+        bounds and long profiles would render cut off.
+      -->
+      <div
+        v-if="previewProfile"
+        class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
+        @click.self="previewId = null"
+      >
         <div
-          v-if="previewProfile"
-          class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
-          @click.self="previewId = null"
+          class="flex max-h-[85vh] w-[560px] max-w-[90vw] flex-col rounded-lg bg-panel p-4 shadow-2xl"
         >
-          <div class="w-[560px] max-w-[90vw] rounded-lg bg-panel p-4 shadow-2xl">
-            <div class="mb-2 flex items-center justify-between">
-              <div class="text-sm font-semibold text-surface">
+          <div class="mb-2 flex shrink-0 items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="truncate text-sm font-semibold text-surface">
                 {{ previewProfile.label || previewProfile.id }}
               </div>
-              <button
-                type="button"
-                class="rounded p-1 text-muted hover:bg-hover hover:text-surface"
-                @click="previewId = null"
-              >
-                <icon-lucide-x class="size-3.5" />
-              </button>
+              <div v-if="previewProfile.label" class="truncate font-mono text-[11px] text-muted">
+                {{ previewProfile.id }}
+              </div>
             </div>
-            <pre
-              class="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded border border-border bg-panel-field p-3 text-[11px] leading-relaxed text-surface"
-            ><code>{{ previewProfile.markdown }}</code></pre>
+            <button
+              type="button"
+              class="shrink-0 rounded p-1 text-muted hover:bg-hover hover:text-surface"
+              @click="previewId = null"
+            >
+              <icon-lucide-x class="size-3.5" />
+            </button>
           </div>
+          <pre
+            class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap rounded border border-border bg-panel-field p-3 text-[11px] leading-relaxed text-surface"
+          ><code>{{ previewProfile.markdown }}</code></pre>
         </div>
-      </DialogContent>
+      </div>
     </DialogPortal>
   </DialogRoot>
 </template>

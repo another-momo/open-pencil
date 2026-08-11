@@ -66,7 +66,7 @@ export const composeBackdropTool = defineTool({
   name: 'compose_backdrop',
   mutates: true,
   description:
-    'Build the visual environment of a long-image design in one call. Creates/updates a BackgroundLayer (absolute, bottom of z-order) containing BaseWash (full-canvas gradient), HeroImg (hero image holder, extended hero_bleed past the hero slot so the fade seam hides inside the next section), and BackdropOverlay (3-stop gradient fading over the hero bottom into opaque white), plus a transparent HeroContent flow frame that reserves the hero slot and hosts overlay text. Typical sequence: render HeroContent in the skeleton → generate_image into it → compose_backdrop with hero_image_from = HeroContent id. The image fill is copied into HeroImg (and HeroContent is cleared to transparent), the hero bottom band is auto-sampled for the overlay middle stop (pass hero_color only to override), and HeroContent is left transparent for text. Re-call after regenerating the hero — fully idempotent.',
+    'Build the visual environment of a long-image design in one call. Creates/updates a BackgroundLayer (absolute, bottom of z-order) containing BaseWash (full-canvas gradient), HeroImg (hero image holder, extended hero_bleed past the hero slot so the fade seam hides inside the next section), and BackdropOverlay (3-stop gradient fading over the hero bottom into opaque white), plus a transparent HeroContent flow frame that reserves the hero slot and hosts overlay text. Typical sequence: render HeroContent in the skeleton → generate_image into it → compose_backdrop with hero_image_from = HeroContent id. The image fill is copied into HeroImg (and HeroContent is cleared to transparent), the hero bottom band is auto-sampled for the overlay middle stop (pass hero_color only to override), and HeroContent is left transparent for text. If hero_image_from is omitted but HeroContent already carries an IMAGE fill, it is adopted automatically. Re-call after regenerating the hero — fully idempotent.',
   params: {
     root_id: {
       type: 'string',
@@ -126,15 +126,31 @@ export const composeBackdropTool = defineTool({
         error: `Root "${inputs.rootId}" is a ${root.type}, not a FRAME. Pass the long-image canvas frame.`
       }
     }
+    if (root.layoutMode === 'NONE') {
+      return {
+        error:
+          'Root has no auto-layout — the backdrop topology needs a flow slot (HeroContent) plus an absolute BackgroundLayer. Give the root a vertical layout first.'
+      }
+    }
+    // Width reconciliation: the backdrop is built from canvas_width, so a
+    // slip here silently mis-sizes every layer. Warn, don't fail — the root
+    // may legitimately differ if it hugs.
+    const rootWidthWarning =
+      Number.isFinite(root.width) && Math.abs(root.width - inputs.canvasWidth) > 1
+        ? `canvas_width (${inputs.canvasWidth}) differs from the root frame's actual width (${root.width}) — the backdrop follows canvas_width.`
+        : undefined
 
-    const source = resolveImageSource(figma.graph, inputs)
+    const source = resolveImageSource(figma.graph, root, inputs)
     if ('error' in source) return { error: source.error }
 
     // Geometry. Invariant: HeroImg = hero slot + heroBleed. A HeroContent
     // source's height IS the slot (the image bleeds past it); an external
     // source's height IS the display height — derive the slot by subtracting
-    // bleed, so adopted pixels are never upscaled.
-    const sourceIsSlot = source.node?.name === HERO_CONTENT_NAME
+    // bleed, so adopted pixels are never upscaled. Identity check, not name:
+    // a node merely NAMED HeroContent but not the root flow slot (nested
+    // elsewhere, or a renamed user asset) gets external semantics.
+    const existingHeroContent = findChildByName(root, figma.graph, HERO_CONTENT_NAME)
+    const sourceIsSlot = source.node !== undefined && source.node.id === existingHeroContent?.id
     let heroHeight = inputs.heroHeight
     if (source.node) {
       heroHeight = sourceIsSlot ? source.node.height : source.node.height - inputs.heroBleed
@@ -209,7 +225,12 @@ export const composeBackdropTool = defineTool({
       width: canvasWidth,
       height: overlayHeight,
       stops: [
-        { color: { r: 1, g: 1, b: 1, a: 0 }, position: 0 },
+        // Transparent THEME (not transparent white): the fade-in is a pure
+        // alpha ramp of the sampled color, so the hero's bottom band melts
+        // directly into its own hue. A white start would contaminate the
+        // kiss zone with a pale halo — the most visible seam shape. With
+        // the white fallback this stop equals the old transparent white.
+        { color: { ...theme, a: 0 }, position: 0 },
         { color: theme, position: middleStopPosition },
         { color: { r: 1, g: 1, b: 1, a: 1 }, position: 1 }
       ]
@@ -238,6 +259,8 @@ export const composeBackdropTool = defineTool({
         transfer,
         sourceCleared,
         color,
+        implicitAdopted: source.implicit === true,
+        rootWidthWarning,
         heroColorRejected: inputs.heroColorRejected,
         strayImageName
       })
@@ -275,10 +298,23 @@ function validateInputs(args: Record<string, unknown>): { error: string } | Vali
   if (canvasWidth < 100 || canvasHeight < 200) {
     return { error: `Canvas too small (got ${canvasWidth}×${canvasHeight}, minimum 100×200).` }
   }
+  if (canvasWidth > 8000 || canvasHeight > 20000) {
+    return {
+      error: `Canvas too large (got ${canvasWidth}×${canvasHeight}, maximum 8000×20000) — check for a typo.`
+    }
+  }
   const heroHeight = typeof args.hero_height === 'number' ? args.hero_height : DEFAULT_HERO_HEIGHT
   const heroBleed = typeof args.hero_bleed === 'number' ? args.hero_bleed : DEFAULT_HERO_BLEED
   if (!Number.isFinite(heroBleed) || heroBleed < 0) {
     return { error: `hero_bleed must be a finite number ≥ 0 (got ${heroBleed}).` }
+  }
+  if (heroBleed > 1000) {
+    return { error: `hero_bleed ${heroBleed} exceeds the 1000px maximum — check for a typo.` }
+  }
+  if (typeof args.hero_height === 'number' && args.hero_height > 4000) {
+    return {
+      error: `hero_height ${args.hero_height} exceeds the 4000px maximum — check for a typo.`
+    }
   }
   const heroColor =
     typeof args.hero_color === 'string' && HEX_REGEX.test(args.hero_color)
@@ -306,9 +342,19 @@ function validateInputs(args: Record<string, unknown>): { error: string } | Vali
 
 function resolveImageSource(
   graph: SceneGraph,
+  root: SceneNode,
   inputs: ValidatedInputs
-): { error: string } | { node?: SceneNode; fill?: Fill } {
-  if (inputs.heroImageFrom === undefined) return { node: undefined, fill: undefined }
+): { error: string } | { node?: SceneNode; fill?: Fill; implicit?: boolean } {
+  if (inputs.heroImageFrom === undefined) {
+    // Implicit adoption: the HeroContent slot already carrying an IMAGE fill
+    // (hero generated into it, then this call forgot hero_image_from) IS the
+    // intended source. Without this, the upsert below would force HeroContent
+    // to fills=[] and silently destroy the fresh hero pixels.
+    const slot = findChildByName(root, graph, HERO_CONTENT_NAME)
+    const fill = slot?.fills.find((f) => f.type === 'IMAGE')
+    if (slot && fill) return { node: slot, fill, implicit: true }
+    return { node: undefined, fill: undefined }
+  }
   const node = graph.getNode(inputs.heroImageFrom)
   if (!node) return { error: `hero_image_from node "${inputs.heroImageFrom}" not found.` }
   const fill = node.fills.find((f) => f.type === 'IMAGE')
@@ -411,7 +457,9 @@ function findChildByName(
 /**
  * A root child other than the layer/HeroContent carrying an IMAGE fill means
  * the hero likely paints twice (the flow copy sits above the overlay and
- * defeats the fade). Detect it so the note can warn.
+ * defeats the fade). Only LEAF image bearers are flagged: a section frame
+ * with an IMAGE fill AND children is a legitimate section background, not
+ * a duplicate hero.
  */
 function findStrayImageName(
   graph: SceneGraph,
@@ -422,7 +470,9 @@ function findStrayImageName(
   for (const childId of root.childIds) {
     if (childId === layerId || childId === heroContentId) continue
     const child = graph.getNode(childId)
-    if (child?.fills.some((f) => f.type === 'IMAGE')) return child.name
+    if (child && child.childIds.length === 0 && child.fills.some((f) => f.type === 'IMAGE')) {
+      return child.name
+    }
   }
   return undefined
 }
@@ -549,14 +599,19 @@ function buildNote(input: {
   transfer: { transferred: boolean }
   sourceCleared: boolean
   color: HeroColorResolution
+  implicitAdopted?: boolean
+  rootWidthWarning?: string
   heroColorRejected?: string
   strayImageName?: string
 }): string {
   let transferPart = ''
   if (input.transfer.transferred) {
+    const implicit = input.implicitAdopted
+      ? 'hero_image_from was omitted — the HeroContent slot already carried an IMAGE fill, so it was adopted as the source automatically. '
+      : ''
     transferPart = input.sourceCleared
-      ? "The image fill was copied into the BackgroundLayer's HeroImg and HeroContent's own fills were cleared — title/logo there paint above everything."
-      : "The image fill was copied into the BackgroundLayer's HeroImg; the source node was left untouched (its IMAGE fill is still in place — remove it yourself if it should not keep painting)."
+      ? `${implicit}The image fill was copied into the BackgroundLayer's HeroImg and HeroContent's own fills were cleared — title/logo there paint above everything.`
+      : `${implicit}The image fill was copied into the BackgroundLayer's HeroImg; the source node was left untouched (its IMAGE fill is still in place — remove it yourself if it should not keep painting).`
   }
   const bleed = input.heroImgHeight - input.heroHeight
   const bleedPart =
@@ -566,6 +621,7 @@ function buildNote(input: {
   const rejectedPart = input.heroColorRejected
     ? `WARNING: hero_color "${input.heroColorRejected}" is not valid 6- or 8-digit hex and was ignored.`
     : ''
+  const widthPart = input.rootWidthWarning ? `WARNING: ${input.rootWidthWarning}` : ''
   const strayPart = input.strayImageName
     ? `WARNING: root child "${input.strayImageName}" also carries an IMAGE fill — the hero image may be painting twice (the flow copy sits above the overlay and breaks the fade). If that node was meant to be the hero, pass it as hero_image_from and use HeroContent as the slot name.`
     : ''
@@ -577,6 +633,7 @@ function buildNote(input: {
     `Content sections rendered later append after HeroContent and paint on top. Re-call this tool whenever the hero pixels change — it updates in place.`,
     `Verify with look: no visible seam around the hero bottom, overlay text in HeroContent stays crisp.`,
     rejectedPart,
+    widthPart,
     strayPart
   ]
     .filter(Boolean)

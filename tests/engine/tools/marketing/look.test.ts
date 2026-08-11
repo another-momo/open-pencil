@@ -170,6 +170,41 @@ describe('look tool', () => {
     expect(result.exportInfo?.mode).toBe('in-context')
   })
 
+  test('faint low-opacity gray text counts as near-white (opacity folds into luminance)', async () => {
+    const { graph, figma } = setupToolTest()
+    const calls: ExportCall[] = []
+    mockExportImage(figma, calls)
+    const pageId = graph.getPages()[0].id
+    const root = graph.createNode('FRAME', pageId, { name: 'Detail', width: 750, height: 2000 })
+    // lum(0.85) = 0.85 at opacity 0.4 → effective over white = 1−0.4×0.15 =
+    // 0.94 ≥ 0.92 → in-context. The raw fill color alone (0.85 < 0.92) would
+    // NOT have triggered before the opacity fold.
+    const faint = graph.createNode('TEXT', root.id, { name: 'Ghost', text: '淡', fontSize: 40 })
+    graph.updateNode(faint.id, {
+      fills: [
+        { type: 'SOLID', color: { r: 0.85, g: 0.85, b: 0.85, a: 1 }, opacity: 0.4, visible: true }
+      ]
+    })
+    // Same color at full opacity → 0.85 < 0.92 → stays isolated.
+    const solidGray = graph.createNode('TEXT', root.id, {
+      name: 'SolidGray',
+      text: '实',
+      fontSize: 40,
+      y: 100
+    })
+    graph.updateNode(solidGray.id, {
+      fills: [
+        { type: 'SOLID', color: { r: 0.85, g: 0.85, b: 0.85, a: 1 }, opacity: 1, visible: true }
+      ]
+    })
+
+    const faintResult = await runLook(figma, { id: faint.id })
+    const solidResult = await runLook(figma, { id: solidGray.id })
+
+    expect(faintResult.exportInfo?.mode).toBe('in-context')
+    expect(solidResult.exportInfo?.mode).toBe('isolated')
+  })
+
   test('frames with their own visible fill keep the isolated export', async () => {
     const { graph, figma } = setupToolTest()
     const calls: ExportCall[] = []

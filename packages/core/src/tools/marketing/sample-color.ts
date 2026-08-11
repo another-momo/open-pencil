@@ -64,10 +64,14 @@ export const sampleHeroColorTool = defineTool({
     if (typeof id !== 'string' || id.length === 0) {
       return { error: 'Pass a hero node id (non-empty string).' }
     }
-    const direction =
-      typeof args.direction === 'string' && DIRECTIONS.includes(args.direction as SampleDirection)
-        ? (args.direction as SampleDirection)
-        : DEFAULT_DIRECTION
+    const directionRaw = typeof args.direction === 'string' ? args.direction : undefined
+    const direction = DIRECTIONS.includes(directionRaw as SampleDirection)
+      ? (directionRaw as SampleDirection)
+      : DEFAULT_DIRECTION
+    const directionNote =
+      directionRaw !== undefined && directionRaw !== direction
+        ? `direction "${directionRaw}" is not one of ${DIRECTIONS.join('/')} — defaulted to "${direction}". `
+        : ''
     const bandSize = typeof args.band_size === 'number' ? args.band_size : DEFAULT_BAND_SIZE
 
     const node = figma.graph.getNode(id)
@@ -91,7 +95,7 @@ export const sampleHeroColorTool = defineTool({
       region: sampled.region,
       imageSize: sampled.imageSize,
       hex: sampled.hex,
-      note: `Averaged ${direction} band of hero "${imageNode.name}" (${sampled.imageSize.width}×${sampled.imageSize.height}, ${sampled.region.width}×${sampled.region.height} starting at ${sampled.region.x},${sampled.region.y}). Drop this hex into the gradient stop that sits on this edge.`
+      note: `${directionNote}Averaged ${direction} band of hero "${imageNode.name}" (${sampled.imageSize.width}×${sampled.imageSize.height}, ${sampled.region.width}×${sampled.region.height} starting at ${sampled.region.x},${sampled.region.y}). Drop this hex into the gradient stop that sits on this edge.`
     }
   }
 })

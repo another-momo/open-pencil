@@ -174,6 +174,63 @@ describe('compose_backdrop tool', () => {
       })
       expect(result).toMatchObject({ error: expect.stringContaining('no IMAGE fill') })
     })
+
+    it('returns an error when canvas or hero params exceed the declared maxima', async () => {
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      const wide = await composeBackdropTool.execute(makeFigma(g), {
+        root_id: root.id,
+        canvas_width: 9000,
+        canvas_height: 2120
+      })
+      expect(wide).toMatchObject({ error: expect.stringContaining('maximum') })
+      const tall = await composeBackdropTool.execute(makeFigma(g), {
+        root_id: root.id,
+        canvas_width: 750,
+        canvas_height: 99999
+      })
+      expect(tall).toMatchObject({ error: expect.stringContaining('maximum') })
+      const bleed = await composeBackdropTool.execute(makeFigma(g), {
+        root_id: root.id,
+        canvas_width: 750,
+        canvas_height: 2120,
+        hero_bleed: 5000
+      })
+      expect(bleed).toMatchObject({ error: expect.stringContaining('hero_bleed') })
+      const hero = await composeBackdropTool.execute(makeFigma(g), {
+        root_id: root.id,
+        canvas_width: 750,
+        canvas_height: 20000,
+        hero_height: 4001
+      })
+      expect(hero).toMatchObject({ error: expect.stringContaining('hero_height') })
+    })
+
+    it('returns an error when the root has no auto-layout', async () => {
+      const g = new SceneGraph()
+      const page = g.addPage('Page')
+      const root = g.createNode('FRAME', page.id, {
+        name: 'FreeRoot',
+        width: 750,
+        height: 2120,
+        layoutMode: 'NONE'
+      })
+      const result = await composeBackdropTool.execute(makeFigma(g), {
+        root_id: root.id,
+        canvas_width: 750,
+        canvas_height: 2120
+      })
+      expect(result).toMatchObject({ error: expect.stringContaining('auto-layout') })
+    })
+
+    it('warns in the note when canvas_width disagrees with the root width', async () => {
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      const ids = await build(g, root.id, { canvas_width: 700, hero_color: '#5A7F5BFF' })
+      expect(ids.note).toContain('WARNING')
+      expect(ids.note).toContain('canvas_width (700)')
+      expect(ids.note).toContain('750')
+    })
   })
 
   describe('topology', () => {
@@ -252,7 +309,13 @@ describe('compose_backdrop tool', () => {
       const stops = expectDefined(overlayFill.gradientStops, 'overlay stops')
       expect(stops.length).toBe(3)
       const [top, middle, bottom] = stops
-      expect(top.color).toEqual({ r: 1, g: 1, b: 1, a: 0 })
+      // Top stop: the THEME color at alpha 0 — a pure-alpha ramp so the hero
+      // bottom melts into its own hue (a transparent-WHITE start would wash
+      // the kiss zone with a pale halo).
+      expect(top.color.r).toBeCloseTo(90 / 255, 5)
+      expect(top.color.g).toBeCloseTo(127 / 255, 5)
+      expect(top.color.b).toBeCloseTo(91 / 255, 5)
+      expect(top.color.a).toBe(0)
       expect(top.position).toBe(0)
       expect(middle.color.r).toBeCloseTo(90 / 255, 5)
       expect(middle.color.g).toBeCloseTo(127 / 255, 5)
@@ -270,6 +333,16 @@ describe('compose_backdrop tool', () => {
         m11: 0,
         m12: 1
       })
+    })
+
+    it('white fallback degenerates the top stop to the legacy transparent white', async () => {
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      const ids = await build(g, root.id)
+
+      const overlay = expectDefined(g.getNode(ids.backdrop_overlay_id), 'overlay')
+      const stops = expectDefined(overlay.fills[0]?.gradientStops, 'overlay stops')
+      expect(stops[0].color).toEqual({ r: 1, g: 1, b: 1, a: 0 })
     })
   })
 
@@ -480,6 +553,74 @@ describe('compose_backdrop tool', () => {
 
       expect(second.hero_img_id).toBe(first.hero_img_id)
       expect(g.getNode(second.hero_img_id)?.fills[0]?.type).toBe('IMAGE')
+    })
+
+    it('implicitly adopts the HeroContent IMAGE fill when hero_image_from is omitted', async () => {
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      // The agent generated the hero into HeroContent, then re-called WITHOUT
+      // hero_image_from. Previously this silently destroyed the fresh pixels
+      // (upsert forces fills=[]) and the note even claimed "No hero image yet".
+      const hero = g.createNode('FRAME', root.id, {
+        name: 'HeroContent',
+        width: 750,
+        height: 750,
+        fills: [makeImageFill()]
+      })
+
+      const ids = await build(g, root.id)
+
+      expect(g.getNode(ids.hero_img_id)?.fills[0]?.type).toBe('IMAGE')
+      expect(ids.hero_content_id).toBe(hero.id)
+      expect(g.getNode(hero.id)?.fills).toEqual([])
+      expect(ids.note).toContain('adopted as the source automatically')
+    })
+
+    it('treats a node merely NAMED HeroContent (not the root slot) as an external source', async () => {
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      const section = g.createNode('FRAME', root.id, { name: 'Section', width: 750, height: 900 })
+      // A nested node that happens to be named HeroContent — identity, not
+      // name, decides slot semantics. External: its height IS the display
+      // height, so the slot is bleed shorter and pixels are never upscaled.
+      const nested = g.createNode('FRAME', section.id, {
+        name: 'HeroContent',
+        width: 750,
+        height: 864,
+        fills: [makeImageFill()]
+      })
+
+      const ids = await build(g, root.id, { hero_image_from: nested.id })
+
+      expect(ids.hero_height).toBe(764)
+      expect(g.getNode(ids.hero_img_id)?.height).toBe(864)
+      // The nested source keeps its fill (not the root slot → not cleared)...
+      expect(g.getNode(nested.id)?.fills[0]?.type).toBe('IMAGE')
+      // ...and a fresh HeroContent slot is created at root.
+      expect(ids.hero_content_id).not.toBe(nested.id)
+      expect(g.getNode(ids.hero_content_id)?.height).toBe(764)
+    })
+
+    it('does not flag a section frame whose IMAGE fill carries content children', async () => {
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      const hero = g.createNode('FRAME', root.id, {
+        name: 'HeroContent',
+        width: 750,
+        height: 750,
+        fills: [makeImageFill()]
+      })
+      // A legitimate photo-backed section: IMAGE fill + content children.
+      const section = g.createNode('FRAME', root.id, {
+        name: 'PhotoSection',
+        width: 750,
+        height: 600,
+        fills: [makeImageFill()]
+      })
+      g.createNode('TEXT', section.id, { text: 'caption' })
+
+      const ids = await build(g, root.id, { hero_image_from: hero.id })
+      expect(ids.note).not.toContain('WARNING')
     })
   })
 

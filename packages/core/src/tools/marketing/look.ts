@@ -1,4 +1,4 @@
-import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
+import type { Fill, SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 import type { Color } from '@open-pencil/scene-graph/primitives'
 
 import { detectImageMime, encodeBase64 } from '#core/bytes'
@@ -42,6 +42,15 @@ function fillLuminance(color: Color): number {
 }
 
 /**
+ * Effective luminance of a fill composited over white: a faint 50%-opacity
+ * gray reads as light gray on the blank isolated background, so opacity
+ * must fold into the near-white check, not just the raw fill color.
+ */
+function effectiveLuminanceOverWhite(fill: Fill): number {
+  return 1 - fill.opacity * (1 - fillLuminance(fill.color))
+}
+
+/**
  * Structural preflight: an isolated export paints the node on a blank
  * background (white for JPG), so two node shapes are guaranteed-unreadable
  * there and must be exported IN CONTEXT instead:
@@ -54,7 +63,9 @@ function needsContextExport(node: SceneNode): boolean {
   const own = node.fills.filter((f) => f.visible && f.opacity > 0)
   if (own.length === 0) return true
   if (node.type === 'TEXT') {
-    return own.every((f) => f.type === 'SOLID' && fillLuminance(f.color) >= NEAR_WHITE_LUMINANCE)
+    return own.every(
+      (f) => f.type === 'SOLID' && effectiveLuminanceOverWhite(f) >= NEAR_WHITE_LUMINANCE
+    )
   }
   return false
 }

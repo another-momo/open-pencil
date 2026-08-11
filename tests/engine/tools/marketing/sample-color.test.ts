@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, mock } from 'bun:test'
 
 import { SceneGraph } from '@open-pencil/scene-graph'
 
@@ -103,5 +103,56 @@ describe('sample_hero_color tool', () => {
     expect(band.min).toBe(16)
     expect(band.max).toBe(1024)
     expect(band.default).toBe(100)
+  })
+
+  it('declares the fallback in the note when an unrecognized direction is passed', async () => {
+    // Success path with a stubbed CanvasKit (8×8 opaque white image). The
+    // pure math behind it is covered in sample-color-pure.test.ts; what this
+    // pins is the anti-silent-default contract: an unknown direction must be
+    // declared in the note, not swallowed.
+    const width = 8
+    const height = 8
+    const fakeImage = {
+      width: () => width,
+      height: () => height,
+      readPixels: () => new Uint8Array(width * height * 4).fill(255),
+      delete: () => {}
+    }
+    mock.module('#core/canvaskit', () => ({
+      getCanvasKit: async () => ({
+        MakeImageFromEncoded: () => fakeImage,
+        AlphaType: { Unpremul: 0 },
+        ColorSpace: { SRGB: 0 },
+        ColorType: { RGBA_8888: 0 }
+      })
+    }))
+
+    const g = new SceneGraph()
+    const page = g.addPage('Page')
+    const rect = g.createNode('RECTANGLE', page.id, {
+      name: 'Hero',
+      width: 100,
+      height: 100,
+      fills: [
+        {
+          type: 'IMAGE',
+          color: { r: 0, g: 0, b: 0, a: 0 },
+          opacity: 1,
+          visible: true,
+          imageHash: 'deadbeef',
+          imageScaleMode: 'FILL'
+        }
+      ]
+    })
+    g.images.set('deadbeef', new Uint8Array([1, 2, 3]))
+
+    const result = await sampleHeroColorTool.execute(makeFigmaStub(g), {
+      id: rect.id,
+      direction: 'centre'
+    })
+    expect(result).toMatchObject({ hex: '#FFFFFF' })
+    const note = (result as { note: string }).note
+    expect(note).toContain('"centre"')
+    expect(note).toContain('defaulted to "bottom"')
   })
 })

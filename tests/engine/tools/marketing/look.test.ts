@@ -210,6 +210,25 @@ describe('look tool', () => {
     expect(result.note).not.toContain('too small to read')
   })
 
+  test('upscale is capped at ×4 for very small nodes', async () => {
+    const { graph, figma } = setupToolTest()
+    const calls: ExportCall[] = []
+    mockExportImage(figma, calls)
+    const pageId = graph.getPages()[0].id
+    const root = graph.createNode('FRAME', pageId, { name: 'Detail', width: 750, height: 2000 })
+    const badge = graph.createNode('FRAME', root.id, {
+      name: 'Badge',
+      width: 100,
+      height: 100,
+      fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.3, a: 1 }, opacity: 1, visible: true }]
+    })
+
+    const result = await runLook(figma, { id: badge.id })
+
+    expect(expectDefined(calls[0]).options.scale).toBe(4)
+    expect(result.note).toContain('capped at ×4')
+  })
+
   test('image-bearing nodes bypass rendering and return the original bytes', async () => {
     const { graph, figma } = setupToolTest()
     // No exportImage mock on purpose — the original-bytes path must not need it

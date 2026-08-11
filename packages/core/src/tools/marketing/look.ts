@@ -226,8 +226,9 @@ async function renderNodeForInspection(
     )
   }
   if (upscaled) {
+    const capped = scale === MAX_UPSCALE ? ` (capped at ×${MAX_UPSCALE})` : ''
     noteParts.push(
-      `Upscaled ×${scale.toFixed(2)} to reach the ${MIN_EXPORT_LONG_EDGE}px minimum legible edge — slight softness is a resampling artifact, not a design property.`
+      `Upscaled ×${scale.toFixed(2)}${capped} toward the ${MIN_EXPORT_LONG_EDGE}px minimum legible edge — slight softness is a resampling artifact, not a design property.`
     )
   }
   if (exportW > 4 * exportH || exportH > 4 * exportW) {

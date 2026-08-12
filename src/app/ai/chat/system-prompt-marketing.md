@@ -155,6 +155,8 @@ Errors compound — a missed `w="fill"` in section 1 breaks the layout of every 
 
 When generating images, append the locked style keywords to every prompt (e.g. "..., promotional style, vibrant orange palette, clean composition, no text"). Keep every section visually consistent with the locked direction.
 
+Superseded image versions are auto-snapshotted into the page's "生图历史" container (right of the root frame) whenever `generate_image` overwrites a node with content — ignore it, never move or delete it; its entries are reusable as `references`. Never pass a reference image's own id as `id` (that overwrites it) — to derive a new image from a reference, pass it in `references` and omit `id`.
+
 **Consistency check:** after every 3 sections, `describe` the root frame at depth=1 and verify cross-section consistency (same palette, same font scale, same spacing rhythm).
 
 ## Phase 4 — Final Review + Checkpoint 4

@@ -5,6 +5,7 @@ import { FigmaAPI, SceneGraph } from '@open-pencil/core'
 import { createImageFill } from '#core/tools/image-fill'
 import { generateOne } from '#core/tools/image-gen/apply'
 import type { ImageGenProvider, ImageGenRequest } from '#core/tools/image-gen/providers'
+import { markLibraryReference } from '#core/tools/marketing/restore'
 
 const PNG_MAGIC = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
@@ -193,5 +194,68 @@ describe('generateOne', () => {
     expect(result.canvasWidth).toBe(1088)
     expect(result.canvasHeight).toBe(1920)
     expect(result.provider).toBe('fake')
+  })
+
+  test('overwriting a node with content snapshots the old version into the history container', async () => {
+    const { graph, figma } = setup()
+    const target = createImageNode(figma, 'HeroImg', new Uint8Array([1, 2, 3]))
+    const { provider } = fakeProvider()
+
+    const result = await generateOne(figma, provider, { id: target.id, prompt: 'v2' })
+
+    expect(result.snapshot).toBeDefined()
+    expect(result.snapshot?.name).toBe('HeroImg · v1')
+    // The snapshot holds the OLD bytes; the target now holds the new fill
+    const entry = graph.getNode(result.snapshot!.id)
+    const entryHash = (entry?.fills[0] as { imageHash?: string }).imageHash
+    const targetHash = (target.fills[0] as { imageHash?: string }).imageHash
+    expect(entryHash).toBeDefined()
+    expect(entryHash).not.toBe(targetHash)
+  })
+
+  test('empty placeholder target → no snapshot', async () => {
+    const { figma } = setup()
+    const empty = figma.createFrame()
+    empty.resize(200, 100)
+    const { provider } = fakeProvider()
+
+    const result = await generateOne(figma, provider, { id: empty.id, prompt: 'fill it' })
+
+    expect(result.snapshot).toBeUndefined()
+  })
+
+  test('library reference passed as id → redirected to a new node, original untouched', async () => {
+    const { graph, figma } = setup()
+    const refBytes = new Uint8Array([5, 5, 5])
+    const ref = createImageNode(figma, 'LibraryRef', refBytes)
+    markLibraryReference(graph, ref.id, 'lib-1')
+    const refHashBefore = (ref.fills[0] as { imageHash?: string }).imageHash
+    const { provider } = fakeProvider()
+
+    const result = await generateOne(figma, provider, { id: ref.id, prompt: 'iterate on this' })
+
+    expect(result.id).not.toBe(ref.id)
+    expect(result.note).toContain('library reference')
+    expect(result.note).toContain('NOT overwritten')
+    expect((ref.fills[0] as { imageHash?: string }).imageHash).toBe(refHashBefore)
+    expect(ref.name).toBe('LibraryRef')
+    // New node inherits the protected node's size
+    expect(result.canvasWidth).toBe(200)
+    expect(result.canvasHeight).toBe(100)
+  })
+
+  test('history entry passed as id → redirected to a new node, entry untouched', async () => {
+    const { figma } = setup()
+    const target = createImageNode(figma, 'HeroImg', new Uint8Array([1, 2, 3]))
+    const { provider } = fakeProvider()
+    const first = await generateOne(figma, provider, { id: target.id, prompt: 'v2' })
+    const entryId = first.snapshot!.id
+
+    const second = await generateOne(figma, provider, { id: entryId, prompt: 'v3 from old' })
+
+    expect(second.id).not.toBe(entryId)
+    expect(second.note).toContain('generation-history snapshot')
+    const entry = figma.getNodeById(entryId)
+    expect(entry?.name).toBe('HeroImg · v1')
   })
 })

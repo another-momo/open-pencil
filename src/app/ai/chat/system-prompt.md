@@ -174,7 +174,7 @@ After every 3 content renders, also `describe` root at depth=1 to catch cross-se
 
 ## Phase 4 — Polish
 
-1. `stock_photo` / `generate_image` — fill ALL named image placeholders in one batched call. Use `stock_photo` for real stock photography, `generate_image` for AI-generated or AI-redrawn imagery.
+1. `stock_photo` / `generate_image` — fill ALL named image placeholders in one batched call. Use `stock_photo` for real stock photography, `generate_image` for AI-generated or AI-redrawn imagery. When `generate_image` overwrites a node that has content, the old version is auto-snapshotted into the page's "生图历史" container — ignore it (never move/delete); entries are reusable as `references`. Never pass a reference image's own id as `id` — to derive a new image from a reference, use `references` and omit `id`.
 2. `describe` root `depth=1` — final check
 3. `batch_update` — fix remaining issues
 

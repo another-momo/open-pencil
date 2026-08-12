@@ -1,6 +1,8 @@
 import type { FigmaAPI } from '#core/figma-api'
 import { createImageFill } from '#core/tools/image-fill'
+import { libraryReferenceId } from '#core/tools/marketing/restore'
 
+import { isInImageHistory, snapshotBeforeOverwrite, type HistorySnapshot } from './history'
 import type { ImageGenProvider, ImageGenReference, ImageGenRequest } from './providers'
 import { normalizeSize } from './requests'
 
@@ -11,6 +13,7 @@ export interface ImageGenExecuteResult {
   canvasWidth: number
   canvasHeight: number
   provider: string
+  snapshot?: HistorySnapshot
   note?: string
   error?: string
 }
@@ -59,6 +62,11 @@ async function extractReferenceImage(
  * - With `id`: overwrite that node's fill (leaf shape or frame background).
  * - To EDIT an existing image, the agent includes the target's own id in
  *   `references`; to REGENERATE without the current image, it leaves it out.
+ * - Overwriting a node that has content snapshots the old subtree into the
+ *   page's generation-history container first (see ./history).
+ * - A protected `id` (library reference / history snapshot) is never
+ *   overwritten: the call falls back to creating a NEW node and says so in
+ *   the result note.
  */
 export async function generateOne(
   figma: FigmaAPI,
@@ -66,6 +74,27 @@ export async function generateOne(
   req: ImageGenRequest
 ): Promise<ImageGenExecuteResult> {
   let target = req.id ? figma.getNodeById(req.id) : null
+
+  // Soft guard against mistaken overwrite targets: library references are
+  // inputs, not outputs; history snapshots are frozen records. Instead of
+  // failing the call, fall back to generating a NEW node and leave the
+  // protected node untouched — the note tells the agent what happened.
+  let protectedNote: string | undefined
+  let fallbackSize: { width: number; height: number } | undefined
+  if (target && req.id) {
+    const raw = figma.graph.getNode(req.id)
+    const protectedAs =
+      raw && libraryReferenceId(raw)
+        ? 'a library reference image'
+        : raw && isInImageHistory(figma.graph, raw.id)
+          ? 'a generation-history snapshot'
+          : undefined
+    if (raw && protectedAs) {
+      protectedNote = `Node ${req.id} ("${raw.name}") is ${protectedAs} and was NOT overwritten — the image was generated as a new canvas node instead, sized like the protected node. To iterate on that image, pass its id in "references" and omit "id" (or target a normal node).`
+      fallbackSize = { width: Math.round(raw.width), height: Math.round(raw.height) }
+      target = null
+    }
+  }
 
   const references = req.references ?? []
   const images: Uint8Array[] = []
@@ -88,19 +117,24 @@ export async function generateOne(
       throw allReferencesFailedError(figma, skipped)
     }
   }
-  const note =
+  const skippedNote =
     skipped.length > 0
       ? `Used ${images.length}/${references.length} reference image(s); skipped: ${skipped.join(', ')}`
       : undefined
+  const note = [protectedNote, skippedNote].filter(Boolean).join(' ') || undefined
 
   let finalReq = req
   if (!target) {
     target = figma.createFrame()
-    target.resize(req.width ?? 1024, req.height ?? 1024)
+    target.resize(
+      req.width ?? fallbackSize?.width ?? 1024,
+      req.height ?? fallbackSize?.height ?? 1024
+    )
     target.name = req.prompt.slice(0, 40) || 'Generated image'
-  } else if (req.id && (req.width === undefined || req.height === undefined)) {
-    // Targeted request without an explicit size: inherit the target node's
-    // real dimensions for the API size (16px-aligned + constraint-clipped).
+  }
+  if (req.width === undefined || req.height === undefined) {
+    // Request without an explicit size: inherit the target node's real
+    // dimensions for the API size (16px-aligned + constraint-clipped).
     // Explicit width/height always win.
     const normalized = normalizeSize(Math.round(target.width), Math.round(target.height))
     if (!('error' in normalized)) {
@@ -109,6 +143,10 @@ export async function generateOne(
   }
 
   const gen = await provider.generate(finalReq, images.length > 0 ? images : undefined)
+
+  // Preserve the superseded content BEFORE writing the new fill, so no
+  // version is ever lost (and a mistaken target stays recoverable).
+  const snapshot = req.id ? snapshotBeforeOverwrite(figma.graph, target.id) : undefined
 
   target.fills = [createImageFill(figma, gen.bytes)]
 
@@ -119,6 +157,7 @@ export async function generateOne(
     canvasWidth: Math.round(target.width),
     canvasHeight: Math.round(target.height),
     provider: provider.name,
+    ...(snapshot ? { snapshot } : {}),
     ...(note ? { note } : {})
   }
 }

@@ -15,6 +15,7 @@
 import type { PluginDataEntry, SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
 import { isMarketingRoot } from '#core/tools/marketing/restore'
+import { upsertPluginData } from '#core/tools/plugin-data'
 
 const HISTORY_PLUGIN_ID = 'open-pencil-image-gen'
 const ROLE_KEY = 'role'
@@ -44,18 +45,7 @@ function upsertMarkers(
   nodeId: string,
   entries: Array<{ key: string; value: string }>
 ): void {
-  const node = graph.getNode(nodeId)
-  if (!node) return
-  const kept = node.pluginData.filter(
-    (entry) =>
-      !(entry.pluginId === HISTORY_PLUGIN_ID && entries.some(({ key }) => key === entry.key))
-  )
-  graph.updateNode(nodeId, {
-    pluginData: [
-      ...kept,
-      ...entries.map(({ key, value }) => ({ pluginId: HISTORY_PLUGIN_ID, key, value }))
-    ]
-  })
+  upsertPluginData(graph, nodeId, HISTORY_PLUGIN_ID, entries)
 }
 
 function isHistoryContainer(node: SceneNode | undefined): boolean {

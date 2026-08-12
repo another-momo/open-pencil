@@ -12,6 +12,8 @@
 
 import type { PluginDataEntry, SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
+import { upsertPluginData } from '#core/tools/plugin-data'
+
 export interface AnchorRecord {
   templateId: string
   position: 'top' | 'bottom'
@@ -52,18 +54,7 @@ function upsertMarker(
   nodeId: string,
   entries: Array<{ key: string; value: string }>
 ): void {
-  const node = graph.getNode(nodeId)
-  if (!node) return
-  const kept = node.pluginData.filter(
-    (entry) =>
-      !(entry.pluginId === MARKETING_PLUGIN_ID && entries.some(({ key }) => key === entry.key))
-  )
-  graph.updateNode(nodeId, {
-    pluginData: [
-      ...kept,
-      ...entries.map(({ key, value }) => ({ pluginId: MARKETING_PLUGIN_ID, key, value }))
-    ]
-  })
+  upsertPluginData(graph, nodeId, MARKETING_PLUGIN_ID, entries)
 }
 
 export function markMarketingRoot(

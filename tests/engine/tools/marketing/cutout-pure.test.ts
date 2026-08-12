@@ -7,11 +7,14 @@ import {
   cropRegion,
   despill,
   erodeAlpha,
+  floodBackground,
   gridCells,
   interiorHoleRatio,
   keyOut,
+  labelComponents,
   parseChromaHex,
   parseGrid,
+  preservedChromaCount,
   sampleCornerColor
 } from '#core/tools/marketing/cutout-pure'
 
@@ -98,11 +101,59 @@ describe('cutout-pure / keyOut', () => {
   })
 })
 
+describe('cutout-pure / floodBackground', () => {
+  it('removes border-connected background but preserves subject-interior chroma', () => {
+    // Green bg; red 10×10 subject with a pure-green 4×4 core (the mint-stroke
+    // case): global keying would eat the core, flood fill keeps it.
+    const px = makePixels(16, 16, GREEN)
+    paintRect(px, 16, { x: 3, y: 3, width: 10, height: 10 }, RED)
+    paintRect(px, 16, { x: 6, y: 6, width: 4, height: 4 }, GREEN)
+    const { alpha, bgCount } = floodBackground(px, 16, 16, { r: 0, g: 255, b: 0 }, 90)
+    expect(alpha[6 * 16 + 6]).toBe(255) // green core survives
+    expect(alpha[0]).toBe(0) // outer background removed
+    expect(bgCount).toBe(16 * 16 - 100) // everything except the 10×10 block
+  })
+
+  it('counts preserved chroma pixels (trapped-background visibility)', () => {
+    const px = makePixels(16, 16, GREEN)
+    paintRect(px, 16, { x: 3, y: 3, width: 10, height: 10 }, RED)
+    paintRect(px, 16, { x: 6, y: 6, width: 4, height: 4 }, GREEN)
+    const { alpha } = floodBackground(px, 16, 16, { r: 0, g: 255, b: 0 }, 90)
+    expect(preservedChromaCount(px, alpha, { r: 0, g: 255, b: 0 }, 90)).toBe(16)
+  })
+})
+
+describe('cutout-pure / labelComponents', () => {
+  it('finds separate blobs in reading order and skips noise below minArea', () => {
+    const alpha = new Uint8Array(24 * 24)
+    const paint = (x: number, y: number, w: number, h: number) => {
+      for (let yy = y; yy < y + h; yy++)
+        for (let xx = x; xx < x + w; xx++) alpha[yy * 24 + xx] = 255
+    }
+    paint(12, 4, 8, 8) // top-right blob (area 64)
+    paint(2, 14, 8, 8) // bottom-left blob
+    alpha[2 * 24 + 2] = 255 // 1px noise
+    const comps = labelComponents(alpha, 24, 24, 16)
+    expect(comps.length).toBe(2)
+    expect(comps[0].bounds).toEqual({ x: 12, y: 4, width: 8, height: 8 })
+    expect(comps[1].bounds).toEqual({ x: 2, y: 14, width: 8, height: 8 })
+    expect(comps[0].area).toBe(64)
+  })
+
+  it('keeps an element that spans grid cells as ONE component', () => {
+    const alpha = new Uint8Array(24 * 24)
+    for (let y = 4; y < 12; y++) for (let x = 4; x < 20; x++) alpha[y * 24 + x] = 255
+    const comps = labelComponents(alpha, 24, 24, 16)
+    expect(comps.length).toBe(1)
+    expect(comps[0].bounds).toEqual({ x: 4, y: 4, width: 16, height: 8 })
+  })
+})
+
 describe('cutout-pure / despill', () => {
-  it('clamps green spill on kept pixels to the max of the other channels', () => {
+  it('clamps green spill on kept EDGE pixels to the max of the other channels', () => {
     const px = makePixels(2, 1, [120, 200, 110]) // greenish edge fringe
     const alpha = new Uint8Array([255, 255])
-    despill(px, alpha, { r: 0, g: 255, b: 0 })
+    despill(px, alpha, 2, 1, { r: 0, g: 255, b: 0 })
     expect(px[1]).toBe(120) // g clamped to max(r, b) = 120
     expect(px[4 + 1]).toBe(120)
   })
@@ -110,9 +161,19 @@ describe('cutout-pure / despill', () => {
   it('leaves non-spilled pixels and keyed-out pixels untouched', () => {
     const px = makePixels(2, 1, [220, 40, 40]) // red subject, g below cap
     const alpha = new Uint8Array([255, 0])
-    despill(px, alpha, { r: 0, g: 255, b: 0 })
+    despill(px, alpha, 2, 1, { r: 0, g: 255, b: 0 })
     expect(px[1]).toBe(40)
     expect(px[4 + 1]).toBe(40) // keyed-out pixel untouched
+  })
+
+  it('never touches deep-foreground pixels (interior chroma must survive intact)', () => {
+    // 3×3 all-foreground; the center pixel is fully enclosed by kept pixels,
+    // so despill must not clamp its (deliberately green) channel.
+    const px = makePixels(3, 3, [220, 40, 40])
+    paintRect(px, 3, { x: 1, y: 1, width: 1, height: 1 }, [20, 220, 30])
+    const alpha = new Uint8Array(9).fill(255)
+    despill(px, alpha, 3, 3, { r: 0, g: 255, b: 0 })
+    expect(px[(1 * 3 + 1) * 4 + 1]).toBe(220) // interior green survives despill
   })
 })
 

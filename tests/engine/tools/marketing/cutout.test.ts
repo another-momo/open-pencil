@@ -116,14 +116,11 @@ describe('cutout tool', () => {
     })
   })
 
-  it('rejects a malformed chroma hex and unknown grid spec', async () => {
+  it('rejects a malformed chroma hex', async () => {
     const g = new SceneGraph()
     const node = makeImageNode(g)
     expect(await cutoutTool.execute(makeFigma(g), { id: node.id, chroma: 'green' })).toMatchObject({
       error: expect.stringContaining('not a valid 6-digit hex')
-    })
-    expect(await cutoutTool.execute(makeFigma(g), { id: node.id, grid: '5x5' })).toMatchObject({
-      error: expect.stringContaining('not supported')
     })
   })
 
@@ -134,7 +131,7 @@ describe('cutout tool', () => {
 
     const g = new SceneGraph()
     const node = makeImageNode(g)
-    const result = await cutoutTool.execute(makeFigma(g), { id: node.id })
+    const result = await cutoutTool.execute(makeFigma(g), { id: node.id, min_area: 16 })
     expect(result).not.toHaveProperty('error')
     const out = result as {
       elements: Array<{ id: string; nativeWidth: number; nativeHeight: number }>
@@ -153,17 +150,35 @@ describe('cutout tool', () => {
     expect(hash && g.images.get(hash)).toBeDefined()
   })
 
-  it('splits a 2x2 sheet into one asset per non-empty cell', async () => {
+  it('separates a sheet into one asset per element by connectivity (no grid needed)', async () => {
     const px = makePixels(32, 32, GREEN)
-    paintRect(px, 32, { x: 4, y: 4, width: 8, height: 8 }, [220, 40, 40]) // cell 1
-    paintRect(px, 32, { x: 20, y: 20, width: 8, height: 8 }, [40, 40, 220]) // cell 4
+    paintRect(px, 32, { x: 4, y: 4, width: 8, height: 8 }, [220, 40, 40]) // top-left element
+    paintRect(px, 32, { x: 20, y: 20, width: 8, height: 8 }, [40, 40, 220]) // bottom-right element
     mockCanvasKit(px, 32, 32)
 
     const g = new SceneGraph()
     const node = makeImageNode(g)
-    const result = await cutoutTool.execute(makeFigma(g), { id: node.id, grid: '2x2' })
+    const result = await cutoutTool.execute(makeFigma(g), { id: node.id, min_area: 16 })
     const out = result as { elements: unknown[]; note: string }
     expect(out.elements.length).toBe(2)
+  })
+
+  it('keeps an element that overflows its grid cell as ONE asset (no cell slicing)', async () => {
+    // A wide element spanning what would be two cells of a 2x2 grid.
+    const px = makePixels(32, 32, GREEN)
+    paintRect(px, 32, { x: 4, y: 4, width: 24, height: 8 }, [220, 40, 40])
+    mockCanvasKit(px, 32, 32)
+
+    const g = new SceneGraph()
+    const node = makeImageNode(g)
+    const result = await cutoutTool.execute(makeFigma(g), { id: node.id, min_area: 16 })
+    const out = result as {
+      elements: Array<{ nativeWidth: number; nativeHeight: number }>
+    }
+    expect(out.elements.length).toBe(1)
+    // 24×8 blob, eroded by 1px on each side → 22×6.
+    expect(out.elements[0].nativeWidth).toBe(22)
+    expect(out.elements[0].nativeHeight).toBe(6)
   })
 
   it('warns when the background is not uniform across corners', async () => {
@@ -177,24 +192,49 @@ describe('cutout tool', () => {
     const result = await cutoutTool.execute(makeFigma(g), {
       id: node.id,
       chroma: '#00FF00',
-      tolerance: 120
+      tolerance: 120,
+      min_area: 16
     })
     const out = result as { note: string }
     expect(out.note).toContain('WARNING')
     expect(out.note).toContain('not uniform')
   })
 
-  it('warns when the subject has large interior holes (subject contains the chroma color)', async () => {
-    const px = makePixels(16, 16, GREEN)
-    paintRect(px, 16, { x: 3, y: 3, width: 10, height: 10 }, [20, 180, 60]) // green-ish subject
-    paintRect(px, 16, { x: 6, y: 6, width: 4, height: 4 }, GREEN) // hole of pure green inside
-    mockCanvasKit(px, 16, 16)
+  it('preserves subject-interior chroma (the mint-green case) and reports it', async () => {
+    // Red subject with a pure-green core: the core must NOT be keyed out.
+    const px = makePixels(24, 24, GREEN)
+    paintRect(px, 24, { x: 4, y: 4, width: 16, height: 16 }, [220, 40, 40])
+    paintRect(px, 24, { x: 9, y: 9, width: 6, height: 6 }, GREEN)
+    mockCanvasKit(px, 24, 24)
 
     const g = new SceneGraph()
     const node = makeImageNode(g)
-    const result = await cutoutTool.execute(makeFigma(g), { id: node.id, tolerance: 60 })
+    const result = await cutoutTool.execute(makeFigma(g), { id: node.id, min_area: 16 })
+    const out = result as {
+      elements: Array<{ nativeWidth: number; nativeHeight: number }>
+      note: string
+    }
+    expect(out.elements.length).toBe(1)
+    // The full block survives as one asset (16 minus 1px erosion each side).
+    expect(out.elements[0].nativeWidth).toBe(14)
+    // And the preserved interior chroma is reported, not silent.
+    expect(out.note).toContain('match the background color inside subjects')
+  })
+
+  it('warns when the found element count differs from the expected count', async () => {
+    const px = makePixels(24, 24, GREEN)
+    paintRect(px, 24, { x: 8, y: 8, width: 8, height: 8 }, [220, 40, 40])
+    mockCanvasKit(px, 24, 24)
+
+    const g = new SceneGraph()
+    const node = makeImageNode(g)
+    const result = await cutoutTool.execute(makeFigma(g), {
+      id: node.id,
+      expected: 9,
+      min_area: 16
+    })
     const out = result as { note: string }
-    expect(out.note).toContain('holes')
+    expect(out.note).toContain('expected 9')
     expect(out.note).toContain('WARNING')
   })
 
@@ -204,14 +244,14 @@ describe('cutout tool', () => {
 
     const g = new SceneGraph()
     const node = makeImageNode(g)
-    const result = await cutoutTool.execute(makeFigma(g), { id: node.id })
+    const result = await cutoutTool.execute(makeFigma(g), { id: node.id, min_area: 16 })
     expect(result).toMatchObject({ error: expect.stringContaining('Nothing survived') })
   })
 
-  it('exposes grid/chroma/tolerance/despill/erode params', () => {
+  it('exposes expected/chroma/tolerance/despill/erode params', () => {
     const params = cutoutTool.params
     expect(params.id.required).toBe(true)
-    expect(params.grid.enum).toContain('3x3')
+    expect(params.expected.type).toBe('number')
     expect(params.tolerance.default).toBe(90)
     expect(params.despill.default).toBe(true)
     expect(params.erode.default).toBe(1)

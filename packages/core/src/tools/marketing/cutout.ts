@@ -4,9 +4,10 @@
  *
  * Turns an image generated against a solid chroma background (green screen)
  * into transparent PNG decoration assets: reads the pixels behind an IMAGE
- * fill, keys out the corner-sampled chroma, despills, erodes the fringe,
- * optionally splits a grid sheet into cells, trims to content, and registers
- * each element as a new image node.
+ * fill, removes the corner-sampled chroma by FLOOD FILL from the edges
+ * (subject interiors matching the chroma survive), despills, erodes the
+ * fringe, then splits by CONNECTED COMPONENTS — sheet elements that drift
+ * out of their grid cells are cut correctly, no grid assumption at all.
  *
  * Scope (honest boundary): solid-color backgrounds only — AI green-screen
  * generations and flat/white product shots. Complex photographic backgrounds
@@ -24,16 +25,14 @@ import { defineTool } from '#core/tools/schema'
 
 import {
   applyAlpha,
-  contentBounds,
   cornerSpread,
   cropRegion,
   despill,
   erodeAlpha,
-  gridCells,
-  interiorHoleRatio,
-  keyOut,
+  floodBackground,
+  labelComponents,
   parseChromaHex,
-  parseGrid,
+  preservedChromaCount,
   sampleCornerColor,
   type Rect
 } from './cutout-pure'
@@ -42,8 +41,8 @@ import { findImageBearingNode } from './sample-color'
 const DEFAULT_TOLERANCE = 90
 const DEFAULT_ERODE = 1
 const UNIFORM_SPREAD_LIMIT = 24
-const HOLE_RATIO_LIMIT = 0.15
-const MIN_CELL_PX = 16
+const MIN_COMPONENT_AREA = 256
+const PRESERVED_CHROMA_WARN_RATIO = 0.005
 const DISPLAY_WIDTH = 160
 const DISPLAY_GAP = 24
 const DISPLAY_OFFSET_Y = 40
@@ -55,14 +54,14 @@ interface CutoutElement {
   height: number
   nativeWidth: number
   nativeHeight: number
-  keyedPercent: number
+  area: number
 }
 
 export const cutoutTool = defineTool({
   name: 'cutout',
   mutates: true,
   description:
-    'Cut decoration assets out of a solid-color-background image (green screen) into transparent PNGs. Use after generate_image produces a chroma sheet — pass its node id. With grid (e.g. "3x3"), the sheet is split into cells and each non-empty cell becomes its own asset node placed in a row below the source. The background chroma is measured from the image corners (auto) unless pinned via chroma. Only works on solid backgrounds (AI green screens, flat product-shot backdrops) — not complex photo backgrounds, and never for smoke/glow translucency (bake those into the generated image instead).',
+    'Cut decoration assets out of a solid-color-background image (green screen) into transparent PNGs. Use after generate_image produces a chroma sheet — pass its node id. The background is removed by flood fill from the image edges (subject interiors that happen to match the chroma are preserved), then each connected element becomes its own asset node in reading order — grid drift in the sheet is fine, elements are found by connectivity, not sliced by cells. The background chroma is measured from the image corners (auto) unless pinned via chroma. Only works on solid backgrounds (AI green screens, flat product-shot backdrops) — not complex photo backgrounds, and never for smoke/glow translucency (bake those into the generated image instead).',
   params: {
     id: {
       type: 'string',
@@ -70,11 +69,12 @@ export const cutoutTool = defineTool({
         'Node id of the image to cut out (a Frame/Rectangle with an IMAGE fill, or a child of such a Frame).',
       required: true
     },
-    grid: {
-      type: 'string',
+    expected: {
+      type: 'number',
       description:
-        'Sheet layout, e.g. "2x3" or "3x3" (cols x rows). Omit for a single-subject image. Each non-empty cell becomes a separate asset.',
-      enum: ['1x2', '1x3', '1x4', '2x2', '2x3', '3x2', '3x3', '4x4']
+        'How many elements the sheet should contain (e.g. 9 for a 3x3 sticker sheet). Optional — when given, a mismatch with the number of separated elements produces a WARNING (elements touching, missed, or split).',
+      min: 1,
+      max: 32
     },
     chroma: {
       type: 'string',
@@ -99,6 +99,13 @@ export const cutoutTool = defineTool({
       default: DEFAULT_ERODE,
       min: 0,
       max: 4
+    },
+    min_area: {
+      type: 'number',
+      description: `Minimum component area in px² — smaller blobs are treated as keying noise. Default ${MIN_COMPONENT_AREA} suits megapixel sheets; lower it for small test images.`,
+      default: MIN_COMPONENT_AREA,
+      min: 1,
+      max: 100000
     }
   },
   execute: async (figma, args) => {
@@ -135,11 +142,14 @@ export const cutoutTool = defineTool({
       typeof args.erode === 'number' && Number.isFinite(args.erode)
         ? Math.max(0, Math.min(4, Math.round(args.erode)))
         : DEFAULT_ERODE
-    const gridArg = typeof args.grid === 'string' ? args.grid : undefined
-    const grid = gridArg ? parseGrid(gridArg) : null
-    if (gridArg && !grid) {
-      return { error: `grid "${gridArg}" is not supported — use "2x2", "2x3", "3x3", "1x4", etc.` }
-    }
+    const expected =
+      typeof args.expected === 'number' && Number.isFinite(args.expected) && args.expected >= 1
+        ? Math.round(args.expected)
+        : undefined
+    const minArea =
+      typeof args.min_area === 'number' && Number.isFinite(args.min_area) && args.min_area >= 1
+        ? Math.round(args.min_area)
+        : MIN_COMPONENT_AREA
 
     // --- Decode & read the full pixel buffer (same pipeline as sample_hero_color) ---
     const bytes = graph.images.get(fill.imageHash!) as Uint8Array
@@ -169,47 +179,40 @@ export const cutoutTool = defineTool({
       )
     }
 
-    // --- Regions to cut: grid cells or the whole image ---
-    const regions: Rect[] = grid
-      ? gridCells(imgW, imgH, grid.cols, grid.rows).filter(
-          (c) => c.width >= MIN_CELL_PX && c.height >= MIN_CELL_PX
-        )
-      : [{ x: 0, y: 0, width: imgW, height: imgH }]
+    // --- Flood-fill background removal, then split by connected components.
+    // Connectivity, not grid cells: elements that drift out of their cells
+    // are still cut correctly, and subject-interior chroma survives.
+    const keyed = floodBackground(pixels, imgW, imgH, chroma, tolerance)
+    const preserved = preservedChromaCount(pixels, keyed.alpha, chroma, tolerance)
+    if (preserved > imgW * imgH * PRESERVED_CHROMA_WARN_RATIO) {
+      warnings.push(
+        `WARNING: ${Math.round((preserved / (imgW * imgH)) * 100)}% of kept pixels match the background color inside subjects — this is normal for green-tinted elements, but if look shows green HOLES (trapped background), regenerate on a different screen color.`
+      )
+    }
+    if (doDespill) despill(pixels, keyed.alpha, imgW, imgH, chroma)
+    const matte = erode > 0 ? erodeAlpha(keyed.alpha, imgW, imgH, erode) : keyed.alpha
+
+    const components = labelComponents(matte, imgW, imgH, minArea)
+    if (expected !== undefined && components.length !== expected) {
+      warnings.push(
+        `WARNING: expected ${expected} element(s) from the sheet but ${components.length} separated — elements may be touching (merge), missed by the model, or split into pieces. Inspect with look; regenerate the sheet with wider spacing if elements merged.`
+      )
+    }
 
     const elements: CutoutElement[] = []
-    let regionIndex = 0
-    const opaqueMatte = new Uint8Array(imgW * imgH).fill(255)
-    for (const region of regions) {
-      regionIndex++
-      // One chroma for the whole sheet, sampled from the FULL image's
-      // corners: per-cell corners can be contaminated by subjects that span
-      // a cell edge (e.g. full-width banner rows).
-      const { pixels: cellPx } = cropRegion(pixels, opaqueMatte, imgW, region)
-      const keyed = keyOut(cellPx, region.width, region.height, chroma, tolerance)
-      if (doDespill) despill(cellPx, keyed.alpha, chroma)
-      const matte =
-        erode > 0 ? erodeAlpha(keyed.alpha, region.width, region.height, erode) : keyed.alpha
-      const bounds = contentBounds(matte, region.width, region.height)
-      if (!bounds || bounds.width < 4 || bounds.height < 4) continue // empty cell — normal for sparse sheets
-
-      const holeRatio = interiorHoleRatio(matte, region.width, bounds)
-      if (holeRatio > HOLE_RATIO_LIMIT) {
-        warnings.push(
-          `WARNING: element ${regionIndex} has ${Math.round(holeRatio * 100)}% holes inside its content bounds — the subject probably contains the background color. Regenerate on a different screen color (e.g. magenta #FF00FF) and pass chroma explicitly.`
-        )
-      }
-
-      const trimmed = cropRegion(cellPx, matte, region.width, bounds)
+    for (let i = 0; i < components.length; i++) {
+      const bounds = components[i].bounds
+      const trimmed = cropRegion(pixels, matte, imgW, bounds)
       applyAlpha(trimmed.pixels, trimmed.alpha)
       const out = encodePng(ck, trimmed.pixels, bounds.width, bounds.height)
       if (!out) {
-        warnings.push(`WARNING: element ${regionIndex} failed PNG encoding and was skipped.`)
+        warnings.push(`WARNING: element ${i + 1} failed PNG encoding and was skipped.`)
         continue
       }
       const hash = computeImageHash(out)
       graph.images.set(hash, out)
 
-      const created = createAssetNode(graph, imageNode, hash, bounds, regionIndex, elements.length)
+      const created = createAssetNode(graph, imageNode, hash, bounds, i + 1, elements.length)
       elements.push({
         id: created.id,
         name: created.name,
@@ -217,7 +220,7 @@ export const cutoutTool = defineTool({
         height: created.height,
         nativeWidth: bounds.width,
         nativeHeight: bounds.height,
-        keyedPercent: Math.round((keyed.bgCount / (region.width * region.height)) * 100)
+        area: components[i].area
       })
     }
 
@@ -231,8 +234,9 @@ export const cutoutTool = defineTool({
       source: { id: imageNode.id, name: imageNode.name, imageSize: { width: imgW, height: imgH } },
       chroma: { r: chroma.r, g: chroma.g, b: chroma.b, sampled: chromaArg === undefined },
       tolerance,
+      background_percent: Math.round((keyed.bgCount / (imgW * imgH)) * 100),
       elements,
-      note: buildNote(elements, chroma, tolerance, warnings)
+      note: buildNote(elements, chroma, tolerance, expected, warnings)
     }
   }
 })
@@ -297,16 +301,18 @@ function buildNote(
   elements: CutoutElement[],
   chroma: { r: number; g: number; b: number },
   tolerance: number,
+  expected: number | undefined,
   warnings: string[]
 ): string {
   const list = elements
     .map(
       (e) =>
-        `${e.id} "${e.name}" (${e.nativeWidth}×${e.nativeHeight}px native, shown ${e.width}×${e.height}, ${e.keyedPercent}% keyed out)`
+        `${e.id} "${e.name}" (${e.nativeWidth}×${e.nativeHeight}px native, shown ${e.width}×${e.height})`
     )
     .join('; ')
+  const expectedPart = expected !== undefined ? ` (expected ${expected})` : ''
   const parts = [
-    `Cut ${elements.length} asset${elements.length === 1 ? '' : 's'} from the sheet (chroma rgb(${chroma.r},${chroma.g},${chroma.b}), tolerance ${tolerance}): ${list}.`,
+    `Cut ${elements.length} asset${elements.length === 1 ? '' : 's'} from the sheet${expectedPart} (chroma rgb(${chroma.r},${chroma.g},${chroma.b}), tolerance ${tolerance}): ${list}.`,
     'Place them at or below their native pixel size (never upscale) and verify with look: edges clean, no green fringe, no background residue.'
   ]
   parts.push(...warnings)

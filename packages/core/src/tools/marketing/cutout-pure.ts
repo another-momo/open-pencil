@@ -118,6 +118,10 @@ export function cornerSpread(pixels: Uint8Array, width: number, height: number, 
  * Classify pixels as background when their RGB distance to the chroma is
  * within `tolerance` (Euclidean on 0-255 channels; default tuned for the
  * slightly-uneven green a model actually renders).
+ *
+ * Prefer `floodBackground` for real sheets — global classification keys out
+ * subject interiors that happen to match the chroma (a mint-green sticker
+ * loses its middle). This stays exported for tests and diagnostics.
  */
 export function keyOut(
   pixels: Uint8Array,
@@ -145,15 +149,178 @@ export function keyOut(
 }
 
 /**
- * Suppress chroma spill on kept pixels: the dominant channel of the chroma
- * (G for green screens) is clamped to the max of the other two, so green
- * bounce light on subject edges disappears without touching hue otherwise.
+ * Background removal by flood fill from the image border: only chroma-
+ * colored pixels CONNECTED to the edge count as background. Chroma-colored
+ * regions fully enclosed by the subject (a mint-green brush stroke's middle)
+ * are preserved — global keying would eat them.
+ *
+ * Trade-off (documented): a region of TRAPPED background fully enclosed by
+ * subject (a donut-hole showing the green screen through it) survives as
+ * green. That is the rarer failure and is visible in look verification; the
+ * tool reports the preserved-chroma pixel count so it isn't silent.
  */
-export function despill(pixels: Uint8Array, alpha: Uint8Array, chroma: Rgb): void {
+export function floodBackground(
+  pixels: Uint8Array,
+  width: number,
+  height: number,
+  chroma: Rgb,
+  tolerance = 90
+): KeyResult {
+  const tol2 = tolerance * tolerance
+  const isBackgroundColored = (i: number): boolean => {
+    const o = i * 4
+    const dr = pixels[o] - chroma.r
+    const dg = pixels[o + 1] - chroma.g
+    const db = pixels[o + 2] - chroma.b
+    return dr * dr + dg * dg + db * db <= tol2
+  }
+  const alpha = new Uint8Array(width * height).fill(255)
+  const stack: number[] = []
+  const seed = (i: number) => {
+    if (alpha[i] === 255 && isBackgroundColored(i)) {
+      alpha[i] = 0
+      stack.push(i)
+    }
+  }
+  for (let x = 0; x < width; x++) {
+    seed(x)
+    seed((height - 1) * width + x)
+  }
+  for (let y = 0; y < height; y++) {
+    seed(y * width)
+    seed(y * width + width - 1)
+  }
+  while (stack.length > 0) {
+    const i = stack.pop()!
+    const x = i % width
+    const y = (i - x) / width
+    if (x > 0) seed(i - 1)
+    if (x < width - 1) seed(i + 1)
+    if (y > 0) seed(i - width)
+    if (y < height - 1) seed(i + width)
+  }
+  let bgCount = 0
+  for (let i = 0; i < alpha.length; i++) if (alpha[i] === 0) bgCount++
+  return { alpha, bgCount }
+}
+
+/** Chroma-colored pixels that survived flood filling (interior regions). */
+export function preservedChromaCount(
+  pixels: Uint8Array,
+  alpha: Uint8Array,
+  chroma: Rgb,
+  tolerance = 90
+): number {
+  const tol2 = tolerance * tolerance
+  let count = 0
+  for (let i = 0; i < alpha.length; i++) {
+    if (alpha[i] === 0) continue
+    const o = i * 4
+    const dr = pixels[o] - chroma.r
+    const dg = pixels[o + 1] - chroma.g
+    const db = pixels[o + 2] - chroma.b
+    if (dr * dr + dg * dg + db * db <= tol2) count++
+  }
+  return count
+}
+
+export interface Component {
+  bounds: Rect
+  area: number
+}
+
+/**
+ * Connected-component labeling (4-connectivity) over the alpha matte. Each
+ * blob becomes one asset — sheets whose elements drift out of their grid
+ * cells are cut correctly regardless. Components smaller than `minArea` are
+ * keying noise. Returned in reading order (top-to-bottom, left-to-right) so
+ * sheet elements number naturally.
+ */
+export function labelComponents(
+  alpha: Uint8Array,
+  width: number,
+  height: number,
+  minArea = 256
+): Component[] {
+  const visited = new Uint8Array(width * height)
+  const components: Component[] = []
+  const stack: number[] = []
+  for (let start = 0; start < alpha.length; start++) {
+    if (alpha[start] === 0 || visited[start] !== 0) continue
+    let minX = width
+    let minY = height
+    let maxX = -1
+    let maxY = -1
+    let area = 0
+    visited[start] = 1
+    stack.push(start)
+    while (stack.length > 0) {
+      const i = stack.pop()!
+      const x = i % width
+      const y = (i - x) / width
+      area++
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (y < minY) minY = y
+      if (y > maxY) maxY = y
+      if (x > 0 && alpha[i - 1] !== 0 && visited[i - 1] === 0) {
+        visited[i - 1] = 1
+        stack.push(i - 1)
+      }
+      if (x < width - 1 && alpha[i + 1] !== 0 && visited[i + 1] === 0) {
+        visited[i + 1] = 1
+        stack.push(i + 1)
+      }
+      if (y > 0 && alpha[i - width] !== 0 && visited[i - width] === 0) {
+        visited[i - width] = 1
+        stack.push(i - width)
+      }
+      if (y < height - 1 && alpha[i + width] !== 0 && visited[i + width] === 0) {
+        visited[i + width] = 1
+        stack.push(i + width)
+      }
+    }
+    if (area >= minArea && maxX >= 0) {
+      components.push({
+        bounds: { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 },
+        area
+      })
+    }
+  }
+  components.sort((a, b) => a.bounds.y - b.bounds.y || a.bounds.x - b.bounds.x)
+  return components
+}
+
+/**
+ * Suppress chroma spill on kept EDGE pixels: the dominant channel of the
+ * chroma (G for green screens) is clamped to the max of the other two, so
+ * green bounce light on subject edges disappears. Only pixels adjacent to
+ * keyed background are touched — applying despill to the whole foreground
+ * would corrupt preserved interior chroma (a mint core would go black).
+ */
+export function despill(
+  pixels: Uint8Array,
+  alpha: Uint8Array,
+  width: number,
+  height: number,
+  chroma: Rgb
+): void {
   const dominant: 0 | 1 | 2 =
     chroma.g >= chroma.r && chroma.g >= chroma.b ? 1 : chroma.r >= chroma.b ? 0 : 2
   for (let i = 0; i < alpha.length; i++) {
     if (alpha[i] === 0) continue
+    const x = i % width
+    const y = (i - x) / width
+    const touchesBackground =
+      x === 0 ||
+      y === 0 ||
+      x === width - 1 ||
+      y === height - 1 ||
+      alpha[i - 1] === 0 ||
+      alpha[i + 1] === 0 ||
+      alpha[i - width] === 0 ||
+      alpha[i + width] === 0
+    if (!touchesBackground) continue
     const o = i * 4
     const other1 = pixels[o + ((dominant + 1) % 3)]
     const other2 = pixels[o + ((dominant + 2) % 3)]

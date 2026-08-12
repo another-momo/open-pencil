@@ -292,35 +292,47 @@ export function labelComponents(
 }
 
 /**
- * Suppress chroma spill on kept EDGE pixels: the dominant channel of the
- * chroma (G for green screens) is clamped to the max of the other two, so
- * green bounce light on subject edges disappears. Only pixels adjacent to
- * keyed background are touched — applying despill to the whole foreground
- * would corrupt preserved interior chroma (a mint core would go black).
+ * Suppress chroma spill on kept pixels NEAR the background: the dominant
+ * channel of the chroma (G for green screens) is clamped to the max of the
+ * other two, so green bounce light on subject edges disappears. The spill
+ * band is `band` px deep — the model's spill bleeds 2-3px inward, so a
+ * 1px edge band leaves a visible green rim (smoke-run finding). Pixels
+ * deeper than the band are never touched, so preserved interior chroma
+ * (a mint core) survives intact.
  */
 export function despill(
   pixels: Uint8Array,
   alpha: Uint8Array,
   width: number,
   height: number,
-  chroma: Rgb
+  chroma: Rgb,
+  band = 2
 ): void {
   const dominant: 0 | 1 | 2 =
     chroma.g >= chroma.r && chroma.g >= chroma.b ? 1 : chroma.r >= chroma.b ? 0 : 2
+  // Dilate the background mask `band` times to get the near-background zone.
+  let zone = new Uint8Array(width * height)
+  for (let i = 0; i < alpha.length; i++) zone[i] = alpha[i] === 0 ? 1 : 0
+  for (let it = 0; it < band; it++) {
+    const next = new Uint8Array(zone)
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = y * width + x
+        if (zone[i] !== 0 || alpha[i] === 0) continue
+        if (
+          (x > 0 && zone[i - 1] !== 0) ||
+          (x < width - 1 && zone[i + 1] !== 0) ||
+          (y > 0 && zone[i - width] !== 0) ||
+          (y < height - 1 && zone[i + width] !== 0)
+        ) {
+          next[i] = 1
+        }
+      }
+    }
+    zone = next
+  }
   for (let i = 0; i < alpha.length; i++) {
-    if (alpha[i] === 0) continue
-    const x = i % width
-    const y = (i - x) / width
-    const touchesBackground =
-      x === 0 ||
-      y === 0 ||
-      x === width - 1 ||
-      y === height - 1 ||
-      alpha[i - 1] === 0 ||
-      alpha[i + 1] === 0 ||
-      alpha[i - width] === 0 ||
-      alpha[i + width] === 0
-    if (!touchesBackground) continue
+    if (alpha[i] === 0 || zone[i] === 0) continue
     const o = i * 4
     const other1 = pixels[o + ((dominant + 1) % 3)]
     const other2 = pixels[o + ((dominant + 2) % 3)]

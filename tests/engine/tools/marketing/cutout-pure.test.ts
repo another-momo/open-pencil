@@ -150,12 +150,22 @@ describe('cutout-pure / labelComponents', () => {
 })
 
 describe('cutout-pure / despill', () => {
-  it('clamps green spill on kept EDGE pixels to the max of the other channels', () => {
-    const px = makePixels(2, 1, [120, 200, 110]) // greenish edge fringe
-    const alpha = new Uint8Array([255, 255])
-    despill(px, alpha, 2, 1, { r: 0, g: 255, b: 0 })
-    expect(px[1]).toBe(120) // g clamped to max(r, b) = 120
-    expect(px[4 + 1]).toBe(120)
+  it('clamps green spill on kept pixels within the band near the background', () => {
+    // [bg | fringe | deep]: the fringe pixel borders the background.
+    const px = makePixels(3, 1, [120, 200, 110])
+    paintRect(px, 3, { x: 0, y: 0, width: 1, height: 1 }, GREEN)
+    const alpha = new Uint8Array([0, 255, 255])
+    despill(px, alpha, 3, 1, { r: 0, g: 255, b: 0 }, 1)
+    expect(px[1 * 4 + 1]).toBe(120) // fringe g clamped to max(r, b)
+  })
+
+  it('reaches spill two pixels deep with a 2px band', () => {
+    const px = makePixels(4, 1, [120, 200, 110])
+    paintRect(px, 4, { x: 0, y: 0, width: 1, height: 1 }, GREEN)
+    const alpha = new Uint8Array([0, 255, 255, 255])
+    despill(px, alpha, 4, 1, { r: 0, g: 255, b: 0 }, 2)
+    expect(px[1 * 4 + 1]).toBe(120)
+    expect(px[2 * 4 + 1]).toBe(120) // second pixel inside the 2px band
   })
 
   it('leaves non-spilled pixels and keyed-out pixels untouched', () => {
@@ -167,13 +177,13 @@ describe('cutout-pure / despill', () => {
   })
 
   it('never touches deep-foreground pixels (interior chroma must survive intact)', () => {
-    // 3×3 all-foreground; the center pixel is fully enclosed by kept pixels,
-    // so despill must not clamp its (deliberately green) channel.
-    const px = makePixels(3, 3, [220, 40, 40])
-    paintRect(px, 3, { x: 1, y: 1, width: 1, height: 1 }, [20, 220, 30])
-    const alpha = new Uint8Array(9).fill(255)
-    despill(px, alpha, 3, 3, { r: 0, g: 255, b: 0 })
-    expect(px[(1 * 3 + 1) * 4 + 1]).toBe(220) // interior green survives despill
+    // 5×5 all-foreground; the center pixel is 2+ px from any background,
+    // so even the 2px band must not reach it.
+    const px = makePixels(5, 5, [220, 40, 40])
+    paintRect(px, 5, { x: 2, y: 2, width: 1, height: 1 }, [20, 220, 30])
+    const alpha = new Uint8Array(25).fill(255)
+    despill(px, alpha, 5, 5, { r: 0, g: 255, b: 0 })
+    expect(px[(2 * 5 + 2) * 4 + 1]).toBe(220) // interior green survives despill
   })
 })
 

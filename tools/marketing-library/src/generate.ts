@@ -560,6 +560,63 @@ export function buildDefaultLibraryGraph(): SceneGraph {
   })
   kv(graph, watercolorCL.id, 'applicable_to: product_long, event_poster, xiaohongshu')
 
+  // First profile wired to the decoration pipeline (distillation-map §11/§12):
+  // scene backdrop + white content island + cutout sticker accents. The
+  // 促销/活动 category is the launch wedge — this is its R0 sample.
+  const promo = makeEntry(graph, profilesPage.id, 'promo_event_v1')
+  graph.createNode('TEXT', promo.id, {
+    fontFamily: FONT,
+    text: [
+      '# Promo event poster',
+      '',
+      'High-energy promotional long image for campaigns and events. A full illustrated scene sets the mood on top; a white rounded content island carries the sections; marker-stroke bands and sticker accents supply the festive texture. Visual weight comes from the scene, the huge display title, and textured accents — never from flat UI blocks.',
+      '',
+      '## Fixed system (never break)',
+      '',
+      '- Full-scene illustrated backdrop via the shared backdrop flow (compose_backdrop); content sits on a white rounded content island (corner 24–32px, padding 32–40px) or transparent over the scene. No flat per-section color blocks.',
+      '- Display type leads: hero title 88–128px in a cartoon bold rounded face (站酷快乐体 / 阿里妈妈方圆体 class; fall back to Alibaba PuHuiTi Heavy), white with dark outline + soft shadow, stacked in 2–3 STAGGERED lines (not centered slabs). Section titles 40–56 heavy. Body 20–24.',
+      '- Section titles sit on a marker-brush stroke band from the decoration sheet — never a clean rectangle. A clean rounded rect behind a title reads as UI, not promo.',
+      '- Key numbers lead: quotas, dates, amounts in accent red, bold, 1.5–2× body size, inline with the text ("前 100 名", "减 50").',
+      '- Decoration assets come from the green-screen sheet + cutout pipeline (Phase 2.5). Never request transparent PNGs directly, and never put text inside generated images.',
+      '- QR codes, logos, and real product packaging come from user materials — never generate them.',
+      '',
+      '## Variable system (choose per design; record your picks)',
+      '',
+      '- scene theme: follows the event (beach / snow / city night / festival market…) — one coherent scene, calm behind the content island.',
+      '- accent palette: sampled from the hero scene + one high-saturation accent (red/orange) for numbers and tags.',
+      '- sticker vocabulary: pick the sheet contents per event (burst badges / arrows / sparkles / tape labels…), one sheet per design.',
+      '- urgency device: { countdown badge, limited-quota tag, deadline tag } — allowed in this style (banned in calmer styles); at most ONE per design.',
+      '',
+      '## Anti-identity (this style never does)',
+      '',
+      '- No clean rectangle title bands or default-looking rounded-rect badges — texture or nothing.',
+      '- No flat solid section color blocks: the island is white, accents are texture/stickers.',
+      '- No text inside generated images (garbled text is the rule, not the exception).',
+      '- No AI-generated QR codes, logos, or real product photos.',
+      '- No more than 2 sticker types per section, no more than 3 sticker accents per screen — festive, not cluttered.',
+      '- No muted minimalism: if the design reads as restrained editorial, it is off-style.',
+      '',
+      '## Visual environment setup (Phase 2.5)',
+      'The hero slot is part of the Phase 2 skeleton; this phase materializes pixels AND the decoration assets:',
+      '',
+      '1. (Phase 2 skeleton) Render a transparent Frame named `HeroContent` as the first flow child of the root frame, h=750, w=canvas width. Content sections live on the white content island (rounded 24–32px card) or transparent frames — no per-section color blocks.',
+      '2. Generate the hero SCENE with `generate_image` (`width: 750, height: 850`, `id: HeroContent.id`): one coherent promotional scene matching the event theme, bottom ~100px calm (≈1:1 onto the fade zone), title region calm enough for huge white display type.',
+      "3. Generate the DECORATION SHEET in the same style: one green-screen image (solid #00FF00 background, no shadows, hard edges, 3x3 grid, no text) containing this design's sticker vocabulary — marker-brush stroke banner, starburst badge, arrow, tape label, sparkle, plus event-specific pieces. Then `cutout({ id: <sheet node>, expected: 9 })` — assets come back in reading order with native sizes.",
+      '4. Call `compose_backdrop({ root_id, canvas_width: 750, canvas_height: <design height>, hero_image_from: HeroContent.id })` — one call: the scene moves into the BackgroundLayer, the bottom band is auto-sampled for the overlay, HeroContent stays transparent for the title.',
+      '5. Verify with `look`: scene mood correct, no visible seam, cutout edges clean (no green fringe — re-cut with `erode: 2` if needed). If one sticker is wrong, regenerate just the sheet, not the scene.',
+      '',
+      "Do NOT pass `hero_color` — auto-sampling is the point. If a decoration asset's proportions are wrong for its slot (e.g. the stroke band too square), regenerate that single element using the sheet asset as a reference at the slot's size — never stretch assets.",
+      '',
+      '## Tone',
+      'Loud, generous, festive. Short punchy lines; numbers do the talking.'
+    ].join('\n'),
+    fontSize: 12,
+    width: MARKDOWN_WRAP_WIDTH,
+    fills: solid(DARK),
+    textAutoResize: 'HEIGHT'
+  })
+  kv(graph, promo.id, 'applicable_to: product_long, event_poster')
+
   const componentsPage = makeZonePage(graph, 'Components')
   buildBrandBar(graph, componentsPage.id, logoHash)
   buildCtaBar(graph, componentsPage.id)

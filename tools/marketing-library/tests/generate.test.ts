@@ -53,7 +53,8 @@ describe('default-library.fig round-trip', () => {
       'watercolor_poster_v1',
       'editorial_poster_v1',
       'solid_poster_v1',
-      'watercolor_poster_v1_center_left'
+      'watercolor_poster_v1_center_left',
+      'promo_event_v1'
     ])
     expect(index.profiles[0].label).toBe('休闲活泼风格')
     expect(index.profiles[0].description).toContain('配色')
@@ -116,6 +117,15 @@ describe('default-library.fig round-trip', () => {
 
     // 方法论对照组:v0 是 R0 重写前的扁平格式基线。反向断言是实验设计的
     // 一部分——它若被"升级"成三段体系,同风格 A/B 对照即静默失效。
+    // 促销 profile:首个接装饰管线的品类(万科案例技法骨架)——切图工具引用、
+    // 笔触底纹纪律、QR/Logo 真实素材约束必须活着往返。
+    const promo = expectDefined(index.profiles.find((profile) => profile.id === 'promo_event_v1'))
+    expect(promo.markdown).toContain('## Fixed system')
+    expect(promo.markdown).toContain('## Anti-identity')
+    expect(promo.markdown).toContain('cutout')
+    expect(promo.markdown).toContain('marker-brush')
+    expect(promo.markdown).toContain('never generate')
+
     const legacy = expectDefined(
       index.profiles.find((profile) => profile.id === 'watercolor_poster_v0')
     )
@@ -155,7 +165,8 @@ describe('default-library.fig round-trip', () => {
       'watercolor_poster_v1',
       'editorial_poster_v1',
       'solid_poster_v1',
-      'watercolor_poster_v1_center_left'
+      'watercolor_poster_v1_center_left',
+      'promo_event_v1'
     ])
     // Content-level sync with the generator: every shipped profile markdown
     // must equal the freshly generated one.

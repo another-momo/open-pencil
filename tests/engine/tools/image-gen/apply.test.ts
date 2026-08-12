@@ -252,6 +252,45 @@ describe('generateOne', () => {
     expect(result.provider).toBe('fake')
   })
 
+  test('new image is placed right of existing page content (no overlap)', async () => {
+    const { figma } = setup()
+    const existing = figma.createFrame()
+    existing.resize(500, 300)
+    const { provider } = fakeProvider()
+
+    const result = await generateOne(figma, provider, {
+      prompt: 'new image',
+      width: 1024,
+      height: 1024
+    })
+
+    const node = figma.getNodeById(result.id)
+    expect(node?.x).toBe(600) // existing right edge (500) + 100 gap
+    expect(node?.y).toBe(0)
+  })
+
+  test('consecutive new images line up to the right, never stacking', async () => {
+    const { figma } = setup()
+    const { provider } = fakeProvider()
+
+    const first = await generateOne(figma, provider, {
+      prompt: 'first',
+      width: 1024,
+      height: 1024
+    })
+    const second = await generateOne(figma, provider, {
+      prompt: 'second',
+      width: 1024,
+      height: 1024
+    })
+
+    const firstNode = figma.getNodeById(first.id)
+    const secondNode = figma.getNodeById(second.id)
+    expect(firstNode?.x).toBe(0) // empty page → origin
+    if (!firstNode || !secondNode) return
+    expect(secondNode.x).toBe(firstNode.x + firstNode.width + 100)
+  })
+
   test('overwriting a node with content snapshots the old version into the history container', async () => {
     const { graph, figma } = setup()
     const target = createImageNode(figma, 'HeroImg', new Uint8Array([1, 2, 3]))

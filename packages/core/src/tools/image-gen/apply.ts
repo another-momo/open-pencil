@@ -2,6 +2,7 @@ import type { SceneNode } from '@open-pencil/scene-graph'
 
 import type { FigmaAPI } from '#core/figma-api'
 import { createImageFill } from '#core/tools/image-fill'
+import { getPageContentBounds } from '#core/tools/marketing/brief'
 import { libraryReferenceId } from '#core/tools/marketing/restore'
 
 import { isInImageHistory, snapshotBeforeOverwrite, type HistorySnapshot } from './history'
@@ -187,11 +188,18 @@ function resolveOutputTarget(
   let target = req.replaceId && !redirect ? figma.getNodeById(req.replaceId) : null
   if (!target) {
     const fallbackSize = redirect?.fallbackSize
+    // Place clear of existing content: right of the page content bounds
+    // (+100 gap), top-aligned — same convention as brief/root placement.
+    // Read the bounds BEFORE creating the frame so the new node itself does
+    // not inflate them.
+    const bounds = getPageContentBounds(figma)
     target = figma.createFrame()
     target.resize(
       req.width ?? fallbackSize?.width ?? 1024,
       req.height ?? fallbackSize?.height ?? 1024
     )
+    target.x = bounds ? bounds.x + bounds.width + 100 : 0
+    target.y = bounds?.y ?? 0
     target.name = req.prompt.slice(0, 40) || 'Generated image'
   }
 

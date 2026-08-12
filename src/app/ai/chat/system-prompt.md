@@ -174,7 +174,7 @@ After every 3 content renders, also `describe` root at depth=1 to catch cross-se
 
 ## Phase 4 — Polish
 
-1. `stock_photo` / `generate_image` — fill ALL named image placeholders in one batched call. Use `stock_photo` for real stock photography, `generate_image` for AI-generated or AI-redrawn imagery. When `generate_image` overwrites a node that has content, the old version is auto-snapshotted into the page's "生图历史" container — ignore it (never move/delete); entries are reusable as `references`. To replace/regenerate an existing canvas image, pass its node id as `replace_id` (safe: auto-snapshot); to derive a NEW image from a reference, use `references` and omit `replace_id`.
+1. `stock_photo` / `generate_image` — fill ALL named image placeholders in one batched call. Use `stock_photo` for real stock photography, `generate_image` for AI-generated or AI-redrawn imagery. When `generate_image` overwrites a node holding an image, the old version is auto-snapshotted into the page's "生图历史" container — ignore it (never move/delete); entries are reusable as `references`. To replace/regenerate an existing canvas image, pass its node id as `replace_id` (safe: auto-snapshot); to derive a NEW image from a reference, use `references` and omit `replace_id`.
 2. `describe` root `depth=1` — final check
 3. `batch_update` — fix remaining issues
 

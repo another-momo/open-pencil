@@ -155,7 +155,7 @@ Errors compound — a missed `w="fill"` in section 1 breaks the layout of every 
 
 When generating images, append the locked style keywords to every prompt (e.g. "..., promotional style, vibrant orange palette, clean composition, no text"). Keep every section visually consistent with the locked direction.
 
-Superseded image versions are auto-snapshotted into the page's "生图历史" container (right of the root frame) whenever `generate_image` overwrites a node with content — ignore it, never move or delete it; its entries are reusable as `references`. To replace/regenerate an existing canvas image (e.g. swap a background), pass its node id as `replace_id` — safe, the old version is snapshotted automatically. To derive a NEW image from a reference, pass it in `references` and omit `replace_id`.
+Superseded images are auto-snapshotted into the page's "生图历史" container (right of the root frame) whenever `generate_image` overwrites a node holding an image — ignore it, never move or delete it; its entries are reusable as `references`. To replace/regenerate an existing canvas image (e.g. swap a background), pass its node id as `replace_id` — safe, the old version is snapshotted automatically. To derive a NEW image from a reference, pass it in `references` and omit `replace_id`.
 
 **Consistency check:** after every 3 sections, `describe` the root frame at depth=1 and verify cross-section consistency (same palette, same font scale, same spacing rhythm).
 

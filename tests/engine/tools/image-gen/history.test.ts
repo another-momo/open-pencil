@@ -84,14 +84,28 @@ describe('snapshotBeforeOverwrite', () => {
     expect(containerOf(graph)).toBeUndefined()
   })
 
-  test('node with children but no fills → snapshot kept', () => {
+  test('node with children but no IMAGE fill → no snapshot (children survive a fill swap)', () => {
     const { graph, figma } = setup()
     const parent = figma.createFrame()
     parent.name = 'group'
     const child = figma.createRectangle()
     graph.reparentNode(child.id, parent.id)
 
-    expect(snapshotBeforeOverwrite(graph, parent.id)).toBeDefined()
+    expect(snapshotBeforeOverwrite(graph, parent.id)).toBeUndefined()
+    expect(containerOf(graph)).toBeUndefined()
+  })
+
+  test('solid-fill-only placeholder → no snapshot (trivially recreatable)', () => {
+    const { graph, figma } = setup()
+    const placeholder = figma.createFrame()
+    placeholder.name = 'HeroImg placeholder'
+    placeholder.resize(750, 400)
+    placeholder.fills = [
+      { type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.9, a: 1 }, opacity: 1, visible: true }
+    ]
+
+    expect(snapshotBeforeOverwrite(graph, placeholder.id)).toBeUndefined()
+    expect(containerOf(graph)).toBeUndefined()
   })
 
   test('container is placed right of the marketing root when one exists', () => {

@@ -1,15 +1,18 @@
 /**
  * Generation history ("生图历史"): before generate_image overwrites a node
- * that has content, the old subtree is cloned into a per-page history
+ * that holds an image, the old subtree is cloned into a per-page history
  * container so no superseded version is ever lost — and a mistaken overwrite
- * (e.g. a reference image passed as `id`) stays recoverable.
+ * (e.g. a reference image passed as `replace_id`) stays recoverable.
+ * Only IMAGE fills are preserved: children survive a fill replacement and
+ * solid/gradient fills are trivially recreatable.
  *
- * New images (no `id`) are NOT snapshotted: the fresh node itself is already
- * on the canvas, so every version exists exactly once (lean-history policy).
+ * New images (no `replace_id`) are NOT snapshotted: the fresh node itself is
+ * already on the canvas, so every version exists exactly once (lean-history
+ * policy).
  *
  * Entries and the container carry pluginData markers (rename-proof, same
  * pattern as tools/marketing/restore.ts) and must not be used as overwrite
- * targets — apply.ts rejects them.
+ * targets — apply.ts redirects them to a new node instead.
  */
 
 import type { PluginDataEntry, SceneGraph, SceneNode } from '@open-pencil/scene-graph'
@@ -165,16 +168,19 @@ export function snapshotBeforeOverwrite(
   const target = graph.getNode(targetId)
   if (!target) return undefined
 
-  const hasContent = target.fills.some((fill) => fill.visible) || target.childIds.length > 0
-  if (!hasContent) return undefined
+  // Only IMAGE fills are irreplaceable (generated art / uploaded assets).
+  // Children survive a fill replacement, and solid/gradient fills are
+  // one-line recreations — snapshotting them would flood the history with
+  // placeholder noise.
+  const hash = topImageHash(target)
+  if (!hash) return undefined
 
   const pageId = pageIdOf(graph, targetId)
   if (!pageId) return undefined
 
-  const hash = topImageHash(target)
   const existingContainer = findContainer(graph, pageId)
   const prior = existingContainer ? entriesOf(graph, existingContainer, targetId) : []
-  if (hash && prior.length > 0) {
+  if (prior.length > 0) {
     const latestHash = markerValue(prior[prior.length - 1], SOURCE_HASH_KEY)
     if (latestHash === hash) return undefined
   }
@@ -200,7 +206,7 @@ export function snapshotBeforeOverwrite(
   upsertMarkers(graph, clone.id, [
     { key: ROLE_KEY, value: ROLE_ENTRY },
     { key: SOURCE_TARGET_KEY, value: targetId },
-    { key: SOURCE_HASH_KEY, value: hash ?? '' },
+    { key: SOURCE_HASH_KEY, value: hash },
     { key: VERSION_KEY, value: String(version) },
     { key: CAPTURED_AT_KEY, value: new Date().toISOString() }
   ])

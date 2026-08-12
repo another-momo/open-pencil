@@ -39,15 +39,16 @@ describe('snapshotBeforeOverwrite', () => {
     const snapshot = snapshotBeforeOverwrite(graph, target.id)
 
     expect(snapshot).toBeDefined()
-    expect(snapshot?.name).toBe('HeroImg · v1')
+    if (!snapshot) return
+    expect(snapshot.name).toBe('HeroImg · v1')
     const container = containerOf(graph)
     expect(container).toBeDefined()
-    expect(container?.childIds).toContain(snapshot?.id)
-    const entry = graph.getNode(snapshot!.id)
+    expect(container?.childIds).toContain(snapshot.id)
+    const entry = graph.getNode(snapshot.id)
     expect(entry?.fills).toEqual(
       expect.arrayContaining([expect.objectContaining({ type: 'IMAGE' })])
     )
-    expect(isInImageHistory(graph, snapshot!.id)).toBe(true)
+    expect(isInImageHistory(graph, snapshot.id)).toBe(true)
     expect(isInImageHistory(graph, target.id)).toBe(false)
   })
 
@@ -120,7 +121,10 @@ describe('snapshotBeforeOverwrite', () => {
     const snapshot = snapshotBeforeOverwrite(graph, root.id)
 
     expect(snapshot).toBeDefined()
-    const entry = graph.getNode(snapshot!.id)!
+    if (!snapshot) return
+    const entry = graph.getNode(snapshot.id)
+    expect(entry).toBeDefined()
+    if (!entry) return
     // Foreign pluginData stripped — the entry must not look like a marketing root
     expect(entry.pluginData.filter((e) => e.pluginId === 'open-pencil-marketing')).toHaveLength(0)
   })

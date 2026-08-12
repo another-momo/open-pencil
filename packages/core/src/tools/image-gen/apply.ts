@@ -53,6 +53,71 @@ async function extractReferenceImage(
   return extractNodeImage(figma, ref.id)
 }
 
+interface ProtectedRedirect {
+  note: string
+  fallbackSize: { width: number; height: number }
+}
+
+/**
+ * Soft guard against mistaken overwrite targets: library references are
+ * inputs, not outputs; history snapshots are frozen records. Instead of
+ * failing the call, the caller falls back to generating a NEW node and
+ * leaves the protected node untouched — the note tells the agent what
+ * happened. Returns undefined when the target may be overwritten normally.
+ */
+function protectedRedirect(figma: FigmaAPI, nodeId: string): ProtectedRedirect | undefined {
+  const raw = figma.graph.getNode(nodeId)
+  if (!raw) return undefined
+  let protectedAs: string | undefined
+  if (libraryReferenceId(raw)) {
+    protectedAs = 'a library reference image'
+  } else if (isInImageHistory(figma.graph, raw.id)) {
+    protectedAs = 'a generation-history snapshot'
+  }
+  if (!protectedAs) return undefined
+  return {
+    note: `Node ${nodeId} ("${raw.name}") is ${protectedAs} and was NOT overwritten — the image was generated as a new canvas node instead, sized like the protected node. To iterate on that image, pass its id in "references" and omit "id" (or target a normal node).`,
+    fallbackSize: { width: Math.round(raw.width), height: Math.round(raw.height) }
+  }
+}
+
+interface ExtractedReferences {
+  images: Uint8Array[]
+  note?: string
+}
+
+async function extractReferenceImages(
+  figma: FigmaAPI,
+  references: ImageGenReference[],
+  prompt: string
+): Promise<ExtractedReferences> {
+  const images: Uint8Array[] = []
+  const skipped: string[] = []
+  for (const ref of references) {
+    const bytes = await extractReferenceImage(figma, ref)
+    if (bytes) images.push(bytes)
+    else skipped.push(ref.id)
+  }
+
+  if (references.length > 0) {
+    // A prompt with [image N] markers misaligns silently when any image drops
+    // out — fail loudly instead of letting the model edit the wrong image.
+    if (skipped.length > 0 && IMAGE_MARKER_RE.test(prompt)) {
+      throw new Error(
+        `Failed to extract reference image(s): ${skipped.join(', ')} — the prompt contains [image N] markers that would misalign; fix the references and retry`
+      )
+    }
+    if (images.length === 0) {
+      throw allReferencesFailedError(figma, skipped)
+    }
+  }
+  const note =
+    skipped.length > 0
+      ? `Used ${images.length}/${references.length} reference image(s); skipped: ${skipped.join(', ')}`
+      : undefined
+  return note ? { images, note } : { images }
+}
+
 /**
  * Generate an image and place it on the canvas.
  *
@@ -73,58 +138,19 @@ export async function generateOne(
   provider: ImageGenProvider,
   req: ImageGenRequest
 ): Promise<ImageGenExecuteResult> {
-  let target = req.id ? figma.getNodeById(req.id) : null
+  const redirect = req.id ? protectedRedirect(figma, req.id) : undefined
+  let target = req.id && !redirect ? figma.getNodeById(req.id) : null
 
-  // Soft guard against mistaken overwrite targets: library references are
-  // inputs, not outputs; history snapshots are frozen records. Instead of
-  // failing the call, fall back to generating a NEW node and leave the
-  // protected node untouched — the note tells the agent what happened.
-  let protectedNote: string | undefined
-  let fallbackSize: { width: number; height: number } | undefined
-  if (target && req.id) {
-    const raw = figma.graph.getNode(req.id)
-    const protectedAs =
-      raw && libraryReferenceId(raw)
-        ? 'a library reference image'
-        : raw && isInImageHistory(figma.graph, raw.id)
-          ? 'a generation-history snapshot'
-          : undefined
-    if (raw && protectedAs) {
-      protectedNote = `Node ${req.id} ("${raw.name}") is ${protectedAs} and was NOT overwritten — the image was generated as a new canvas node instead, sized like the protected node. To iterate on that image, pass its id in "references" and omit "id" (or target a normal node).`
-      fallbackSize = { width: Math.round(raw.width), height: Math.round(raw.height) }
-      target = null
-    }
-  }
-
-  const references = req.references ?? []
-  const images: Uint8Array[] = []
-  const skipped: string[] = []
-  for (const ref of references) {
-    const bytes = await extractReferenceImage(figma, ref)
-    if (bytes) images.push(bytes)
-    else skipped.push(ref.id)
-  }
-
-  if (references.length > 0) {
-    // A prompt with [image N] markers misaligns silently when any image drops
-    // out — fail loudly instead of letting the model edit the wrong image.
-    if (skipped.length > 0 && IMAGE_MARKER_RE.test(req.prompt)) {
-      throw new Error(
-        `Failed to extract reference image(s): ${skipped.join(', ')} — the prompt contains [image N] markers that would misalign; fix the references and retry`
-      )
-    }
-    if (images.length === 0) {
-      throw allReferencesFailedError(figma, skipped)
-    }
-  }
-  const skippedNote =
-    skipped.length > 0
-      ? `Used ${images.length}/${references.length} reference image(s); skipped: ${skipped.join(', ')}`
-      : undefined
-  const note = [protectedNote, skippedNote].filter(Boolean).join(' ') || undefined
+  const { images, note: skippedNote } = await extractReferenceImages(
+    figma,
+    req.references ?? [],
+    req.prompt
+  )
+  const note = [redirect?.note, skippedNote].filter(Boolean).join(' ') || undefined
 
   let finalReq = req
   if (!target) {
+    const fallbackSize = redirect?.fallbackSize
     target = figma.createFrame()
     target.resize(
       req.width ?? fallbackSize?.width ?? 1024,

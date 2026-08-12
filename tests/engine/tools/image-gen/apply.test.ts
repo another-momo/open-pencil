@@ -206,8 +206,10 @@ describe('generateOne', () => {
     expect(result.snapshot).toBeDefined()
     expect(result.snapshot?.name).toBe('HeroImg · v1')
     // The snapshot holds the OLD bytes; the target now holds the new fill
-    const entry = graph.getNode(result.snapshot!.id)
-    const entryHash = (entry?.fills[0] as { imageHash?: string }).imageHash
+    if (!result.snapshot) return
+    const entry = graph.getNode(result.snapshot.id)
+    if (!entry) return
+    const entryHash = (entry.fills[0] as { imageHash?: string }).imageHash
     const targetHash = (target.fills[0] as { imageHash?: string }).imageHash
     expect(entryHash).toBeDefined()
     expect(entryHash).not.toBe(targetHash)
@@ -249,7 +251,9 @@ describe('generateOne', () => {
     const target = createImageNode(figma, 'HeroImg', new Uint8Array([1, 2, 3]))
     const { provider } = fakeProvider()
     const first = await generateOne(figma, provider, { id: target.id, prompt: 'v2' })
-    const entryId = first.snapshot!.id
+    expect(first.snapshot).toBeDefined()
+    if (!first.snapshot) return
+    const entryId = first.snapshot.id
 
     const second = await generateOne(figma, provider, { id: entryId, prompt: 'v3 from old' })
 

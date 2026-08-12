@@ -118,6 +118,45 @@ async function extractReferenceImages(
   return note ? { images, note } : { images }
 }
 
+type NodeProxy = NonNullable<ReturnType<FigmaAPI['getNodeById']>>
+
+interface ResolvedOutput {
+  target: NodeProxy
+  finalReq: ImageGenRequest
+}
+
+/**
+ * Resolve the output node: the requested target, or a fresh frame when there
+ * is no target (or the target was protected-redirected). Requests without an
+ * explicit size inherit the target node's real dimensions for the API size
+ * (16px-aligned + constraint-clipped); explicit width/height always win.
+ */
+function resolveOutputTarget(
+  figma: FigmaAPI,
+  req: ImageGenRequest,
+  redirect: ProtectedRedirect | undefined
+): ResolvedOutput {
+  let target = req.id && !redirect ? figma.getNodeById(req.id) : null
+  if (!target) {
+    const fallbackSize = redirect?.fallbackSize
+    target = figma.createFrame()
+    target.resize(
+      req.width ?? fallbackSize?.width ?? 1024,
+      req.height ?? fallbackSize?.height ?? 1024
+    )
+    target.name = req.prompt.slice(0, 40) || 'Generated image'
+  }
+
+  let finalReq = req
+  if (req.width === undefined || req.height === undefined) {
+    const normalized = normalizeSize(Math.round(target.width), Math.round(target.height))
+    if (!('error' in normalized)) {
+      finalReq = { ...req, width: normalized.width, height: normalized.height }
+    }
+  }
+  return { target, finalReq }
+}
+
 /**
  * Generate an image and place it on the canvas.
  *
@@ -139,7 +178,6 @@ export async function generateOne(
   req: ImageGenRequest
 ): Promise<ImageGenExecuteResult> {
   const redirect = req.id ? protectedRedirect(figma, req.id) : undefined
-  let target = req.id && !redirect ? figma.getNodeById(req.id) : null
 
   const { images, note: skippedNote } = await extractReferenceImages(
     figma,
@@ -148,25 +186,7 @@ export async function generateOne(
   )
   const note = [redirect?.note, skippedNote].filter(Boolean).join(' ') || undefined
 
-  let finalReq = req
-  if (!target) {
-    const fallbackSize = redirect?.fallbackSize
-    target = figma.createFrame()
-    target.resize(
-      req.width ?? fallbackSize?.width ?? 1024,
-      req.height ?? fallbackSize?.height ?? 1024
-    )
-    target.name = req.prompt.slice(0, 40) || 'Generated image'
-  }
-  if (req.width === undefined || req.height === undefined) {
-    // Request without an explicit size: inherit the target node's real
-    // dimensions for the API size (16px-aligned + constraint-clipped).
-    // Explicit width/height always win.
-    const normalized = normalizeSize(Math.round(target.width), Math.round(target.height))
-    if (!('error' in normalized)) {
-      finalReq = { ...req, width: normalized.width, height: normalized.height }
-    }
-  }
+  const { target, finalReq } = resolveOutputTarget(figma, req, redirect)
 
   const gen = await provider.generate(finalReq, images.length > 0 ? images : undefined)
 

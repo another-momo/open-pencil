@@ -44,7 +44,9 @@ describe('snapshotBeforeOverwrite', () => {
     expect(container).toBeDefined()
     expect(container?.childIds).toContain(snapshot?.id)
     const entry = graph.getNode(snapshot!.id)
-    expect(entry?.fills).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'IMAGE' })]))
+    expect(entry?.fills).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: 'IMAGE' })])
+    )
     expect(isInImageHistory(graph, snapshot!.id)).toBe(true)
     expect(isInImageHistory(graph, target.id)).toBe(false)
   })

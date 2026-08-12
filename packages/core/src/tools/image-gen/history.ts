@@ -98,7 +98,7 @@ function topLevelAncestor(graph: SceneGraph, nodeId: string): SceneNode | undefi
 
 function topImageHash(node: SceneNode): string | undefined {
   for (const fill of node.fills) {
-    if (fill.type === 'IMAGE' && fill.visible !== false && 'imageHash' in fill) {
+    if (fill.type === 'IMAGE' && fill.visible && 'imageHash' in fill) {
       return fill.imageHash
     }
   }
@@ -175,8 +175,7 @@ export function snapshotBeforeOverwrite(
   const target = graph.getNode(targetId)
   if (!target) return undefined
 
-  const hasContent =
-    target.fills.some((fill) => fill.visible !== false) || target.childIds.length > 0
+  const hasContent = target.fills.some((fill) => fill.visible) || target.childIds.length > 0
   if (!hasContent) return undefined
 
   const pageId = pageIdOf(graph, targetId)

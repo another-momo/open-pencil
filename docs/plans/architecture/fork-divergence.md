@@ -166,3 +166,9 @@
   - **调试日志误报修正**：media 诊断 channel-aware——通道 B 下 look 结果本就不带图（独立视觉模型代看），"toModelOutput wiring broken"是误报（本次分析一度误信该诊断，教训：调试文案也会说谎，以代码为准）；通道 B 视觉 prompt 加"主动报告与 focus 无关的显著事实"。
   - 改动文件：`packages/core/src/tools/marketing/{setup,brief,brief-edit,look}.ts`、`tools/{marketing,index}.ts`、`src/app/ai/{tools/index,debug/index}.ts`、`chat/system-prompt-marketing.md` + 测试。**这些文件本就在 M 类/A 类 fork 自有面，合并面增量可控；`setup.ts` 的 findRootFrame/resolveExistingDesign 语义与 upstream 分叉加深，upstream 若动领养逻辑需语义级合并。**
   - 验证：marketing 定点测试 169 全绿（新增 9 条：页作用域/mode:new/绑定路由/歧义/结论分组/播种），tsgo/vue-tsc/build:packages 干净；tests/engine/app 的 3 个失败经 stash 对照证实为 HEAD 既有问题。遗留下一轮：需求单面板的"绑定编辑"下拉（改绑/解绑 UI）。
+- 2026-08-12：generate_image 防误覆盖 + 生图历史（`2ef1c89a`）——用户反馈两类事故：①模型把"参考图"节点误填进 `id`（输出目标），参考图被新图覆盖销毁；②同一张图多次迭代时旧版本被覆盖丢失。根因：工具语义本身正确（references 只读、提取先于覆盖），事故在模型使用层——`id`/`references` 分工靠文案约定，无机制兜底；覆盖是破坏性的、零留存。处置（用户拍板"只留存被淘汰版本"+软保护，后追加"降级不报错"修正）：
+  - **覆盖前快照**：新增 `image-gen/history.ts`——覆盖有内容节点前 `cloneTree` 旧子树进页面级"生图历史"容器（VERTICAL auto-layout，营销根帧右侧 +100，无根帧则目标顶层祖先右侧），条目按目标分组命名 `xxx · v1/v2…`，同 IMAGE hash 去重；全新生图不备份（新节点本身即在画布，全画布每版本只存一份）。快照剥离外源 pluginData，避免营销根帧标记被克隆成幻影设计（restore 扫描只认 marker 不认位置）。
+  - **误传 id 降级而非报错**：`id` 指向库参考图（libraryReferenceId 标记）或历史条目时，不覆盖、不报错——按新节点生成（继承被保护节点尺寸），note 说明原因与正确用法（references + 省略 id）。报错太阻断，模型收到 note 可自我纠正。
+  - **文案防线**：工具描述加"`id` DESTROYS 目标内容"强警告 + 参考图生新图必须省略 `id`；两处系统提示各加历史容器约定（勿移动/删除、可当 references 复用）。
+  - 改动文件：`packages/core/src/tools/image-gen{,/apply,/history}.ts`、`src/app/ai/chat/system-prompt{,-marketing}.md` + 测试。**image-gen.ts/apply.ts 本就在 M 类 fork 自有面（L1 生图优化线程），history.ts 为 A 类新增；对 `marketing/restore.ts` 仅读标记纯函数，无新合并面。**
+  - 验证：image-gen 定点测试 39 全绿（新增 11 条：快照/去重/版本递增/空节点跳过/容器落位/标记剥离/降级新图/原图不动），tsgo/build:packages 干净。

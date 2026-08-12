@@ -21,6 +21,7 @@ import { defineTool } from './schema'
 export { lookTool } from './marketing/look'
 export { sampleHeroColorTool } from './marketing/sample-color'
 export { composeBackdropTool } from './marketing/compose-backdrop'
+export { cutoutTool } from './marketing/cutout'
 
 export {
   BRIEF_BINDING_LABEL_NAME,

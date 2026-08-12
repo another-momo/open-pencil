@@ -169,7 +169,7 @@ export async function sampleImageFillColor(
  * an IMAGE fill. The visited-set guards against parentId cycles in a
  * corrupt graph.
  */
-function findImageBearingNode(
+export function findImageBearingNode(
   graph: SceneGraph,
   start: SceneNode
 ): { imageNode: SceneNode; fill: Fill } | undefined {

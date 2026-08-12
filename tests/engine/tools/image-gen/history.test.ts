@@ -28,7 +28,7 @@ function pageOf(graph: SceneGraph) {
 function containerOf(graph: SceneGraph) {
   return pageOf(graph)
     .childIds.map((id) => graph.getNode(id))
-    .find((node) => node?.name === '生图历史')
+    .find((node) => node?.name === '历史图片备份')
 }
 
 describe('snapshotBeforeOverwrite', () => {

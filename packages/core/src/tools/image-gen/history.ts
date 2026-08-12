@@ -1,5 +1,5 @@
 /**
- * Generation history ("生图历史"): before generate_image overwrites a node
+ * Generation history ("历史图片备份"): before generate_image overwrites a node
  * that holds an image, the old subtree is cloned into a per-page history
  * container so no superseded version is ever lost — and a mistaken overwrite
  * (e.g. a reference image passed as `replace_id`) stays recoverable.
@@ -29,7 +29,7 @@ const SOURCE_HASH_KEY = 'source-hash'
 const VERSION_KEY = 'version'
 const CAPTURED_AT_KEY = 'captured-at'
 
-const CONTAINER_NAME = '生图历史'
+const CONTAINER_NAME = '历史图片备份'
 const CONTAINER_GUTTER = 100
 
 export interface HistorySnapshot {

@@ -172,3 +172,9 @@
   - **文案防线**：工具描述加"`id` DESTROYS 目标内容"强警告 + 参考图生新图必须省略 `id`；两处系统提示各加历史容器约定（勿移动/删除、可当 references 复用）。
   - 改动文件：`packages/core/src/tools/image-gen{,/apply,/history}.ts`、`src/app/ai/chat/system-prompt{,-marketing}.md` + 测试。**image-gen.ts/apply.ts 本就在 M 类 fork 自有面（L1 生图优化线程），history.ts 为 A 类新增；对 `marketing/restore.ts` 仅读标记纯函数，无新合并面。**
   - 验证：image-gen 定点测试 39 全绿（新增 11 条：快照/去重/版本递增/空节点跳过/容器落位/标记剥离/降级新图/原图不动），tsgo/build:packages 干净。
+- 2026-08-12：generate_image 参数语义化 + 描述去基建泄露（`2662fc60`/`eace0214`）——实战 log 暴露首轮文案防线失效：①agent 把"库参考图/历史快照不会被覆盖"的保护披露过度泛化成"生成过的图都不能传 id"，绕开正路手工 delete+move（旧绿底图经 delete_node 永久丢失，删除路径不在快照覆盖范围，用户拍板不加删除安全网）；②agent 把 `asImage:true` 当 Frame 引用默认值，无损原图被重渲染。教训：**基建能力的提前披露本身会误导，兜底逻辑应触发时经 note 当场说明（just-in-time）；参数名是第一文案**。
+  - **`id` → `replace_id`**：与同工具箱 render 工具的 replace_id（替换占位节点）语义对齐；requests.ts 保留 `id` 兼容别名（replace_id 优先，旧用法不报错）；`ImageGenRequest.id → replaceId`，结果字段 `id`（输出节点）不变。
+  - **描述改正面契约**：删除保护逻辑事前披露与 DESTROYS 恐吓措辞，改为"replacing a fill never loses content（自动快照）"+"换图/迭代就传 replace_id（安全）"的正面范式。
+  - **`asImage` → `composite`**：旗标只剩"我要整体外观"一个意图（保留 asImage 别名）；无 IMAGE fill 的引用节点**自动**走 exportImage 渲染（原需显式旗标 + 报错提示）；note 教学两点——composite 用于纯图节点提示可用无损原始字节、默认取图但节点有子节点提示"子节点未包含，需 composite"。**讨论中否决了"composite 时按视觉属性清单自动回退原始字节"：清单判据必然漏属性（圆角/描边/效果/重采样），静默语义错误风险 > 省一次渲染的收益。**
+  - 改动文件：`packages/core/src/tools/image-gen{,/apply,/providers,/requests}.ts`、`src/app/ai/chat/system-prompt{,-marketing}.md` + 测试。**仍全在 M/A 类 fork 自有面，无新合并面；JSON 参数改名保留双别名，存量会话/文档中的旧参数不炸。**
+  - 验证：image-gen 定点测试 45 全绿（净增 6 条：replace_id 解析/别名/优先级、composite 解析/别名、自动渲染、teach note×2），tsgo/build:packages 干净。CI 四轮收敛（复杂度 34→抽函数、嵌套三元、非空断言、boolean 直判、oxfmt）。**本机 oxlint 加 `--threads 1` 偶可跑通（内存临界）， lint 定位可靠它小范围复现。**

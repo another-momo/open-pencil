@@ -205,3 +205,87 @@ test('setup stamps the library name on the root frame marker', () => {
   const { graph } = run('product_long')
   expect(listDocumentLibraryNames(graph)).toEqual(['test-library.fig'])
 })
+
+test('same-type design on ANOTHER page is not adopted — a fresh frame is created on the current page', () => {
+  const { graph, figma } = setupToolTest()
+  attachMiniLibrary(graph)
+  const first = getTool('setup_material_type').execute(figma, {
+    id: 'product_long'
+  }) as SetupToolResult
+
+  const page2 = graph.addPage('Page 3')
+  figma.currentPage = expectDefined(figma.getNodeById(page2.id))
+  const second = getTool('setup_material_type').execute(figma, {
+    id: 'product_long'
+  }) as SetupToolResult
+
+  expect(second.error).toBeUndefined()
+  expect(second.adopted).toBe(false)
+  expect(second.rootFrameId).not.toBe(first.rootFrameId)
+  expect(second.page).toBe('Page 3')
+  expect(second.rootFrameName).toBe('产品长图 2')
+  expect(second.note).toContain('Page 1')
+  // The original design on Page 1 is untouched
+  expect(graph.getNode(first.rootFrameId as string)).toBeDefined()
+})
+
+test('same-type design on the SAME page is adopted with adoption facts exposed', () => {
+  const { figma } = setupToolTest()
+  attachMiniLibrary(figma.graph)
+  const first = getTool('setup_material_type').execute(figma, {
+    id: 'product_long'
+  }) as SetupToolResult
+  const second = getTool('setup_material_type').execute(figma, {
+    id: 'product_long'
+  }) as SetupToolResult
+
+  expect(second.adopted).toBe(true)
+  expect(second.rootFrameId).toBe(first.rootFrameId)
+  expect(second.page).toBe('Page 1')
+  expect(second.existingChildren).toBe(2) // BrandBar + CTABar instances
+  expect(second.note).toContain('ADOPTED')
+})
+
+test('mode "new" creates a fresh frame even when a same-type design exists on the page', () => {
+  const { graph, figma } = setupToolTest()
+  attachMiniLibrary(graph)
+  const first = getTool('setup_material_type').execute(figma, {
+    id: 'product_long'
+  }) as SetupToolResult
+
+  const second = getTool('setup_material_type').execute(figma, {
+    id: 'product_long',
+    mode: 'new'
+  }) as SetupToolResult
+  expect(second.error).toBeUndefined()
+  expect(second.adopted).toBe(false)
+  expect(second.rootFrameId).not.toBe(first.rootFrameId)
+  expect(second.rootFrameName).toBe('产品长图 2')
+
+  // The new frame gets its own fresh anchors; the first design stays registered
+  const secondRoot = expectDefined(graph.getNode(second.rootFrameId as string))
+  expect(secondRoot.childIds.length).toBe(2)
+  expect(getMarketingState(graph, first.rootFrameId as string)).toBeDefined()
+
+  const third = getTool('setup_material_type').execute(figma, {
+    id: 'product_long',
+    mode: 'new'
+  }) as SetupToolResult
+  expect(third.rootFrameName).toBe('产品长图 3')
+})
+
+test('unmarked frame with a differentiated label name is adopted via prefix match', () => {
+  const { graph, figma } = setupToolTest()
+  attachMiniLibrary(graph)
+  graph.createNode('FRAME', figma.currentPage.id, {
+    name: '朋友圈广告 2',
+    width: 1080,
+    height: 1080
+  })
+
+  const result = getTool('setup_material_type').execute(figma, {
+    id: 'wechat_moments'
+  }) as SetupToolResult
+  expect(result.adopted).toBe(true)
+  expect(expectDefined(graph.getNode(result.rootFrameId as string)).name).toBe('朋友圈广告 2')
+})

@@ -26,6 +26,10 @@ export const BRIEF_PLUGIN_ID = 'open-pencil-marketing'
 export const BRIEF_ROLE_KEY = 'role'
 export const BRIEF_ROLE_VALUE = 'brief'
 export const BRIEF_NAME = '需求单'
+/** Marker key holding the comma-separated root frame ids this brief serves (1:N-ready; product surface is 1:1) */
+export const BRIEF_BINDING_KEY = 'bound-designs'
+/** Visible binding line inside the brief header (display projection of BRIEF_BINDING_KEY) */
+export const BRIEF_BINDING_LABEL_NAME = 'Binding'
 
 export const BRIEF_ZONE_USER_NAME = '内容区'
 export const BRIEF_ZONE_MATERIALS_NAME = '素材区'
@@ -64,15 +68,87 @@ export function isBrief(node: SceneNode | undefined): node is SceneNode {
   )
 }
 
-/** Find the first brief frame on the current page (top-level only) */
-export function findBrief(figma: FigmaAPI): SceneNode | undefined {
-  const page = figma.graph.getNode(figma.currentPage.id)
-  if (!page) return undefined
-  for (const childId of page.childIds) {
-    const child = figma.graph.getNode(childId)
-    if (isBrief(child)) return child
+/** Root frame ids this brief is bound to (empty = unbound). */
+export function briefBoundDesignIds(node: SceneNode | undefined): string[] {
+  if (!isBrief(node)) return []
+  const raw = node.pluginData.find(
+    (entry) => entry.pluginId === BRIEF_PLUGIN_ID && entry.key === BRIEF_BINDING_KEY
+  )?.value
+  return raw ? raw.split(',').filter(Boolean) : []
+}
+
+/** Add rootFrameId to the brief's bound-design list (no-op when already bound). */
+export function bindBriefToDesign(figma: FigmaAPI, briefId: string, rootFrameId: string): void {
+  const graph = figma.graph
+  const brief = graph.getNode(briefId)
+  if (!isBrief(brief)) return
+  const bound = briefBoundDesignIds(brief)
+  if (bound.includes(rootFrameId)) return
+  const kept = brief.pluginData.filter(
+    (entry) => !(entry.pluginId === BRIEF_PLUGIN_ID && entry.key === BRIEF_BINDING_KEY)
+  )
+  graph.updateNode(briefId, {
+    pluginData: [
+      ...kept,
+      { pluginId: BRIEF_PLUGIN_ID, key: BRIEF_BINDING_KEY, value: [...bound, rootFrameId].join(',') }
+    ]
+  })
+}
+
+/**
+ * Write the visible binding line in the brief header (created lazily for
+ * legacy briefs). Display projection of the binding marker — tools rewrite
+ * it on every bind, so user edits self-heal on the next operation.
+ */
+export function setBriefBindingLabel(figma: FigmaAPI, briefId: string, text: string): void {
+  const graph = figma.graph
+  const brief = graph.getNode(briefId)
+  if (!isBrief(brief)) return
+  const mainId = brief.childIds.find((id) => graph.getNode(id)?.name === '需求内容')
+  const headerId = mainId
+    ? graph.getNode(mainId)?.childIds.find((id) => graph.getNode(id)?.name === 'Header')
+    : undefined
+  if (!headerId) return
+  const labelId = graph
+    .getNode(headerId)
+    ?.childIds.find((id) => graph.getNode(id)?.name === BRIEF_BINDING_LABEL_NAME)
+  if (labelId) {
+    graph.updateNode(labelId, { text })
+    return
   }
-  return undefined
+  createText(figma, headerId, BRIEF_BINDING_LABEL_NAME, text, {
+    fontSize: 22,
+    color: SUB_COLOR
+  })
+}
+
+/** All top-level briefs on the current page, in page order. */
+export function listBriefs(figma: FigmaAPI): SceneNode[] {
+  const page = figma.graph.getNode(figma.currentPage.id)
+  if (!page) return []
+  return page.childIds.map((id) => figma.graph.getNode(id)).filter(isBrief)
+}
+
+/**
+ * Find the brief for a design. With rootFrameId: the brief BOUND to it wins
+ * (current page first, then other pages — explicit bindings may cross pages);
+ * otherwise fall back to the first brief on the current page (legacy
+ * page-scoped convention). Without rootFrameId: first brief on current page.
+ */
+export function findBrief(figma: FigmaAPI, rootFrameId?: string): SceneNode | undefined {
+  const pageBriefs = listBriefs(figma)
+  if (rootFrameId) {
+    const boundOnPage = pageBriefs.find((brief) => briefBoundDesignIds(brief).includes(rootFrameId))
+    if (boundOnPage) return boundOnPage
+    for (const page of figma.graph.getPages()) {
+      if (page.id === figma.currentPage.id) continue
+      for (const childId of page.childIds) {
+        const child = figma.graph.getNode(childId)
+        if (isBrief(child) && briefBoundDesignIds(child).includes(rootFrameId)) return child
+      }
+    }
+  }
+  return pageBriefs[0]
 }
 
 /** Brief frame width (see createBrief) and estimated height, for placement collision checks */
@@ -360,6 +436,11 @@ export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
     color: SUB_COLOR,
     wrap: true
   })
+  // Visible binding line — tools rewrite it once the brief is bound to a design
+  createText(figma, header.id, BRIEF_BINDING_LABEL_NAME, '关联：（未绑定）', {
+    fontSize: 22,
+    color: SUB_COLOR
+  })
 
   const contentCard = createCard(figma, main.id, BRIEF_ZONE_USER_NAME, {
     stroke: CARD_STROKE,
@@ -480,8 +561,22 @@ export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
   return brief
 }
 
-/** Append one confirmed conclusion line into the brief's AI zone */
-export function appendToBriefAIZone(figma: FigmaAPI, briefId: string, text: string): boolean {
+export const BRIEF_CONCLUSION_GROUP_NAME = '结论组'
+export const BRIEF_GROUP_TITLE_NAME = 'GroupTitle'
+
+/**
+ * Append one confirmed conclusion line into the brief's AI zone. When
+ * designName is given, the line lands in that design's own group (created on
+ * first use) so one brief serving several designs keeps per-design
+ * conclusions — the group titles double as the visible binding declaration.
+ * Without designName the line appends flat (legacy single-design briefs).
+ */
+export function appendToBriefAIZone(
+  figma: FigmaAPI,
+  briefId: string,
+  text: string,
+  designName?: string
+): boolean {
   const graph = figma.graph
   const brief = graph.getNode(briefId)
   if (!isBrief(brief)) return false
@@ -494,11 +589,47 @@ export function appendToBriefAIZone(figma: FigmaAPI, briefId: string, text: stri
   const conclusionsId = topId ? findChild(topId, BRIEF_CONCLUSIONS_NAME) : undefined
   if (!conclusionsId) return false
 
-  createText(figma, conclusionsId, '结论', `· ${text}`, {
-    fontSize: 24,
-    color: TITLE_COLOR,
-    wrap: true
-  })
+  if (designName) {
+    const groupTitleOf = (groupId: string) => {
+      const titleId = findChild(groupId, BRIEF_GROUP_TITLE_NAME)
+      return titleId ? graph.getNode(titleId)?.text : undefined
+    }
+    let groupId = graph
+      .getNode(conclusionsId)
+      ?.childIds.find(
+        (id) =>
+          graph.getNode(id)?.name === BRIEF_CONCLUSION_GROUP_NAME && groupTitleOf(id) === designName
+      )
+    if (!groupId) {
+      const group = graph.createNode('FRAME', conclusionsId, {
+        name: BRIEF_CONCLUSION_GROUP_NAME
+      })
+      graph.updateNode(group.id, {
+        layoutMode: 'VERTICAL',
+        itemSpacing: 8,
+        primaryAxisSizing: 'HUG',
+        counterAxisSizing: 'FILL',
+        fills: []
+      })
+      createText(figma, group.id, BRIEF_GROUP_TITLE_NAME, designName, {
+        fontSize: 24,
+        fontWeight: 700,
+        color: SUB_COLOR
+      })
+      groupId = group.id
+    }
+    createText(figma, groupId, '结论', `· ${text}`, {
+      fontSize: 24,
+      color: TITLE_COLOR,
+      wrap: true
+    })
+  } else {
+    createText(figma, conclusionsId, '结论', `· ${text}`, {
+      fontSize: 24,
+      color: TITLE_COLOR,
+      wrap: true
+    })
+  }
   const emptyStateId = findChild(aiCardId, BRIEF_EMPTY_STATE_NAME)
   if (emptyStateId) graph.updateNode(emptyStateId, { visible: false })
   return true

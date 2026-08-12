@@ -17,6 +17,7 @@ import {
   BRIEF_ZONE_AI_NAME,
   BRIEF_ZONE_MATERIALS_NAME,
   BRIEF_ZONE_USER_NAME,
+  briefBoundDesignIds,
   findBrief,
   isBrief
 } from './brief'
@@ -32,10 +33,12 @@ export interface BriefMaterialView {
 /** One-shot view model for the brief panel */
 export interface BriefView {
   briefId: string
+  /** Root frame ids this brief is bound to (empty = unbound) */
+  boundDesigns: string[]
   /** ContentExample text */
   content: string
   materials: BriefMaterialView[]
-  /** One string per line in the AI conclusions list */
+  /** One string per line in the AI conclusions list (per-design groups flattened: title line + lines) */
   conclusions: string[]
 }
 
@@ -80,7 +83,17 @@ function readConclusions(graph: SceneGraph, conclusionsId: string): string[] {
   const conclusions: string[] = []
   for (const id of graph.getNode(conclusionsId)?.childIds ?? []) {
     const node = graph.getNode(id)
-    if (node?.type === 'TEXT') conclusions.push(node.text)
+    if (node?.type === 'TEXT') {
+      conclusions.push(node.text)
+      continue
+    }
+    // Per-design groups (结论组): group title line + its conclusion lines
+    if (node?.type === 'FRAME') {
+      for (const childId of node.childIds) {
+        const child = graph.getNode(childId)
+        if (child?.type === 'TEXT') conclusions.push(child.text)
+      }
+    }
   }
   return conclusions
 }
@@ -89,10 +102,11 @@ function readConclusions(graph: SceneGraph, conclusionsId: string): string[] {
  * Read the current brief into a panel view model. Returns null when no brief
  * exists on the page OR when the brief's expected structure is broken
  * (renamed/deleted zones) — callers distinguish the two via findBrief.
+ * With rootFrameId, the brief BOUND to that design is read (see findBrief).
  */
-export function readBrief(figma: FigmaAPI): BriefView | null {
+export function readBrief(figma: FigmaAPI, rootFrameId?: string): BriefView | null {
   const graph = figma.graph
-  const brief = findBrief(figma)
+  const brief = findBrief(figma, rootFrameId)
   if (!brief) return null
 
   const contentTextId = findContentTextId(graph, brief.id)
@@ -104,6 +118,7 @@ export function readBrief(figma: FigmaAPI): BriefView | null {
 
   return {
     briefId: brief.id,
+    boundDesigns: briefBoundDesignIds(brief),
     content: graph.getNode(contentTextId)?.text ?? '',
     materials: readMaterials(graph, gridId),
     conclusions: readConclusions(graph, conclusionsId)

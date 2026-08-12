@@ -9,5 +9,11 @@ export interface AnchorResult {
 export interface SetupToolResult {
   error?: string
   rootFrameId?: string
+  rootFrameName?: string
+  page?: string
+  adopted?: boolean
+  existingChildren?: number
+  note?: string
   anchors?: AnchorResult[]
+  repaired?: string[]
 }

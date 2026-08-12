@@ -288,6 +288,7 @@ async function analyzeViaVisionChannel(
     prompt: [
       'You are the vision subsystem of a design agent. Analyze this design screenshot factually and answer concisely.',
       ...noteParts,
+      'Beyond the focus question, proactively report salient facts the agent did not ask about but must not miss — e.g. the frame already contains a complete, finished design (versus a blank/template frame awaiting content), unexpected text or branding, or content that clearly belongs to a different style than the focus implies.',
       'If text is too small to read, say so explicitly instead of guessing its content. If a region looks blurred, streaked, or blocky, treat it as an export or resampling artifact and say so — never describe a rendering artifact as a deliberate design element or defect.'
     ].join('\n')
   })

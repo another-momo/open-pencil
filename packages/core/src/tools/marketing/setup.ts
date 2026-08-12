@@ -17,6 +17,12 @@
 import type { SceneNode } from '@open-pencil/scene-graph'
 
 import type { FigmaAPI } from '#core/figma-api'
+import {
+  bindBriefToDesign,
+  briefBoundDesignIds,
+  listBriefs,
+  setBriefBindingLabel
+} from '#core/tools/marketing/brief'
 import { cloneSubtreeAcrossGraphs } from '#core/tools/marketing/clone'
 import { getLibrarySession, type LibrarySession } from '#core/tools/marketing/library'
 import {
@@ -39,6 +45,14 @@ export interface SetupResult {
   materialType: string
   label: string
   rootFrameId: string
+  /** Display name of the root frame — differentiated ("产品长图 2") when same-type designs coexist */
+  rootFrameName: string
+  /** Page the root frame lives on */
+  page: string
+  /** true = an existing design was adopted (continue/repair); false = a fresh blank frame was created */
+  adopted: boolean
+  /** Top-level child count at adoption time — non-zero means the frame holds a previous design, not a blank canvas */
+  existingChildren?: number
   /** Root frame size — height is null for HUG (long-image types grow with content) */
   size: { width: number; height: number | null }
   anchors: { template: string; position: string; instanceId: string }[]
@@ -46,6 +60,23 @@ export interface SetupResult {
   warnings?: string[]
   repaired?: string[]
   note: string
+}
+
+/**
+ * "continue" (default): adopt the same-type design on the current page when
+ * one exists (session resume / anchor repair). "new": always create a fresh
+ * root frame, even when a same-type design already sits on the current page.
+ */
+export type SetupMode = 'continue' | 'new'
+
+/** Walk parents up to the CANVAS node that owns `nodeId` (pages are CANVAS nodes). */
+function pageOfNode(graph: FigmaAPI['graph'], nodeId: string): SceneNode | undefined {
+  let current = graph.getNode(nodeId)
+  while (current) {
+    if (current.type === 'CANVAS') return current
+    current = current.parentId ? graph.getNode(current.parentId) : undefined
+  }
+  return undefined
 }
 
 interface MaterialConfig {
@@ -110,33 +141,73 @@ function ensureComponentsPage(figma: FigmaAPI, existingId?: string): string {
   return graph.addPage(COMPONENTS_PAGE_NAME).id
 }
 
-function findRootFrame(graph: FigmaAPI['graph'], config: MaterialConfig): SceneNode | undefined {
-  const pages = graph.getPages()
-  // Marker first (rename-proof), but only adopt a root frame marked for
-  // THIS type — frames of other types are sibling designs, not candidates.
-  // Fall back to the label naming convention for designs created before
-  // markers existed.
-  for (const page of pages) {
-    if (page.name === COMPONENTS_PAGE_NAME) continue
-    for (const childId of page.childIds) {
-      const child = graph.getNode(childId)
-      if (marketingRootType(child) === config.id) return child
-    }
+/**
+ * Find the same-type root frame ON THE GIVEN PAGE. Marker first
+ * (rename-proof), but only adopt a root frame marked for THIS type — frames
+ * of other types are sibling designs, not candidates. Fall back to the label
+ * naming convention (prefix-matched: differentiated names like "产品长图 2"
+ * still resolve) for designs created before markers existed.
+ * Page-scoped on purpose: a same-type design on ANOTHER page is a separate
+ * work the user may still be editing — never adopt across pages.
+ */
+function findRootFrame(
+  graph: FigmaAPI['graph'],
+  config: MaterialConfig,
+  pageId: string
+): SceneNode | undefined {
+  const page = graph.getNode(pageId)
+  if (!page) return undefined
+  for (const childId of page.childIds) {
+    const child = graph.getNode(childId)
+    if (marketingRootType(child) === config.id) return child
   }
-  for (const page of pages) {
-    if (page.name === COMPONENTS_PAGE_NAME) continue
-    for (const childId of page.childIds) {
-      const child = graph.getNode(childId)
-      if (child?.type === 'FRAME' && child.name === config.label) return child
-    }
+  for (const childId of page.childIds) {
+    const child = graph.getNode(childId)
+    if (
+      child?.type === 'FRAME' &&
+      (child.name === config.label || child.name.startsWith(`${config.label} `))
+    )
+      return child
   }
   return undefined
+}
+
+/** All same-type marketing root frames in the document (any page), marker-based. */
+function listSameTypeRoots(graph: FigmaAPI['graph'], typeId: string): SceneNode[] {
+  const roots: SceneNode[] = []
+  const walk = (nodeId: string) => {
+    const node = graph.getNode(nodeId)
+    if (!node) return
+    if (marketingRootType(node) === typeId) roots.push(node)
+    for (const childId of node.childIds) walk(childId)
+  }
+  for (const page of graph.getPages()) {
+    if (page.name === COMPONENTS_PAGE_NAME) continue
+    for (const childId of page.childIds) walk(childId)
+  }
+  return roots
+}
+
+/**
+ * Display name for a NEW root frame: the bare label when it is the first of
+ * its type, otherwise the smallest free "label N" (N ≥ 2). Names are display
+ * only (the marker is the machine identity) but must differ so canvas users
+ * and per-design brief sections can tell same-type designs apart.
+ */
+function nextRootFrameName(graph: FigmaAPI['graph'], config: MaterialConfig): string {
+  const taken = new Set(listSameTypeRoots(graph, config.id).map((root) => root.name))
+  if (!taken.has(config.label)) return config.label
+  for (let n = 2; ; n++) {
+    const candidate = `${config.label} ${n}`
+    if (!taken.has(candidate)) return candidate
+  }
 }
 
 function createRootFrame(
   figma: FigmaAPI,
   config: MaterialConfig,
-  libraryName: string | undefined
+  libraryName: string | undefined,
+  name: string
 ): string {
   const graph = figma.graph
   const pageId = figma.currentPage.id
@@ -151,7 +222,7 @@ function createRootFrame(
   }
 
   const frame = graph.createNode('FRAME', pageId, {
-    name: config.label,
+    name,
     x,
     y: 0,
     width: config.size.width,
@@ -342,24 +413,33 @@ function resolveAnchors(
 }
 
 /**
- * Repair targets the design of the SAME type; otherwise adopt the root
- * frame named after this type's label (if any) and continue that design.
+ * Repair/continue targets the same-type design ON THE CURRENT PAGE; a
+ * same-type design on another page is a separate work and is never adopted.
+ * mode "new" skips adoption entirely so a fresh root frame is created.
  * Other designs in the same document are never touched.
  */
 function resolveExistingDesign(
   graph: FigmaAPI['graph'],
   designs: MarketingDocumentState[],
   config: MaterialConfig,
-  id: string
+  id: string,
+  pageId: string,
+  mode: SetupMode
 ): { existing: MarketingDocumentState | undefined; rootFrameId: string | undefined } {
-  const sameType = designs.find((design) => design.materialTypeId === id)
-  if (sameType && !graph.getNode(sameType.rootFrameId)) {
-    clearMarketingState(graph, sameType.rootFrameId)
+  if (mode === 'new') return { existing: undefined, rootFrameId: undefined }
+  for (const design of designs) {
+    if (design.materialTypeId === id && !graph.getNode(design.rootFrameId)) {
+      clearMarketingState(graph, design.rootFrameId)
+    }
   }
-  if (sameType && graph.getNode(sameType.rootFrameId)) {
-    return { existing: sameType, rootFrameId: sameType.rootFrameId }
-  }
-  const found = findRootFrame(graph, config)
+  const sameType = designs.find(
+    (design) =>
+      design.materialTypeId === id &&
+      graph.getNode(design.rootFrameId) &&
+      pageOfNode(graph, design.rootFrameId)?.id === pageId
+  )
+  if (sameType) return { existing: sameType, rootFrameId: sameType.rootFrameId }
+  const found = findRootFrame(graph, config, pageId)
   const existing = found ? designs.find((design) => design.rootFrameId === found.id) : undefined
   return { existing, rootFrameId: found?.id }
 }
@@ -395,7 +475,8 @@ function collectReadonlyNote(session: LibrarySession | undefined, config: Materi
 export function setupMaterialType(
   figma: FigmaAPI,
   id: string,
-  size?: { width: number; height: number }
+  size?: { width: number; height: number },
+  mode: SetupMode = 'continue'
 ): SetupResult | { error: string } {
   const graph = figma.graph
   const session = getLibrarySession(graph)
@@ -403,8 +484,16 @@ export function setupMaterialType(
   const config = resolveMaterialConfig(session, graph, id, size)
   if ('error' in config) return config
 
+  const pageId = figma.currentPage.id
   const designs = listMarketingDesigns(graph)
-  const { existing, rootFrameId: adoptedId } = resolveExistingDesign(graph, designs, config, id)
+  const { existing, rootFrameId: adoptedId } = resolveExistingDesign(
+    graph,
+    designs,
+    config,
+    id,
+    pageId,
+    mode
+  )
   const isRepair = existing?.materialTypeId === id
 
   // Type switch on an adopted root frame: replace only that design's
@@ -416,10 +505,10 @@ export function setupMaterialType(
     clearMarketingState(graph, existing.rootFrameId)
   }
 
-  const rootFrameId =
-    adoptedId && graph.getNode(adoptedId)
-      ? adoptedId
-      : createRootFrame(figma, config, session?.name)
+  const adoptable = !!(adoptedId && graph.getNode(adoptedId))
+  const rootFrameId = adoptable
+    ? adoptedId
+    : createRootFrame(figma, config, session?.name, nextRootFrameName(graph, config))
 
   const componentsPageId = ensureComponentsPage(
     figma,
@@ -447,12 +536,52 @@ export function setupMaterialType(
 
   const warnings = session?.index.warnings ?? []
 
+  const rootNode = graph.getNode(rootFrameId)
+  const rootFrameName = rootNode?.name ?? config.label
+  const pageName = pageOfNode(graph, rootFrameId)?.name ?? figma.currentPage.name
+  const siblingPages = [
+    ...new Set(
+      listSameTypeRoots(graph, id)
+        .filter((root) => root.id !== rootFrameId)
+        .map((root) => pageOfNode(graph, root.id)?.name)
+        .filter((name): name is string => !!name)
+    )
+  ]
+
+  // Bind the page's brief to this design so brief tools route to it: prefer
+  // the brief already bound here; otherwise take the first brief that is
+  // unbound or bound only to deleted designs — never steal a brief that
+  // serves another live design.
+  const bindableBrief = listBriefs(figma).find((brief) => {
+    const bound = briefBoundDesignIds(brief)
+    if (bound.includes(rootFrameId)) return true
+    return bound.every((boundId) => !graph.getNode(boundId))
+  })
+  if (bindableBrief) {
+    bindBriefToDesign(figma, bindableBrief.id, rootFrameId)
+    setBriefBindingLabel(figma, bindableBrief.id, `关联：${rootFrameName} · ${pageName}`)
+  }
+
   const anchorPart =
     anchors.length > 0 ? 'Root frame and anchor instances are ready.' : 'Root frame is ready.'
+  const briefPart = bindableBrief ? ` Bound 需求单 (${bindableBrief.id}) to this design.` : ''
+  const originPart = adoptable
+    ? `ADOPTED the existing "${rootFrameName}" design (${rootFrameId}) on page "${pageName}" — it already has ${rootNode?.childIds.length ?? 0} top-level children, i.e. a previously built design, NOT a blank frame. Its content belongs to an earlier session unless the user just asked to continue it. If the user wants a NEW design, call setup_material_type again with mode: "new".`
+    : `Created NEW blank root frame "${rootFrameName}" (${rootFrameId}) on page "${pageName}".${
+        siblingPages.length > 0
+          ? ` A separate "${config.label}" design exists on page ${siblingPages
+              .map((name) => `"${name}"`)
+              .join(', ')} — to continue THAT one, switch to its page first and call setup_material_type again (adoption never crosses pages).`
+          : ''
+      }`
   return {
     materialType: id,
     label: config.label,
     rootFrameId,
+    rootFrameName,
+    page: pageName,
+    adopted: adoptable,
+    ...(adoptable ? { existingChildren: rootNode?.childIds.length ?? 0 } : {}),
     size: config.size,
     anchors: anchors.map((anchor) => ({
       template: anchor.templateId,
@@ -461,6 +590,6 @@ export function setupMaterialType(
     })),
     ...(warnings.length > 0 ? { warnings } : {}),
     ...(repaired.length > 0 ? { repaired } : {}),
-    note: `${anchorPart} CRITICAL: render every section INTO the root frame with render({ parent_id: "${rootFrameId}", jsx: ... }) — sections rendered without parent_id land on the page as orphaned siblings and w="fill" collapses. Never pass id as a JSX prop.${collectReadonlyNote(session, config)}`
+    note: `${anchorPart}${briefPart} ${originPart} CRITICAL: render every section INTO the root frame with render({ parent_id: "${rootFrameId}", jsx: ... }) — sections rendered without parent_id land on the page as orphaned siblings and w="fill" collapses. Never pass id as a JSX prop.${collectReadonlyNote(session, config)}`
   }
 }

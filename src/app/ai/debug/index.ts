@@ -1,6 +1,6 @@
 import type { UIMessage } from 'ai'
 
-import { buildDebugLog } from '@open-pencil/core/tools'
+import { buildDebugLog, getVisionMode } from '@open-pencil/core/tools'
 import type { ToolDebugLog, ToolLogEntry } from '@open-pencil/core/tools'
 import type { JSONObject } from '@open-pencil/scene-graph/primitives'
 
@@ -93,7 +93,9 @@ function formatMediaDelivery(): string {
   let verdict = 'images delivered natively inside tool results'
   if (debug.degradedOutputs > 0) {
     verdict =
-      '⚠ media tool-result outputs are NOT in content form — the image was serialized as JSON text (toModelOutput wiring broken)'
+      getVisionMode() === 'B'
+        ? "vision mode B: media tool results carry the independent vision model's TEXT analysis by design — no pixels reach the main model; degraded count is expected, not a wiring fault"
+        : '⚠ media tool-result outputs are NOT in content form — the image was serialized as JSON text (toModelOutput wiring broken)'
   } else if (debug.rewriteToUserMessage) {
     verdict =
       'chat-completions path: images are rewritten to user-message image parts (turn entry + per step)'

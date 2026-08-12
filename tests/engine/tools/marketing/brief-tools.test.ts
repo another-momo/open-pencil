@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import {
+  BRIEF_BINDING_LABEL_NAME,
   BRIEF_CONTENT_GAP,
   BRIEF_ESTIMATED_HEIGHT,
   BRIEF_WIDTH,
@@ -12,11 +13,15 @@ import {
 } from '@open-pencil/core/tools'
 
 import { expectDefined } from '#tests/helpers/assert'
+import { attachMiniLibrary } from '#tests/helpers/marketing-library'
 import { getTool, setupToolTest } from '#tests/helpers/tools'
 
 interface ReadBriefResult {
   brief?: null
+  ambiguous?: boolean
+  candidates?: Array<{ briefId: string; boundDesigns: string[] }>
   briefId?: string
+  boundDesigns?: Array<{ rootFrameId: string; name: string; page: string | null }>
   content?: string
   materials?: Array<{
     entryId: string
@@ -30,6 +35,12 @@ interface ReadBriefResult {
 interface CreateBriefResult {
   briefId: string
   created: boolean
+  boundTo?: string
+}
+
+interface SetupLikeResult {
+  error?: string
+  rootFrameId?: string
 }
 
 describe('read_brief tool', () => {
@@ -180,5 +191,94 @@ describe('brief placement (collision detection)', () => {
     const result = getTool('create_brief').execute(figma, {}) as CreateBriefResult
     const brief = expectDefined(graph.getNode(result.briefId))
     expect(brief.x).toBe(1080 + BRIEF_CONTENT_GAP)
+  })
+})
+
+describe('brief ↔ design binding', () => {
+  function bindingLabelText(graph: ReturnType<typeof setupToolTest>['graph'], briefId: string) {
+    const walk = (nodeId: string): string | undefined => {
+      const node = graph.getNode(nodeId)
+      if (!node) return undefined
+      if (node.type === 'TEXT' && node.name === BRIEF_BINDING_LABEL_NAME) return node.text
+      for (const childId of node.childIds) {
+        const found = walk(childId)
+        if (found) return found
+      }
+      return undefined
+    }
+    return walk(briefId)
+  }
+
+  test('create_brief seeds initial_content verbatim and binds to the active design', () => {
+    const { figma } = setupToolTest()
+    attachMiniLibrary(figma.graph)
+    const setup = getTool('setup_material_type').execute(figma, {
+      id: 'product_long'
+    }) as SetupLikeResult
+
+    const result = getTool('create_brief').execute(figma, {
+      initial_content: '做一个「如何用AI做长图」的讲座邀请长图'
+    }) as CreateBriefResult
+    expect(result.created).toBe(true)
+    expect(result.boundTo).toBe(setup.rootFrameId)
+
+    const view = getTool('read_brief').execute(figma, {}) as ReadBriefResult
+    expect(view.content).toBe('做一个「如何用AI做长图」的讲座邀请长图')
+    expect(view.boundDesigns).toEqual([
+      { rootFrameId: setup.rootFrameId, name: '产品长图', page: 'Page 1' }
+    ])
+  })
+
+  test('setup binds an existing unbound brief and writes the visible binding line', () => {
+    const { graph, figma } = setupToolTest()
+    attachMiniLibrary(graph)
+    const brief = createBrief(figma) // created before any design — unbound
+
+    getTool('setup_material_type').execute(figma, { id: 'product_long' }) as SetupLikeResult
+
+    const view = getTool('read_brief').execute(figma, {}) as ReadBriefResult
+    expect(view.briefId).toBe(brief.id)
+    expect(view.boundDesigns?.length).toBe(1)
+    expect(bindingLabelText(graph, brief.id)).toBe('关联：产品长图 · Page 1')
+  })
+
+  test('the brief bound to the active design wins across pages', () => {
+    const { graph, figma } = setupToolTest()
+    attachMiniLibrary(graph)
+    getTool('setup_material_type').execute(figma, { id: 'product_long' }) as SetupLikeResult
+    const bound = getTool('create_brief').execute(figma, {}) as CreateBriefResult
+
+    const page2 = graph.addPage('Page 2')
+    figma.currentPage = expectDefined(figma.getNodeById(page2.id))
+    createBrief(figma) // an unbound brief sitting on Page 2
+
+    const view = getTool('read_brief').execute(figma, {}) as ReadBriefResult
+    expect(view.briefId).toBe(bound.briefId)
+  })
+
+  test('multiple briefs with no binding to the active design read as ambiguous', () => {
+    const { figma } = setupToolTest()
+    createBrief(figma)
+    createBrief(figma)
+
+    const view = getTool('read_brief').execute(figma, {}) as ReadBriefResult
+    expect(view.brief).toBe(null)
+    expect(view.ambiguous).toBe(true)
+    expect(view.candidates?.length).toBe(2)
+  })
+
+  test('conclusions are grouped under the active design name', () => {
+    const { figma } = setupToolTest()
+    attachMiniLibrary(figma.graph)
+    getTool('setup_material_type').execute(figma, { id: 'product_long' }) as SetupLikeResult
+    getTool('create_brief').execute(figma, {})
+
+    const appended = getTool('append_brief_conclusion').execute(figma, {
+      text: '方向B：活力几何'
+    }) as AppendConclusionResult
+    expect(appended.ok).toBe(true)
+
+    const view = getTool('read_brief').execute(figma, {}) as ReadBriefResult
+    expect(view.conclusions).toEqual(['产品长图', '· 方向B：活力几何'])
   })
 })

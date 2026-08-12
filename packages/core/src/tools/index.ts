@@ -50,6 +50,8 @@ export {
 } from './marketing'
 export type { InjectReferencesResult, LibraryIndex, LibrarySession } from './marketing'
 export {
+  BRIEF_BINDING_LABEL_NAME,
+  BRIEF_CONCLUSION_GROUP_NAME,
   BRIEF_CONCLUSIONS_NAME,
   BRIEF_CONTENT_GAP,
   BRIEF_EMPTY_HINT_NAME,
@@ -63,12 +65,16 @@ export {
   BRIEF_ZONE_USER_NAME,
   addBriefMaterialEntry,
   appendToBriefAIZone,
+  bindBriefToDesign,
+  briefBoundDesignIds,
   createBrief,
   createBriefPlaced,
   findBrief,
   getPageContentBounds,
   isBrief,
-  resolveBriefPlacement
+  listBriefs,
+  resolveBriefPlacement,
+  setBriefBindingLabel
 } from './marketing'
 export {
   readBrief,

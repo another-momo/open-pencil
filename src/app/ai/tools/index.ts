@@ -3,11 +3,10 @@ import { tool } from 'ai'
 import * as v from 'valibot'
 
 import { computeAllLayouts } from '@open-pencil/core/layout'
-import { CORE_TOOLS, findBrief, getMarketingState, toolsToAI } from '@open-pencil/core/tools'
+import { CORE_TOOLS, getMarketingState, toolsToAI } from '@open-pencil/core/tools'
 import type { StepBudget, ToolLogEntry } from '@open-pencil/core/tools'
 import type { SceneNode } from '@open-pencil/scene-graph'
 
-import { openBriefPanel } from '@/app/ai/marketing/brief-panel'
 import { syncMaterialTypeFromAI } from '@/app/ai/marketing/settings'
 import type { ChatMode } from '@/app/ai/marketing/settings'
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
@@ -127,7 +126,6 @@ const MARKETING_ONLY_TOOLS = new Set([
 
 export function createAITools(store: EditorStore, chatMode: ChatMode = 'ui') {
   let beforeSnapshot: Map<string, SceneNode> | null = null
-  let briefExistedBefore = false
   const runState = getRunState(store)
   const tools =
     chatMode === 'marketing'
@@ -141,9 +139,6 @@ export function createAITools(store: EditorStore, chatMode: ChatMode = 'ui') {
       onBeforeExecute: (def) => {
         if (def.mutates) {
           beforeSnapshot = store.snapshotPage()
-          if (def.name === 'create_brief') {
-            briefExistedBefore = Boolean(findBrief(makeFigmaFromStore(store)))
-          }
         }
       },
       onAfterExecute: async (def) => {
@@ -151,13 +146,10 @@ export function createAITools(store: EditorStore, chatMode: ChatMode = 'ui') {
           const typeId = getMarketingState(store.graph)?.materialTypeId
           if (typeId) syncMaterialTypeFromAI(typeId)
         }
-        // create_brief succeeded when no brief existed before and one exists
-        // now — open the panel so the user can fill it in (the AI never fills)
-        if (def.name === 'create_brief') {
-          const created = !briefExistedBefore && Boolean(findBrief(makeFigmaFromStore(store)))
-          briefExistedBefore = false
-          if (created) openBriefPanel()
-        }
+        // create_brief: the AI seeds the user's original request verbatim and
+        // the brief is a persistent design-state archive — it must NOT pop the
+        // panel mid-conversation (the panel opens only from the user's own
+        // "新建需求单" button).
         if (def.mutates) {
           const pageId = store.state.currentPageId
           const pageNode = store.graph.getNode(pageId)

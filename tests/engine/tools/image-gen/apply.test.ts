@@ -42,7 +42,7 @@ describe('generateOne', () => {
     const target = createImageNode(figma, 'target', PNG_MAGIC)
     const { calls, provider } = fakeProvider()
 
-    await generateOne(figma, provider, { id: target.id, prompt: 'replace entirely' })
+    await generateOne(figma, provider, { replaceId: target.id, prompt: 'replace entirely' })
 
     expect(calls).toHaveLength(1)
     expect(calls[0].images).toBeUndefined()
@@ -74,7 +74,7 @@ describe('generateOne', () => {
     const { calls, provider } = fakeProvider()
 
     const result = await generateOne(figma, provider, {
-      id: target.id,
+      replaceId: target.id,
       prompt: 'change the background of [image 1]',
       references: [{ id: target.id }]
     })
@@ -201,7 +201,7 @@ describe('generateOne', () => {
     const target = createImageNode(figma, 'HeroImg', new Uint8Array([1, 2, 3]))
     const { provider } = fakeProvider()
 
-    const result = await generateOne(figma, provider, { id: target.id, prompt: 'v2' })
+    const result = await generateOne(figma, provider, { replaceId: target.id, prompt: 'v2' })
 
     expect(result.snapshot).toBeDefined()
     expect(result.snapshot?.name).toBe('HeroImg · v1')
@@ -221,7 +221,7 @@ describe('generateOne', () => {
     empty.resize(200, 100)
     const { provider } = fakeProvider()
 
-    const result = await generateOne(figma, provider, { id: empty.id, prompt: 'fill it' })
+    const result = await generateOne(figma, provider, { replaceId: empty.id, prompt: 'fill it' })
 
     expect(result.snapshot).toBeUndefined()
   })
@@ -234,7 +234,7 @@ describe('generateOne', () => {
     const refHashBefore = (ref.fills[0] as { imageHash?: string }).imageHash
     const { provider } = fakeProvider()
 
-    const result = await generateOne(figma, provider, { id: ref.id, prompt: 'iterate on this' })
+    const result = await generateOne(figma, provider, { replaceId: ref.id, prompt: 'iterate on this' })
 
     expect(result.id).not.toBe(ref.id)
     expect(result.note).toContain('library reference')
@@ -250,12 +250,12 @@ describe('generateOne', () => {
     const { figma } = setup()
     const target = createImageNode(figma, 'HeroImg', new Uint8Array([1, 2, 3]))
     const { provider } = fakeProvider()
-    const first = await generateOne(figma, provider, { id: target.id, prompt: 'v2' })
+    const first = await generateOne(figma, provider, { replaceId: target.id, prompt: 'v2' })
     expect(first.snapshot).toBeDefined()
     if (!first.snapshot) return
     const entryId = first.snapshot.id
 
-    const second = await generateOne(figma, provider, { id: entryId, prompt: 'v3 from old' })
+    const second = await generateOne(figma, provider, { replaceId: entryId, prompt: 'v3 from old' })
 
     expect(second.id).not.toBe(entryId)
     expect(second.note).toContain('generation-history snapshot')

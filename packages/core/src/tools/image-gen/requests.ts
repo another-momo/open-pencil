@@ -115,6 +115,7 @@ export function parseImageGenRequests(value: unknown): ParsedImageGenRequests | 
   if ('error' in parsed) return parsed
 
   interface RawRequest {
+    replace_id?: unknown
     id?: unknown
     prompt?: unknown
     width?: unknown
@@ -138,10 +139,16 @@ export function parseImageGenRequests(value: unknown): ParsedImageGenRequests | 
     if (typeof prompt !== 'string' || !prompt.trim()) {
       return { error: 'Each request needs a non-empty "prompt"' }
     }
-    // Requests with an id may omit width/height — apply.ts reads them from the
-    // target node, and the provider falls back to size "auto".
-    const rawId = typeof raw.id === 'string' ? raw.id : undefined
-    const hasTarget = !!rawId && rawId.trim().length > 0
+    // Requests with a replace target may omit width/height — apply.ts reads
+    // them from the target node, and the provider falls back to size "auto".
+    // `replace_id` is the canonical param; `id` is accepted as a legacy alias.
+    let rawReplaceId: string | undefined
+    if (typeof raw.replace_id === 'string') {
+      rawReplaceId = raw.replace_id
+    } else if (typeof raw.id === 'string') {
+      rawReplaceId = raw.id
+    }
+    const hasTarget = !!rawReplaceId && rawReplaceId.trim().length > 0
     const hasDims = Number.isFinite(width) && Number.isFinite(height)
 
     let outWidth: number | undefined
@@ -162,7 +169,7 @@ export function parseImageGenRequests(value: unknown): ParsedImageGenRequests | 
     if ('error' in references) return references
 
     out.push({
-      id: hasTarget ? rawId : undefined,
+      replaceId: hasTarget ? rawReplaceId : undefined,
       prompt,
       width: outWidth,
       height: outHeight,

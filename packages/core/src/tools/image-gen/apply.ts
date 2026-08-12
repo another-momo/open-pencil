@@ -136,7 +136,7 @@ function resolveOutputTarget(
   req: ImageGenRequest,
   redirect: ProtectedRedirect | undefined
 ): ResolvedOutput {
-  let target = req.id && !redirect ? figma.getNodeById(req.id) : null
+  let target = req.replaceId && !redirect ? figma.getNodeById(req.replaceId) : null
   if (!target) {
     const fallbackSize = redirect?.fallbackSize
     target = figma.createFrame()
@@ -160,15 +160,16 @@ function resolveOutputTarget(
 /**
  * Generate an image and place it on the canvas.
  *
- * `references` is the ONLY source of input images — the target node (`id`) is
- * just the output destination and never contributes its pixels implicitly:
- * - No `id`: create a new FRAME sized to the request and fill it.
- * - With `id`: overwrite that node's fill (leaf shape or frame background).
+ * `references` is the ONLY source of input images — the target node
+ * (`replace_id`) is just the output destination and never contributes its
+ * pixels implicitly:
+ * - No `replace_id`: create a new FRAME sized to the request and fill it.
+ * - With `replace_id`: overwrite that node's fill (leaf shape or frame background).
  * - To EDIT an existing image, the agent includes the target's own id in
  *   `references`; to REGENERATE without the current image, it leaves it out.
  * - Overwriting a node that has content snapshots the old subtree into the
  *   page's generation-history container first (see ./history).
- * - A protected `id` (library reference / history snapshot) is never
+ * - A protected `replace_id` (library reference / history snapshot) is never
  *   overwritten: the call falls back to creating a NEW node and says so in
  *   the result note.
  */
@@ -177,7 +178,7 @@ export async function generateOne(
   provider: ImageGenProvider,
   req: ImageGenRequest
 ): Promise<ImageGenExecuteResult> {
-  const redirect = req.id ? protectedRedirect(figma, req.id) : undefined
+  const redirect = req.replaceId ? protectedRedirect(figma, req.replaceId) : undefined
 
   const { images, note: skippedNote } = await extractReferenceImages(
     figma,
@@ -192,7 +193,7 @@ export async function generateOne(
 
   // Preserve the superseded content BEFORE writing the new fill, so no
   // version is ever lost (and a mistaken target stays recoverable).
-  const snapshot = req.id ? snapshotBeforeOverwrite(figma.graph, target.id) : undefined
+  const snapshot = req.replaceId ? snapshotBeforeOverwrite(figma.graph, target.id) : undefined
 
   target.fills = [createImageFill(figma, gen.bytes)]
 

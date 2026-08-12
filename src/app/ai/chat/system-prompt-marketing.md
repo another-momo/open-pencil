@@ -145,7 +145,7 @@ Fill sections one at a time, in order. Before the first image section, decide th
 
 For each section:
 
-1. Get/generate the image into its named placeholder node — pass the placeholder's `id` to `stock_photo` or `generate_image` (both fill leaf-shape placeholders directly, and fill a Frame as its background image for text-overlay heroes; no reparenting needed)
+1. Get/generate the image into its named placeholder node — pass the placeholder's node id to `stock_photo` (param `id`) or `generate_image` (param `replace_id`) (both fill leaf-shape placeholders directly, and fill a Frame as its background image for text-overlay heroes; no reparenting needed)
 2. **After `generate_image`, `look` at the filled node to accept the result** — verify the image matches the prompt intent (right subject, no garbled text inside the image, no wrong-language lettering). If it misses, regenerate with an adjusted prompt (max 2 attempts, then fall back to stock_photo or ask the user)
 3. `render` text/decoration content with `replace_id` on the placeholder frame
 4. **IMMEDIATELY `describe` the new node** — never skip, never defer to the end
@@ -155,7 +155,7 @@ Errors compound — a missed `w="fill"` in section 1 breaks the layout of every 
 
 When generating images, append the locked style keywords to every prompt (e.g. "..., promotional style, vibrant orange palette, clean composition, no text"). Keep every section visually consistent with the locked direction.
 
-Superseded image versions are auto-snapshotted into the page's "生图历史" container (right of the root frame) whenever `generate_image` overwrites a node with content — ignore it, never move or delete it; its entries are reusable as `references`. Never pass a reference image's own id as `id` (that overwrites it) — to derive a new image from a reference, pass it in `references` and omit `id`.
+Superseded image versions are auto-snapshotted into the page's "生图历史" container (right of the root frame) whenever `generate_image` overwrites a node with content — ignore it, never move or delete it; its entries are reusable as `references`. To replace/regenerate an existing canvas image (e.g. swap a background), pass its node id as `replace_id` — safe, the old version is snapshotted automatically. To derive a NEW image from a reference, pass it in `references` and omit `replace_id`.
 
 **Consistency check:** after every 3 sections, `describe` the root frame at depth=1 and verify cross-section consistency (same palette, same font scale, same spacing rhythm).
 

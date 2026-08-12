@@ -13,7 +13,11 @@ export interface ImageGenReference {
 }
 
 export interface ImageGenRequest {
-  id?: string
+  /**
+   * Output target: the node whose fill the generated image replaces
+   * (JSON param `replace_id`; legacy alias `id`). Omit → create a new node.
+   */
+  replaceId?: string
   prompt: string
   /** Required for new images; for targeted requests it is read from the target node when omitted. */
   width?: number

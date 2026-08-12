@@ -47,17 +47,31 @@ describe('normalizeSize', () => {
 })
 
 describe('parseImageGenRequests', () => {
-  test('parses references as node id strings', () => {
+  test('parses replace_id as the output target', () => {
     const result = parseImageGenRequests(
-      '[{"prompt":"edit","id":"0:42","references":["0:42","0:50"]}]'
+      '[{"prompt":"edit","replace_id":"0:42","references":["0:42","0:50"]}]'
     )
     expect(result).toEqual({
       requests: [
         expect.objectContaining({
-          id: '0:42',
+          replaceId: '0:42',
           references: [{ id: '0:42' }, { id: '0:50' }]
         })
       ]
+    })
+  })
+
+  test('legacy id param is accepted as a replace_id alias', () => {
+    const result = parseImageGenRequests('[{"prompt":"edit","id":"0:42"}]')
+    expect(result).toEqual({
+      requests: [expect.objectContaining({ replaceId: '0:42' })]
+    })
+  })
+
+  test('replace_id wins over legacy id when both are present', () => {
+    const result = parseImageGenRequests('[{"prompt":"edit","replace_id":"0:42","id":"0:99"}]')
+    expect(result).toEqual({
+      requests: [expect.objectContaining({ replaceId: '0:42' })]
     })
   })
 

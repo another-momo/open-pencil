@@ -407,6 +407,8 @@ profile 的规模化生产因此不再是"写散文"，而是从技巧清单**�
 - **profile 修订（待工具落地后同步）**：Anti-identity 的 "No transparent decorative PNG overlays" 届时修订为"装饰元素走绿幕抠图管线或矢量合成；禁止直接请求透明 PNG 生图"。**在工具存在之前 profile 不提它**（与 marketing.md"只调用真实存在的工具"一致）
 - **适用**：促销贴纸套装（爆炸贴/星星/箭头）、IP 吉祥物、商品元素——§11.1 案例的点缀系统即此
 
+**→ 本节为中间态概述，终版设计见 §12。**
+
 ### 11.4 促销风 profile 技法清单（由案例反推的初稿骨架）
 
 - **字体**：卡通粗圆体（站酷快乐体/阿里妈妈方圆体类，免费商用）——促销品类字体的零号决策；正文字体不变
@@ -417,3 +419,87 @@ profile 的规模化生产因此不再是"写散文"，而是从技巧清单**�
 - **容器**：白卡内容岛 + 满版场景背景
 - **行动区**：QR 卡（白底静区 + "扫码立即 XX"说明），§8.2 契约沿用
 - **点缀**：贴纸套装（抠图管线），密度上限入 critique
+
+## 12. 装饰素材管线（终版，2026-08-11 第 5-7 轮讨论收敛）
+
+内容层"太 UI 感"的根因是**纯矢量几何太干净**——设计感来自质感。本章为内容层质感化的终版方案。
+
+### 12.1 三路分流（按元素本质）
+
+| 路线 | 管什么 | 形态 |
+|---|---|---|
+| **矢量合成** | 精确几何：细线、圆角框、徽章、虚线圈、分隔线 | render 直出 / compose_decor（远期） |
+| **贴图质感** | 肌理件：笔触底纹、贴纸、胶带、角花 | 生图 + （异形件）抠图 |
+| **生图内化** | 软边半透明：烟、光晕、雾 | 画进不透明图，永不抠（α 解混欠定，影视 matting 的前提是物理真实叠加，AI 生图不满足） |
+
+### 12.2 贴图质感的两子路线
+
+| 子路线 | 管什么 | 工具需求 |
+|---|---|---|
+| **不透明质感面板**（卡片底、分区底） | 直接 `generate_image` 生到目标 frame，cornerRadius 自动裁切圆角 | **零新工具** |
+| **异形透明装饰件**（笔触/爆炸贴/角花） | 绿幕生图 → cutout → IMAGE fill | cutout 工具 |
+
+### 12.3 三条不变量（经矛盾消解后收敛）
+
+1. **永不放大**：显示尺寸 ≤ 素材原生尺寸（降采样自由；critique 可判：节点显示宽 > 图像素宽 ×1.05 即报警）
+2. **套装为唯一风格锚点**：同风格小件一屏生成（同次生成=天然同风格）；必须单张的以套装/首件为参考图锚定
+3. **比例失配 → 闭环纠错**：素材原生比 vs 槽位比失配时，**以抠出件为参考图、按槽位尺寸重生**（prompt 重写绿幕与比例声明）→ 再抠。**有界重试 ≤2 次**（防模型宽画布中央画小件导致 trim 后比例仍错），仍不符取最接近版本 + note 声明残余误差——不粉饰、不死循环
+
+### 12.4 按长宽比敏感度的元素分类（替代早期"按大小分"）
+
+| 类 | 例子 | 长宽比要求 | 供货方式 |
+|---|---|---|---|
+| 框填面板 | 卡片底、分区底 | 精确（fill 进固定 frame） | 按槽位尺寸单张生成，frame 裁圆角 |
+| 宽扁垫层 | 标题底纹带、分隔带 | 宽松（垫层上下留白吸收误差；失配走 §12.3-3 重生） | 行式套图（"4 条横幅上下排列各撑满整宽"，1×N 切）或单张 |
+| 紧凑点缀 | 星/爆炸贴/箭头 | 几乎无要求 | 方格套图（2×3/3×3） |
+
+**有机边缘耐裁剪，精确几何不耐裁**——质感归贴图、几何归矢量的深层理由。
+
+### 12.5 cutout 工具设计（唯一新工具）
+
+`cutout({ id, chroma?: hex|'auto', tolerance?, despill?, erode?, grid?: '2x3'|... })`
+
+纯函数核心（cutout-pure.ts，与 sample-color-pure 同构可单测）：**角点采样定幕色**（不信任 #00FF00 字面值，模型给的绿必有偏差）→ 逐像素分类（G 显著大于 R/B + 容差）→ despill 去溢边（G = min(G, max(R,B))）→ 腐蚀 1px 去毛边 → （套图）网格切分 + 内容包围盒 trim → 透明 PNG 注册 graph.images。返回：元素节点 id + 各自原生宽高比 + 每格统计。
+
+**反静默契约**：角点采样不一致 → WARNING（背景不均，建议加大容差或重生）；主体大孔洞 → WARNING（主体含幕色，换幕色重生）；抠除占比异常 → 提示；收尾 look 验收。
+
+**编排闭环（远期）**：`prepare_decor({slot_id, kind, sheet_id})` 把"测量→失配重生→再抠→放置"整环工具化，agent 每槽位一次调用（compose_backdrop 同哲学）。
+
+**边界声明**：只覆盖纯色底源（AI 绿幕图 + 白底产品图）；复杂背景主体抠图是另一条路线（参考图生图 / 模型级分割），不在本管线。半透明软边不抠（§12.1 生图内化）。
+
+### 12.6 落地顺序
+
+1. **零工具验证**（立即可做）：质感面板 + 套图 prompt 冒烟（验证生图侧可用性——见 §12.7）
+2. profile 配方：每风格的贴纸 sheet prompt 块 + 槽位白名单 + "装饰不含字 / QR·Logo 必须真实素材"（generate_image 工具描述同步加禁令）
+3. `cutout` 工具实现（含 grid 切分）
+4. critique 判据：放大率、文字带方差（先人工校准）、装饰密度
+5. `prepare_decor` 闭环编排（远期）
+
+### 12.7 生图侧可用性验证 prompt（套图能力冒烟用）
+
+**Prompt A — 方格套装（促销贴纸，请求 1024×1024）**：
+
+```
+A 3x3 grid of nine promotional sticker elements in flat cartoon illustration
+style, each with a clean white die-cut border, on a solid uniform bright green
+background (#00FF00). Elements: a green marker-brush highlight stroke, a red
+starburst badge, a yellow right-pointing arrow, a piece of masking tape with
+torn edges, a four-point sparkle star, a small red envelope, a gift box, a
+thumbs-up hand, a blank comic burst shape. Each element centered in its grid
+cell with generous even spacing, crisp hard edges, flat even lighting, no
+shadows on the background, no gradient or vignette, no text anywhere.
+```
+
+**Prompt B — 行式横幅（笔触底纹带，请求 1024×1536）**：
+
+```
+Four horizontal marker-brush stroke banner shapes stacked in rows on a solid
+uniform bright green background (#00FF00), each stroke spanning the full width
+edge to edge. Flat promotional illustration style: row 1 mint green, row 2
+warm yellow, row 3 coral red, row 4 sky blue. Slightly irregular hand-drawn
+edges, solid flat fill with subtle pigment texture, crisp clean outlines,
+generous even vertical spacing between rows, no shadows, no text, no other
+elements.
+```
+
+**评估清单（五项）**：① 背景均匀度（四角 vs 中心同绿 → 容差可行性）；② 边缘硬度（无投影/渐变/暗角）；③ 网格规整度（可否均匀切分）；④ 串色（元素含绿会出孔洞 → 换品红幕重试）；⑤ 白边与乱码（die-cut 白边辅助抠图；出现幻觉文字即失败）。

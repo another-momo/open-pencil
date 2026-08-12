@@ -1,3 +1,5 @@
+import type { SceneNode } from '@open-pencil/scene-graph'
+
 import type { FigmaAPI } from '#core/figma-api'
 import { createImageFill } from '#core/tools/image-fill'
 import { libraryReferenceId } from '#core/tools/marketing/restore'
@@ -21,36 +23,77 @@ export interface ImageGenExecuteResult {
 const IMAGE_MARKER_RE = /\[image\s+\d+\]/i
 
 function allReferencesFailedError(figma: FigmaAPI, skipped: string[]): Error {
-  // Distinguish "node not found" from "node has no IMAGE fill" — the latter
-  // is fixable on the spot with {"id":"...","asImage":true}.
-  const noFill = skipped.filter((id) => figma.getNodeById(id) !== null)
+  // Distinguish "node not found" from "node exists but could not provide
+  // pixels" — the latter means no IMAGE fill AND no render capability here.
+  const unrenderable = skipped.filter((id) => figma.getNodeById(id) !== null)
   let hint = ''
-  if (noFill.length > 0) {
-    const plural = noFill.length > 1
-    hint = ` — tip: ${plural ? 'these nodes have' : 'this node has'} no IMAGE fill; pass {"id":"<id>","asImage":true} to render ${plural ? 'them' : 'it'} as a reference`
+  if (unrenderable.length > 0) {
+    const plural = unrenderable.length > 1
+    hint = ` — tip: ${plural ? 'these nodes have' : 'this node has'} no IMAGE fill and could not be rendered as a reference (exportImage is unavailable in this environment)`
   }
   return new Error(`Failed to extract all reference image(s): ${skipped.join(', ')}${hint}`)
 }
 
-async function extractNodeImage(figma: FigmaAPI, nodeId: string): Promise<Uint8Array | null> {
-  const node = figma.getNodeById(nodeId)
-  if (!node) return null
-  const imgFill = node.fills.find((fill) => fill.type === 'IMAGE') as
-    | { imageHash?: string }
-    | undefined
-  if (!imgFill?.imageHash) return null
-  return figma.graph.images.get(imgFill.imageHash) ?? null
+function visibleImageHash(node: SceneNode): string | undefined {
+  for (const fill of node.fills) {
+    if (fill.type === 'IMAGE' && fill.visible && 'imageHash' in fill) {
+      return fill.imageHash
+    }
+  }
+  return undefined
 }
 
+async function renderNode(figma: FigmaAPI, nodeId: string): Promise<Uint8Array | null> {
+  if (!figma.exportImage) return null
+  return figma.exportImage([nodeId], { scale: 1, format: 'PNG' })
+}
+
+interface ExtractedImage {
+  bytes: Uint8Array | null
+  /** Just-in-time usage hint surfaced in the result note (no behavior change) */
+  teach?: string
+}
+
+/**
+ * Extraction semantics per node shape:
+ * - `composite: true` → always the node's rendered appearance (children,
+ *   effects, rounded corners included); redundant on plain image nodes —
+ *   said so in `teach`.
+ * - IMAGE fill, no flag → the original bytes (lossless); children, if any,
+ *   are NOT included — said so in `teach`.
+ * - No IMAGE fill → rendering is the only sensible extraction, automatic.
+ */
 async function extractReferenceImage(
   figma: FigmaAPI,
   ref: ImageGenReference
-): Promise<Uint8Array | null> {
-  if (ref.asImage) {
-    if (!figma.exportImage) return null
-    return figma.exportImage([ref.id], { scale: 1, format: 'PNG' })
+): Promise<ExtractedImage> {
+  const raw = figma.graph.getNode(ref.id)
+  if (!raw) return { bytes: null }
+  const imageHash = visibleImageHash(raw)
+
+  if (ref.composite) {
+    const bytes = await renderNode(figma, ref.id)
+    if (imageHash && raw.childIds.length === 0) {
+      return {
+        bytes,
+        teach: `reference ${ref.id} ("${raw.name}") already holds a plain image — drop "composite" to use its lossless original bytes`
+      }
+    }
+    return { bytes }
   }
-  return extractNodeImage(figma, ref.id)
+
+  if (imageHash) {
+    const bytes = figma.graph.images.get(imageHash) ?? null
+    if (raw.childIds.length > 0) {
+      return {
+        bytes,
+        teach: `reference ${ref.id} ("${raw.name}") contributed only its image bytes — its ${raw.childIds.length} child node(s) (text/decoration) were NOT included; pass "composite":true to reference the full appearance`
+      }
+    }
+    return { bytes }
+  }
+
+  return { bytes: await renderNode(figma, ref.id) }
 }
 
 interface ProtectedRedirect {
@@ -76,7 +119,7 @@ function protectedRedirect(figma: FigmaAPI, nodeId: string): ProtectedRedirect |
   }
   if (!protectedAs) return undefined
   return {
-    note: `Node ${nodeId} ("${raw.name}") is ${protectedAs} and was NOT overwritten — the image was generated as a new canvas node instead, sized like the protected node. To iterate on that image, pass its id in "references" and omit "id" (or target a normal node).`,
+    note: `Node ${nodeId} ("${raw.name}") is ${protectedAs} and was NOT overwritten — the image was generated as a new canvas node instead, sized like the protected node. To iterate on that image, pass its node id in "references" and omit "replace_id" (or target a normal node).`,
     fallbackSize: { width: Math.round(raw.width), height: Math.round(raw.height) }
   }
 }
@@ -93,10 +136,12 @@ async function extractReferenceImages(
 ): Promise<ExtractedReferences> {
   const images: Uint8Array[] = []
   const skipped: string[] = []
+  const teachings: string[] = []
   for (const ref of references) {
-    const bytes = await extractReferenceImage(figma, ref)
+    const { bytes, teach } = await extractReferenceImage(figma, ref)
     if (bytes) images.push(bytes)
     else skipped.push(ref.id)
+    if (teach) teachings.push(teach)
   }
 
   if (references.length > 0) {
@@ -111,10 +156,13 @@ async function extractReferenceImages(
       throw allReferencesFailedError(figma, skipped)
     }
   }
-  const note =
+  const noteParts = [
     skipped.length > 0
       ? `Used ${images.length}/${references.length} reference image(s); skipped: ${skipped.join(', ')}`
-      : undefined
+      : '',
+    ...teachings
+  ].filter(Boolean)
+  const note = noteParts.join(' ') || undefined
   return note ? { images, note } : { images }
 }
 

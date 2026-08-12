@@ -141,7 +141,7 @@ Fill sections one at a time, in order. Before the first image section, decide th
 - **Abstract concepts/illustrations** (futuristic city, dream background) → `generate_image`
 - **User-provided assets** → use them directly (find via `find_nodes`/`get_selection`)
 
-**Frame placeholders need a reference choice.** If the placeholder is a Frame (not a leaf shape) and you're generating its background, decide whether the rest of the design is part of the reference. Example: a hero Frame with a title + CTA already drawn — the user wants a background that complements that composition, not ignores it. Pass `{"id":"<hero-id>","asImage":true}` in `references` so the API sees the existing typography/CTA in the reference. Skip this only if the user explicitly says "ignore the existing layout" / "fresh background".
+**Frame placeholders need a reference choice.** If the placeholder is a Frame (not a leaf shape) and you're generating its background, decide whether the rest of the design is part of the reference. Example: a hero Frame with a title + CTA already drawn — the user wants a background that complements that composition, not ignores it. Pass `{"id":"<hero-id>","composite":true}` in `references` so the API sees the existing typography/CTA in the reference. Skip this only if the user explicitly says "ignore the existing layout" / "fresh background".
 
 For each section:
 

@@ -90,6 +90,7 @@ function parseReferences(value: unknown): ImageGenReference[] | { error: string 
   if (!Array.isArray(value)) return { error: '"references" must be an array of node ids' }
   interface RawReference {
     id?: unknown
+    composite?: unknown
     asImage?: unknown
   }
   const out: ImageGenReference[] = []
@@ -101,11 +102,15 @@ function parseReferences(value: unknown): ImageGenReference[] | { error: string 
     if (item && typeof item === 'object') {
       const raw = item as RawReference
       if (typeof raw.id === 'string' && raw.id.trim().length > 0) {
-        out.push({ id: raw.id, asImage: raw.asImage === true ? true : undefined })
+        // `composite` is canonical; `asImage` is accepted as a legacy alias.
+        const composite = raw.composite === true || raw.asImage === true
+        out.push(composite ? { id: raw.id, composite: true } : { id: raw.id })
         continue
       }
     }
-    return { error: 'Each reference must be a node id string or { "id": "...", "asImage"?: true }' }
+    return {
+      error: 'Each reference must be a node id string or { "id": "...", "composite"?: true }'
+    }
   }
   return out
 }

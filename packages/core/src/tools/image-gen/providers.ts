@@ -8,8 +8,13 @@ export type ImageGenBackground = 'auto' | 'opaque'
 
 export interface ImageGenReference {
   id: string
-  /** Treat the node as an image: render it via figma.exportImage instead of reading its IMAGE fill. */
-  asImage?: boolean
+  /**
+   * Reference the node's RENDERED appearance (children, effects, rounded
+   * corners included) instead of its original IMAGE bytes (JSON param
+   * `composite`; legacy alias `asImage`). Only meaningful for nodes that
+   * already have an IMAGE fill — nodes without one are always rendered.
+   */
+  composite?: boolean
 }
 
 export interface ImageGenRequest {

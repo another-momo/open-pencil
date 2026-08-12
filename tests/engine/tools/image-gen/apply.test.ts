@@ -115,7 +115,7 @@ describe('generateOne', () => {
     ).rejects.toThrow('missing-a')
   })
 
-  test('all references failing on existing nodes without IMAGE fill → hint suggests asImage', async () => {
+  test('existing node without IMAGE fill and no render capability → error explains why', async () => {
     const { figma } = setup()
     const layout = figma.createFrame()
     layout.name = 'layout'
@@ -128,7 +128,7 @@ describe('generateOne', () => {
         height: 1024,
         references: [{ id: layout.id }]
       })
-    ).rejects.toThrow('"asImage":true')
+    ).rejects.toThrow('no IMAGE fill and could not be rendered')
   })
 
   test('any extraction failure with [image N] markers → throws to avoid misalignment', async () => {
@@ -146,7 +146,7 @@ describe('generateOne', () => {
     ).rejects.toThrow('misalign')
   })
 
-  test('asImage:true renders via figma.exportImage', async () => {
+  test('composite:true renders via figma.exportImage', async () => {
     const { figma } = setup()
     const layout = figma.createFrame()
     layout.name = 'layout'
@@ -159,13 +159,13 @@ describe('generateOne', () => {
       prompt: 'background for [image 1]',
       width: 1024,
       height: 1024,
-      references: [{ id: layout.id, asImage: true }]
+      references: [{ id: layout.id, composite: true }]
     })
 
     expect(calls[0].images?.[0]).toEqual(rendered)
   })
 
-  test('asImage:true without exportImage capability → extraction failure', async () => {
+  test('composite:true without exportImage capability → extraction failure', async () => {
     const { figma } = setup()
     const layout = figma.createFrame()
     layout.name = 'layout'
@@ -176,9 +176,65 @@ describe('generateOne', () => {
         prompt: 'background',
         width: 1024,
         height: 1024,
-        references: [{ id: layout.id, asImage: true }]
+        references: [{ id: layout.id, composite: true }]
       })
     ).rejects.toThrow('Failed to extract all reference')
+  })
+
+  test('node without IMAGE fill auto-renders via exportImage (no flag needed)', async () => {
+    const { figma } = setup()
+    const layout = figma.createFrame()
+    layout.name = 'layout'
+    layout.resize(400, 300)
+    const rendered = new Uint8Array([8, 8, 8])
+    figma.exportImage = async () => rendered
+    const { calls, provider } = fakeProvider()
+
+    await generateOne(figma, provider, {
+      prompt: 'background inspired by the layout',
+      width: 1024,
+      height: 1024,
+      references: [{ id: layout.id }]
+    })
+
+    expect(calls[0].images?.[0]).toEqual(rendered)
+  })
+
+  test('composite:true on a plain image node → still renders, note suggests original bytes', async () => {
+    const { figma } = setup()
+    const image = createImageNode(figma, 'plain image', PNG_MAGIC)
+    const rendered = new Uint8Array([7, 7, 7])
+    figma.exportImage = async () => rendered
+    const { calls, provider } = fakeProvider()
+
+    const result = await generateOne(figma, provider, {
+      prompt: 'variation',
+      width: 1024,
+      height: 1024,
+      references: [{ id: image.id, composite: true }]
+    })
+
+    expect(calls[0].images?.[0]).toEqual(rendered)
+    expect(result.note).toContain('lossless original bytes')
+  })
+
+  test('image node with children → original bytes used, note says children were not included', async () => {
+    const { graph, figma } = setup()
+    const hero = createImageNode(figma, 'Hero', PNG_MAGIC)
+    const title = figma.createRectangle()
+    graph.reparentNode(title.id, hero.id)
+    const { calls, provider } = fakeProvider()
+
+    const result = await generateOne(figma, provider, {
+      prompt: 'new background',
+      width: 1024,
+      height: 1024,
+      references: [{ id: hero.id }]
+    })
+
+    expect(calls[0].images?.[0]).toEqual(PNG_MAGIC)
+    expect(result.note).toContain('NOT included')
+    expect(result.note).toContain('"composite":true')
   })
 
   test('returns canvas dimensions of the target node', async () => {

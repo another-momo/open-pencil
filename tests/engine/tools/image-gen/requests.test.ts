@@ -75,14 +75,28 @@ describe('parseImageGenRequests', () => {
     })
   })
 
-  test('parses references with asImage flag', () => {
+  test('parses references with composite flag', () => {
+    const result = parseImageGenRequests(
+      '[{"prompt":"bg","width":1080,"height":1920,"references":[{"id":"0:9","composite":true}]}]'
+    )
+    expect(result).toEqual({
+      requests: [
+        expect.objectContaining({
+          references: [{ id: '0:9', composite: true }]
+        })
+      ],
+      sizeNote: expect.stringContaining('1080x1920 → 1088x1920')
+    })
+  })
+
+  test('legacy asImage flag is accepted as a composite alias', () => {
     const result = parseImageGenRequests(
       '[{"prompt":"bg","width":1080,"height":1920,"references":[{"id":"0:9","asImage":true}]}]'
     )
     expect(result).toEqual({
       requests: [
         expect.objectContaining({
-          references: [{ id: '0:9', asImage: true }]
+          references: [{ id: '0:9', composite: true }]
         })
       ],
       sizeNote: expect.stringContaining('1080x1920 → 1088x1920')
@@ -105,12 +119,12 @@ describe('parseImageGenRequests', () => {
     expect(
       parseImageGenRequests('[{"prompt":"x","width":100,"height":100,"references":[42]}]')
     ).toEqual({
-      error: 'Each reference must be a node id string or { "id": "...", "asImage"?: true }'
+      error: 'Each reference must be a node id string or { "id": "...", "composite"?: true }'
     })
     expect(
       parseImageGenRequests('[{"prompt":"x","width":100,"height":100,"references":[{}]}]')
     ).toEqual({
-      error: 'Each reference must be a node id string or { "id": "...", "asImage"?: true }'
+      error: 'Each reference must be a node id string or { "id": "...", "composite"?: true }'
     })
   })
 

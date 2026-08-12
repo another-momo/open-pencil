@@ -234,7 +234,10 @@ describe('generateOne', () => {
     const refHashBefore = (ref.fills[0] as { imageHash?: string }).imageHash
     const { provider } = fakeProvider()
 
-    const result = await generateOne(figma, provider, { replaceId: ref.id, prompt: 'iterate on this' })
+    const result = await generateOne(figma, provider, {
+      replaceId: ref.id,
+      prompt: 'iterate on this'
+    })
 
     expect(result.id).not.toBe(ref.id)
     expect(result.note).toContain('library reference')

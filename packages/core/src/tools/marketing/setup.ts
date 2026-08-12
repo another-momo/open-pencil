@@ -472,6 +472,138 @@ function collectReadonlyNote(session: LibrarySession | undefined, config: Materi
   return ` readonly-declared nodes (${[...readonlyNames].join(', ')}) must not be modified — fill only the editable slots.`
 }
 
+/** Pages (other than the current root's) hosting same-type designs — for the cross-page hint in the note. */
+function siblingPagesOf(graph: FigmaAPI['graph'], typeId: string, rootFrameId: string): string[] {
+  return [
+    ...new Set(
+      listSameTypeRoots(graph, typeId)
+        .filter((root) => root.id !== rootFrameId)
+        .map((root) => pageOfNode(graph, root.id)?.name)
+        .filter((name): name is string => !!name)
+    )
+  ]
+}
+
+/**
+ * Bind the current page's brief to this design so brief tools route to it:
+ * prefer the brief already bound here; otherwise take the first brief that
+ * is unbound or bound only to deleted designs — never steal a brief that
+ * serves another live design. Returns the bound brief id, if any.
+ */
+function bindPageBrief(
+  figma: FigmaAPI,
+  rootFrameId: string,
+  rootFrameName: string,
+  pageName: string
+): string | undefined {
+  const bindableBrief = listBriefs(figma).find((brief) => {
+    const bound = briefBoundDesignIds(brief)
+    if (bound.includes(rootFrameId)) return true
+    return bound.every((boundId) => !figma.graph.getNode(boundId))
+  })
+  if (!bindableBrief) return undefined
+  bindBriefToDesign(figma, bindableBrief.id, rootFrameId)
+  setBriefBindingLabel(figma, bindableBrief.id, `关联：${rootFrameName} · ${pageName}`)
+  return bindableBrief.id
+}
+
+/** The "where did this root frame come from" sentence of the setup note. */
+function buildOriginPart(input: {
+  adopted: boolean
+  rootFrameName: string
+  rootFrameId: string
+  pageName: string
+  childCount: number
+  siblingPages: string[]
+  label: string
+}): string {
+  if (input.adopted) {
+    return `ADOPTED the existing "${input.rootFrameName}" design (${input.rootFrameId}) on page "${input.pageName}" — it already has ${input.childCount} top-level children, i.e. a previously built design, NOT a blank frame. Its content belongs to an earlier session unless the user just asked to continue it. If the user wants a NEW design, call setup_material_type again with mode: "new".`
+  }
+  const siblingHint =
+    input.siblingPages.length > 0
+      ? ` A separate "${input.label}" design exists on page ${input.siblingPages
+          .map((name) => `"${name}"`)
+          .join(
+            ', '
+          )} — to continue THAT one, switch to its page first and call setup_material_type again (adoption never crosses pages).`
+      : ''
+  return `Created NEW blank root frame "${input.rootFrameName}" (${input.rootFrameId}) on page "${input.pageName}".${siblingHint}`
+}
+
+/** Components page preference: the adopted design's own, else any existing design's (shared page). */
+function preferredComponentsPageId(
+  existing: MarketingDocumentState | undefined,
+  designs: MarketingDocumentState[]
+): string | undefined {
+  return existing?.componentsPageId ?? designs[0]?.componentsPageId
+}
+
+/** Display facts about the resolved root frame, for result + note assembly. */
+function describeRoot(
+  graph: FigmaAPI['graph'],
+  figma: FigmaAPI,
+  rootFrameId: string,
+  config: MaterialConfig
+): { rootFrameName: string; pageName: string; childCount: number } {
+  const rootNode = graph.getNode(rootFrameId)
+  return {
+    rootFrameName: rootNode?.name ?? config.label,
+    pageName: pageOfNode(graph, rootFrameId)?.name ?? figma.currentPage.name,
+    childCount: rootNode?.childIds.length ?? 0
+  }
+}
+
+/** Assemble the SetupResult — all presentational branching lives here, keeping setupMaterialType control-flow-only. */
+function buildSetupResult(input: {
+  id: string
+  config: MaterialConfig
+  session: LibrarySession | undefined
+  rootFrameId: string
+  rootFrameName: string
+  pageName: string
+  childCount: number
+  adopted: boolean
+  boundBriefId: string | undefined
+  siblingPages: string[]
+  anchors: AnchorRecord[]
+  repaired: string[]
+}): SetupResult {
+  const warnings = input.session?.index.warnings ?? []
+  const anchorPart =
+    input.anchors.length > 0 ? 'Root frame and anchor instances are ready.' : 'Root frame is ready.'
+  const briefPart = input.boundBriefId
+    ? ` Bound 需求单 (${input.boundBriefId}) to this design.`
+    : ''
+  const originPart = buildOriginPart({
+    adopted: input.adopted,
+    rootFrameName: input.rootFrameName,
+    rootFrameId: input.rootFrameId,
+    pageName: input.pageName,
+    childCount: input.childCount,
+    siblingPages: input.siblingPages,
+    label: input.config.label
+  })
+  return {
+    materialType: input.id,
+    label: input.config.label,
+    rootFrameId: input.rootFrameId,
+    rootFrameName: input.rootFrameName,
+    page: input.pageName,
+    adopted: input.adopted,
+    ...(input.adopted ? { existingChildren: input.childCount } : {}),
+    size: input.config.size,
+    anchors: input.anchors.map((anchor) => ({
+      template: anchor.templateId,
+      position: anchor.position,
+      instanceId: anchor.instanceId
+    })),
+    ...(warnings.length > 0 ? { warnings } : {}),
+    ...(input.repaired.length > 0 ? { repaired: input.repaired } : {}),
+    note: `${anchorPart}${briefPart} ${originPart} CRITICAL: render every section INTO the root frame with render({ parent_id: "${input.rootFrameId}", jsx: ... }) — sections rendered without parent_id land on the page as orphaned siblings and w="fill" collapses. Never pass id as a JSX prop.${collectReadonlyNote(input.session, input.config)}`
+  }
+}
+
 export function setupMaterialType(
   figma: FigmaAPI,
   id: string,
@@ -510,10 +642,7 @@ export function setupMaterialType(
     ? adoptedId
     : createRootFrame(figma, config, session?.name, nextRootFrameName(graph, config))
 
-  const componentsPageId = ensureComponentsPage(
-    figma,
-    existing?.componentsPageId ?? designs[0]?.componentsPageId
-  )
+  const componentsPageId = ensureComponentsPage(figma, preferredComponentsPageId(existing, designs))
 
   const resolved = materializeAllAnchors(
     figma,
@@ -534,64 +663,20 @@ export function setupMaterialType(
     anchors
   })
 
-  const warnings = session?.index.warnings ?? []
-
-  const rootNode = graph.getNode(rootFrameId)
-  const rootFrameName = rootNode?.name ?? config.label
-  const pageName = pageOfNode(graph, rootFrameId)?.name ?? figma.currentPage.name
-  const siblingPages = [
-    ...new Set(
-      listSameTypeRoots(graph, id)
-        .filter((root) => root.id !== rootFrameId)
-        .map((root) => pageOfNode(graph, root.id)?.name)
-        .filter((name): name is string => !!name)
-    )
-  ]
-
-  // Bind the page's brief to this design so brief tools route to it: prefer
-  // the brief already bound here; otherwise take the first brief that is
-  // unbound or bound only to deleted designs — never steal a brief that
-  // serves another live design.
-  const bindableBrief = listBriefs(figma).find((brief) => {
-    const bound = briefBoundDesignIds(brief)
-    if (bound.includes(rootFrameId)) return true
-    return bound.every((boundId) => !graph.getNode(boundId))
-  })
-  if (bindableBrief) {
-    bindBriefToDesign(figma, bindableBrief.id, rootFrameId)
-    setBriefBindingLabel(figma, bindableBrief.id, `关联：${rootFrameName} · ${pageName}`)
-  }
-
-  const anchorPart =
-    anchors.length > 0 ? 'Root frame and anchor instances are ready.' : 'Root frame is ready.'
-  const briefPart = bindableBrief ? ` Bound 需求单 (${bindableBrief.id}) to this design.` : ''
-  const originPart = adoptable
-    ? `ADOPTED the existing "${rootFrameName}" design (${rootFrameId}) on page "${pageName}" — it already has ${rootNode?.childIds.length ?? 0} top-level children, i.e. a previously built design, NOT a blank frame. Its content belongs to an earlier session unless the user just asked to continue it. If the user wants a NEW design, call setup_material_type again with mode: "new".`
-    : `Created NEW blank root frame "${rootFrameName}" (${rootFrameId}) on page "${pageName}".${
-        siblingPages.length > 0
-          ? ` A separate "${config.label}" design exists on page ${siblingPages
-              .map((name) => `"${name}"`)
-              .join(
-                ', '
-              )} — to continue THAT one, switch to its page first and call setup_material_type again (adoption never crosses pages).`
-          : ''
-      }`
-  return {
-    materialType: id,
-    label: config.label,
+  const { rootFrameName, pageName, childCount } = describeRoot(graph, figma, rootFrameId, config)
+  const boundBriefId = bindPageBrief(figma, rootFrameId, rootFrameName, pageName)
+  return buildSetupResult({
+    id,
+    config,
+    session,
     rootFrameId,
     rootFrameName,
-    page: pageName,
+    pageName,
+    childCount,
     adopted: adoptable,
-    ...(adoptable ? { existingChildren: rootNode?.childIds.length ?? 0 } : {}),
-    size: config.size,
-    anchors: anchors.map((anchor) => ({
-      template: anchor.templateId,
-      position: anchor.position,
-      instanceId: anchor.instanceId
-    })),
-    ...(warnings.length > 0 ? { warnings } : {}),
-    ...(repaired.length > 0 ? { repaired } : {}),
-    note: `${anchorPart}${briefPart} ${originPart} CRITICAL: render every section INTO the root frame with render({ parent_id: "${rootFrameId}", jsx: ... }) — sections rendered without parent_id land on the page as orphaned siblings and w="fill" collapses. Never pass id as a JSX prop.${collectReadonlyNote(session, config)}`
-  }
+    boundBriefId,
+    siblingPages: siblingPagesOf(graph, id, rootFrameId),
+    anchors,
+    repaired
+  })
 }

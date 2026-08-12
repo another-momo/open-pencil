@@ -90,7 +90,11 @@ export function bindBriefToDesign(figma: FigmaAPI, briefId: string, rootFrameId:
   graph.updateNode(briefId, {
     pluginData: [
       ...kept,
-      { pluginId: BRIEF_PLUGIN_ID, key: BRIEF_BINDING_KEY, value: [...bound, rootFrameId].join(',') }
+      {
+        pluginId: BRIEF_PLUGIN_ID,
+        key: BRIEF_BINDING_KEY,
+        value: [...bound, rootFrameId].join(',')
+      }
     ]
   })
 }

@@ -571,7 +571,9 @@ export function setupMaterialType(
         siblingPages.length > 0
           ? ` A separate "${config.label}" design exists on page ${siblingPages
               .map((name) => `"${name}"`)
-              .join(', ')} — to continue THAT one, switch to its page first and call setup_material_type again (adoption never crosses pages).`
+              .join(
+                ', '
+              )} — to continue THAT one, switch to its page first and call setup_material_type again (adoption never crosses pages).`
           : ''
       }`
   return {

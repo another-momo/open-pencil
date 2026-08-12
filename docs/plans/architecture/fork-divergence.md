@@ -159,3 +159,10 @@
   - **`src/app/automation/bridge/figma-factory.ts`、`src/app/document/export/files.ts`（M 类低危，深化）**：父分支已有 look 工具的 exportImage 接线小分歧，本分支各 +12~14 行可选参数透传，hunk 小且集中在同一调用点。
   - **`packages/core/src/tools/registry-core.ts`（低危，模式不变）**：沿用纯追加模式 +6 行（sample_hero_color / compose_backdrop 注册）。
   - 另：`packages/core/src/tools/structure/batch.ts` 本分支未动，但待办 T1（batch_update 对不支持 props 静默 updated:0 改为 errors 报告）将深化该文件既有低危分歧（51 行，R3-1 的 JSON 救助路径），届时沿用同一低危模式即可。
+- 2026-08-12：修复 setup 跨页领养事故（`999e9425`）——用户在 Page 1 做过一张 product_long 后，到 Page 3 发起同类型新设计，`setup_material_type` 经 `findRootFrame` **全文档扫描**静默领养了 Page 1 的旧根帧，AI 把旧设计当"库预填模板"改坏（标题改白、hero 图被覆盖）。根因三层：①领养语义"一个文档一种类型只有一张"的隐含假设与用户"一页一张"的真实用法冲突；②工具结果对"新建空白帧"与"领养成稿"不加区分；③会话跑在视觉通道 B，主模型只见二手文本摘要、看不见画布。修复：
+  - **setup 页作用域化**：`resolveExistingDesign`/`findRootFrame` 收窄到当前页，跨页领养路径删除；新增 `mode:'new'` 显式新建；结果暴露 `adopted`/`page`/`existingChildren`；同类型根帧自动差异化命名（"产品长图 2"），名字兜底改前缀匹配。
+  - **需求单 ↔ 作品显式绑定**：brief pluginData 存 rootFrameId 列表（结构按 1:N 预留，产品先 1:1 + 复用即复制）；`findBrief` 优先绑定（绑定可跨页）、退回页内首个、多 brief 无绑定时 read_brief 返回歧义候选；create_brief 逐字播种 `initial_content`（用户原始输入）并绑定活跃设计；结论区按设计名分组（**namespace 组标题即用户可读的绑定声明**）；标题区"关联"行在绑定时写回。setup 时自动绑定当前页未绑定 brief，但绝不抢绑服务其他活设计的 brief。
+  - **AI 自动创建需求单不再弹面板**（移除 `src/app/ai/tools/index.ts` 的 openBriefPanel 钩子）——需求单是设计状态持久化载体，自动创建是既定行为，l3-workbench.md §3.2.2"不自动创建"立场已过时。
+  - **调试日志误报修正**：media 诊断 channel-aware——通道 B 下 look 结果本就不带图（独立视觉模型代看），"toModelOutput wiring broken"是误报（本次分析一度误信该诊断，教训：调试文案也会说谎，以代码为准）；通道 B 视觉 prompt 加"主动报告与 focus 无关的显著事实"。
+  - 改动文件：`packages/core/src/tools/marketing/{setup,brief,brief-edit,look}.ts`、`tools/{marketing,index}.ts`、`src/app/ai/{tools/index,debug/index}.ts`、`chat/system-prompt-marketing.md` + 测试。**这些文件本就在 M 类/A 类 fork 自有面，合并面增量可控；`setup.ts` 的 findRootFrame/resolveExistingDesign 语义与 upstream 分叉加深，upstream 若动领养逻辑需语义级合并。**
+  - 验证：marketing 定点测试 169 全绿（新增 9 条：页作用域/mode:new/绑定路由/歧义/结论分组/播种），tsgo/vue-tsc/build:packages 干净；tests/engine/app 的 3 个失败经 stash 对照证实为 HEAD 既有问题。遗留下一轮：需求单面板的"绑定编辑"下拉（改绑/解绑 UI）。

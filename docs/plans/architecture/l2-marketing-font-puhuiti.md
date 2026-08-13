@@ -232,3 +232,12 @@ PWA service worker 也会从这条缓存头获益。
 - CJK fallback（参考对比）：[`packages/core/src/text/fallbacks.ts`](open-pencil/packages/core/src/text/fallbacks.ts)
 - 字体缓存（桌面端）：[`src/app/editor/fonts/cache.ts`](open-pencil/src/app/editor/fonts/cache.ts)
 - 生产部署配置：[`public/_headers`](open-pencil/public/_headers)
+
+## 字体子集化（2026-08 已执行）
+
+9 个字重已从完整 TTF（每处 ~64MB）统一子集化到 ~20MB（`public/` 与 `packages/core/assets/` 两处同步替换，合计省 ~88MB）。
+
+- **做法**：`tools/font-subset/subset-fonts.py` 用 fontTools（`tools/font-subset/.venv`，已被 .gitignore 忽略）对 `FONTS/` 下的厂商源 TTF 跑 pyftsubset 等价的 Python API；保留全部 layout features、丢弃 hinting、输出 TTF；`--name-IDs='*' --name-legacy --name-languages='*'` 原样保留 name 表（运行时注册的 family 名是代码里写死的干净名，TTF 内部 name 记录的厂商脏数据不能动）。
+- **字符集**：`tools/font-subset/charset-cjk.txt`（9031 字符）= 通用规范汉字表 8105 字（[shengdoushi/common-standard-chinese-characters-table](https://github.com/shengdoushi/common-standard-chinese-characters-table)，经 jsdelivr 镜像拉取）+ ASCII 可打印字符 + GB2312 全集（含全角标点、序号等符号区）+ 常用营销/排版符号（￥ € © ® ™ ° ‰ × ÷ ± 「」【】《》〈〉 等）。产物每字重约 9150 字形。
+- **注意**：厂商的 Heavy/Black 源文件本身就只有 9728 字形，但对上述字符集仅缺 11 个边缘字符（如 ‟⇒ 及 3 个三级字表 SIP 字），pyftsubset 静默跳过，影响可忽略。
+- **重跑**：确认 `FONTS/` 源目录在位后执行 `tools/font-subset/.venv/Scripts/python tools/font-subset/subset-fonts.py` 即可重新生成全部 18 个产物文件。

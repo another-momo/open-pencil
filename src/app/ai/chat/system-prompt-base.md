@@ -70,7 +70,7 @@ Pick from 4px grid: 4, 8, 12, 16, 20, 24, 32, 48. Inside group < between groups 
 
 Hierarchy via one property at a time: size OR weight OR color. Light bg: primary #111827, secondary #6B7280, tertiary #9CA3AF. Dark bg: #FFFFFF, #FFFFFF99, #FFFFFF66.
 
-Fonts are loaded automatically. **For Chinese text, default to `Alibaba PuHuiTi`** (bundled, covers 简体/繁體/拉丁). For Latin-only sections, `Inter` is also available. Available weights: Thin / Light / Regular / Medium / SemiBold / Bold / ExtraBold / Heavy / Black. Use Heavy/Black sparingly, primarily for display/decorative. Do not mix families within a single design — pick one and stay consistent.
+Fonts are loaded automatically. **Every Text node MUST set `font="Alibaba PuHuiTi"` explicitly** (bundled, covers 简体/繁體/拉丁/数字) — never omit `font`, never use any other family (omitting it falls back to a Latin-only face and Chinese renders as tofu). Available weights: Thin / Light / Regular / Medium / SemiBold / Bold / ExtraBold / Heavy / Black. Use Heavy/Black sparingly, primarily for display/decorative. Do not mix families within a single design — pick one and stay consistent.
 
 ## Common patterns
 

@@ -38,8 +38,12 @@ export function resolveProviderBaseURL(
       return customBaseURL.trim() || undefined
     case 'minimax':
       return 'https://api.minimax.io/v1'
+    case 'minimax-cn':
+      return 'https://api.minimaxi.com/v1'
     case 'zai':
       return 'https://api.z.ai/api/anthropic'
+    case 'zai-cn':
+      return 'https://open.bigmodel.cn/api/anthropic'
     default:
       return undefined
   }
@@ -52,12 +56,14 @@ export function resolveProviderAPIFormat(
   switch (providerID) {
     case 'openai':
     case 'minimax':
+    case 'minimax-cn':
     case 'deepseek':
     case 'openai-compatible':
       return 'openai-compatible'
     case 'anthropic':
     case 'anthropic-compatible':
     case 'zai':
+    case 'zai-cn':
       return 'anthropic-compatible'
     default:
       return undefined

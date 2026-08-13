@@ -13,7 +13,9 @@ const PROVIDER_KEYS: Partial<Record<AIProviderID, readonly string[]>> = {
   google: ['google'],
   deepseek: ['deepseek'],
   zai: ['zhipuai'],
-  minimax: ['minimax']
+  'zai-cn': ['zhipuai'],
+  minimax: ['minimax'],
+  'minimax-cn': ['minimax']
 }
 
 type ModelsDevModel = {

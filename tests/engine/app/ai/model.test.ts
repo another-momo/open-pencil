@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import { AI_PROVIDERS } from '@open-pencil/core/constants'
 
-import { resolveLanguageModelID } from '@/app/ai/chat/model'
+import { resolveLanguageModelID, resolveProviderBaseURL } from '@/app/ai/chat/model'
 import { normalizeOpenRouterModel } from '@/app/ai/chat/provider-models'
 import { createAnthropicCompatibleAdapter } from '@/app/ai/providers/compatible'
 import { modelProviderAdapter } from '@/app/ai/providers/registry'
@@ -61,6 +61,30 @@ describe('model provider registry', () => {
 
     expect(requestURL).toBe('https://api.minimax.io/v1/chat/completions')
     expect(requestBody).toContain('"model":"MiniMax-M3"')
+  })
+
+  test('routes China-region providers to the domestic endpoints', async () => {
+    let requestURL = ''
+    const fetchSpy: typeof fetch = async (input) => {
+      requestURL = String(input)
+      throw new Error('stop')
+    }
+    const config: ModelConfig = {
+      providerID: 'minimax-cn',
+      apiKey: 'test-key',
+      modelID: 'MiniMax-M3',
+      customModelID: '',
+      customBaseURL: '',
+      customAPIType: 'completions'
+    }
+    const model = modelProviderAdapter('minimax-cn').create(config, { fetch: fetchSpy })
+    await model
+      .doGenerate({ prompt: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }] })
+      .catch(() => undefined)
+
+    expect(requestURL).toBe('https://api.minimaxi.com/v1/chat/completions')
+    expect(resolveProviderBaseURL('minimax-cn', '')).toBe('https://api.minimaxi.com/v1')
+    expect(resolveProviderBaseURL('zai-cn', '')).toBe('https://open.bigmodel.cn/api/anthropic')
   })
 
   test('registers every direct provider without handling ACP agents as models', () => {

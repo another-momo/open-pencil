@@ -180,7 +180,9 @@ export type AIProviderID =
   | 'deepseek'
   | 'openai-compatible'
   | 'zai'
+  | 'zai-cn'
   | 'minimax'
+  | 'minimax-cn'
   | 'anthropic-compatible'
   | `acp:${ACPAgentID}`
 
@@ -202,6 +204,33 @@ export interface AIProviderDef {
   supportsCustomBaseURL?: boolean
   supportsCustomModel?: boolean
 }
+
+const ZAI_MODELS: ModelOption[] = [
+  { id: 'glm-5.1', name: 'GLM-5.1', tag: 'Best' },
+  { id: 'glm-5', name: 'GLM-5' },
+  { id: 'glm-5-code', name: 'GLM-5-Code' },
+  { id: 'glm-4.7', name: 'GLM-4.7' },
+  { id: 'glm-4.7-flashx', name: 'GLM-4.7-FlashX' },
+  { id: 'glm-4.6', name: 'GLM-4.6' },
+  { id: 'glm-4.5', name: 'GLM-4.5' },
+  { id: 'glm-4.5-x', name: 'GLM-4.5-X' },
+  { id: 'glm-4.5-air', name: 'GLM-4.5-Air' },
+  { id: 'glm-4.5-airx', name: 'GLM-4.5-AirX' },
+  { id: 'glm-4-32b-0414-128k', name: 'GLM-4-32B-0414-128K' },
+  { id: 'glm-4.7-flash', name: 'GLM-4.7-Flash', tag: 'Free' },
+  { id: 'glm-4.5-flash', name: 'GLM-4.5-Flash', tag: 'Free' }
+]
+
+const MINIMAX_MODELS: ModelOption[] = [
+  { id: 'MiniMax-M3', name: 'MiniMax-M3', tag: 'Best' },
+  { id: 'MiniMax-M2.7', name: 'MiniMax-M2.7' },
+  { id: 'MiniMax-M2.7-highspeed', name: 'MiniMax-M2.7-highspeed', tag: 'Fast' },
+  { id: 'MiniMax-M2.5', name: 'MiniMax-M2.5' },
+  { id: 'MiniMax-M2.5-highspeed', name: 'MiniMax-M2.5 Highspeed', tag: 'Fast' },
+  { id: 'MiniMax-M2.1', name: 'MiniMax-M2.1' },
+  { id: 'MiniMax-M2.1-highspeed', name: 'MiniMax-M2.1 Highspeed', tag: 'Fast' },
+  { id: 'MiniMax-M2', name: 'MiniMax-M2' }
+]
 
 export const AI_PROVIDERS: AIProviderDef[] = [
   {
@@ -276,42 +305,35 @@ export const AI_PROVIDERS: AIProviderDef[] = [
   },
   {
     id: 'zai',
-    name: 'Z.ai',
+    name: 'Z.ai (Global)',
     keyPlaceholder: 'API key',
     keyURL: 'https://docs.z.ai/devpack/quick-start',
     defaultModel: 'glm-5.1',
-    models: [
-      { id: 'glm-5.1', name: 'GLM-5.1', tag: 'Best' },
-      { id: 'glm-5', name: 'GLM-5' },
-      { id: 'glm-5-code', name: 'GLM-5-Code' },
-      { id: 'glm-4.7', name: 'GLM-4.7' },
-      { id: 'glm-4.7-flashx', name: 'GLM-4.7-FlashX' },
-      { id: 'glm-4.6', name: 'GLM-4.6' },
-      { id: 'glm-4.5', name: 'GLM-4.5' },
-      { id: 'glm-4.5-x', name: 'GLM-4.5-X' },
-      { id: 'glm-4.5-air', name: 'GLM-4.5-Air' },
-      { id: 'glm-4.5-airx', name: 'GLM-4.5-AirX' },
-      { id: 'glm-4-32b-0414-128k', name: 'GLM-4-32B-0414-128K' },
-      { id: 'glm-4.7-flash', name: 'GLM-4.7-Flash', tag: 'Free' },
-      { id: 'glm-4.5-flash', name: 'GLM-4.5-Flash', tag: 'Free' }
-    ]
+    models: ZAI_MODELS
+  },
+  {
+    id: 'zai-cn',
+    name: 'Z.ai (China · open.bigmodel.cn)',
+    keyPlaceholder: 'API key',
+    keyURL: 'https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys',
+    defaultModel: 'glm-5.1',
+    models: ZAI_MODELS
   },
   {
     id: 'minimax',
-    name: 'MiniMax',
+    name: 'MiniMax (Global)',
     keyPlaceholder: 'API key',
     keyURL: 'https://platform.minimax.io/user-center/basic-information/interface-key',
     defaultModel: 'MiniMax-M3',
-    models: [
-      { id: 'MiniMax-M3', name: 'MiniMax-M3', tag: 'Best' },
-      { id: 'MiniMax-M2.7', name: 'MiniMax-M2.7' },
-      { id: 'MiniMax-M2.7-highspeed', name: 'MiniMax-M2.7-highspeed', tag: 'Fast' },
-      { id: 'MiniMax-M2.5', name: 'MiniMax-M2.5' },
-      { id: 'MiniMax-M2.5-highspeed', name: 'MiniMax-M2.5 Highspeed', tag: 'Fast' },
-      { id: 'MiniMax-M2.1', name: 'MiniMax-M2.1' },
-      { id: 'MiniMax-M2.1-highspeed', name: 'MiniMax-M2.1 Highspeed', tag: 'Fast' },
-      { id: 'MiniMax-M2', name: 'MiniMax-M2' }
-    ]
+    models: MINIMAX_MODELS
+  },
+  {
+    id: 'minimax-cn',
+    name: 'MiniMax (China · minimaxi.com)',
+    keyPlaceholder: 'API key',
+    keyURL: 'https://platform.minimaxi.com/user-center/basic-information/interface-key',
+    defaultModel: 'MiniMax-M3',
+    models: MINIMAX_MODELS
   },
   {
     id: 'openai-compatible',

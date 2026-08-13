@@ -41,7 +41,14 @@ const MODEL_PROVIDER_ADAPTERS = {
     }
   },
   zai: createAnthropicCompatibleAdapter({ baseURL: 'https://api.z.ai/api/anthropic' }),
+  'zai-cn': createAnthropicCompatibleAdapter({
+    baseURL: 'https://open.bigmodel.cn/api/anthropic'
+  }),
   minimax: createOpenAICompatibleAdapter({ baseURL: 'https://api.minimax.io/v1', mode: 'chat' }),
+  'minimax-cn': createOpenAICompatibleAdapter({
+    baseURL: 'https://api.minimaxi.com/v1',
+    mode: 'chat'
+  }),
   'openai-compatible': createOpenAICompatibleAdapter({
     baseURL: (config) => config.customBaseURL,
     mode: 'configurable'

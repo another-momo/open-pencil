@@ -78,7 +78,13 @@ function needsImageAsUserMessage(
   providerID: AIProviderID,
   customAPIType: 'completions' | 'responses'
 ): boolean {
-  if (providerID === 'openai' || providerID === 'minimax' || providerID === 'deepseek') return true
+  if (
+    providerID === 'openai' ||
+    providerID === 'minimax' ||
+    providerID === 'minimax-cn' ||
+    providerID === 'deepseek'
+  )
+    return true
   return providerID === 'openai-compatible' && customAPIType === 'completions'
 }
 

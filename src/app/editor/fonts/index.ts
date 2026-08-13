@@ -23,6 +23,7 @@ import {
 import { toast } from '@/app/shell/ui'
 import { isTauri } from '@/app/tauri/env'
 import { tauriFetch } from '@/app/tauri/http'
+import { IS_TAURI } from '@/constants'
 
 if (typeof navigator !== 'undefined') {
   fontManager.setFallbackUserAgent(navigator.userAgent)
@@ -198,7 +199,9 @@ export async function ensureGraphFonts(
     const requirements = collectGraphFontRequirements(graph, nodeIds)
     const { characters } = requirements
     await Promise.all(fontKeys.map(([family, style]) => loadFont(family, style, characters)))
-    const fallbackScripts = missingGraphFontScripts(requirements)
+    const fallbackScripts = missingGraphFontScripts(requirements, {
+      treatUnknownCoverageAsMissing: IS_TAURI
+    })
     if (fallbackScripts.length > 0) {
       const fallbacks = await fontManager.ensureFallbackPack(fallbackScripts, characters)
       if (Object.values(fallbacks).some((families) => families.length > 0)) {
@@ -239,9 +242,9 @@ async function loadSystemFont(family: string, style = 'Regular'): Promise<ArrayB
   if (cached !== undefined) return cached
   try {
     const { invoke } = await import('@tauri-apps/api/core')
-    // The command returns raw bytes (tauri::ipc::Response), delivered as Uint8Array.
-    const data = await invoke<Uint8Array | null>('load_system_font', { family, style })
-    const buffer = data?.length ? new Uint8Array(data).buffer : null
+    // The command returns raw bytes (tauri::ipc::Response), delivered as ArrayBuffer.
+    const data = await invoke<ArrayBuffer>('load_system_font', { family, style })
+    const buffer = data.byteLength === 0 ? null : data
     systemFontDataCache.set(key, buffer)
     return buffer
   } catch {

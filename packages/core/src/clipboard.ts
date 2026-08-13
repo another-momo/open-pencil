@@ -284,7 +284,9 @@ export function importClipboardNodes(
 
   remapComponentIds(created, graph)
 
-  populateAndApplyOverrides(graph, guidMap as Map<string, InstanceNodeChange>, created, blobs)
+  graph.preserveSourceMetadataDuring(() => {
+    populateAndApplyOverrides(graph, guidMap as Map<string, InstanceNodeChange>, created, blobs)
+  })
 
   for (const figmaId of internalTopLevel) {
     const ourId = created.get(figmaId)

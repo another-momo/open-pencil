@@ -212,7 +212,7 @@ function buildNote(input: {
   return [
     `Scaffold "${SCAFFOLD_NAME}" ready beside root "${input.rootName}": ${input.scaffold.width}×${input.scaffold.height} at (${input.scaffold.x}, ${input.scaffold.y}), ${input.cloned} child clone(s) from HeroContent (${input.heroContent.width}×${input.heroContent.height} + ${input.heroBleed} bleed), coordinates copied verbatim.`,
     imagePart,
-    `Next: generate_image with replace_id = "${input.scaffold.id}" and references = [{"id": "${input.scaffold.id}", "composite": true}] — the image model composes around the real text.`,
+    `Next: generate_image with replace_id = "${input.scaffold.id}" and references = [{"id": "${input.scaffold.id}", "composite": true}]. CRITICAL: the image model IGNORES the reference unless the prompt says how to use it — your prompt MUST state explicitly that the reference image shows the title text at its exact final position and size, that the composition must be built around that text (its region calm, low-detail, tone-matched), and that the text itself must NOT be painted into the image (it is a position reference only).`,
     `Then: compose_backdrop({ root_id: "${input.rootId}", canvas_width: ${input.scaffold.width}, hero_image_from: "${input.scaffold.id}" }) — the scaffold counts as an external source, so its height is the full hero display height and the slot becomes hero_bleed shorter. Pass the SAME hero_bleed (${input.heroBleed}) there.`,
     'Copy changed? Re-call this tool — it updates in place and re-clones the children.'
   ]

@@ -141,4 +141,49 @@ describe('parseImageGenRequests', () => {
       sizeNote: expect.stringContaining('1080x1920 → 1088x1920')
     })
   })
+
+  test('normalizes the hd quality alias to high', () => {
+    const result = parseImageGenRequests(
+      '[{"prompt":"hero","width":1024,"height":1024,"quality":"hd"}]'
+    )
+    expect(result).toEqual({
+      requests: [expect.objectContaining({ quality: 'high' })]
+    })
+  })
+
+  test('accepts documented quality values case-insensitively', () => {
+    for (const quality of ['low', 'medium', 'high', 'auto', 'HIGH']) {
+      const result = parseImageGenRequests(
+        `[{"prompt":"hero","width":1024,"height":1024,"quality":"${quality}"}]`
+      )
+      expect('error' in result).toBe(false)
+    }
+  })
+
+  test('rejects invalid quality values listing the legal set', () => {
+    const result = parseImageGenRequests(
+      '[{"prompt":"hero","width":1024,"height":1024,"quality":"ultra"}]'
+    )
+    expect(result).toEqual({
+      error:
+        'Invalid quality "ultra" — expected one of: low, medium, high, auto (aliases: "hd" → "high")'
+    })
+  })
+
+  test('validates output_format and background locally', () => {
+    expect(
+      parseImageGenRequests('[{"prompt":"hero","width":1024,"height":1024,"output_format":"gif"}]')
+    ).toEqual({ error: 'Invalid output_format "gif" — expected one of: png, jpeg, webp' })
+    expect(
+      parseImageGenRequests(
+        '[{"prompt":"hero","width":1024,"height":1024,"background":"transparent"}]'
+      )
+    ).toEqual({ error: 'Invalid background "transparent" — expected one of: auto, opaque' })
+    const valid = parseImageGenRequests(
+      '[{"prompt":"hero","width":1024,"height":1024,"output_format":"webp","background":"opaque"}]'
+    )
+    expect(valid).toEqual({
+      requests: [expect.objectContaining({ outputFormat: 'webp', background: 'opaque' })]
+    })
+  })
 })

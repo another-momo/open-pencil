@@ -567,6 +567,41 @@ describe('renderJSX (string → scene graph)', () => {
     expect(result.warnings).toEqual(['Unsupported prop "mt" on <frame> is ignored.'])
   })
 
+  it('maps every named font weight case-insensitively', async () => {
+    const cases = [
+      ['thin', 100],
+      ['extralight', 200],
+      ['light', 300],
+      ['regular', 400],
+      ['normal', 400],
+      ['medium', 500],
+      ['semibold', 600],
+      ['demibold', 600],
+      ['bold', 700],
+      ['extrabold', 800],
+      ['heavy', 900],
+      ['black', 900],
+      ['Heavy', 900]
+    ] as const
+    for (const [name, expected] of cases) {
+      const g = makeSceneGraph()
+      const [result] = await renderJSX(g, `<Text weight="${name}" color="#000">x</Text>`)
+      expect(getNodeOrThrow(g, result.id).fontWeight).toBe(expected)
+      expect(result.warnings).toBeUndefined()
+    }
+  })
+
+  it('warns and falls back to 400 for unknown weight names', async () => {
+    const g = makeSceneGraph()
+    const [result] = await renderJSX(g, '<Text weight="superheavy" color="#000">x</Text>')
+
+    expect(getNodeOrThrow(g, result.id).fontWeight).toBe(400)
+    const warning = expectDefined(result.warnings?.[0], 'unknown weight warning')
+    expect(warning).toContain('Unknown weight "superheavy"')
+    expect(warning).toContain('fell back to 400')
+    expect(warning).toContain('black')
+  })
+
   it('accepts CSS-style layout aliases', async () => {
     const g = makeSceneGraph()
     const [result] = await renderJSX(

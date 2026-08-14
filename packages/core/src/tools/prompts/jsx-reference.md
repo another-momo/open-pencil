@@ -73,7 +73,7 @@ Aliases: View = Frame, Rect = Rectangle
 | -------------- | -------------------------------------------- | -------------------------------------- |
 | size           | number                                       | Font size (default 14)                 |
 | font           | string                                       | Font family                            |
-| weight         | number \| "bold" \| "medium"                 | Font weight                            |
+| weight         | number \| string                             | Font weight: 100-900 or a name (case-insensitive): thin, extralight, light, regular, normal, medium, semibold, demibold, bold, extrabold, heavy, black. Unknown names fall back to 400 with a warning |
 | color          | string                                       | Text color (hex)                       |
 | textAlign      | "left" \| "center" \| "right" \| "justified" | Text alignment                         |
 | lineHeight     | number                                       | Line height in px                      |

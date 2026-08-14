@@ -24,7 +24,8 @@ const SCENE_PROP_MAP: Record<string, string[]> = {
   opacity: ['opacity'],
   auto_resize: ['textAutoResize'],
   direction: ['layoutMode'],
-  font_family: ['fontFamily']
+  font_family: ['fontFamily'],
+  font_weight: ['fontWeight']
 }
 
 function str(value: unknown): string {
@@ -108,6 +109,10 @@ function applyBatchProps(node: FigmaNodeProxy, props: Record<string, unknown>): 
     node.fontName = { family: str(props.font_family), style: node.fontName.style }
     updated.push('font_family')
   }
+  if (props.font_weight !== undefined && node.type === 'TEXT') {
+    node.fontWeight = num(props.font_weight)
+    updated.push('font_weight')
+  }
 
   return updated
 }
@@ -116,7 +121,7 @@ export const batchUpdate = defineTool({
   name: 'batch_update',
   mutates: true,
   description:
-    'Execute multiple modifications in one call. Each operation is {id, props} where props can include: spacing, padding, padding_horizontal, padding_vertical, counter_align, sizing_horizontal, sizing_vertical, grow, name, visible, corner_radius, auto_resize (for text), direction, font_family (for text, preserves weight/style). Runs all updates with one layout recompute.',
+    'Execute multiple modifications in one call. Each operation is {id, props} where props can include: spacing, padding, padding_horizontal, padding_vertical, counter_align, sizing_horizontal, sizing_vertical, grow, name, visible, corner_radius, auto_resize (for text), direction, font_family (for text, preserves weight/style), font_weight (for text, 100-900). Unrecognized prop keys are reported per operation. Runs all updates with one layout recompute.',
   params: {
     operations: {
       type: 'string',
@@ -138,6 +143,12 @@ export const batchUpdate = defineTool({
       if (!node) {
         errors.push(`Node "${op.id}" not found`)
         continue
+      }
+      const unknownKeys = Object.keys(op.props).filter((key) => !(key in SCENE_PROP_MAP))
+      if (unknownKeys.length > 0) {
+        errors.push(
+          `Node "${op.id}": unknown props ${unknownKeys.map((key) => `"${key}"`).join(', ')} — supported: ${Object.keys(SCENE_PROP_MAP).join(', ')}`
+        )
       }
       const updated = applyBatchProps(node, op.props)
       if (updated.length > 0) {

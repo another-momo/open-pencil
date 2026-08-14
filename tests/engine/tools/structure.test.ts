@@ -114,3 +114,34 @@ describe('node_replace_with', () => {
     expect(graph.getNode(expectDefined(after.childIds[0]))?.text).toBe('Shop now')
   })
 })
+
+describe('batch_update', () => {
+  test('applies font_weight to text nodes', () => {
+    const { graph, figma } = setupToolTest()
+    const pageId = graph.getPages()[0].id
+    const text = graph.createNode('TEXT', pageId, { name: 'label', text: 'Buy' })
+
+    const result = getTool('batch_update').execute(figma, {
+      operations: JSON.stringify([{ id: text.id, props: { font_weight: 800 } }])
+    }) as ToolResult
+
+    expect(result.updated).toBe(1)
+    expect(graph.getNode(text.id)?.fontWeight).toBe(800)
+  })
+
+  test('reports unknown prop keys with the supported list', () => {
+    const { figma } = setupToolTest()
+    const rect = figma.createRectangle()
+
+    const result = getTool('batch_update').execute(figma, {
+      operations: JSON.stringify([{ id: rect.id, props: { fontweight: 800, bogus: 1 } }])
+    }) as ToolResult
+
+    expect(result.updated).toBe(0)
+    const errors = expectDefined(result.errors, 'batch_update errors') as string[]
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('unknown props "fontweight", "bogus"')
+    expect(errors[0]).toContain('font_weight')
+    expect(errors[0]).toContain('spacing')
+  })
+})

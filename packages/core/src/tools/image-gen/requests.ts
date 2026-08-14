@@ -1,6 +1,12 @@
 import { parseJSONArrayParam } from '#core/tools/json-array'
 
-import type { ImageGenReference, ImageGenRequest } from './providers'
+import type {
+  ImageGenBackground,
+  ImageGenFormat,
+  ImageGenQuality,
+  ImageGenReference,
+  ImageGenRequest
+} from './providers'
 
 const SIZE_MULTIPLE = 16
 const MAX_EDGE = 3840
@@ -85,6 +91,36 @@ export interface ParsedImageGenRequests {
   warning?: string
 }
 
+// Keep these in sync with the ImageGen* union types in providers.ts.
+const QUALITY_VALUES: readonly ImageGenQuality[] = ['low', 'medium', 'high', 'auto']
+const QUALITY_ALIASES: Record<string, ImageGenQuality> = { hd: 'high' }
+const OUTPUT_FORMAT_VALUES: readonly ImageGenFormat[] = ['png', 'jpeg', 'webp']
+const BACKGROUND_VALUES: readonly ImageGenBackground[] = ['auto', 'opaque']
+
+/**
+ * Validate an enum-like request param locally instead of letting the provider
+ * reject it. Values are case-insensitive; aliases are normalized silently.
+ * Returns undefined when the param is absent.
+ */
+function parseEnumParam<T extends string>(
+  name: string,
+  value: unknown,
+  values: readonly T[],
+  aliases?: Record<string, T>
+): T | undefined | { error: string } {
+  if (value === undefined || value === null) return undefined
+  const raw = typeof value === 'string' ? value.toLowerCase() : ''
+  const normalized = aliases?.[raw] ?? raw
+  if ((values as readonly string[]).includes(normalized)) return normalized as T
+  const aliasList = Object.entries(aliases ?? {})
+    .map(([alias, target]) => `"${alias}" → "${target}"`)
+    .join(', ')
+  const aliasNote = aliasList ? ` (aliases: ${aliasList})` : ''
+  return {
+    error: `Invalid ${name} ${JSON.stringify(value)} — expected one of: ${values.join(', ')}${aliasNote}`
+  }
+}
+
 function parseReferences(value: unknown): ImageGenReference[] | { error: string } {
   if (value === undefined || value === null) return []
   if (!Array.isArray(value)) return { error: '"references" must be an array of node ids' }
@@ -115,22 +151,83 @@ function parseReferences(value: unknown): ImageGenReference[] | { error: string 
   return out
 }
 
+interface RawRequest {
+  replace_id?: unknown
+  id?: unknown
+  prompt?: unknown
+  width?: unknown
+  height?: unknown
+  quality?: unknown
+  output_format?: unknown
+  output_compression?: unknown
+  background?: unknown
+  references?: unknown
+}
+
+/** Parse one request entry; pushes size-adjustment notes onto `sizeNotes`. */
+function parseSingleRequest(
+  raw: RawRequest,
+  sizeNotes: string[]
+): ImageGenRequest | { error: string } {
+  const prompt = raw.prompt
+  const width = Number(raw.width)
+  const height = Number(raw.height)
+  if (typeof prompt !== 'string' || !prompt.trim()) {
+    return { error: 'Each request needs a non-empty "prompt"' }
+  }
+  // Requests with a replace target may omit width/height — apply.ts reads
+  // them from the target node, and the provider falls back to size "auto".
+  // `replace_id` is the canonical param; `id` is accepted as a legacy alias.
+  let rawReplaceId: string | undefined
+  if (typeof raw.replace_id === 'string') {
+    rawReplaceId = raw.replace_id
+  } else if (typeof raw.id === 'string') {
+    rawReplaceId = raw.id
+  }
+  const hasTarget = !!rawReplaceId && rawReplaceId.trim().length > 0
+  const hasDims = Number.isFinite(width) && Number.isFinite(height)
+
+  let outWidth: number | undefined
+  let outHeight: number | undefined
+  if (hasDims) {
+    const normalized = normalizeSize(width, height)
+    if ('error' in normalized) return { error: normalized.error }
+    outWidth = normalized.width
+    outHeight = normalized.height
+    if (normalized.adjusted) {
+      sizeNotes.push(`${width}x${height} → ${normalized.width}x${normalized.height}`)
+    }
+  } else if (!hasTarget) {
+    return { error: 'New images need numeric "width" and "height"' }
+  }
+
+  const references = parseReferences(raw.references)
+  if ('error' in references) return references
+
+  const quality = parseEnumParam('quality', raw.quality, QUALITY_VALUES, QUALITY_ALIASES)
+  if (typeof quality === 'object') return quality
+  const outputFormat = parseEnumParam('output_format', raw.output_format, OUTPUT_FORMAT_VALUES)
+  if (typeof outputFormat === 'object') return outputFormat
+  const background = parseEnumParam('background', raw.background, BACKGROUND_VALUES)
+  if (typeof background === 'object') return background
+
+  return {
+    replaceId: hasTarget ? rawReplaceId : undefined,
+    prompt,
+    width: outWidth,
+    height: outHeight,
+    quality,
+    outputFormat,
+    outputCompression:
+      typeof raw.output_compression === 'number' ? raw.output_compression : undefined,
+    background,
+    references: references.length > 0 ? references : undefined
+  }
+}
+
 export function parseImageGenRequests(value: unknown): ParsedImageGenRequests | { error: string } {
   const parsed = parseJSONArrayParam(value, 'requests')
   if ('error' in parsed) return parsed
-
-  interface RawRequest {
-    replace_id?: unknown
-    id?: unknown
-    prompt?: unknown
-    width?: unknown
-    height?: unknown
-    quality?: unknown
-    output_format?: unknown
-    output_compression?: unknown
-    background?: unknown
-    references?: unknown
-  }
 
   const requests = parsed.items as RawRequest[]
   if (requests.length === 0) return { error: 'Empty requests array' }
@@ -138,53 +235,9 @@ export function parseImageGenRequests(value: unknown): ParsedImageGenRequests | 
   const sizeNotes: string[] = []
   const out: ImageGenRequest[] = []
   for (const raw of requests) {
-    const prompt = raw.prompt
-    const width = Number(raw.width)
-    const height = Number(raw.height)
-    if (typeof prompt !== 'string' || !prompt.trim()) {
-      return { error: 'Each request needs a non-empty "prompt"' }
-    }
-    // Requests with a replace target may omit width/height — apply.ts reads
-    // them from the target node, and the provider falls back to size "auto".
-    // `replace_id` is the canonical param; `id` is accepted as a legacy alias.
-    let rawReplaceId: string | undefined
-    if (typeof raw.replace_id === 'string') {
-      rawReplaceId = raw.replace_id
-    } else if (typeof raw.id === 'string') {
-      rawReplaceId = raw.id
-    }
-    const hasTarget = !!rawReplaceId && rawReplaceId.trim().length > 0
-    const hasDims = Number.isFinite(width) && Number.isFinite(height)
-
-    let outWidth: number | undefined
-    let outHeight: number | undefined
-    if (hasDims) {
-      const normalized = normalizeSize(width, height)
-      if ('error' in normalized) return { error: normalized.error }
-      outWidth = normalized.width
-      outHeight = normalized.height
-      if (normalized.adjusted) {
-        sizeNotes.push(`${width}x${height} → ${normalized.width}x${normalized.height}`)
-      }
-    } else if (!hasTarget) {
-      return { error: 'New images need numeric "width" and "height"' }
-    }
-
-    const references = parseReferences(raw.references)
-    if ('error' in references) return references
-
-    out.push({
-      replaceId: hasTarget ? rawReplaceId : undefined,
-      prompt,
-      width: outWidth,
-      height: outHeight,
-      quality: raw.quality as ImageGenRequest['quality'],
-      outputFormat: raw.output_format as ImageGenRequest['outputFormat'],
-      outputCompression:
-        typeof raw.output_compression === 'number' ? raw.output_compression : undefined,
-      background: raw.background as ImageGenRequest['background'],
-      references: references.length > 0 ? references : undefined
-    })
+    const request = parseSingleRequest(raw, sizeNotes)
+    if ('error' in request) return request
+    out.push(request)
   }
 
   const result: { requests: ImageGenRequest[]; sizeNote?: string; warning?: string } = {

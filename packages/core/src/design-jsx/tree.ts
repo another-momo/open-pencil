@@ -147,8 +147,13 @@ export type StyleProps = {
   fontSize?: number
   font?: string
   fontFamily?: string
-  weight?: number | 'bold' | 'medium' | 'normal'
-  fontWeight?: number | 'bold' | 'medium' | 'normal'
+  /**
+   * Font weight: a number 100-900, or a name (case-insensitive): thin, extralight,
+   * light, regular, normal, medium, semibold, demibold, bold, extrabold, heavy,
+   * black. Unknown names fall back to 400 with a render warning.
+   */
+  weight?: number | string
+  fontWeight?: number | string
   color?: PaintProp
   text?: string
   characters?: string

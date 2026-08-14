@@ -32,7 +32,7 @@ const FONT_WEIGHT_ALIASES = [
   { weight: 900, names: ['black', 'heavy'] }
 ] as const
 
-const FONT_WEIGHT_BY_STYLE: ReadonlyMap<string, number> = new Map(
+export const FONT_WEIGHT_BY_STYLE: ReadonlyMap<string, number> = new Map(
   FONT_WEIGHT_ALIASES.flatMap(({ names, weight }) => names.map((name) => [name, weight] as const))
 )
 

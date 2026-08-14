@@ -96,12 +96,31 @@
 
 **结论去向**：三层边界固化成立（结构 6/6），profile 驱动的 Phase 2.5 骨架通用性待 R6 对照组验证。量化指标本阶段停用（见 task plan 附记之三决议一）。
 
+## 第 6 轮（2026-08-14）— 像素先行管线首次冒烟（watercolor_poster_v3，预存物业费长图）
+
+测试需求：虚构品牌"悦然物业"预存物业费活动 product_long，用户全权放手（"不用问我"）。环境：MiniMax-M3 + 视觉通道 B；23 步 / 61 次工具调用（44 次 mutating）/ cache 命中 95%。首个中文 profile（v3）+ 两个新工具（prepare_hero_scaffold / derive_palette）首次实战。日志在生图重试处截断，幽灵文字参考图的构图效果待下轮验证。
+
+**正面信号**：CP1 无 hex 提案生效（方向记录为"水彩叠染，analogous，粉桃+嫩绿"，零编造 hex）；骨架色彩中立生效（hero 标题临时深色，等色票）；`prepare_hero_scaffold` 一次成功（几何/克隆/note 指引链完整）；中文 profile 被正常理解执行。
+
+| # | 现象 | 根因 | 修复 |
+|---|---|---|---|
+| R6-1 | 生图模型忽视画框参考图——agent 的 prompt 只有抽象分区描述，通篇未点破参考图用法 | **v3 翻译时动作指令降级为状态断言**（"生图 AI 看着文字构图"是断言不是指令）；旧英文骨干有 "compose AROUND the text" 的明确指令模板（prompt 规则打偏，profile 层） | ✅ 三处：工具 note 加 CRITICAL 段（参考图不点破必被忽视）；v3 第 3 步改为语义清单（四条缺一不可）；marketing.md 画框示例同步。**方法论新规则：profile 改写/翻译时，动作指令不得降级为状态断言** |
+| R6-2 | `weight="Heavy"` 静默回退 400，agent 被迫发 ~20 次 update_node 补丁（占 mutating 45%） | design-jsx WEIGHT_MAP 仅 3 档 + `?? 400` 静默兜底（工具/代码缺陷） | ✅ 字重映射改为复用 scene-graph `FONT_WEIGHT_BY_STYLE`（唯一事实源，heavy/black→900——本地 map 一度漂成 800，已对齐）；未知名经 render 的 warnings 通道透出；prompt 词汇表三处对齐 |
+| R6-3 | `batch_update` 传 font_weight 返回 `updated:0` 且无提示（**R5-2 同型复发**） | applyBatchProps 静默吞未知 prop（工具/代码缺陷） | ✅ 支持 font_weight；未知 prop 进该条 errors 并附全量支持清单 |
+| R6-4 | `generate_image` 传 `quality:"hd"` 被 provider 拒绝（合法值 low/medium/high/auto），浪费一次生图调用 | 参数裸 `as` 强转无校验 + 工具描述未列枚举（工具/代码缺陷） | ✅ 本地校验（报错列合法值）+ `hd`→`high` 别名；output_format/background 同类裸转一并补校验 |
+| R6-5 | 骨架期模型编了三个强调色 hex（#C2410C/#BE185D/#0F766E）——正是 derive_palette 要消灭的行为，但 Phase 2 时色票尚不存在 | **流程时序缺口**：骨架需要颜色时色票未派生（工作流设计缺口） | ✅ v3 第 1 步"骨架期全部中性灰阶，着色元素不写彩色 hex"；第 5 步"色票出来后统一刷色"。无 hero 品类的色票接入仍待后续任务 |
+| R6-6 | 文本 section 固定高度猜小了溢出 ×5（S1/S2/S3/S4/S5 各补一次加高） | 固定高度猜文本内容必然溢出（prompt 规则缺失） | ✅ hug 高度指引进 marketing.md Phase 2 与 v3 第 1 步（文本 section 用 hug，固定高度只给图像槽位） |
+| R6-7 | 信息卡 bg alpha 0.7/0.6，超 profile "alpha<0.5 半透明辅助"纪律 | prompt 层约束无 critique 兜底（已知弱点） | ❌ 不修——记为 critique 候选（卡片 fill alpha 扫描） |
+| R6-8 | 刷色票时 agent 把文字和文字下的色块刷成同一颜色，文字隐形 | **derive_palette 三角色撞色**：ground/ink.onDark/neutrals[0] 同为 L0.96 同色相，对比精确 1.00；`ink.onDark` 命名被读反（"深色的字" vs 本意"深底上的浅字"）；无配对白名单（工具设计缺陷） | ✅ neutrals 阶梯改 [0.90, 0.72, 0.50]（构造上不可能再撞色）；新增 `pairings` 白名单表 + checks 扩为 6 对全覆盖；配对纪律进工具 note 与 v3 第 5 步。附带红利：浅种子下 ink.onDark/wash 自动 pass:false——**R5-1 型事故在派生时刻即被拦截** |
+
+**结论去向**：管线前半程（CP1→骨架→画框）按设计跑通；R6-1 修复后需重跑一张验证幽灵文字参考图的实际构图效果（本任务风险最高点仍未闭环）。derive_palette 的配对表机制首轮即暴露设计缺陷（R6-8）并当日修复。
+
 ## 错误分类约定
 
 后续追加时按类标记，便于统计模式：
 
-- **prompt 规则缺失/打偏**（R1-1、R1-4、R2-2~R2-6、R3-6）
-- **工具/代码缺陷**（R1-3、R2-7、R3-1、R3-3、R3-5）
+- **prompt 规则缺失/打偏**（R1-1、R1-4、R2-2~R2-6、R3-6、R6-1、R6-5、R6-6、R6-7）
+- **工具/代码缺陷**（R1-3、R2-7、R3-1、R3-3、R3-5、R6-2、R6-3、R6-4、R6-8）
 - **工具描述与 prompt 矛盾**（R3-2）
 - **lint 信噪比**（R3-4）
 - **致命工作流断裂**（R2-1）

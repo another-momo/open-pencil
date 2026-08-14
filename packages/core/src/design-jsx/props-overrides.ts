@@ -1,3 +1,4 @@
+import { FONT_WEIGHT_BY_STYLE } from '@open-pencil/scene-graph'
 import type {
   Effect,
   Fill,
@@ -11,10 +12,14 @@ import type { Color, JSONObject } from '@open-pencil/scene-graph/primitives'
 import { colorToFill, parseColor } from '#core/color'
 import { TRANSPARENT } from '#core/constants'
 
-const WEIGHT_MAP: Record<string, number> = {
-  normal: 400,
-  medium: 500,
-  bold: 700
+// The single source of truth for weight-name → number mapping lives in
+// scene-graph's FONT_WEIGHT_BY_STYLE (heavy/black → 900 there); a local map
+// here drifted once already (heavy 800 vs 900).
+export const WEIGHT_NAME_LIST = [...FONT_WEIGHT_BY_STYLE.keys()].join(', ')
+
+/** Resolve a named font weight (case-insensitive); undefined for unknown names. */
+export function fontWeightFromName(name: string): number | undefined {
+  return FONT_WEIGHT_BY_STYLE.get(name.toLowerCase())
 }
 
 const ALIGN_MAP: Record<string, SceneNode['primaryAxisAlign']> = {
@@ -466,7 +471,7 @@ function applyTextStyleOverrides(props: Record<string, unknown>, o: Partial<Scen
   if (typeof weight === 'number') {
     o.fontWeight = weight
   } else if (typeof weight === 'string') {
-    o.fontWeight = WEIGHT_MAP[weight] ?? 400
+    o.fontWeight = fontWeightFromName(weight) ?? 400
   }
 
   if (typeof props.color === 'string' || isColor(props.color)) {

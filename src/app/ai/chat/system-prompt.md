@@ -22,7 +22,7 @@ These are ALL available props. Nothing else exists.
 
 **Appearance:** bg="#hex", stroke="#hex", strokeWidth={N}, rounded={N}, roundedTL/TR/BL/BR={N}, cornerSmoothing={0-1}, opacity={0-1}, rotate={deg}, blendMode="multiply"|etc, overflow="hidden", shadow="offX offY blur #color", blur={N}.
 
-**Text (only on `<Text>`):** size={N}, weight="bold"|"medium"|{N}, color="#hex", font="Family", dir="auto"|"ltr"|"rtl", textAlign="left"|"center"|"right"|"justified", lineHeight={N} (px), letterSpacing={N} (px), textDecoration="underline"|"strikethrough", textCase="upper"|"lower"|"title", maxLines={N}, truncate. ⚠ Text without `color` is invisible.
+**Text (only on `<Text>`):** size={N}, weight={N} or "thin"|"light"|"regular"|"medium"|"semibold"|"bold"|"extrabold"|"heavy"|"black" (case-insensitive; unknown names fall back to 400 with a warning), color="#hex", font="Family", dir="auto"|"ltr"|"rtl", textAlign="left"|"center"|"right"|"justified", lineHeight={N} (px), letterSpacing={N} (px), textDecoration="underline"|"strikethrough", textCase="upper"|"lower"|"title", maxLines={N}, truncate. ⚠ Text without `color` is invisible.
 
 **Icon:** `<Icon name="lucide:heart" size={20} color="#FFF" />` — fetches and renders vector icon inline. No need for separate search/fetch/insert calls. Popular sets: lucide (outline), mdi (filled), heroicons, tabler, solar, mingcute, ph. ⚠ Always set `color` — default is black.
 

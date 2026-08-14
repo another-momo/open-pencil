@@ -44,7 +44,11 @@ const INK_ON_LIGHT_LIGHTNESS = 0.25
 const INK_ON_DARK_LIGHTNESS = 0.96
 const INK_CHROMA_FACTOR = 0.2
 const NEUTRAL_CHROMA_FACTOR = 0.15
-const NEUTRAL_LIGHTNESSES = [0.96, 0.85, 0.55] as const
+// Deliberately BELOW ground lightness (0.96): an earlier ramp started at
+// 0.96, which made neutrals[0] pixel-identical to ground and ink.onDark —
+// three roles, one color, and agents pairing "ink.onDark" (misread as
+// "dark ink") with a ground block produced invisible text.
+const NEUTRAL_LIGHTNESSES = [0.9, 0.72, 0.5] as const
 const MONO_ACCENT_LIGHTNESS_FACTOR = 0.6
 
 /** WCAG 3.0 = large-text / graphics floor for accent and hero-overlay ink. */
@@ -68,6 +72,19 @@ export interface DerivedPalette {
 export interface DerivePaletteResult {
   palette: DerivedPalette
   checks: PaletteCheck[]
+  /** Sanctioned text-on-surface pairings — every listed pair is covered by checks. */
+  pairings: Record<string, string[]>
+}
+
+/**
+ * Sanctioned ink pairings. ink.onLight (dark text) belongs on LIGHT
+ * surfaces only; ink.onDark (light text) on DARK surfaces only. Anything
+ * outside this table is unsupported — most importantly ink.onDark on
+ * ground/neutrals[0], which is invisible by construction (same lightness).
+ */
+const PAIRINGS: Record<string, string[]> = {
+  'ink.onLight': ['ground', 'neutrals[0]'],
+  'ink.onDark': ['wash', 'accent', 'neutrals[2]']
 }
 
 const HEX_REGEX = /^#[0-9a-fA-F]{6}$/
@@ -108,8 +125,11 @@ export function derivePalette(
 
   const checks: PaletteCheck[] = [
     check('ink.onLight/ground', inkOnLight, ground, contrastFloor),
+    check('ink.onLight/neutrals[0]', inkOnLight, neutrals[0], contrastFloor),
     check('accent/ground', accent, ground, LARGE_TEXT_FLOOR),
-    check('ink.onDark/wash', inkOnDark, wash, LARGE_TEXT_FLOOR)
+    check('ink.onDark/wash', inkOnDark, wash, LARGE_TEXT_FLOOR),
+    check('ink.onDark/accent', inkOnDark, accent, LARGE_TEXT_FLOOR),
+    check('ink.onDark/neutrals[2]', inkOnDark, neutrals[2], contrastFloor)
   ]
 
   return {
@@ -120,7 +140,8 @@ export function derivePalette(
       ink: { onLight: inkOnLight, onDark: inkOnDark },
       neutrals
     },
-    checks
+    checks,
+    pairings: PAIRINGS
   }
 }
 

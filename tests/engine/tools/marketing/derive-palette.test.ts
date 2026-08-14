@@ -144,8 +144,11 @@ describe('derive-palette / pure math', () => {
       const result = expectDefined(derivePalette(SEED, 'analogous', 4.5), 'palette')
       expect(result.checks.map((c) => c.pair)).toEqual([
         'ink.onLight/ground',
+        'ink.onLight/neutrals[0]',
         'accent/ground',
-        'ink.onDark/wash'
+        'ink.onDark/wash',
+        'ink.onDark/accent',
+        'ink.onDark/neutrals[2]'
       ])
       for (const check of result.checks) {
         expect(check.ratio).toBe(Math.round(check.ratio * 10) / 10)
@@ -159,6 +162,28 @@ describe('derive-palette / pure math', () => {
       const raw = wcagContrast(result.palette.accent, result.palette.ground)
       expect(accentCheck.ratio).toBe(Math.round(raw * 10) / 10)
       expect(accentCheck.pass).toBe(raw >= 3.0)
+    })
+
+    it('keeps surface roles distinct (regression: ground ≈ ink.onDark ≈ neutrals[0] invisibility)', () => {
+      for (const seed of ['#EFEDD9', '#2E5A4C', SEED]) {
+        const result = expectDefined(derivePalette(seed, 'analogous', 4.5), 'palette')
+        const { ground, ink, neutrals } = result.palette
+        // The 2026-08-14 smoke failure: text and its block painted the same
+        // color. ground/ink.onDark/neutrals[0] must never coincide.
+        expect(wcagContrast(ground, neutrals[0])).toBeGreaterThan(1.2)
+        expect(ink.onDark).not.toBe(neutrals[0])
+        // Sanctioned pairings exist and every sanctioned pair is checked.
+        expect(result.pairings['ink.onLight']).toContain('ground')
+        expect(result.pairings['ink.onDark']).toContain('wash')
+        for (const [inkRole, surfaces] of Object.entries(result.pairings)) {
+          for (const surface of surfaces) {
+            expect(
+              result.checks.some((c) => c.pair === `${inkRole}/${surface}`),
+              `missing check for ${inkRole}/${surface}`
+            ).toBe(true)
+          }
+        }
+      }
     })
 
     it('honors a custom contrast_floor for the ink check', () => {

@@ -15,6 +15,7 @@ import {
   radialGradient,
   solid
 } from './paints'
+import { fontWeightFromName, WEIGHT_NAME_LIST } from './props-overrides'
 import { renderTree, type RenderResult } from './renderer'
 import { isTreeNode, resolveToTree, type TreeNode } from './tree'
 
@@ -205,6 +206,24 @@ function collectInvalidColorWarnings(tree: TreeNode, warnings: string[]): void {
   }
 }
 
+const WEIGHT_PROPS = ['weight', 'fontWeight'] as const
+
+function collectUnknownWeightWarnings(tree: TreeNode, warnings: string[]): void {
+  if (tree.type === 'text') {
+    for (const key of WEIGHT_PROPS) {
+      const value = tree.props[key]
+      if (typeof value === 'string' && fontWeightFromName(value) === undefined) {
+        warnings.push(
+          `Unknown weight "${value}" in prop "${key}" on <text> — fell back to 400. Supported names: ${WEIGHT_NAME_LIST} (case-insensitive), or a number 100-900.`
+        )
+      }
+    }
+  }
+  for (const child of tree.children) {
+    if (isTreeNode(child)) collectUnknownWeightWarnings(child, warnings)
+  }
+}
+
 export function buildComponent(jsxString: string): React.ComponentType {
   const trimmed = stripHTMLComments(jsxString).replace(JSX_WRAPPER_TAG_RE, '').trim()
 
@@ -307,6 +326,7 @@ export async function renderJSX(
 
   const warnings = unsupportedPropWarnings(tree)
   collectInvalidColorWarnings(tree, warnings)
+  collectUnknownWeightWarnings(tree, warnings)
 
   if (tree.type === '' && tree.children.length > 0) {
     const results: RenderResult[] = []

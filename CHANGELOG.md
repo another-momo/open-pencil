@@ -6,12 +6,17 @@
 
 - Add the `prepare_hero_scaffold` marketing tool: clone the hero copy from the `HeroContent` slot into a pixel-exact temporary scaffold frame beside the root, so `generate_image` can use it as both generation target and composite reference in the pixel-first hero pipeline.
 - Add the `derive_palette` marketing tool: expand a sampled seed color into a deterministic OKLCH palette (ground/wash/accent/ink/neutrals) with WCAG contrast checks, so hero text and section colors are derived from the generated pixels instead of being locked before the image exists.
+- Accept `"hd"` as an alias for `"high"` in `generate_image` quality, and validate `quality`, `output_format`, and `background` locally — invalid values now return errors listing the legal values instead of being rejected by the provider.
 
 ### Changed
 
 - The `compose_backdrop` marketing tool now treats `canvas_height` as optional, defaulting to the root frame's current height, so the final backdrop re-call after content rendering lands the white foot fade at the real canvas foot instead of a guessed design height.
 
 ### Fixed
+
+- Design JSX `weight`/`fontWeight` now accept the full set of named weights (case-insensitive, resolved through the scene-graph's canonical `FONT_WEIGHT_BY_STYLE` alias table — `weight="Heavy"` maps to 900) instead of only normal/medium/bold; unknown names still fall back to 400 but now surface a render warning listing the supported names instead of failing silently.
+- `batch_update` supports `font_weight` for text nodes (100-900) and reports unrecognized prop keys per operation together with the supported key list, instead of silently skipping them and returning `updated: 0`.
+- `derive_palette` no longer emits colliding roles: the neutrals ramp started at the same lightness as ground and ink.onDark (three roles, one color), which let agents paint text the same color as its block. The ramp is now visibly stepped, a `pairings` table declares the only sanctioned text-on-surface combinations, and every sanctioned pair is contrast-checked.
 
 - Bound the renderer's decoded-image cache with a 512 MB LRU byte budget so long AI marketing sessions (repeated `generate_image` regenerations and history backups) no longer grow the CanvasKit WASM heap until the browser tab runs out of memory; evicted images are transparently re-decoded from the document's image store on their next render, so render output is unchanged.
 

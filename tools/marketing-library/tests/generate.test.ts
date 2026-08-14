@@ -53,7 +53,9 @@ describe('default-library.fig round-trip', () => {
       'watercolor_poster_v1',
       'editorial_poster_v1',
       'solid_poster_v1',
-      'watercolor_poster_v1_center_left'
+      'watercolor_poster_v1_center_left',
+      'watercolor_poster_v2',
+      'watercolor_poster_v3'
     ])
     expect(index.profiles[0].label).toBe('休闲活泼风格')
     expect(index.profiles[0].description).toContain('配色')
@@ -114,6 +116,34 @@ describe('default-library.fig round-trip', () => {
     expect(variant.markdown).toContain('compose_backdrop')
     expect(variant.markdown).toContain('center-left')
 
+    // v2 候选配方:同风格 A/B v1,量化阴影 / eyebrow 规则 / 可变 hero 高度 /
+    // lockup 行数约束全部自包含在正文内(胜出后合并回主配方,见 generate.ts 注释)
+    const v2 = expectDefined(
+      index.profiles.find((profile) => profile.id === 'watercolor_poster_v2')
+    )
+    expect(v2.markdown).toContain('## Fixed system')
+    expect(v2.markdown).toContain('## Variable system')
+    expect(v2.markdown).toContain('## Anti-identity')
+    expect(v2.markdown).toContain('compose_backdrop')
+    expect(v2.markdown).toContain('eyebrow')
+    expect(v2.markdown).toContain('600–900')
+    expect(v2.markdown).toContain('STAGGERED')
+
+    // v3 候选配方(像素先行管线,docs/plans/tasks/pixel-first-hero-pipeline.md):
+    // 首个中文 profile;骨架不锁文字色,参考画框 + 外部源 compose +
+    // derive_palette 色票派生全部自包含在正文内
+    const v3 = expectDefined(
+      index.profiles.find((profile) => profile.id === 'watercolor_poster_v3')
+    )
+    expect(v3.markdown).toContain('## Fixed system')
+    expect(v3.markdown).toContain('## Variable system')
+    expect(v3.markdown).toContain('## Anti-identity')
+    expect(v3.markdown).toContain('prepare_hero_scaffold')
+    expect(v3.markdown).toContain('derive_palette')
+    expect(v3.markdown).toContain('compose_backdrop')
+    expect(v3.markdown).toContain('色彩和谐')
+    expect(v3.markdown).toContain('幽灵文字')
+
     // 方法论对照组:v0 是 R0 重写前的扁平格式基线。反向断言是实验设计的
     // 一部分——它若被"升级"成三段体系,同风格 A/B 对照即静默失效。
     const legacy = expectDefined(
@@ -155,7 +185,9 @@ describe('default-library.fig round-trip', () => {
       'watercolor_poster_v1',
       'editorial_poster_v1',
       'solid_poster_v1',
-      'watercolor_poster_v1_center_left'
+      'watercolor_poster_v1_center_left',
+      'watercolor_poster_v2',
+      'watercolor_poster_v3'
     ])
     // Content-level sync with the generator: every shipped profile markdown
     // must equal the freshly generated one.

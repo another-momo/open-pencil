@@ -21,6 +21,8 @@ import { defineTool } from './schema'
 export { lookTool } from './marketing/look'
 export { sampleHeroColorTool } from './marketing/sample-color'
 export { composeBackdropTool } from './marketing/compose-backdrop'
+export { prepareHeroScaffoldTool } from './marketing/prepare-hero-scaffold'
+export { derivePaletteTool } from './marketing/derive-palette'
 
 export {
   BRIEF_BINDING_LABEL_NAME,

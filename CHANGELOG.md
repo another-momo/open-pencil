@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Added
+
+- Add the `prepare_hero_scaffold` marketing tool: clone the hero copy from the `HeroContent` slot into a pixel-exact temporary scaffold frame beside the root, so `generate_image` can use it as both generation target and composite reference in the pixel-first hero pipeline.
+- Add the `derive_palette` marketing tool: expand a sampled seed color into a deterministic OKLCH palette (ground/wash/accent/ink/neutrals) with WCAG contrast checks, so hero text and section colors are derived from the generated pixels instead of being locked before the image exists.
+
 ### Changed
 
 - The `compose_backdrop` marketing tool now treats `canvas_height` as optional, defaulting to the root frame's current height, so the final backdrop re-call after content rendering lands the white foot fade at the real canvas foot instead of a guessed design height.

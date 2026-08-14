@@ -50,6 +50,12 @@ import type { Color } from '@open-pencil/scene-graph/primitives'
 
 import { defineTool } from '#core/tools/schema'
 
+import {
+  findChildByName,
+  HERO_CONTENT_NAME,
+  requireAutoLayoutRootFrame,
+  validateHeroBleed
+} from './hero-slot'
 import { sampleImageFillColor } from './sample-color'
 
 const DEFAULT_HERO_HEIGHT = 750
@@ -64,7 +70,6 @@ const HEX_REGEX = /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/
 const LAYER_NAME = 'BackgroundLayer'
 const BASE_WASH_NAME = 'BaseWash'
 const HERO_IMG_NAME = 'HeroImg'
-const HERO_CONTENT_NAME = 'HeroContent'
 const OVERLAY_NAME = 'BackdropOverlay'
 
 export const composeBackdropTool = defineTool({
@@ -123,19 +128,13 @@ export const composeBackdropTool = defineTool({
     const inputs = validateInputs(args)
     if ('error' in inputs) return { error: inputs.error }
 
-    const root = figma.graph.getNode(inputs.rootId)
-    if (!root) return { error: `Root frame "${inputs.rootId}" not found.` }
-    if (root.type !== 'FRAME') {
-      return {
-        error: `Root "${inputs.rootId}" is a ${root.type}, not a FRAME. Pass the long-image canvas frame.`
-      }
-    }
-    if (root.layoutMode === 'NONE') {
-      return {
-        error:
-          'Root has no auto-layout — the backdrop topology needs a flow slot (HeroContent) plus an absolute BackgroundLayer. Give the root a vertical layout first.'
-      }
-    }
+    const resolvedRoot = requireAutoLayoutRootFrame(
+      figma.graph,
+      inputs.rootId,
+      'Root has no auto-layout — the backdrop topology needs a flow slot (HeroContent) plus an absolute BackgroundLayer. Give the root a vertical layout first.'
+    )
+    if ('error' in resolvedRoot) return { error: resolvedRoot.error }
+    const root = resolvedRoot.root
     // canvas_height defaults to the root's current height. On the final
     // re-call — after all sections are rendered and a hugging root has
     // settled — omitting it lands the white foot fade at the real canvas
@@ -307,16 +306,6 @@ function validateCanvasSize(canvasWidth: number, canvasHeight: number): string |
   return undefined
 }
 
-function validateHeroBleed(heroBleed: number): string | undefined {
-  if (!Number.isFinite(heroBleed) || heroBleed < 0) {
-    return `hero_bleed must be a finite number ≥ 0 (got ${heroBleed}).`
-  }
-  if (heroBleed > 1000) {
-    return `hero_bleed ${heroBleed} exceeds the 1000px maximum — check for a typo.`
-  }
-  return undefined
-}
-
 function validateInputs(args: Record<string, unknown>): { error: string } | ValidatedInputs {
   const rootId = args.root_id
   if (typeof rootId !== 'string' || rootId.length === 0) {
@@ -324,7 +313,7 @@ function validateInputs(args: Record<string, unknown>): { error: string } | Vali
   }
   const canvasWidth = args.canvas_width
   if (typeof canvasWidth !== 'number' || !Number.isFinite(canvasWidth)) {
-    return { error: `canvas_width must be a finite number (got ${canvasWidth}).` }
+    return { error: `canvas_width must be a finite number (got ${String(canvasWidth)}).` }
   }
   // canvas_height is optional — omitted means "the root's current height",
   // resolved in execute once the root node is known. Range-checks for both
@@ -334,9 +323,9 @@ function validateInputs(args: Record<string, unknown>): { error: string } | Vali
     rawCanvasHeight !== undefined &&
     (typeof rawCanvasHeight !== 'number' || !Number.isFinite(rawCanvasHeight))
   ) {
-    return { error: `canvas_height must be a finite number when given (got ${rawCanvasHeight}).` }
+    return { error: `canvas_height must be a finite number when given (got ${JSON.stringify(rawCanvasHeight)}).` }
   }
-  const canvasHeight = rawCanvasHeight as number | undefined
+  const canvasHeight = rawCanvasHeight
   const heroHeight = typeof args.hero_height === 'number' ? args.hero_height : DEFAULT_HERO_HEIGHT
   const heroBleed = typeof args.hero_bleed === 'number' ? args.hero_bleed : DEFAULT_HERO_BLEED
   const bleedError = validateHeroBleed(heroBleed)
@@ -470,18 +459,6 @@ function buildGradientFill(stops: Array<StopInput>): Fill {
     gradientStops,
     gradientTransform: VERTICAL_TRANSFORM
   }
-}
-
-function findChildByName(
-  parent: SceneNode,
-  graph: SceneGraph,
-  name: string
-): SceneNode | undefined {
-  for (const childId of parent.childIds) {
-    const child = graph.getNode(childId)
-    if (child?.name === name) return child
-  }
-  return undefined
 }
 
 /**

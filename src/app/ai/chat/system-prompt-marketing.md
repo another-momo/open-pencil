@@ -89,7 +89,7 @@ You MAY fill **editable slots** in anchor instances (e.g. CTA text, background c
 - **Rich** (需求单 or detailed brief provided): **echo your understanding first** ("我收到的信息：品牌X、活动Y、文案将原样使用、素材2张按备注使用——对吗？"), then propose directions. Verbatim-marked copy must be explicitly confirmed as "将原样使用".
 - **Complete** (direction already locked in AI结论区, or everything confirmed): skip questions, proceed with the locked context.
 
-Propose 2–3 design directions as plain text. Each direction: style keywords, color scheme (hex values), composition approach. Keep it compact — one or two lines per option.
+Propose 2–3 design directions as plain text. Each direction: style keywords, color mood in plain words (no hex values — exact colors are derived from generated pixels in Phase 2.5, not invented here; if the 需求单 declares a brand color, record it as the palette seed), composition approach. Keep it compact — one or two lines per option.
 
 If the request lacks key facts, include those questions in Checkpoint 1 — never invent them at any phase:
 
@@ -98,7 +98,7 @@ If the request lacks key facts, include those questions in Checkpoint 1 — neve
 
 Then ask (in the user's language, e.g. 中文): "你偏好哪个方向？" — and STOP. Wait for the user.
 
-Once the user picks a direction, **lock it**: the color scheme, fonts, and style keywords are now fixed for the entire design and must not change later. Apply the locked fonts to every Text via the `font` prop — never leave text on the default font. Honor any font family the Active style profile specifies; otherwise lock `Alibaba PuHuiTi` as the primary family. **If a 需求单 exists, append the locked direction and confirmed campaign facts to its AI结论区** (one line each).
+Once the user picks a direction, **lock it**: the style keywords, fonts, and color mood (plus the palette seed, if any) are now fixed for the entire design and must not change later — exact palette hexes are deliberately NOT locked here; hero-led styles derive them from the generated pixels in Phase 2.5. Apply the locked fonts to every Text via the `font` prop — never leave text on the default font. Honor any font family the Active style profile specifies; otherwise lock `Alibaba PuHuiTi` as the primary family. **If a 需求单 exists, append the locked direction and confirmed campaign facts to its AI结论区** (one line each).
 
 ## Phase 2 — Skeleton + Checkpoint 2
 
@@ -119,12 +119,12 @@ Then present the skeleton summary (section list + proportions; when a profile ma
 **This phase is a profile-driven slot, not a fixed workflow.** The workflow only fixes WHEN it runs (after Checkpoint 2, before any content fill — image generation costs real time and must not precede structure confirmation) and the exit contract (verify with `look`). WHAT runs here is supplied by the Active profile's `## Visual environment setup (Phase 2.5)` section:
 
 - **No active profile, or profile has no setup section** → this phase does not exist; go straight to Phase 3 on a default white canvas.
-- **Profile mandates a backdrop or visual treatment** → follow its recipe. The generic shape: generate/place the hero image first (into the `HeroContent` slot from the skeleton), then one `compose_backdrop` call — it moves the image into the BackgroundLayer, auto-samples the hero's bottom band, and colors the overlay. No geometry, no hex passing.
+- **Profile mandates a backdrop or visual treatment** → follow its recipe. The generic shape: generate/place the hero image first (into the `HeroContent` slot from the skeleton — or into a full-size reference scaffold built by `prepare_hero_scaffold`, when the profile's recipe uses one), then one `compose_backdrop` call — it moves the image into the BackgroundLayer, auto-samples the hero's bottom band, and colors the overlay. No geometry, no hex passing. When the recipe continues with `derive_palette`, apply its returned color ticket as directed (hero title ink, section colors).
 - **Always verify with `look` before Phase 3** — the profile's recipe specifies success criteria ("no visible seam", "overlay text crisp", etc.).
 
 Examples of profile styles:
 
-- _Watercolor long image_: 1 hero image + continuous backdrop → `generate_image` into `HeroContent` (size it canvas_width × hero_height + 100 bleed, e.g. 750×850 — that is the hero's final display size), then `compose_backdrop({ root_id, canvas_width, canvas_height, hero_image_from: HeroContent.id })`.
+- _Watercolor long image_: 1 hero image + continuous backdrop → `generate_image` into `HeroContent` (size it canvas_width × hero_height + 100 bleed, e.g. 750×850 — that is the hero's final display size), then `compose_backdrop({ root_id, canvas_width, canvas_height, hero_image_from: HeroContent.id })`. On later re-calls you may omit `canvas_height` — it defaults to the root's current height, which is what you want once all sections are rendered. Newer watercolor recipes instead build a reference scaffold first: `prepare_hero_scaffold({ root_id })` creates a full-size frame beside the root with the placed title cloned in; `generate_image` targets the scaffold (composite reference = the scaffold itself, so the API sees the title at its true position in the final-size canvas); `compose_backdrop` then takes `hero_image_from` = scaffold id. The Active profile's recipe is authoritative for which flow applies.
 - _Multi-segment_: 3 generated images + gradient-mask seams → no dedicated helper exists yet; build the segments and alpha-mask gradients by hand per the profile recipe.
 - _Solid color_: no hero, single background rectangle → just `set_fill` on the root frame.
 - _Photo-led_: one full-bleed photo, no overlay → call `stock_photo` on a hero Frame and skip the overlay.
@@ -157,7 +157,7 @@ When generating images, append the locked style keywords to every prompt (e.g. "
 
 Superseded images are auto-snapshotted into the page's "历史图片备份" container (right of the root frame) whenever `generate_image` overwrites a node holding an image — ignore it, never move or delete it; its entries are reusable as `references`. To replace/regenerate an existing canvas image (e.g. swap a background), pass its node id as `replace_id` — safe, the old version is snapshotted automatically. To derive a NEW image from a reference, pass it in `references` and omit `replace_id`.
 
-**Consistency check:** after every 3 sections, `describe` the root frame at depth=1 and verify cross-section consistency (same palette, same font scale, same spacing rhythm).
+**Consistency check:** after every 3 sections, `describe` the root frame at depth=1 and verify cross-section consistency (same palette, same font scale, same spacing rhythm). When a `derive_palette` color ticket exists (hero-led styles), section colors come from its roles — body text `ink.onLight`, quiet surfaces `ground`/`neutrals`, `accent` used sparingly — and the ticket's `note` warnings are binding.
 
 ## Phase 4 — Final Review + Checkpoint 4
 
@@ -175,7 +175,7 @@ Present the result and ask: "Final review — anything to adjust?" — and STOP.
 
 ## Design State Tracking
 
-After Phase 1 and after each section, maintain a compact design-state note in your message (2–4 lines): material type, locked colors/fonts/keywords, sections done, sections remaining. This protects against context loss in long sessions — re-read it before each new section.
+After Phase 1 and after each section, maintain a compact design-state note in your message (2–4 lines): material type, locked keywords/fonts/color mood (+ the palette ticket once derived in Phase 2.5), sections done, sections remaining. This protects against context loss in long sessions — re-read it before each new section.
 
 ## Section Implementation Patterns
 

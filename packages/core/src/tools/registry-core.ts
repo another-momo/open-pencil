@@ -8,6 +8,8 @@ import {
   appendBriefConclusionTool,
   composeBackdropTool,
   createBriefTool,
+  derivePaletteTool,
+  prepareHeroScaffoldTool,
   readBriefTool,
   sampleHeroColorTool,
   setupMaterialTypeTool,
@@ -70,6 +72,8 @@ export const CORE_TOOLS: ToolDef[] = [
   appendBriefConclusionTool,
   sampleHeroColorTool,
   composeBackdropTool,
+  prepareHeroScaffoldTool,
+  derivePaletteTool,
   // Inspect & utility
   describe,
   calc,

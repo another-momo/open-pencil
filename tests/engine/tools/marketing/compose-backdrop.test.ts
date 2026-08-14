@@ -231,6 +231,60 @@ describe('compose_backdrop tool', () => {
       expect(ids.note).toContain('canvas_width (700)')
       expect(ids.note).toContain('750')
     })
+
+    it('rejects a non-number canvas_height', async () => {
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      const result = await composeBackdropTool.execute(makeFigma(g), {
+        root_id: root.id,
+        canvas_width: 750,
+        canvas_height: '2120'
+      })
+      expect(result).toMatchObject({ error: expect.stringContaining('canvas_height') })
+    })
+  })
+
+  describe('canvas_height default', () => {
+    it('omitted canvas_height resolves to the root frame height', async () => {
+      const g = new SceneGraph()
+      const page = g.addPage('Page')
+      const root = g.createNode('FRAME', page.id, {
+        name: 'Tall',
+        width: 750,
+        height: 3000,
+        layoutMode: 'VERTICAL'
+      })
+
+      const ids = await build(g, root.id, {
+        canvas_height: undefined,
+        hero_color: '#5A7F5BFF'
+      })
+
+      // Overlay spans hero bottom − 100 .. root height (3000), not the 2120
+      // the build helper would otherwise pass.
+      expect(ids.overlay_position).toEqual({ x: 0, y: 750, width: 750, height: 2250 })
+      expect(ids.note).toContain("root frame's current height (3000px)")
+    })
+
+    it('a re-call without canvas_height follows a root that grew after content rendered', async () => {
+      // The workflow this default exists for: first call passes the PLANNED
+      // height (content does not exist yet); once sections are rendered the
+      // hugging root settles taller, and the final re-call omits the height.
+      const g = new SceneGraph()
+      const root = makeRoot(g)
+      const first = await build(g, root.id, { hero_color: '#5A7F5BFF' })
+      expect(first.overlay_position.height).toBe(1370) // 2120 − 750
+
+      g.updateNode(root.id, { height: 2600 })
+      const second = await build(g, root.id, {
+        canvas_height: undefined,
+        hero_color: '#5A7F5BFF'
+      })
+
+      expect(second.overlay_position).toEqual({ x: 0, y: 750, width: 750, height: 1850 })
+      // Still the same nodes — the recolor/regeometry happened in place.
+      expect(second.backdrop_overlay_id).toBe(first.backdrop_overlay_id)
+    })
   })
 
   describe('topology', () => {
@@ -671,7 +725,7 @@ describe('compose_backdrop tool', () => {
     const params = composeBackdropTool.params
     expect(params.root_id.required).toBe(true)
     expect(params.canvas_width.required).toBe(true)
-    expect(params.canvas_height.required).toBe(true)
+    expect(params.canvas_height.required).toBeUndefined()
     expect(params.hero_height.default).toBe(750)
     expect(params.hero_bleed.default).toBe(100)
     expect(params.hero_color.required).toBeUndefined()

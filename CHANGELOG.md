@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- The `compose_backdrop` marketing tool now treats `canvas_height` as optional, defaulting to the root frame's current height, so the final backdrop re-call after content rendering lands the white foot fade at the real canvas foot instead of a guessed design height.
+
 ### Fixed
 
 - Bound the renderer's decoded-image cache with a 512 MB LRU byte budget so long AI marketing sessions (repeated `generate_image` regenerations and history backups) no longer grow the CanvasKit WASM heap until the browser tab runs out of memory; evicted images are transparently re-decoded from the document's image store on their next render, so render output is unchanged.

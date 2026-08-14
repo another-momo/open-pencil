@@ -38,6 +38,11 @@
  *      is COPIED into HeroImg (HeroContent's fills are cleared), the hero
  *      bottom band auto-sampled, the overlay colored
  *   4. Verify with look. Idempotent — re-call any time hero pixels change.
+ *
+ * canvas_height is optional: omitted, it resolves to the root frame's current
+ * height. That is the right call for the FINAL re-compose — after all content
+ * sections are rendered, a hugging root's height has settled, and the white
+ * foot fade lands at the real canvas foot instead of a guessed design height.
  */
 
 import type { Fill, SceneGraph, SceneNode } from '@open-pencil/scene-graph'
@@ -66,7 +71,7 @@ export const composeBackdropTool = defineTool({
   name: 'compose_backdrop',
   mutates: true,
   description:
-    'Build the visual environment of a long-image design in one call. Creates/updates a BackgroundLayer (absolute, bottom of z-order) containing BaseWash (full-canvas gradient), HeroImg (hero image holder, extended hero_bleed past the hero slot so the fade seam hides inside the next section), and BackdropOverlay (3-stop gradient fading over the hero bottom into opaque white), plus a transparent HeroContent flow frame that reserves the hero slot and hosts overlay text. Typical sequence: render HeroContent in the skeleton → generate_image into it → compose_backdrop with hero_image_from = HeroContent id. The image fill is copied into HeroImg (and HeroContent is cleared to transparent), the hero bottom band is auto-sampled for the overlay middle stop (pass hero_color only to override), and HeroContent is left transparent for text. If hero_image_from is omitted but HeroContent already carries an IMAGE fill, it is adopted automatically. Re-call after regenerating the hero — fully idempotent.',
+    "Build the visual environment of a long-image design in one call. Creates/updates a BackgroundLayer (absolute, bottom of z-order) containing BaseWash (full-canvas gradient), HeroImg (hero image holder, extended hero_bleed past the hero slot so the fade seam hides inside the next section), and BackdropOverlay (3-stop gradient fading over the hero bottom into opaque white), plus a transparent HeroContent flow frame that reserves the hero slot and hosts overlay text. Typical sequence: render HeroContent in the skeleton → generate_image into it → compose_backdrop with hero_image_from = HeroContent id. The image fill is copied into HeroImg (and HeroContent is cleared to transparent), the hero bottom band is auto-sampled for the overlay middle stop (pass hero_color only to override), and HeroContent is left transparent for text. If hero_image_from is omitted but HeroContent already carries an IMAGE fill, it is adopted automatically. canvas_height is optional — omit it to use the root frame's current height, which is the right choice for the final re-call after all sections are rendered and the root has hugged its content. Re-call after regenerating the hero — fully idempotent.",
   params: {
     root_id: {
       type: 'string',
@@ -83,8 +88,7 @@ export const composeBackdropTool = defineTool({
     canvas_height: {
       type: 'number',
       description:
-        'Canvas height in pixels. The total design height — the BackdropOverlay extends from the hero bottom − 100 to canvas_height.',
-      required: true,
+        "Canvas height in pixels — the total design height; the BackdropOverlay extends from the hero bottom − 100 to canvas_height. Optional: omit it to use the root frame's CURRENT height — the right choice for re-calls after all content sections are rendered and the root has hugged its content (the white foot fade then lands at the real canvas foot). Pass an explicit planned height on the FIRST call, before the content exists.",
       min: 200,
       max: 20000
     },
@@ -132,6 +136,14 @@ export const composeBackdropTool = defineTool({
           'Root has no auto-layout — the backdrop topology needs a flow slot (HeroContent) plus an absolute BackgroundLayer. Give the root a vertical layout first.'
       }
     }
+    // canvas_height defaults to the root's current height. On the final
+    // re-call — after all sections are rendered and a hugging root has
+    // settled — omitting it lands the white foot fade at the real canvas
+    // foot instead of at a height guessed before the content existed.
+    const canvasHeight = inputs.canvasHeight ?? root.height
+    const sizeError = validateCanvasSize(inputs.canvasWidth, canvasHeight)
+    if (sizeError) return { error: sizeError }
+
     // Width reconciliation: the backdrop is built from canvas_width, so a
     // slip here silently mis-sizes every layer. Warn, don't fail — the root
     // may legitimately differ if it hugs.
@@ -155,7 +167,7 @@ export const composeBackdropTool = defineTool({
     if (source.node) {
       heroHeight = sourceIsSlot ? source.node.height : source.node.height - inputs.heroBleed
     }
-    if (!Number.isFinite(heroHeight) || heroHeight < 100 || heroHeight >= inputs.canvasHeight) {
+    if (!Number.isFinite(heroHeight) || heroHeight < 100 || heroHeight >= canvasHeight) {
       if (source.node && !sourceIsSlot) {
         return {
           error: `hero_image_from is ${source.node.height}px tall; minus hero_bleed (${inputs.heroBleed}) that leaves a ${heroHeight}px hero slot (minimum 100). Pass a smaller hero_bleed or a taller source.`
@@ -166,14 +178,14 @@ export const composeBackdropTool = defineTool({
       }
     }
     const heroImgHeight = heroHeight + inputs.heroBleed
-    if (heroImgHeight >= inputs.canvasHeight) {
+    if (heroImgHeight >= canvasHeight) {
       return {
-        error: `hero_height + hero_bleed (${heroImgHeight}) must be smaller than canvas_height (${inputs.canvasHeight}).`
+        error: `hero_height + hero_bleed (${heroImgHeight}) must be smaller than canvas_height (${canvasHeight}).`
       }
     }
 
     const graph = figma.graph
-    const { rootId, canvasWidth, canvasHeight } = inputs
+    const { rootId, canvasWidth } = inputs
 
     // --- BackgroundLayer (absolute, bottom of root z-order) ---
     const layer = upsertLayer(graph, root, canvasWidth, canvasHeight)
@@ -260,6 +272,7 @@ export const composeBackdropTool = defineTool({
         sourceCleared,
         color,
         implicitAdopted: source.implicit === true,
+        heightDefaulted: inputs.canvasHeight === undefined,
         rootWidthWarning,
         heroColorRejected: inputs.heroColorRejected,
         strayImageName
@@ -271,7 +284,8 @@ export const composeBackdropTool = defineTool({
 interface ValidatedInputs {
   rootId: string
   canvasWidth: number
-  canvasHeight: number
+  /** Undefined when the caller omitted canvas_height — execute() then resolves it to the root frame's current height. */
+  canvasHeight?: number
   heroHeight: number
   heroBleed: number
   heroColor?: string
@@ -309,12 +323,20 @@ function validateInputs(args: Record<string, unknown>): { error: string } | Vali
     return { error: 'Pass a root frame id (non-empty string).' }
   }
   const canvasWidth = args.canvas_width
-  const canvasHeight = args.canvas_height
-  if (typeof canvasWidth !== 'number' || typeof canvasHeight !== 'number') {
-    return { error: 'canvas_width and canvas_height are required numbers.' }
+  if (typeof canvasWidth !== 'number' || !Number.isFinite(canvasWidth)) {
+    return { error: `canvas_width must be a finite number (got ${canvasWidth}).` }
   }
-  const canvasError = validateCanvasSize(canvasWidth, canvasHeight)
-  if (canvasError) return { error: canvasError }
+  // canvas_height is optional — omitted means "the root's current height",
+  // resolved in execute once the root node is known. Range-checks for both
+  // dimensions run there (validateCanvasSize) on the resolved value.
+  const rawCanvasHeight = args.canvas_height
+  if (
+    rawCanvasHeight !== undefined &&
+    (typeof rawCanvasHeight !== 'number' || !Number.isFinite(rawCanvasHeight))
+  ) {
+    return { error: `canvas_height must be a finite number when given (got ${rawCanvasHeight}).` }
+  }
+  const canvasHeight = rawCanvasHeight as number | undefined
   const heroHeight = typeof args.hero_height === 'number' ? args.hero_height : DEFAULT_HERO_HEIGHT
   const heroBleed = typeof args.hero_bleed === 'number' ? args.hero_bleed : DEFAULT_HERO_BLEED
   const bleedError = validateHeroBleed(heroBleed)
@@ -608,6 +630,7 @@ function buildNote(input: {
   sourceCleared: boolean
   color: HeroColorResolution
   implicitAdopted?: boolean
+  heightDefaulted?: boolean
   rootWidthWarning?: string
   heroColorRejected?: string
   strayImageName?: string
@@ -630,6 +653,9 @@ function buildNote(input: {
     ? `WARNING: hero_color "${input.heroColorRejected}" is not valid 6- or 8-digit hex and was ignored.`
     : ''
   const widthPart = input.rootWidthWarning ? `WARNING: ${input.rootWidthWarning}` : ''
+  const heightPart = input.heightDefaulted
+    ? `canvas_height was omitted — used the root frame's current height (${input.canvasHeight}px).`
+    : ''
   const strayPart = input.strayImageName
     ? `WARNING: root child "${input.strayImageName}" also carries an IMAGE fill — the hero image may be painting twice (the flow copy sits above the overlay and breaks the fade). If that node was meant to be the hero, pass it as hero_image_from and use HeroContent as the slot name.`
     : ''
@@ -642,6 +668,7 @@ function buildNote(input: {
     `Verify with look: no visible seam around the hero bottom, overlay text in HeroContent stays crisp.`,
     rejectedPart,
     widthPart,
+    heightPart,
     strayPart
   ]
     .filter(Boolean)

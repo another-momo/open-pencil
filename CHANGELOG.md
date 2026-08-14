@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Bound the renderer's decoded-image cache with a 512 MB LRU byte budget so long AI marketing sessions (repeated `generate_image` regenerations and history backups) no longer grow the CanvasKit WASM heap until the browser tab runs out of memory; evicted images are transparently re-decoded from the document's image store on their next render, so render output is unchanged.
+
 - Fixed Windows desktop crashes when loading large system fonts for non-Latin text by using Tauri's binary IPC path and resolving native script fallbacks without parsing full font files in JavaScript.
 
 - Preserve open vector segments when the same vector network also contains filled regions. (#450)

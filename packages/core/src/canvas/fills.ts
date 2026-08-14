@@ -1,4 +1,4 @@
-import type { Canvas, Paint } from 'canvaskit-wasm'
+import type { Canvas, Image as CKImage, Paint } from 'canvaskit-wasm'
 
 import type { SceneNode, SceneGraph, Fill } from '@open-pencil/scene-graph'
 import type { Rect, Vector } from '@open-pencil/scene-graph/primitives'
@@ -426,6 +426,36 @@ export function makeImageFillLocalMatrix(
   )
 }
 
+/**
+ * Approximate WASM-heap footprint of a cached decoded image: RGBA pixels plus
+ * the mipmap chain (~1/3 extra) created by `makeCopyWithDefaultMipmaps`.
+ */
+function estimateDecodedImageBytes(img: CKImage): number {
+  return Math.ceil(img.width() * img.height() * 4 * (4 / 3))
+}
+
+/** Mark a cache hit as most-recently-used (Map iteration order = LRU order). */
+function touchImageCacheEntry(r: SkiaRenderer, hash: string, img: CKImage): void {
+  r.imageCache.delete(hash)
+  r.imageCache.set(hash, img)
+}
+
+/**
+ * Evict least-recently-used decoded images while the cache exceeds its byte
+ * budget. Evicted entries are re-decoded from `graph.images` on next use, so
+ * eviction never changes render output — it only bounds WASM heap growth.
+ * Never evicts the final remaining entry (the one just inserted).
+ */
+function evictImageCacheIfNeeded(r: SkiaRenderer): void {
+  for (const [oldestHash, oldestImg] of r.imageCache) {
+    if (r.imageCacheBytes <= r.imageCacheBudgetBytes || r.imageCache.size <= 1) return
+    const bytes = estimateDecodedImageBytes(oldestImg)
+    oldestImg.delete()
+    r.imageCacheBytes -= bytes
+    r.imageCache.delete(oldestHash)
+  }
+}
+
 export function applyImageFill(
   r: SkiaRenderer,
   fill: Fill,
@@ -435,7 +465,9 @@ export function applyImageFill(
   const hash = fill.imageHash
   if (!hash) return false
   let img = r.imageCache.get(hash)
-  if (!img) {
+  if (img) {
+    touchImageCacheEntry(r, hash, img)
+  } else {
     const data = graph.images.get(hash)
     if (!data) return false
     const decoded = r.ck.MakeImageFromEncoded(data) ?? undefined
@@ -443,6 +475,8 @@ export function applyImageFill(
     img = decoded.makeCopyWithDefaultMipmaps()
     decoded.delete()
     r.imageCache.set(hash, img)
+    r.imageCacheBytes += estimateDecodedImageBytes(img)
+    evictImageCacheIfNeeded(r)
   }
 
   const imgW = img.width()

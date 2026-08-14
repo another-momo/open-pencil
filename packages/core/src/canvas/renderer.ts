@@ -55,6 +55,14 @@ export interface SubtreePictureCacheEntry {
   fontGeneration: number
 }
 
+/**
+ * Default decoded-byte budget for the renderer's image cache (~512 MB).
+ * Agent-driven workflows (generate_image regenerations, history backups)
+ * create images far faster than manual editing, so the cache must be bounded
+ * to keep the CanvasKit WASM heap below its 2 GB ceiling.
+ */
+export const DEFAULT_IMAGE_CACHE_BUDGET_BYTES = 512 * 1024 * 1024
+
 export interface PendingFontNode {
   node: SceneNode
   keys: Set<string>
@@ -93,6 +101,18 @@ export class SkiaRenderer {
   pendingFontNodes = new Map<string, PendingFontNode>()
   textPictureGenerations = new Map<string, { data: Uint8Array; generation: number }>()
   imageCache = new Map<string, CKImage>()
+  /**
+   * Approximate decoded bytes currently held by `imageCache` (RGBA pixels plus
+   * mipmap overhead). Maintained by `applyImageFill` insertions/evictions.
+   */
+  imageCacheBytes = 0
+  /**
+   * Decoded-byte budget for `imageCache`. Once exceeded, least-recently-used
+   * entries are evicted (`delete()`d) on the next insertion; an evicted image
+   * is transparently re-decoded from `graph.images` on its next render, so
+   * eviction bounds WASM heap growth without changing render output.
+   */
+  imageCacheBudgetBytes = DEFAULT_IMAGE_CACHE_BUDGET_BYTES
   vectorPathCache = new Map<string, Path[]>()
   vectorStrokePathCache = new Map<string, Path[]>()
   vectorStrokeOutlineCache = new Map<string, Path[]>()

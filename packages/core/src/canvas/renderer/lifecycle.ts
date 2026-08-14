@@ -16,6 +16,7 @@ export function destroyRenderer(r: SkiaRenderer): void {
 
   for (const img of r.imageCache.values()) img.delete()
   r.imageCache.clear()
+  r.imageCacheBytes = 0
   for (const cache of [
     r.vectorPathCache,
     r.vectorStrokePathCache,

@@ -339,7 +339,7 @@ function textDecorationColor(
   const fill = fills?.find((item) => item.visible && item.type === 'SOLID')
   if (!fill) return fallback
   const color = resolveRGBAForPreview(fill.color).color
-  return ck.Color4f(color.r, color.g, color.b, color.a * fill.opacity)
+  return ck.Color4f(color.r, color.g, color.b, color.a * (fill.opacity ?? 1))
 }
 
 function styleRunColor(
@@ -347,10 +347,10 @@ function styleRunColor(
   style: SceneNode['styleRuns'][number]['style'],
   baseColor: Float32Array
 ): Float32Array {
-  const visibleFill = style.fills?.find((fill) => fill.visible && fill.type === 'SOLID')
+  const visibleFill = style.fills?.find((fill) => fill.visible !== false && fill.type === 'SOLID')
   if (!visibleFill) return baseColor
   const color = resolveRGBAForPreview(visibleFill.color).color
-  return ck.Color4f(color.r, color.g, color.b, color.a * visibleFill.opacity)
+  return ck.Color4f(color.r, color.g, color.b, color.a * (visibleFill.opacity ?? 1))
 }
 
 function styleRunLanguage(

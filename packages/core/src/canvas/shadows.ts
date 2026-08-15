@@ -230,7 +230,7 @@ function drawShapeDropShadow(
   const sp = effect.spread
   const shapeNode = shadowShapeChild ?? node
   const shapeHasRadius = shadowShapeChild ? nodeHasRadius(shadowShapeChild) : hasRadius
-  const hasVisibleFill = node.fills.some((fill) => fill.visible)
+  const hasVisibleFill = node.fills.some((fill) => fill.visible !== false)
   let geometryShadow: Path[] | null = null
   if (!shadowShapeChild) {
     if (hasVisibleFill) {

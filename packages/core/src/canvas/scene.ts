@@ -328,7 +328,7 @@ function forVisibleStrokes(
 ): void {
   for (let index = 0; index < node.strokes.length; index++) {
     const stroke = node.strokes[index]
-    if (!stroke.visible) continue
+    if (stroke.visible === false) continue
     draw(stroke, r.resolveStrokeColor(stroke, index, node, graph))
   }
 }
@@ -361,7 +361,7 @@ export function renderComponentSet(
 
   drawVisibleFills(r, node, graph, () => canvas.drawRRect(rrect, r.fillPaint))
 
-  const visibleStrokes = node.strokes.filter((stroke) => stroke.visible)
+  const visibleStrokes = node.strokes.filter((stroke) => stroke.visible !== false)
   if (visibleStrokes.length > 0) {
     forVisibleStrokes(r, node, graph, (stroke, color) => {
       const dashPhase = stroke.dashPattern?.[1] ?? 0
@@ -418,8 +418,8 @@ export function renderShape(
 }
 
 function getShadowShapeChild(node: SceneNode, graph: SceneGraph): SceneNode | null {
-  if (node.fills.some((f) => f.visible)) return null
-  if (node.strokes.some((stroke) => stroke.visible)) return null
+  if (node.fills.some((f) => f.visible !== false)) return null
+  if (node.strokes.some((stroke) => stroke.visible !== false)) return null
   if (node.childIds.length === 0) return null
   const child = graph.getNode(node.childIds[0])
   if (!child?.visible) return null
@@ -488,7 +488,7 @@ function drawVectorPathStrokes(
   const dash = stroke.dashPattern
   if (dash && dash.length > 0) {
     r.strokePaint.setColor(r.ck.Color4f(sc.r, sc.g, sc.b, sc.a))
-    r.strokePaint.setAlphaf(stroke.opacity)
+    r.strokePaint.setAlphaf(stroke.opacity ?? 1)
     r.strokePaint.setStrokeWidth(stroke.weight)
     r.strokePaint.setStrokeCap(getStrokeCapEntity(r, stroke.cap ?? 'NONE'))
     r.strokePaint.setStrokeJoin(getStrokeJoinEntity(r, stroke.join ?? 'MITER'))
@@ -508,7 +508,7 @@ function drawVectorPathStrokes(
     join: getStrokeJoinEntity(r, stroke.join ?? 'MITER')
   }
   r.fillPaint.setColor(r.ck.Color4f(sc.r, sc.g, sc.b, sc.a))
-  r.fillPaint.setAlphaf(stroke.opacity)
+  r.fillPaint.setAlphaf(stroke.opacity ?? 1)
   r.fillPaint.setShader(null)
 
   let outlines = outlineCacheKey ? r.vectorStrokeOutlineCache.get(outlineCacheKey) : undefined
@@ -563,7 +563,7 @@ function drawNodeStroke(
     stroke.align === 'CENTER' &&
     node.cornerRadius === 0 &&
     node.type === 'VECTOR' &&
-    !node.fills.some((fill) => fill.visible)
+    !node.fills.some((fill) => fill.visible !== false)
   if (shouldStrokeVectorCenterline) {
     const outlineKey = `${node.id}|${stroke.weight}|${stroke.cap ?? node.strokeCap}|${stroke.join ?? node.strokeJoin}|${node.strokeMiterLimit}`
     drawVectorPathStrokes(r, canvas, vectorStroke, stroke, sc, node.strokeMiterLimit, outlineKey)

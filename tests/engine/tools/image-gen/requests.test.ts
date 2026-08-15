@@ -142,12 +142,12 @@ describe('parseImageGenRequests', () => {
     })
   })
 
-  test('normalizes the hd quality alias to high', () => {
+  test('normalizes the hd quality alias to auto', () => {
     const result = parseImageGenRequests(
       '[{"prompt":"hero","width":1024,"height":1024,"quality":"hd"}]'
     )
     expect(result).toEqual({
-      requests: [expect.objectContaining({ quality: 'high' })]
+      requests: [expect.objectContaining({ quality: 'auto' })]
     })
   })
 
@@ -166,7 +166,7 @@ describe('parseImageGenRequests', () => {
     )
     expect(result).toEqual({
       error:
-        'Invalid quality "ultra" — expected one of: low, medium, high, auto (aliases: "hd" → "high")'
+        'Invalid quality "ultra" — expected one of: low, medium, high, auto (aliases: "hd" → "auto")'
     })
   })
 

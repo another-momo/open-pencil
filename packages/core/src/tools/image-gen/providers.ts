@@ -78,7 +78,7 @@ export function getActiveImageGenProvider(): ImageGenProvider | null {
 let imageGenKey: string | null = null
 let imageGenBaseURL = 'https://www.dmxapi.cn/v1'
 let imageGenModelName = 'gpt-image-2-ssvip'
-let imageGenTimeoutMs = 120_000
+let imageGenTimeoutMs = 240_000
 
 export function setImageGenCredentials(
   key: string | null,

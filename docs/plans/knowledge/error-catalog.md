@@ -107,7 +107,7 @@
 | R6-1 | 生图模型忽视画框参考图——agent 的 prompt 只有抽象分区描述，通篇未点破参考图用法 | **v3 翻译时动作指令降级为状态断言**（"生图 AI 看着文字构图"是断言不是指令）；旧英文骨干有 "compose AROUND the text" 的明确指令模板（prompt 规则打偏，profile 层） | ✅ 三处：工具 note 加 CRITICAL 段（参考图不点破必被忽视）；v3 第 3 步改为语义清单（四条缺一不可）；marketing.md 画框示例同步。**方法论新规则：profile 改写/翻译时，动作指令不得降级为状态断言** |
 | R6-2 | `weight="Heavy"` 静默回退 400，agent 被迫发 ~20 次 update_node 补丁（占 mutating 45%） | design-jsx WEIGHT_MAP 仅 3 档 + `?? 400` 静默兜底（工具/代码缺陷） | ✅ 字重映射改为复用 scene-graph `FONT_WEIGHT_BY_STYLE`（唯一事实源，heavy/black→900——本地 map 一度漂成 800，已对齐）；未知名经 render 的 warnings 通道透出；prompt 词汇表三处对齐 |
 | R6-3 | `batch_update` 传 font_weight 返回 `updated:0` 且无提示（**R5-2 同型复发**） | applyBatchProps 静默吞未知 prop（工具/代码缺陷） | ✅ 支持 font_weight；未知 prop 进该条 errors 并附全量支持清单 |
-| R6-4 | `generate_image` 传 `quality:"hd"` 被 provider 拒绝（合法值 low/medium/high/auto），浪费一次生图调用 | 参数裸 `as` 强转无校验 + 工具描述未列枚举（工具/代码缺陷） | ✅ 本地校验（报错列合法值）+ `hd`→`high` 别名；output_format/background 同类裸转一并补校验 |
+| R6-4 | `generate_image` 传 `quality:"hd"` 被 provider 拒绝（合法值 low/medium/high/auto），浪费一次生图调用 | 参数裸 `as` 强转无校验 + 工具描述未列枚举（工具/代码缺陷） | ✅ 本地校验（报错列合法值）+ `hd`→`auto` 别名（模型常送 hd 试图获得高质量，默认 auto 避免超时）；output_format/background 同类裸转一并补校验 |
 | R6-5 | 骨架期模型编了三个强调色 hex（#C2410C/#BE185D/#0F766E）——正是 derive_palette 要消灭的行为，但 Phase 2 时色票尚不存在 | **流程时序缺口**：骨架需要颜色时色票未派生（工作流设计缺口） | ✅ v3 第 1 步"骨架期全部中性灰阶，着色元素不写彩色 hex"；第 5 步"色票出来后统一刷色"。无 hero 品类的色票接入仍待后续任务 |
 | R6-6 | 文本 section 固定高度猜小了溢出 ×5（S1/S2/S3/S4/S5 各补一次加高） | 固定高度猜文本内容必然溢出（prompt 规则缺失） | ✅ hug 高度指引进 marketing.md Phase 2 与 v3 第 1 步（文本 section 用 hug，固定高度只给图像槽位） |
 | R6-7 | 信息卡 bg alpha 0.7/0.6，超 profile "alpha<0.5 半透明辅助"纪律 | prompt 层约束无 critique 兜底（已知弱点） | ❌ 不修——记为 critique 候选（卡片 fill alpha 扫描） |

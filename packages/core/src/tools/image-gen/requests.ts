@@ -93,7 +93,7 @@ export interface ParsedImageGenRequests {
 
 // Keep these in sync with the ImageGen* union types in providers.ts.
 const QUALITY_VALUES: readonly ImageGenQuality[] = ['low', 'medium', 'high', 'auto']
-const QUALITY_ALIASES: Record<string, ImageGenQuality> = { hd: 'high' }
+const QUALITY_ALIASES: Record<string, ImageGenQuality> = { hd: 'auto' }
 const OUTPUT_FORMAT_VALUES: readonly ImageGenFormat[] = ['png', 'jpeg', 'webp']
 const BACKGROUND_VALUES: readonly ImageGenBackground[] = ['auto', 'opaque']
 

@@ -3,7 +3,8 @@ import { defineTool } from '#core/tools/schema'
 export const setVisible = defineTool({
   name: 'set_visible',
   mutates: true,
-  description: 'Set visibility of a node.',
+  description:
+    'Set visibility of a node. Prefer update_node for single-node changes, batch_update for bulk.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     value: { type: 'boolean', description: 'Visible (true/false)', required: true }

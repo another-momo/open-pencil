@@ -8,7 +8,7 @@ interface BatchOp {
   props: Record<string, unknown>
 }
 
-const SCENE_PROP_MAP: Record<string, string[]> = {
+export const SCENE_PROP_MAP: Record<string, string[]> = {
   spacing: ['itemSpacing'],
   padding: ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'],
   padding_horizontal: ['paddingLeft', 'paddingRight'],
@@ -27,6 +27,9 @@ const SCENE_PROP_MAP: Record<string, string[]> = {
   font_family: ['fontFamily'],
   font_weight: ['fontWeight']
 }
+
+/** Single source of truth for the supported-prop list in description and error messages. */
+const SUPPORTED_PROPS = Object.keys(SCENE_PROP_MAP).join(', ')
 
 function str(value: unknown): string {
   return typeof value === 'string' ? value : ''
@@ -121,7 +124,12 @@ export const batchUpdate = defineTool({
   name: 'batch_update',
   mutates: true,
   description:
-    'Execute multiple modifications in one call. Each operation is {id, props} where props can include: spacing, padding, padding_horizontal, padding_vertical, counter_align, sizing_horizontal, sizing_vertical, grow, name, visible, corner_radius, auto_resize (for text), direction, font_family (for text, preserves weight/style), font_weight (for text, 100-900). Unrecognized prop keys are reported per operation. Runs all updates with one layout recompute.',
+    `Execute multiple modifications in one call. Each operation is {id, props} where props can include: ${SUPPORTED_PROPS}. ` +
+    'auto_resize/font_family/font_weight apply to text nodes only (font_family preserves weight/style; font_weight is 100-900). ' +
+    'Batch is for layout micro-fixes only — font_size is excluded deliberately: it cascades line height into hug parents and collapses neighbors. ' +
+    'NOT supported (use per-node tools instead): font_size / text → update_node; fills → set_fill; effects → set_effects; rotation → set_rotation; blend_mode → set_blend; letter_spacing / line_height / text_case → no post-render tool, set at render time. ' +
+    'Unrecognized prop keys are reported per operation. Runs all updates with one layout recompute. ' +
+    'If the result has partial: true, some operations failed — handle errors before continuing.',
   params: {
     operations: {
       type: 'string',
@@ -147,7 +155,7 @@ export const batchUpdate = defineTool({
       const unknownKeys = Object.keys(op.props).filter((key) => !(key in SCENE_PROP_MAP))
       if (unknownKeys.length > 0) {
         errors.push(
-          `Node "${op.id}": unknown props ${unknownKeys.map((key) => `"${key}"`).join(', ')} — supported: ${Object.keys(SCENE_PROP_MAP).join(', ')}`
+          `Node "${op.id}": unknown props ${unknownKeys.map((key) => `"${key}"`).join(', ')} — supported: ${SUPPORTED_PROPS}`
         )
       }
       const updated = applyBatchProps(node, op.props)
@@ -163,7 +171,10 @@ export const batchUpdate = defineTool({
 
     const out: Record<string, unknown> = { updated: results.length }
     if (results.length > 0) out.results = results
-    if (errors.length > 0) out.errors = errors
+    if (errors.length > 0) {
+      out.errors = errors
+      out.partial = true
+    }
     if (parsed.warning) out.warning = parsed.warning
     return out
   }

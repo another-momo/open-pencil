@@ -19,7 +19,8 @@ export const setRotation = defineTool({
 export const setOpacity = defineTool({
   name: 'set_opacity',
   mutates: true,
-  description: 'Set opacity of a node (0-1).',
+  description:
+    'Set opacity of a node (0-1). Prefer update_node for single-node changes, batch_update for bulk.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     value: { type: 'number', description: 'Opacity (0-1)', required: true, min: 0, max: 1 }

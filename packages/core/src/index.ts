@@ -76,6 +76,7 @@ export {
   ALL_TOOLS,
   CORE_TOOLS,
   EXTENDED_TOOLS,
+  SCENE_PROP_MAP,
   defineTool,
   toolsToAI,
   buildDebugLog,

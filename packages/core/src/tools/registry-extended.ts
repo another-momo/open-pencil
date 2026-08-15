@@ -21,21 +21,6 @@ import {
   searchIconsTool
 } from './create'
 import {
-  setBlend,
-  setConstraints,
-  setEffects,
-  setFont,
-  setFontRange,
-  setImageFill,
-  setLocked,
-  setMinMax,
-  setOpacity,
-  setRotation,
-  setStrokeAlign,
-  setTextResize,
-  setVisible
-} from './modify'
-import {
   diffJSX,
   getComponents,
   getCurrentPage,
@@ -50,9 +35,7 @@ import {
 import type { ToolDef } from './schema'
 import {
   arrangeNodes,
-  cloneNode,
   flattenNodes,
-  groupNodes,
   nodeAncestors,
   nodeBindings,
   nodeBounds,
@@ -60,9 +43,7 @@ import {
   nodeMove,
   nodeReplaceWith,
   nodeToComponent,
-  nodeTree,
-  renameNode,
-  ungroupNode
+  nodeTree
 } from './structure'
 import {
   bindVariable,
@@ -97,8 +78,9 @@ import {
 
 /**
  * Extended tools not in CORE_TOOLS — variables, vector ops, analysis,
- * codegen, advanced structure, path manipulation, etc.
- * (list_pages lives in CORE_TOOLS.)
+ * codegen, advanced structure and graph reads, path manipulation, export.
+ * The full modify stack and common structure ops (clone/rename/group)
+ * live in CORE_TOOLS. (list_pages lives in CORE_TOOLS.)
  */
 export const EXTENDED_TOOLS: ToolDef[] = [
   // Read (advanced)
@@ -123,26 +105,9 @@ export const EXTENDED_TOOLS: ToolDef[] = [
   createVector,
   createSlice,
   importSVG,
-  // Modify (advanced)
-  setEffects,
-  setOpacity,
-  setFont,
-  setVisible,
-  setConstraints,
-  setRotation,
-  setMinMax,
-  setFontRange,
-  setTextResize,
-  setBlend,
-  setLocked,
-  setStrokeAlign,
-  setImageFill,
   // Structure (advanced)
-  cloneNode,
   nodeMove,
-  renameNode,
-  groupNodes,
-  ungroupNode,
+  arrangeNodes,
   flattenNodes,
   nodeToComponent,
   nodeBounds,
@@ -151,7 +116,6 @@ export const EXTENDED_TOOLS: ToolDef[] = [
   nodeTree,
   nodeBindings,
   nodeReplaceWith,
-  arrangeNodes,
   // Variables
   listVariables,
   listCollections,

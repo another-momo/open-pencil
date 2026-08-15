@@ -24,7 +24,8 @@ export const setText = defineTool({
 export const setFont = defineTool({
   name: 'set_font',
   mutates: true,
-  description: 'Set font properties of a text node.',
+  description:
+    'Set font properties of a text node (family/size/style atomically). Prefer update_node for single-property changes, batch_update for bulk family/weight.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     family: { type: 'string', description: 'Font family name' },
@@ -84,7 +85,8 @@ export const setFontRange = defineTool({
 export const setTextResize = defineTool({
   name: 'set_text_resize',
   mutates: true,
-  description: 'Set text auto-resize mode.',
+  description:
+    'Set text auto-resize mode. Prefer set_text_properties (auto_resize) or batch_update for bulk.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     mode: {
@@ -106,7 +108,7 @@ export const setTextProperties = defineTool({
   name: 'set_text_properties',
   mutates: true,
   description:
-    'Set text layout properties: alignment, auto-resize, text case, decoration, truncation.',
+    'Set text layout properties: alignment, auto-resize (incl. TRUNCATE), direction, decoration. Text case is not exposed as a parameter — set it at render time.',
   params: {
     id: { type: 'string', description: 'Text node ID', required: true },
     align_horizontal: {

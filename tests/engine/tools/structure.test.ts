@@ -144,4 +144,30 @@ describe('batch_update', () => {
     expect(errors[0]).toContain('font_weight')
     expect(errors[0]).toContain('spacing')
   })
+
+  test('marks partial results and still applies known keys', () => {
+    const { figma } = setupToolTest()
+    const rect = figma.createRectangle()
+
+    const result = getTool('batch_update').execute(figma, {
+      operations: JSON.stringify([{ id: rect.id, props: { font_size: 20, opacity: 0.5 } }])
+    }) as ToolResult
+
+    expect(result.updated).toBe(1)
+    expect(result.partial).toBe(true)
+    expectDefined(result.errors, 'batch_update errors')
+    expect(figma.getNodeById(rect.id)?.opacity).toBe(0.5)
+  })
+
+  test('no partial flag when everything succeeds', () => {
+    const { figma } = setupToolTest()
+    const rect = figma.createRectangle()
+
+    const result = getTool('batch_update').execute(figma, {
+      operations: JSON.stringify([{ id: rect.id, props: { opacity: 0.5 } }])
+    }) as ToolResult
+
+    expect(result.updated).toBe(1)
+    expect(result.partial).toBeUndefined()
+  })
 })

@@ -33,7 +33,7 @@ export const cloneNode = defineTool({
 export const renameNode = defineTool({
   name: 'rename_node',
   mutates: true,
-  description: 'Rename a node in the layers panel.',
+  description: 'Rename a node in the layers panel. update_node also renames via its name param.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     name: { type: 'string', description: 'New name', required: true }

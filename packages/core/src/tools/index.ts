@@ -1,6 +1,7 @@
 import codegenPrompt from './prompts/codegen.md'
 
 export { ALL_TOOLS, CORE_TOOLS, EXTENDED_TOOLS } from './registry'
+export { SCENE_PROP_MAP } from './structure/batch'
 export const CODEGEN_PROMPT: string = codegenPrompt
 export { exportImage } from './vector'
 export { defineTool, nodeToResult, nodeSummary, requireNode, NodeNotFoundError } from './schema'

@@ -10,10 +10,13 @@
 
 ### Changed
 
+- Expose the full modify tool stack plus `clone_node` / `rename_node` / `group_nodes` / `ungroup_node` to the built-in AI chat agent (previously MCP/CLI-only), so common edit requests no longer fall back to `eval` scripting; overlapping single-purpose tools (`set_opacity`, `set_visible`, `set_text_resize`, `set_font`, `rename_node`) now point to `update_node` / `batch_update` in their descriptions.
 - The `compose_backdrop` marketing tool now treats `canvas_height` as optional, defaulting to the root frame's current height, so the final backdrop re-call after content rendering lands the white foot fade at the real canvas foot instead of a guessed design height.
 
 ### Fixed
 
+- Fills and strokes assigned through the Figma proxy API (e.g. `node.fills = [...]` in `eval`) no longer lose their defaults: the setters now backfill `opacity: 1`, `visible: true`, and `blendMode: 'NORMAL'`, and the renderer treats a missing `visible`/`opacity` as visible/fully opaque (matching Figma semantics) instead of skipping the paint — previously a fill written without `visible` silently turned text invisible.
+- `batch_update` marks partial failures with a top-level `partial: true` flag, and its description now generates the supported-prop list from the same source as validation and documents which props are deliberately unsupported (font_size, fills, effects, rotation, blend_mode) with their per-node alternatives.
 - Design JSX `weight`/`fontWeight` now accept the full set of named weights (case-insensitive, resolved through the scene-graph's canonical `FONT_WEIGHT_BY_STYLE` alias table — `weight="Heavy"` maps to 900) instead of only normal/medium/bold; unknown names still fall back to 400 but now surface a render warning listing the supported names instead of failing silently.
 - `batch_update` supports `font_weight` for text nodes (100-900) and reports unrecognized prop keys per operation together with the supported key list, instead of silently skipping them and returning `updated: 0`.
 - `derive_palette` no longer emits colliding roles: the neutrals ramp started at the same lightness as ground and ink.onDark (three roles, one color), which let agents paint text the same color as its block. The ramp is now visibly stepped, a `pairings` table declares the only sanctioned text-on-surface combinations, and every sanctioned pair is contrast-checked.

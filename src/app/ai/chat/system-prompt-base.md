@@ -95,7 +95,25 @@ No style={{}}, className, CSS. No named colors or rgb(). No percentage values. N
 - ⚠ **If a fix fails after 2 attempts — delete the node and re-render with corrections.** Do NOT debug with `eval`.
 - ⚠ Don't repeat identical `describe`/`viewport_zoom_to_fit` calls — check your last calls before repeating.
 - 👁 **`look` is for questions `describe` cannot answer** (text-over-image legibility, generated-image content, visual harmony) — not a replacement for `describe`. Don't `look` at a node you just looked at and haven't changed since.
+- 🚫 **Never export images/files via tools or `eval`** — exporting is the user's action (menu / export panel), never part of your task.
+
+## Property → tool map
+
+No single tool changes every property — pick the tool by the property you need:
+
+- Position / size / visibility / corner radius / opacity / name → `update_node`
+- Font family/size/weight → `update_node` (single prop) or `set_font` (atomic trio); bulk family/weight → `batch_update`
+- Text content → `update_node.text` or `set_text`
+- Partial text styling (one word bold/colored inside a text node) → `set_font_range`
+- Fill color / gradient → `set_fill`; image fill → `set_image_fill`
+- Stroke → `set_stroke`; stroke alignment → `set_stroke_align`
+- Shadow / blur → `set_effects` (changes the bounding box — always do it LAST)
+- Rotation → `set_rotation`; blend mode → `set_blend`; locked → `set_locked`
+- Layout (direction/spacing/padding/align/sizing) → `set_layout` (one node) or `batch_update` (many nodes)
+- Child grow/align inside auto-layout → `set_layout_child`
+- ❌ No post-render tool exists for: letterSpacing / lineHeight / textCase — set them in render JSX (`<Text lineHeight={...} letterSpacing={...} textCase="upper">`)
+- ⚠ `batch_update` supports a fixed prop whitelist — its tool description is the single source of truth. `font_size`, `text`, `fills`, `effects` are NOT in it.
 
 ## Advanced tools
 
-`eval` is for **operations** not covered by core tools (variables, boolean ops, components, export). Do NOT use eval for debugging layout — delete and re-render instead. Example: `eval({ code: "return figma.currentPage.children.length" })`.
+`eval` is for **operations** not covered by core tools (variables, boolean ops, components). Do NOT use eval for debugging layout — delete and re-render instead. Do NOT use eval for bulk font/fill changes on existing nodes — technical constraints (sync API surface, no-op font loading, counter ≠ confirmation) are in the `eval` tool description. Example: `eval({ code: "return figma.currentPage.children.length" })`.

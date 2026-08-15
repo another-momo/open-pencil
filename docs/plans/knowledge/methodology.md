@@ -68,3 +68,28 @@ prompt 规则与工具 `description` 必须一致——AI 在两者矛盾时选�
 - 写 Playwright 测试时不要直接调 `store.updateNode` 改画布文本——必须走 proxy。
 - test pollution 是多测试套件同跑时的常见现象，**单跑能区分**。
 - 二次误诊时务必先撤回前次结论再重做。
+
+## 9. 工具能力上下文的归属：三层模型（2026-08-15）
+
+来源：`../../review/2026-08-15-tool-system-review.md` §六 + `../tasks/tool-system-optimization.md` T0/T10。
+
+### 三层归属
+
+- **Tier 1 工具契约 → 工具 description**：参数 schema、返回值结构、硬限制（白名单、上限）、预条件、副作用、失败模式、同族工具选择。模型在"考虑调用/实际调用"两个最频繁的时刻都需要它，必须每次在场。
+- **Tier 2 跨工具节奏 → system prompt**（base.md / marketing.md）：多步 workflow、验证节奏（render→describe→fix）、失败应对、领域默认值、质量标准、checkpoint 机制。
+- **Tier 3 领域特例 → active style profile**：任务级风格选择，随任务注入，不写死在 prompt。
+
+### 判定流程
+
+```
+这条规则是关于一个工具的吗？
+├── 否 → 跨工具节奏？→ system prompt；领域特例？→ profile；都不是 → 不需要这条规则
+└── 是 → 参数/返回/硬限制/失败模式 → description（必有）
+         关键安全约束 → description + prompt 双写（有意重复是 feature，同句拷贝是 bug）
+```
+
+### 配套规则
+
+- **prompt 只引用 CORE_TOOLS**：内置 agent（ui/marketing chat）只挂 `CORE_TOOLS`（`packages/core/src/tools/registry-core.ts`）；prompt 引用 extended-only 工具 = 悬空引用，送模型进 tool-not-found 死胡同。守卫：`tests/engine/tools/consistency.test.ts`（`bun run check:tools-consistency`，已挂进 `bun run check`）。
+- **约束单一真源 + 漂移检测**：必须在多处出现的约束，由代码生成（如 batch_update description 从 SCENE_PROP_MAP 生成）或引用制（prompt 只写策略句，技术约束看 description），不靠人工同步。
+- **返回值契约**：新工具的返回值必须区分"全成功 / 部分失败 / 计数"。部分失败加顶层 `partial: true` 并在 description 写明必须处理 errors；计数类返回不得暗示写入确认（"计数 ≠ 落地"）。

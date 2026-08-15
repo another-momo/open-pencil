@@ -18,7 +18,7 @@ Three techniques are common enough to know:
 - **Stacked fills on a shape** — `fills={[solid("#fff"), linearGradient([...])]}`. First entry is the bottom layer; opacity / alpha on subsequent layers controls how much of the base shows through.
 - **Text on a busy image** — add `shadow="0 2 8 #00000066"` to the Text for legibility, or place a dark scrim rectangle (`bg="#00000066"`) at absolute `x`/`y` behind the text block, or pick a calmer region of the image.
 
-The helpers above work inside `render` JSX. To add or change a shadow/blur on an **existing** node, call `set_effects` (drop shadow, inner shadow, blurs) — never reach for `eval` to set effects.
+The helpers above work inside `render` JSX. To add or change a shadow/blur on an **existing** node, call `set_effects` (drop shadow, inner shadow, blurs) — never reach for `eval` to set effects. Apply effects LAST in a fix pass: shadows/blurs change the node's bounding box and may shift layout.
 
 Per-style backdrop recipes (gradients bridging sections, blend layers for tonal harmony, etc.) live in the Active style profile, not here — they are style choices, not workflow defaults.
 
@@ -150,6 +150,8 @@ For each section:
 3. `render` text/decoration content with `replace_id` on the placeholder frame
 4. **IMMEDIATELY `describe` the new node** — never skip, never defer to the end
 5. `batch_update` to fix ALL errors and warnings — only then move to the next section
+
+**Per-section checkpoint (mandatory):** before starting the next section, output exactly one self-check line: `section X: rendered → described (N issues) → fixed`. If you cannot write this line truthfully, a step was skipped — go back and do it. Never batch-render multiple sections and describe them afterwards.
 
 Errors compound — a missed `w="fill"` in section 1 breaks the layout of every section below it.
 

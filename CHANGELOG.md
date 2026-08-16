@@ -4,6 +4,7 @@
 
 ### Added
 
+- Add the `@open-pencil/agent` workspace package and a "local agent backend" form factor: the web app's built-in chat can now route through a local Node process (`http://127.0.0.1:7601`) that hosts the `ToolLoopAgent` loop and dispatches tool execution back to the editor via a reverse WebSocket RPC, eliminating CORS / Anthropic browser-dangerous-header pain for direct provider calls. The agent is opt-in: when unreachable the frontend transparently falls back to running the same agent loop in-browser. Library state for the marketing mode is serialized by the frontend and shipped in the request body so the agent never touches the live SceneGraph. See `packages/agent/README.md` and `docs/plans/architecture/l2-agent-backend.md` for protocol and operations.
 - Add the `prepare_hero_scaffold` marketing tool: clone the hero copy from the `HeroContent` slot into a pixel-exact temporary scaffold frame beside the root, so `generate_image` can use it as both generation target and composite reference in the pixel-first hero pipeline.
 - Add the `derive_palette` marketing tool: expand a sampled seed color into a deterministic OKLCH palette (ground/wash/accent/ink/neutrals) with WCAG contrast checks, so hero text and section colors are derived from the generated pixels instead of being locked before the image exists.
 - Accept `"hd"` as an alias for `"high"` in `generate_image` quality, and validate `quality`, `output_format`, and `background` locally — invalid values now return errors listing the legal values instead of being rejected by the provider.

@@ -166,6 +166,21 @@ Press <kbd>⌘</kbd><kbd>J</kbd> to open the AI assistant. It has 100+ tools tha
 
 Not every provider works in the browser, and not every model streams tool calls correctly. See [BYOK provider & model compatibility](packages/docs/programmable/byok-provider-compatibility.md) for measured results — contributions welcome.
 
+### Local agent backend (web + Node)
+
+The web app can route its built-in chat through a local Node backend (`@open-pencil/agent`) instead of running the agent loop in the browser. The agent process calls your LLM provider directly (no CORS, no Anthropic browser-dangerous-direct-access header) and dispatches tool execution back to the editor over the existing WebSocket automation bridge. Tool execution stays in the browser, so Undo, SceneGraph, and UI hooks are untouched.
+
+```sh
+# Terminal 1: editor
+bun run dev
+
+# Terminal 2: agent (separate process)
+bun --filter @open-pencil/agent build
+node packages/agent/dist/start.mjs
+```
+
+When the agent is reachable on `127.0.0.1:7601`, the frontend automatically prefers it; otherwise it falls back to running the same agent loop in-browser (unchanged behavior). Set `OPENPENCIL_AGENT_DISABLE=1` in `.env.local` to force the in-browser path. See [`packages/agent/README.md`](packages/agent/README.md) for configuration and [`docs/plans/architecture/l2-agent-backend.md`](docs/plans/architecture/l2-agent-backend.md) for the protocol.
+
 ### Coding agents (desktop)
 
 Use Claude Code, Codex, or Gemini CLI directly in the chat panel. The agent connects to the editor's MCP server and uses all 100+ design tools. Requires the desktop app and the agent CLI installed locally.
@@ -277,6 +292,7 @@ packages/
   vue/            @open-pencil/vue — headless Vue SDK
   cli/            @open-pencil/cli — headless CLI
   mcp/            @open-pencil/mcp — MCP server (stdio + HTTP)
+  agent/          @open-pencil/agent — local Node backend hosting the AI agent loop
   docs/           Documentation site (openpencil.dev)
 src/              Vue app (editor shell, AI, collaboration, document I/O)
 desktop/          Tauri v2 desktop app (Rust + config)

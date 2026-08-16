@@ -37,6 +37,9 @@
       "#mcp/*": [
         "./packages/mcp/src/*"
       ],
+      "#agent/*": [
+        "./packages/agent/src/*"
+      ],
       "#dom-css/*": [
         "./packages/dom-css/src/*"
       ],

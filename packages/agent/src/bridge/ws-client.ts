@@ -9,8 +9,49 @@ import { platformHasUnixSockets } from '@open-pencil/mcp/transport'
 // to comfortably exceed that or the LLM sees a transport timeout mid-
 // step. Keep a 60s margin to absorb WS overhead and image-byte transfer.
 const BRIDGE_RPC_TIMEOUT_MS = 300_000
-const AUTH_RETRY_DELAY_MS = 1_000
-const AUTH_RETRY_MAX = 5
+
+// Client-side heartbeat. We send a WS ping every HEARTBEAT_INTERVAL_MS
+// and watch for pong frames; if STALE_CHECK_INTERVAL_MS passes without
+// a pong, we count a miss. STALE_MISS_LIMIT consecutive misses → emit
+// `'stale'` and terminate the socket so the auto-reconnect kicks in.
+//
+// The server side already runs a 5 s heartbeat (see
+// packages/mcp/src/server.ts#wireConnectionHandling). We add a client
+// heartbeat because the server's heartbeat is one-directional (it
+// kicks half-dead clients); we want the reverse — detecting a
+// half-dead server when our ping gets no pong back.
+//
+// 15 s ping interval + 30 s pong timeout is intentionally conservative
+// — image-gen RPCs can run for 240 s, but those don't block the
+// heartbeat (it's a frame on the same socket, the OS sends it
+// independently of in-flight application data).
+const HEARTBEAT_INTERVAL_MS = 15_000
+const HEARTBEAT_TIMEOUT_MS = 30_000
+const STALE_CHECK_INTERVAL_MS = 5_000
+const STALE_MISS_LIMIT = 3
+
+// Exponential backoff for reconnect attempts: 1s → 2s → 4s → 8s → 16s
+// → 30s (capped). Replaces the old fixed 1s / 5-retry cap. We retry
+// forever until `disconnect()` is called explicitly; an agent process
+// restart, frontend tab switch, or brief network blip should not
+// require operator intervention.
+const RECONNECT_BASE_MS = 1_000
+const RECONNECT_CAP_MS = 30_000
+
+export const HEARTBEAT_CONSTANTS = {
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_TIMEOUT_MS,
+  STALE_CHECK_INTERVAL_MS,
+  STALE_MISS_LIMIT,
+  RECONNECT_BASE_MS,
+  RECONNECT_CAP_MS
+} as const
+
+function nextReconnectDelay(attempt: number): number {
+  return Math.min(RECONNECT_CAP_MS, RECONNECT_BASE_MS * 2 ** (attempt - 1))
+}
+
+export { nextReconnectDelay }
 
 export type RpcEnvelope = {
   type: 'request' | 'response' | 'auth' | 'register'
@@ -37,11 +78,34 @@ export type BridgeInfo = {
   authToken: string | null
 }
 
+/**
+ * Test-only timing overrides. Production code uses module constants
+ * (HEARTBEAT_INTERVAL_MS = 15 s etc.) which would make the heartbeat /
+ * stale-detection tests take minutes. Exposing a hook keeps the prod
+ * surface unchanged while letting tests run in milliseconds.
+ */
+export type BridgeTimings = {
+  heartbeatIntervalMs?: number
+  heartbeatTimeoutMs?: number
+  staleCheckIntervalMs?: number
+  staleMissLimit?: number
+  reconnectBaseMs?: number
+  reconnectCapMs?: number
+}
+
 export type FrontendBridgeEvents = {
   connect: []
   disconnect: []
   authenticated: []
   rpc: [RpcEnvelope]
+  /**
+   * Emitted when the server failed to pong STALE_MISS_LIMIT times in
+   * a row. The bridge terminates the socket and the auto-reconnect
+   * loop will bring it back. Callers (routes/chat.ts) can use this to
+   * invalidate cached state so the next chat surfaces a real error
+   * instead of silently routing RPCs into a half-dead pipe.
+   */
+  stale: []
 }
 
 /**
@@ -57,6 +121,13 @@ export type FrontendBridgeEvents = {
  * socket. `auth` authenticates without becoming the RPC target, then
  * the client can send `request` messages that the bridge forwards to
  * the frontend's WebSocket handler.
+ *
+ * Lifecycle:
+ *   connect(info)     → first openSocket attempt; on success resolves
+ *   socket dies       → reject pending RPCs, emit 'disconnect',
+ *                       schedule reconnect with exponential backoff
+ *   socket misses N pong → emit 'stale', terminate, reconnect kicks in
+ *   disconnect()      → explicit close; no reconnect
  */
 export class FrontendBridge extends EventEmitter<FrontendBridgeEvents> {
   private ws: WebSocket | null = null
@@ -67,18 +138,59 @@ export class FrontendBridge extends EventEmitter<FrontendBridgeEvents> {
   private info: BridgeInfo | null = null
   private authToken: string | null = null
   private explicitClose = false
-  private authRetries = 0
+  /** Consecutive reconnect attempts since the last successful open. */
+  private reconnectAttempts = 0
+  /** Last time we observed a pong frame from the server. */
+  private lastPong = 0
+  /** Consecutive stale-check ticks that saw no pong. */
+  private staleMisses = 0
+  private heartbeatTimer: NodeJS.Timeout | null = null
+  private staleTimer: NodeJS.Timeout | null = null
+  private reconnectTimer: NodeJS.Timeout | null = null
+  private openInFlight: Promise<void> | null = null
+  private timings: {
+    heartbeatIntervalMs: number
+    heartbeatTimeoutMs: number
+    staleCheckIntervalMs: number
+    staleMissLimit: number
+    reconnectBaseMs: number
+    reconnectCapMs: number
+  }
+
+  constructor(timings: BridgeTimings = {}) {
+    super()
+    this.timings = {
+      heartbeatIntervalMs: timings.heartbeatIntervalMs ?? HEARTBEAT_INTERVAL_MS,
+      heartbeatTimeoutMs: timings.heartbeatTimeoutMs ?? HEARTBEAT_TIMEOUT_MS,
+      staleCheckIntervalMs: timings.staleCheckIntervalMs ?? STALE_CHECK_INTERVAL_MS,
+      staleMissLimit: timings.staleMissLimit ?? STALE_MISS_LIMIT,
+      reconnectBaseMs: timings.reconnectBaseMs ?? RECONNECT_BASE_MS,
+      reconnectCapMs: timings.reconnectCapMs ?? RECONNECT_CAP_MS
+    }
+  }
 
   async connect(info: BridgeInfo): Promise<void> {
+    // Reset reconnect state on every explicit connect — the operator
+    // has signalled intent to (re)attach, so we don't carry over a
+    // partially-spent retry budget from the previous failure.
     this.info = info
     this.authToken = info.authToken
     this.explicitClose = false
+    this.reconnectAttempts = 0
+    this.clearReconnectTimer()
     await this.openSocket()
   }
 
   private openSocket(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (!this.info) return reject(new Error('Bridge info not set'))
+    // Coalesce concurrent openSocket calls (close handler can fire while
+    // a fresh connect is in flight) — they all share the same promise.
+    if (this.openInFlight) return this.openInFlight
+
+    this.openInFlight = new Promise<void>((resolve, reject) => {
+      if (!this.info) {
+        this.openInFlight = null
+        return reject(new Error('Bridge info not set'))
+      }
 
       const useSocket = platformHasUnixSockets() && this.info.socketPath
       const target = useSocket
@@ -90,9 +202,13 @@ export class FrontendBridge extends EventEmitter<FrontendBridgeEvents> {
         : new WebSocket(`ws://${target.host}:${target.port}`)
       this.ws = ws
       this.explicitClose = false
+      this.lastPong = Date.now()
+      this.staleMisses = 0
 
       const fail = (err: Error) => {
         if (this.ws === ws) this.ws = null
+        this.openInFlight = null
+        this.clearHeartbeat()
         reject(err)
       }
 
@@ -103,12 +219,13 @@ export class FrontendBridge extends EventEmitter<FrontendBridgeEvents> {
         )
         // Give the bridge a moment to process auth before resolving;
         // any auth-failure close arrives within a few ms on localhost.
-        // The retry counter is incremented in the `close` handler below
-        // — counting on every open would consume the retry budget twice
-        // for each failed handshake.
         setTimeout(() => {
           if (this.ws === ws && ws.readyState === WebSocket.OPEN) {
+            // Auth succeeded — reset the retry budget and start heartbeats.
+            this.reconnectAttempts = 0
+            this.startHeartbeat()
             this.emit('authenticated')
+            this.openInFlight = null
             resolve()
           } else {
             fail(new Error('Bridge closed before authentication completed'))
@@ -142,13 +259,23 @@ export class FrontendBridge extends EventEmitter<FrontendBridgeEvents> {
         }
       })
 
+      // pong listener for the heartbeat. The `ws` library surfaces
+      // protocol-level pong frames here — no application data needed.
+      ws.on('pong', () => {
+        this.lastPong = Date.now()
+        this.staleMisses = 0
+      })
+
       ws.on('error', (err) => {
         if (this.ws === ws) this.ws = null
         fail(err instanceof Error ? err : new Error(String(err)))
       })
 
       ws.on('close', () => {
-        if (this.ws === ws) this.ws = null
+        const wasOurs = this.ws === ws
+        if (wasOurs) this.ws = null
+        this.openInFlight = null
+        this.clearHeartbeat()
         this.emit('disconnect')
         // Reject all pending — the bridge is gone, they cannot complete.
         for (const [, entry] of this.pending) {
@@ -156,17 +283,79 @@ export class FrontendBridge extends EventEmitter<FrontendBridgeEvents> {
           entry.reject(new Error('Bridge disconnected'))
         }
         this.pending.clear()
-        // Auto-retry auth if reconnect-on-close is desired (only when not explicit).
-        if (!this.explicitClose && this.info && this.authRetries < AUTH_RETRY_MAX) {
-          this.authRetries++
-          setTimeout(() => {
+        // Auto-retry unless the operator called disconnect() explicitly.
+        if (!this.explicitClose && this.info) {
+          this.reconnectAttempts++
+          const delay = Math.min(
+            this.timings.reconnectCapMs,
+            this.timings.reconnectBaseMs * 2 ** (this.reconnectAttempts - 1)
+          )
+          this.clearReconnectTimer()
+          this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null
             if (!this.explicitClose && this.info) {
               this.openSocket().catch(() => undefined)
             }
-          }, AUTH_RETRY_DELAY_MS)
+          }, delay)
         }
       })
     })
+
+    return this.openInFlight
+  }
+
+  private startHeartbeat(): void {
+    this.clearHeartbeat()
+    this.heartbeatTimer = setInterval(() => {
+      if (!this.isOpen()) return
+      try {
+        this.ws!.ping()
+      } catch {
+        // socket is dying — let the close handler take it from here
+      }
+    }, this.timings.heartbeatIntervalMs)
+    this.staleTimer = setInterval(() => {
+      if (!this.isOpen()) return
+      const sincePong = Date.now() - this.lastPong
+      if (sincePong > this.timings.heartbeatTimeoutMs) {
+        this.staleMisses++
+        if (this.staleMisses >= this.timings.staleMissLimit) {
+          this.emit('stale')
+          // Force-close so the close handler runs, which will trigger
+          // the normal reconnect path. terminate() skips the WS
+          // close-handshake so we don't waste the timeout window
+          // waiting for a doomed FIN exchange.
+          try {
+            this.ws?.terminate()
+          } catch {
+            // ignore — close handler will run regardless
+          }
+        }
+      } else {
+        this.staleMisses = 0
+      }
+    }, STALE_CHECK_INTERVAL_MS)
+    // Don't let the heartbeat keep the process alive during shutdown.
+    this.heartbeatTimer.unref?.()
+    this.staleTimer.unref?.()
+  }
+
+  private clearHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer)
+      this.heartbeatTimer = null
+    }
+    if (this.staleTimer) {
+      clearInterval(this.staleTimer)
+      this.staleTimer = null
+    }
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
   }
 
   isOpen(): boolean {
@@ -198,6 +387,8 @@ export class FrontendBridge extends EventEmitter<FrontendBridgeEvents> {
 
   disconnect(): void {
     this.explicitClose = true
+    this.clearHeartbeat()
+    this.clearReconnectTimer()
     if (this.ws) {
       try {
         this.ws.close()

@@ -32,6 +32,15 @@ async function getBridge(): Promise<FrontendBridge> {
       )
     }
     const next = new FrontendBridge()
+    // When the bridge detects a half-dead socket (N consecutive missed
+    // pongs from the frontend), it emits `'stale'` and auto-terminates
+    // to trigger reconnect. From the route layer we want the next chat
+    // request to wait for the reconnect rather than reusing a stale
+    // cached handle — drop the cache so `bridge?.isOpen()` falls through
+    // to a fresh `connect()` next time around.
+    next.once('stale', () => {
+      if (bridge === next) bridge = null
+    })
     await next.connect({
       socketPath: info.socketPath,
       httpPort: info.httpPort,

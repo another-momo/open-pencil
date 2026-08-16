@@ -24,6 +24,17 @@ export {
   forgetCredential,
   putCredential
 } from './credentials.js'
+export {
+  consumeCredentialAsync,
+  forgetCredentialAsync,
+  putCredentialAsync,
+  activeConnectionCountAsync,
+  createCredentialStore,
+  credentialStoreKind,
+  resetCredentialStore,
+  setCredentialStore
+} from './credentials.js'
+export type { CredentialStore } from './credentials.js'
 export { resolveModelsDevModel } from './catalog.js'
 export {
   readAgentDiscovery,

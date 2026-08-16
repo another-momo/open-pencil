@@ -1,6 +1,13 @@
-import { afterEach, describe, expect, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 
-import { consumeCredential, forgetCredential, putCredential } from '#agent/credentials'
+import {
+  consumeCredential,
+  forgetCredential,
+  MemoryCredentialStore,
+  putCredential,
+  resetCredentialStore,
+  setCredentialStore
+} from '#agent/credentials'
 import { chatRoute } from '#agent/routes/chat'
 
 const app = chatRoute()
@@ -31,9 +38,13 @@ const validBody = {
 }
 
 describe('chatRoute validation', () => {
+  beforeEach(() => {
+    setCredentialStore(new MemoryCredentialStore())
+  })
   afterEach(() => {
     forgetCredential('conn-CHAT')
     forgetCredential('conn-MISSING-KEY')
+    resetCredentialStore()
   })
 
   test('returns 400 for invalid JSON body', async () => {
@@ -74,8 +85,12 @@ describe('chatRoute validation', () => {
 })
 
 describe('chatRoute librarySnapshot decoding', () => {
+  beforeEach(() => {
+    setCredentialStore(new MemoryCredentialStore())
+  })
   afterEach(() => {
     forgetCredential('conn-CHAT')
+    resetCredentialStore()
   })
 
   // librarySnapshot decoding happens AFTER messages[] and id validation
@@ -127,9 +142,13 @@ describe('chatRoute librarySnapshot decoding', () => {
 })
 
 describe('chatRoute credential lookup', () => {
+  beforeEach(() => {
+    setCredentialStore(new MemoryCredentialStore())
+  })
   afterEach(() => {
     forgetCredential('conn-CHAT')
     forgetCredential('conn-MISSING-KEY')
+    resetCredentialStore()
   })
 
   // The credential lookup happens AFTER bridge connect. We can't observe

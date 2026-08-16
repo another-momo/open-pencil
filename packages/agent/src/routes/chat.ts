@@ -8,7 +8,7 @@ import { readDiscoveryFile } from '@open-pencil/mcp/discovery'
 import { FrontendBridge } from '../bridge/ws-client.js'
 import { createAgent } from '../agent-loop.js'
 import type { ChatMode } from '../agent-loop.js'
-import { consumeCredential } from '../credentials.js'
+import { consumeCredentialAsync } from '../credentials.js'
 import type { LibrarySnapshot } from '../prompts/index.js'
 
 /**
@@ -126,7 +126,7 @@ const chatHandler: MiddlewareHandler = async (c) => {
     const agentConfig = requireAgent(body)
     const librarySnapshot = decodeLibrarySnapshot(body.librarySnapshot)
     const bridgeInstance = await getBridge()
-    if (!consumeCredential(agentConfig.connectionId)) {
+    if (!(await consumeCredentialAsync(agentConfig.connectionId))) {
       return c.json({ error: 'API key not available — POST /v1/auth first' }, 500)
     }
     agent = createAgent({

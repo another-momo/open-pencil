@@ -3,7 +3,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 
 import { agentHost, agentPort, AGENT_VERSION } from './constants.js'
-import { activeConnectionCount } from './credentials.js'
+import { activeConnectionCountAsync } from './credentials.js'
 import { writeAgentDiscovery, removeAgentDiscovery } from './discovery.js'
 import { authRoute } from './routes/auth.js'
 import { catalogRoute } from './routes/catalog.js'
@@ -61,12 +61,12 @@ export async function createAgentServer(): Promise<ServerHandle> {
   app.route('/v1/catalog', catalogRoute())
   app.route('/v1/chat', chatRoute())
 
-  app.get('/', (c) =>
+  app.get('/', async (c) =>
     c.json({
       name: 'openpencil-agent',
       description: 'Local agent backend for the OpenPencil web editor',
       version: AGENT_VERSION,
-      activeConnections: activeConnectionCount()
+      activeConnections: await activeConnectionCountAsync()
     })
   )
 

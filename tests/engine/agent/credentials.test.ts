@@ -1,100 +1,171 @@
-import { afterEach, describe, expect, setSystemTime, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, setSystemTime, test } from 'bun:test'
 
 import {
   activeConnectionCount,
   consumeCredential,
-  forgetCredential,
-  putCredential
+  consumeCredentialAsync,
+  MemoryCredentialStore,
+  putCredential,
+  resetCredentialStore,
+  setCredentialStore
 } from '#agent/credentials'
+import type { CredentialStore } from '#agent/credentials'
 
 describe('credentials', () => {
+  // Force the memory store so tests never touch the real OS keychain,
+  // and so each block starts from a clean slate. The legacy sync shim
+  // routes through whichever store is active.
+  let store: MemoryCredentialStore
+  beforeEach(() => {
+    store = new MemoryCredentialStore()
+    setCredentialStore(store)
+  })
   afterEach(() => {
-    // Reset the module-level store between tests by deleting every id we
-    // might have introduced. forgetCredential is idempotent so it's safe
-    // to call with ids that don't exist.
-    for (const id of ['conn-A', 'conn-B', 'conn-C']) forgetCredential(id)
+    resetCredentialStore()
     setSystemTime()
   })
 
-  describe('putCredential / consumeCredential', () => {
-    test('stores and returns the API key for the matching connectionId', () => {
+  describe('MemoryCredentialStore (sync shim)', () => {
+    test('putCredential / consumeCredential round-trip', () => {
       const { expiresIn } = putCredential('conn-A', 'sk-test-key')
       expect(expiresIn).toBe(3600)
       expect(consumeCredential('conn-A')).toBe('sk-test-key')
     })
 
-    test('returns null for an unknown connectionId', () => {
+    test('consumeCredential returns null for an unknown connectionId', () => {
       expect(consumeCredential('conn-NOPE')).toBeNull()
     })
 
-    test('overwrites the previous value when called twice with the same id', () => {
+    test('putCredential overwrites the previous value', () => {
       putCredential('conn-A', 'sk-old')
       putCredential('conn-A', 'sk-new')
       expect(consumeCredential('conn-A')).toBe('sk-new')
     })
 
-    test('isolates entries by connectionId', () => {
+    test('entries are isolated by connectionId', () => {
       putCredential('conn-A', 'sk-A')
       putCredential('conn-B', 'sk-B')
       expect(consumeCredential('conn-A')).toBe('sk-A')
       expect(consumeCredential('conn-B')).toBe('sk-B')
     })
-  })
 
-  describe('TTL expiration', () => {
     test('consumeCredential returns null after the 1h TTL elapses', () => {
       putCredential('conn-A', 'sk-test')
-      // Freeze time 1h + 1ms past expiry; the entry should be treated as
-      // gone and removed from the store as a side-effect.
       setSystemTime(new Date(Date.now() + 60 * 60 * 1000 + 1))
       expect(consumeCredential('conn-A')).toBeNull()
       expect(activeConnectionCount()).toBe(0)
     })
 
-    test('consumeCredential still returns the key inside the TTL window', () => {
+    test('consumeCredential returns the key inside the TTL window', () => {
       putCredential('conn-A', 'sk-test')
-      setSystemTime(new Date(Date.now() + 30 * 60 * 1000)) // 30 minutes in
+      setSystemTime(new Date(Date.now() + 30 * 60 * 1000))
       expect(consumeCredential('conn-A')).toBe('sk-test')
     })
 
     test('putCredential resets the TTL', () => {
       putCredential('conn-A', 'sk-old')
-      // Half-way through the first TTL, refresh.
       setSystemTime(new Date(Date.now() + 30 * 60 * 1000))
       putCredential('conn-A', 'sk-new')
-      // 45 minutes after refresh (1h15m total) — still inside the new window.
       setSystemTime(new Date(Date.now() + 30 * 60 * 1000 + 15 * 60 * 1000))
       expect(consumeCredential('conn-A')).toBe('sk-new')
     })
-  })
 
-  describe('forgetCredential', () => {
-    test('removes the entry so subsequent consumeCredential returns null', () => {
+    test('forgetCredential removes the entry', () => {
       putCredential('conn-A', 'sk-test')
-      forgetCredential('conn-A')
+      expect(consumeCredential('conn-A')).toBe('sk-test')
+      store.forgetSync('conn-A')
       expect(consumeCredential('conn-A')).toBeNull()
     })
 
-    test('is a no-op for unknown connectionIds', () => {
-      expect(() => forgetCredential('conn-NOPE')).not.toThrow()
+    test('forgetCredential is a no-op for unknown ids', () => {
+      expect(() => store.forgetSync('conn-NOPE')).not.toThrow()
     })
-  })
 
-  describe('activeConnectionCount', () => {
-    test('counts only non-expired entries', () => {
+    test('activeConnectionCount only counts non-expired entries', () => {
       putCredential('conn-A', 'sk-A')
       putCredential('conn-B', 'sk-B')
       putCredential('conn-C', 'sk-C')
       expect(activeConnectionCount()).toBe(3)
 
-      // All three were inserted in the same instant and share the same
-      // expiresAt — past the 1h window every entry is gone.
       setSystemTime(new Date(Date.now() + 60 * 60 * 1000 + 1))
       expect(activeConnectionCount()).toBe(0)
     })
 
-    test('returns 0 for an empty store', () => {
+    test('activeConnectionCount returns 0 for an empty store', () => {
       expect(activeConnectionCount()).toBe(0)
+    })
+  })
+
+  describe('MemoryCredentialStore (async API)', () => {
+    let asyncStore: CredentialStore
+    beforeEach(() => {
+      asyncStore = new MemoryCredentialStore()
+    })
+
+    test('put / consume round-trip', async () => {
+      const { expiresIn } = await asyncStore.put('conn-A', 'sk-test-key')
+      expect(expiresIn).toBe(3600)
+      expect(await asyncStore.consume('conn-A')).toBe('sk-test-key')
+    })
+
+    test('consume returns null after the TTL elapses', async () => {
+      await asyncStore.put('conn-A', 'sk-test')
+      setSystemTime(new Date(Date.now() + 60 * 60 * 1000 + 1))
+      expect(await asyncStore.consume('conn-A')).toBeNull()
+    })
+
+    test('forget removes the entry', async () => {
+      await asyncStore.put('conn-A', 'sk-test')
+      await asyncStore.forget('conn-A')
+      expect(await asyncStore.consume('conn-A')).toBeNull()
+    })
+
+    test('activeCount counts only live entries', async () => {
+      await asyncStore.put('conn-A', 'sk-A')
+      await asyncStore.put('conn-B', 'sk-B')
+      expect(await asyncStore.activeCount()).toBe(2)
+      await asyncStore.forget('conn-A')
+      expect(await asyncStore.activeCount()).toBe(1)
+    })
+  })
+
+  describe('async convenience helpers', () => {
+    test('consumeCredentialAsync reflects the most recent put', async () => {
+      store.putSync('conn-A', 'sk-test')
+      expect(await consumeCredentialAsync('conn-A')).toBe('sk-test')
+    })
+  })
+
+  // Integration test against the real OS keyring. Enabled with
+  // RUN_KEYRING_TESTS=1. The store mutates the user's keychain — we
+  // use a uniquely-prefixed connectionId so we never collide with the
+  // Tauri side (which uses a different service name) and clean up after
+  // ourselves.
+  describe.skipIf(!process.env.RUN_KEYRING_TESTS)('KeychainCredentialStore (integration)', () => {
+    let store: CredentialStore
+    const testId = `test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+    beforeEach(async () => {
+      const { KeychainCredentialStore } = await import('#agent/credentials')
+      store = new KeychainCredentialStore()
+      await store.forget(testId)
+    })
+    afterEach(async () => {
+      await store.forget(testId)
+    })
+
+    test('put / consume / forget round-trip on the real keyring', async () => {
+      const { expiresIn } = await store.put(testId, 'sk-secret-key')
+      expect(expiresIn).toBe(3600)
+      expect(await store.consume(testId)).toBe('sk-secret-key')
+      await store.forget(testId)
+      expect(await store.consume(testId)).toBeNull()
+    })
+
+    test('consume returns null after the TTL elapses', async () => {
+      await store.put(testId, 'sk-secret-key')
+      setSystemTime(new Date(Date.now() + 60 * 60 * 1000 + 1))
+      expect(await store.consume(testId)).toBeNull()
     })
   })
 })

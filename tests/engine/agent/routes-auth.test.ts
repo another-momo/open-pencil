@@ -1,10 +1,13 @@
-import { afterEach, describe, expect, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 
 import { authRoute } from '#agent/routes/auth'
 import {
   activeConnectionCount,
   consumeCredential,
-  forgetCredential
+  forgetCredential,
+  MemoryCredentialStore,
+  resetCredentialStore,
+  setCredentialStore
 } from '#agent/credentials'
 
 const app = authRoute()
@@ -22,8 +25,12 @@ async function sendJson(
 }
 
 describe('authRoute POST /', () => {
+  beforeEach(() => {
+    setCredentialStore(new MemoryCredentialStore())
+  })
   afterEach(() => {
     for (const id of ['conn-X', 'conn-Y']) forgetCredential(id)
+    resetCredentialStore()
   })
 
   test('returns 400 for invalid JSON body', async () => {
@@ -89,8 +96,12 @@ describe('authRoute POST /', () => {
 })
 
 describe('authRoute DELETE /:connectionId', () => {
+  beforeEach(() => {
+    setCredentialStore(new MemoryCredentialStore())
+  })
   afterEach(() => {
     for (const id of ['conn-Y']) forgetCredential(id)
+    resetCredentialStore()
   })
 
   test('removes the entry and returns ok', async () => {

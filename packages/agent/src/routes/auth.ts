@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 
-import { forgetCredential, putCredential } from '../credentials.js'
+import { forgetCredentialAsync, putCredentialAsync } from '../credentials.js'
 
 export function authRoute(): Hono {
   const app = new Hono()
@@ -22,12 +22,12 @@ export function authRoute(): Hono {
     if (typeof apiKey !== 'string') {
       return c.json({ error: 'Missing apiKey' }, 400)
     }
-    const { expiresIn } = putCredential(connectionId, apiKey)
+    const { expiresIn } = await putCredentialAsync(connectionId, apiKey)
     return c.json({ ok: true, expiresIn })
   })
 
-  app.delete('/:connectionId', (c) => {
-    forgetCredential(c.req.param('connectionId'))
+  app.delete('/:connectionId', async (c) => {
+    await forgetCredentialAsync(c.req.param('connectionId'))
     return c.json({ ok: true })
   })
 

@@ -5,7 +5,8 @@ import { readFigFile } from '@open-pencil/core/io/formats/fig'
 import { computeAllLayouts } from '@open-pencil/core/layout'
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
-import { setOpenPencilStore } from '@/app/browser-bridge'
+import { setOpenPencilAgentBackend, setOpenPencilStore } from '@/app/browser-bridge'
+import { setForcedAgentBackend } from '@/app/ai/chat/agent-transport'
 import type { DocumentSourceIdentity } from '@/app/document/io/types'
 import { setActiveEditorStore } from '@/app/editor/active-store'
 import { createEditorStore } from '@/app/editor/session'
@@ -82,6 +83,10 @@ function activateTab(tab: Tab) {
   setActiveEditorStore(tab.store)
   triggerRef(tabsRef)
   setOpenPencilStore(tab.store)
+  // Wire the test-only `setAgentBackend` injection so e2e specs can
+  // pin the agent backend without running the HTTP probe. Safe to
+  // re-register on every tab activation — the API surface is identical.
+  setOpenPencilAgentBackend(setForcedAgentBackend)
 }
 
 export function switchTab(tabId: string) {

@@ -35,6 +35,15 @@
 - Preserve effective nested instance text overrides when importing complex Figma component hierarchies. (#102)
 - Preserve circles, ellipses, rectangles, lines, polylines, and polygons supplied as JSX children of inline SVG elements. (#452)
 
+### Agent backend (P1 hardening)
+
+- `feat(dev): auto-spawn agent backend on bun run dev` — `src/app/automation/bridge/agent-vite-plugin.ts` mirrors the existing mcp vite plugin: spawns `bun --watch packages/agent/src/start.ts` with CORS and port env vars, cleans up on `buildEnd`, surfaces `EADDRINUSE` clearly. `bun run dev` is now a single-terminal entry point for Path A.
+- `feat(ai): explicit agent mode setting (no silent fallback)` — `AgentMode` is a user-controllable three-state (`backend` / `browser` / `auto`), defaulting to `backend`. The fallback from Path A to Path B is opt-in via `auto` (not a silent catch). The new `AgentModeSection` settings UI surfaces the choice under the AI provider section.
+- `feat(bridge): heartbeat + exponential-backoff reconnect + stale signal` — `FrontendBridge` now pings every 15s; 3 consecutive missed pongs terminate the socket and emit `stale`, which the chat route uses to drop the cached bridge. Reconnect uses exponential backoff with a 30s cap and resets the retry counter on a successful `connect()`.
+- `feat(agent): propagate abortSignal to bridge RPC and tool handler` — `RpcEnvelope` adds an `abort` type; `sendRPC` accepts an `AbortSignal` and forwards cancellation across the WS bridge to the in-browser tool handler. Pressing stop in the chat panel now actually cancels in-flight tool RPCs.
+- `feat(agent): persist credentials via OS keychain (@napi-rs/keyring)` — credentials are written to the OS keychain (service `net.openpencil.agent-credentials`, account `openpencil:agent:<connectionId>`, value `<expiresAtMs>:<apiKey>`) by default. Falls back to in-memory with a one-line console warning when the keyring is unavailable; set `OPENPENCIL_AGENT_CREDENTIALS=memory` to force. Tests cover the `MemoryCredentialStore` always and skip-wrap the real-keychain round-trip (`RUN_KEYRING_TESTS=1`).
+- `test(agent): Path A e2e + docs(agent): P1 hardening changelog` — `tests/e2e/chat/agent-backend.spec.ts` boots a mock Hono agent via `Bun.serve` and pins the frontend to it via `window.openPencil.setAgentBackend(info)`; the spec validates `/v1/auth` + `/v1/chat` SSE end-to-end. `packages/mcp/README.md` and `packages/core/README.md` are new. `docs/plans/architecture/l2-agent-backend.md` §6.2 drops its P1 placeholder for a status table with commit references.
+
 ## 0.14.0 - 2026-08-10
 
 ### Breaking changes

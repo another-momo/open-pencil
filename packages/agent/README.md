@@ -78,12 +78,18 @@ The chat shard (`tools/unit-tests/src/shards.ts`) picks them up.
 | `OPENPENCIL_AGENT_HOST` | `127.0.0.1` | Bind address (loopback by default) |
 | `OPENPENCIL_AGENT_VERSION` | package version | Override the version reported in `/health` |
 | `OPENPENCIL_AGENT_CORS_ORIGINS` | `http://localhost:1420,http://127.0.0.1:1420` | Comma-separated CORS allow-list. Set to `none` (or empty) to lock down to same-origin only. |
+| `OPENPENCIL_AGENT_CREDENTIALS` | `keychain` | Credential store. `keychain` (default): persist via OS keychain (`@napi-rs/keyring`). `memory`: in-memory only, log a warning on fallback. Use `memory` for CI / headless containers where the keyring is unavailable. |
 | `OPENPENCIL_AGENT_DISABLE` (frontend) | — | When set to `1` in the frontend `.env.local`, the frontend skips the `/health` probe and always falls back to Path B |
 
-API keys are **not** read from env. The frontend POSTs them to `/v1/auth`
-per chat session; the agent holds them in a 1-hour in-memory TTL. See
-`docs/plans/architecture/l2-agent-backend.md` §3.2 for the wire shape and
-P1 plans for OS keychain migration.
+API keys are pushed to `/v1/auth` per chat session. The agent persists
+them via the OS keychain (`@napi-rs/keyring`) by default — service
+`net.openpencil.agent-credentials`, account prefix
+`openpencil:agent:<connectionId>`, value `<expiresAtMs>:<apiKey>`.
+The TTL is 1h; `consume` rejects stale entries and treats them as a
+cache miss, which the frontend handles by re-publishing. Set
+`OPENPENCIL_AGENT_CREDENTIALS=memory` to skip the keychain for CI /
+containers where the secret service is unavailable. See
+`docs/plans/architecture/l2-agent-backend.md` §3.2 for the wire shape.
 
 ## Protocol
 
@@ -172,6 +178,25 @@ The dev server is running on a port other than 1420. Either:
 - Add the port to `OPENPENCIL_AGENT_CORS_ORIGINS` (comma-separated), or
 - Set `OPENPENCIL_AGENT_CORS_ORIGINS=none` if you intentionally want to
   block all browser access (e.g. for production behind a reverse proxy).
+
+**Browser console: `[openpencil-agent] OS keyring unavailable, falling back to in-memory credential store`**
+
+Keychain probe failed — likely no GUI session (Linux without `dbus`,
+headless CI, sandboxed macOS). The agent still works (credentials clear
+after 1h or process exit), but they're not persisted across restarts.
+Set `OPENPENCIL_AGENT_CREDENTIALS=memory` to silence the warning and
+make the fallback explicit, or run with a real user session for OS
+keychain access.
+
+**WS reconnect storms / "Bridge not connected" mid-chat**
+
+The agent's WebSocket bridge to the frontend mcp server has a
+15-second heartbeat and reconnects with exponential backoff (1s → 30s
+cap). If the frontend mcp server (`packages/mcp`) crashed, the agent
+emits a `'stale'` event and the next chat request waits for the
+reconnect. If you see chatter in the agent logs around
+`missed N consecutive pongs`, the network between the two processes is
+unstable — check that no firewall is blocking the loopback connection.
 
 ## Design
 

@@ -166,17 +166,18 @@ agent 的 `bridgeToolsToAI` 把每个工具的 `execute` 替换成 `bridge.sendR
 - ✅ 80 个单测覆盖 credentials / routes / bridge / SSE parse / elision / snapshot / CORS
 - ✅ review 7 个问题全部修复（C1-C3 / M1-M4 / m3），见 §7
 
-### 6.2 P1（下一轮）
+### 6.2 P1 — 已完成
 
-| 项 | 理由 |
-|---|---|
-| `bun run dev` 自动拉起 agent | 否则 Path B fallback 成为常态 |
-| WS 桥心跳 + 重连 | agent 进程被 OOM kill / 切换网络后自动恢复 |
-| 前端 abortSignal 透传到 tool handler | 用户取消时节省 provider 配额 |
-| Agent 崩溃时主动通知前端 | 当前 5s 缓存过期才暴露，期间用户发消息会拿到莫名错误 |
-| `bun run agent` / `bun run agent:dev` 脚本 | 跟 mcp 一样的入口约定 |
-| 凭证下沉 OS keychain | 消除"凭证明文内存"最后痛点 |
-| 单测 + e2e 持续补 | 本轮已补 80 个；P1 加 Path A 的 e2e（`window.openPencil.setAgentBackend(info)` mock）|
+| 项 | 状态 | Commit |
+|---|---|---|
+| `bun run dev` 自动拉起 agent | ✅ `src/app/automation/bridge/agent-vite-plugin.ts` | `0328e280` |
+| 显式 agent-mode 设置（默认 backend,无 silent fallback） | ✅ `AgentModeSection` + `agentMode` ref | `51fdf538` |
+| WS 桥心跳 + 无限重连 + 指数退避 + `stale` 信号 | ✅ `packages/agent/src/bridge/ws-client.ts` | `e181d21c` |
+| 前端 abortSignal 透传到 tool handler | ✅ `RpcEnvelope` 加 `abort` + `tools-bridge.ts` execute 接收 `abortSignal` | `a6394049` |
+| Agent 崩溃时主动通知前端 | ✅ `stale` 事件，前端 `resetAgentBackendCache()` 桥接 | `e181d21c` |
+| 凭证下沉 OS keychain (`@napi-rs/keyring`) | ✅ `CredentialStore` + `Keychain/MemoryCredentialStore` | `5626c1aa` |
+| Path A e2e（`window.openPencil.setAgentBackend` 注入 + 真实 mock Hono） | ✅ `tests/e2e/chat/agent-backend.spec.ts`（`RUN_AGENT_E2E=1`） | T5 |
+| 文档补齐（mcp/core README + L2 §6.2 + CHANGELOG） | ✅ | T5 |
 
 ### 6.3 P2 / P3（不做 / 留待后续）
 
@@ -209,17 +210,21 @@ review 文档本身保持 immutable（`../README.md` line 6 原则），不修�
 |---|---|---|
 | CORS | ✅ 消除 | agent → provider 走 Node，无 CORS |
 | Anthropic 浏览器危险头 | ✅ 消除 | 同上 |
-| 凭证安全 | ⏸ P0 妥协 | 1h TTL 明文内存；真消除要 P1 走 OS keychain |
+| 凭证安全 | ✅ P1 消除 | 默认走 OS keychain (`@napi-rs/keyring`)；keyring 不可用时降级内存 + console.warn；可用 `OPENPENCIL_AGENT_CREDENTIALS=memory` 强制 |
 | vLLM 流式 bug | N/A | 你不用 vLLM provider；该痛点原本是 AI SDK 上游问题，与本改造无关 |
+| Dual-process onboarding | ✅ P1 消除 | `bun run dev` 自动拉起 agent（`agent-vite-plugin.ts`）；无需两终端 |
+| WS 桥死后手动恢复 | ✅ P1 消除 | 15s 心跳 + 指数退避（1s→30s 上限）+ `stale` 事件 |
+| 取消时浪费 provider 配额 | ✅ P1 消除 | `abortSignal` 跨进程透传到 tool handler,RPC envelope `abort` |
+| Path A 缺 e2e 守护 | ✅ P1 缓解 | `tests/e2e/chat/agent-backend.spec.ts`（`RUN_AGENT_E2E=1`）+ `setAgentBackend` 注入点 |
 
 ### 8.2 架构层代价
 
 | 代价 | 缓解 |
 |---|---|
 | Chat state 仅存 agent 进程内存，重启丢历史 | 前端 WeakMap 缓存可恢复 UI；下一条消息是新 agent；用户接受 "刷新页面即新会话" 的现实 |
-| 双进程调试（vite + agent） | `bun run dev` 一键拉 vite；agent 手动启；P1 自动拉起 |
-| 单测覆盖不到 Path A 端到端 | e2e `tests/e2e/chat/panel.spec.ts` 通过 mock transport 覆盖 Path B；Path A 留到 P1 |
-| abortSignal 不能跨进程 | 当前 cancel 只能截断 SSE 流，前端工具 handler 还会跑完；P1 透传 |
+| 双进程调试（vite + agent） | ✅ P1 已消除：`bun run dev` 自动拉起 agent |
+| 单测覆盖不到 Path A 端到端 | ✅ P1 部分缓解：单元测试覆盖 SSE wire/auth/abort；Path A 端到端有 `tests/e2e/chat/agent-backend.spec.ts` 但需 `RUN_AGENT_E2E=1` |
+| abortSignal 跨进程 | ✅ P1 透传：`RpcEnvelope` 加 `abort`，前端 tool handler 监听 abort |
 
 ## 9. 关联文档
 

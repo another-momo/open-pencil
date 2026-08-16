@@ -91,11 +91,30 @@ export function isAgentBackendDisabled(): boolean {
   return env?.OPENPENCIL_AGENT_DISABLE === '1'
 }
 
+let forcedBackend: AgentBackendInfo | null = null
+
+/**
+ * Test hook: pin `probeAgentBackend` to a specific backend without
+ * running the HTTP probe. Pass `null` to restore probe-based
+ * discovery. Designed for e2e specs that stand up a mock agent
+ * server with `Bun.serve` and don't want to wait for the probe to
+ * discover it.
+ */
+export function setForcedAgentBackend(info: AgentBackendInfo | null): void {
+  forcedBackend = info
+  resetAgentBackendCache()
+}
+
+export function getForcedAgentBackend(): AgentBackendInfo | null {
+  return forcedBackend
+}
+
 export async function probeAgentBackend(): Promise<AgentBackendInfo | null> {
   if (!IS_BROWSER) return null
   if (isAgentBackendDisabled()) return null
   // Browser mode never talks to the backend.
   if (getAgentMode() === 'browser') return null
+  if (forcedBackend) return forcedBackend
   if (cached && cached.expiresAt > Date.now()) return cached.info
   if (inflight) return inflight
 

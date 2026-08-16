@@ -1,10 +1,12 @@
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import { IS_BROWSER } from '@open-pencil/core/constants'
 
 import {
+  agentMode,
   probeAgentBackend,
   resetAgentBackendCache,
+  setAgentMode,
   type AgentBackendInfo
 } from '@/app/ai/chat/agent-transport'
 import {
@@ -50,12 +52,43 @@ const activeTab = ref<'design' | 'code' | 'ai'>('design')
 
 const agentBackend = ref<AgentBackendInfo | null>(null)
 
-if (IS_BROWSER) {
-  void probeAgentBackend().then((info) => {
-    agentBackend.value = info
-    return info
-  })
+/**
+ * Set when agent mode is `'backend'` (default) and the local agent is
+ * unreachable. The UI surfaces a banner with a recovery hint instead of
+ * silently routing through the in-browser fallback.
+ */
+export const agentBackendError = ref<string | null>(null)
+
+async function refreshAgentBackend(): Promise<void> {
+  const mode = agentMode.value
+  agentBackendError.value = null
+  if (mode === 'browser') {
+    agentBackend.value = null
+    return
+  }
+  const info = await probeAgentBackend()
+  agentBackend.value = info
+  if (mode === 'backend' && !info) {
+    agentBackendError.value =
+      'Local agent backend is not reachable on 127.0.0.1:7601. ' +
+      'Run `bun run dev` (it auto-spawns the agent) or switch the Agent mode setting.'
+  }
 }
+
+if (IS_BROWSER) {
+  void refreshAgentBackend()
+}
+
+// React to mode flips — clear cache and re-probe so the next chat
+// routes through the right path.
+watch(
+  agentMode,
+  () => {
+    chatSession.markTransportDirty()
+    resetAgentBackendCache()
+    void refreshAgentBackend()
+  }
+)
 
 const chatSession = createChatSessionManager({
   isConfigured,
@@ -70,10 +103,7 @@ const chatSession = createChatSessionManager({
 registerAIChatEffects(() => {
   chatSession.markTransportDirty()
   resetAgentBackendCache()
-  void probeAgentBackend().then((info) => {
-    agentBackend.value = info
-    return info
-  })
+  void refreshAgentBackend()
 })
 registerMarketingSettingsEffects(chatSession.markTransportDirty)
 
@@ -114,6 +144,9 @@ export function useAIChat() {
     isConfigured,
     lookImagesKept,
     agentBackend,
+    agentBackendError,
+    agentMode,
+    setAgentMode,
     ensureChat: chatSession.ensureChat,
     resetChat: chatSession.resetChat
   }

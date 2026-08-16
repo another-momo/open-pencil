@@ -8,6 +8,7 @@ import { useAIChat } from '@/app/ai/chat/use'
 import { appCredentialServices } from '@/app/settings/credentials/app'
 import { settingsDialogOpen, settingsDialogSection } from '@/app/settings/dialog'
 import ChatModeSection from '@/components/settings/provider/ChatModeSection.vue'
+import AgentModeSection from '@/components/settings/provider/AgentModeSection.vue'
 import ImageGenKeysSection from '@/components/settings/provider/ImageGenKeysSection.vue'
 import LookImagesKeptSection from '@/components/settings/provider/LookImagesKeptSection.vue'
 import VisionKeysSection from '@/components/settings/provider/VisionKeysSection.vue'
@@ -103,6 +104,7 @@ const navigationClass =
         >
           <h3 class="text-xs font-semibold text-surface">{{ dialogs.settingsAIAndAgents }}</h3>
           <ChatModeSection />
+          <AgentModeSection />
           <LookImagesKeptSection />
           <ModelsPanel />
         </section>

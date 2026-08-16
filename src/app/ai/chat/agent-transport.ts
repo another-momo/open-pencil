@@ -1,4 +1,5 @@
 import { useLocalStorage } from '@vueuse/core'
+import { computed } from 'vue'
 
 import { IS_BROWSER } from '@open-pencil/core/constants'
 
@@ -31,6 +32,53 @@ const PROBE_TTL_MS = 5_000
 const PROBE_TIMEOUT_MS = 800
 const AGENT_URL_STORAGE_KEY = 'open-pencil:agent-url'
 const CONNECTION_ID_STORAGE_KEY = 'open-pencil:agent-connection-id'
+const AGENT_MODE_STORAGE_KEY = 'open-pencil:agent-mode'
+
+/**
+ * How the frontend picks between the local agent backend (Path A,
+ * preferred) and the in-browser fallback (Path B, legacy).
+ *
+ * - `'backend'` (default): probe `/health` once on chat open. If the
+ *   backend is reachable, route every chat through it. If it isn't,
+ *   surface an actionable error — do NOT silently downgrade to
+ *   in-browser mode. This is what the user expects after
+ *   `bun run dev` brought the backend up.
+ * - `'browser'`: always run the agent loop in the browser. Useful for
+ *   testing in-browser behavior, debugging Path B itself, or running
+ *   in environments where the agent process can't be spawned.
+ * - `'auto'`: probe; if unreachable, silently fall back to in-browser.
+ *   This is the legacy behavior; kept as an explicit opt-in for
+ *   transitional setups (e.g. running the web build against a remote
+ *   MCP server without the local agent).
+ */
+export type AgentMode = 'backend' | 'browser' | 'auto'
+
+const agentModeStorage = useLocalStorage<AgentMode>(AGENT_MODE_STORAGE_KEY, 'backend')
+
+/**
+ * Reactive agent-mode ref. Read/write goes through this so Vue
+ * components re-render on change and `watch` callbacks fire.
+ *
+ * Defensive read rejects any non-enum value (e.g. legacy localStorage
+ * from before the setting existed) back to the `'backend'` default.
+ */
+export const agentMode = computed<AgentMode>({
+  get: () => {
+    const value = agentModeStorage.value
+    return value === 'backend' || value === 'browser' || value === 'auto' ? value : 'backend'
+  },
+  set: (value) => {
+    agentModeStorage.value = value
+  }
+})
+
+export function getAgentMode(): AgentMode {
+  return agentMode.value
+}
+
+export function setAgentMode(mode: AgentMode): void {
+  agentMode.value = mode
+}
 
 let cached: { info: AgentBackendInfo; expiresAt: number } | null = null
 let inflight: Promise<AgentBackendInfo | null> | null = null
@@ -46,6 +94,8 @@ export function isAgentBackendDisabled(): boolean {
 export async function probeAgentBackend(): Promise<AgentBackendInfo | null> {
   if (!IS_BROWSER) return null
   if (isAgentBackendDisabled()) return null
+  // Browser mode never talks to the backend.
+  if (getAgentMode() === 'browser') return null
   if (cached && cached.expiresAt > Date.now()) return cached.info
   if (inflight) return inflight
 
@@ -57,7 +107,10 @@ export async function probeAgentBackend(): Promise<AgentBackendInfo | null> {
       const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS)
       const res = await fetch(`${url}/health`, { signal: controller.signal })
       clearTimeout(timer)
-      if (!res.ok) return null
+      if (!res.ok) {
+        console.warn(`[agent-transport] /health responded ${res.status} from ${url}`)
+        return null
+      }
       const body = (await res.json().catch(() => ({}))) as { version?: unknown }
       const info: AgentBackendInfo = {
         baseUrl: url,

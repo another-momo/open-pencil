@@ -34,6 +34,9 @@ function createProviderSettingsContext() {
     visionModel,
     visionProvider,
     chatMode,
+    agentMode,
+    setAgentMode,
+    agentBackendError,
     resetChat
   } = useAIChat()
 
@@ -119,6 +122,11 @@ function createProviderSettingsContext() {
     resetChat()
   }
 
+  function setAgentModeLocal(mode: 'backend' | 'browser' | 'auto') {
+    setAgentMode(mode)
+    resetChat()
+  }
+
   return {
     isACP,
     lookImagesKept,
@@ -131,17 +139,19 @@ function createProviderSettingsContext() {
     visionModel,
     visionProvider,
     chatMode,
+    agentMode,
+    agentBackendError,
     imageGenKeyInput,
     imageGenBaseURLInput,
     imageGenModelInput,
     visionKeyInput,
     visionBaseURLInput,
     visionModelInput,
+    hasExistingImageGenKey,
     hasExistingVisionKey,
     canCopyMainKey,
     canCopyMainBaseURL,
     canCopyMainModel,
-    hasExistingImageGenKey,
     save,
     clearImageGenKey,
     clearVisionKey: () => clearVisionKey(visionStorage, visionInputs),
@@ -150,7 +160,8 @@ function createProviderSettingsContext() {
     copyMainKeyToVision,
     copyMainBaseURLToVision,
     copyMainModelToVision,
-    setChatMode
+    setChatMode,
+    setAgentMode: setAgentModeLocal
   }
 }
 

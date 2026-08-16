@@ -3,6 +3,11 @@ import { ref } from 'vue'
 import { IS_BROWSER } from '@open-pencil/core/constants'
 
 import {
+  probeAgentBackend,
+  resetAgentBackendCache,
+  type AgentBackendInfo
+} from '@/app/ai/chat/agent-transport'
+import {
   apiKeyStatus,
   browserCredentialsRemembered,
   credentialsReady,
@@ -43,16 +48,33 @@ import { getActiveEditorStore } from '@/app/editor/active-store'
 
 const activeTab = ref<'design' | 'code' | 'ai'>('design')
 
+const agentBackend = ref<AgentBackendInfo | null>(null)
+
+if (IS_BROWSER) {
+  void probeAgentBackend().then((info) => {
+    agentBackend.value = info
+    return info
+  })
+}
+
 const chatSession = createChatSessionManager({
   isConfigured,
   isACPProvider,
   providerID,
   credentialsReady,
   chatMode,
-  getActiveEditorStore
+  getActiveEditorStore,
+  getAgentBackend: () => agentBackend.value
 })
 
-registerAIChatEffects(chatSession.markTransportDirty)
+registerAIChatEffects(() => {
+  chatSession.markTransportDirty()
+  resetAgentBackendCache()
+  void probeAgentBackend().then((info) => {
+    agentBackend.value = info
+    return info
+  })
+})
 registerMarketingSettingsEffects(chatSession.markTransportDirty)
 
 if (IS_BROWSER) {
@@ -91,6 +113,7 @@ export function useAIChat() {
     activeTab,
     isConfigured,
     lookImagesKept,
+    agentBackend,
     ensureChat: chatSession.ensureChat,
     resetChat: chatSession.resetChat
   }

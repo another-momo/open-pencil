@@ -139,7 +139,7 @@ function emitToolLog(
   })
 }
 
-const MEDIA_OUTPUT_TOOLS = new Set(['export_image', 'look'])
+export const MEDIA_OUTPUT_TOOLS = new Set(['export_image', 'look'])
 
 interface MediaToolOutput {
   base64: string
@@ -327,7 +327,7 @@ export function buildDebugLog(entries: ToolLogEntry[]): ToolDebugLog {
   return { entries, duplicates, noopMutations, totalResultBytes }
 }
 
-function paramToValibot(v: typeof valibot, param: ParamDef): unknown {
+export function paramToValibot(v: typeof valibot, param: ParamDef): unknown {
   const typeMap: Record<ParamType, () => unknown> = {
     string: () => (param.enum ? v.picklist(param.enum as [string, ...string[]]) : v.string()),
     number: () => {

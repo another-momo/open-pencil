@@ -6,7 +6,11 @@ import type { ComputedRef, Ref } from 'vue'
 import { ACP_AGENTS } from '@open-pencil/core/constants'
 import type { ACPAgentID, AIProviderID } from '@open-pencil/core/constants'
 
+import type { AgentBackendInfo } from '@/app/ai/chat/agent-transport'
+import { provisionAgentCredential } from '@/app/ai/chat/agent-transport'
 import { elideMediaToolResults } from '@/app/ai/chat/elision'
+import { createHttpAgentTransport } from '@/app/ai/chat/http-agent-transport'
+import { resolveAPIKey } from '@/app/ai/chat/storage'
 import {
   censusMediaToolResults,
   inlineMediaToolResultsAsUserMessages
@@ -27,9 +31,14 @@ import {
   recordStepUsage,
   resetRunSteps
 } from '@/app/ai/tools'
-import type { getActiveEditorStore } from '@/app/editor/active-store'
+import { getActiveEditorStore } from '@/app/editor/active-store'
+import type { EditorStore } from '@/app/editor/session/create'
+import { getTabForStore } from '@/app/tabs'
 
-type EditorStore = ReturnType<typeof getActiveEditorStore>
+// Reference getActiveEditorStore so TS tracks it as used at the module
+// level — the actual call sites are inside `ensureChat`'s closure, which
+// noUnusedLocals/Parameters can't always follow.
+void getActiveEditorStore
 
 type ChatSessionOptions = {
   isConfigured: ComputedRef<boolean>
@@ -38,6 +47,7 @@ type ChatSessionOptions = {
   credentialsReady: Promise<void>
   chatMode: Ref<ChatMode>
   getActiveEditorStore: () => EditorStore
+  getAgentBackend?: () => AgentBackendInfo | null
 }
 
 type ToolLoopTransportOptions = {
@@ -205,7 +215,8 @@ export function createChatSessionManager({
   providerID,
   credentialsReady,
   chatMode,
-  getActiveEditorStore
+  getActiveEditorStore,
+  getAgentBackend
 }: ChatSessionOptions) {
   let transportDirty = false
   let currentChatStore: EditorStore | null = null
@@ -233,6 +244,43 @@ export function createChatSessionManager({
     void acpTransportInstance?.destroy()
     acpTransportInstance = null
 
+    // Path A — agent backend reachable: route the entire chat through it.
+    // The backend hosts the ToolLoopAgent, calls providers server-side
+    // (no CORS), and dispatches tool execution back to the editor via the
+    // existing WebSocket automation bridge.
+    const agentInfo = getAgentBackend?.()
+    if (agentInfo) {
+      const runtime = await createAIModelRuntime('design')
+      if (!runtime || runtime.kind !== 'direct') {
+        throw new Error('The Design model is not configured for direct API access')
+      }
+      const apiKey = await resolveAPIKey()
+      if (!apiKey) {
+        throw new Error(
+          'No API key configured. Open Settings → AI Provider and set a key before chatting through the agent backend.'
+        )
+      }
+      await provisionAgentCredential(agentInfo, apiKey)
+      const chatId = getChatId(store)
+      return createHttpAgentTransport({
+        info: agentInfo,
+        chatId,
+        store,
+        config: {
+          connectionId: agentInfo.connectionId,
+          providerID: runtime.role.connection.providerID,
+          modelID: runtime.role.profile.modelID,
+          customModelID: runtime.role.profile.customModelID,
+          customBaseURL: runtime.role.connection.customBaseURL,
+          customAPIType: runtime.role.connection.customAPIType,
+          maxOutputTokens: runtime.role.profile.maxOutputTokens,
+          chatMode: chatMode.value,
+          lookImagesKept: lookImagesKept.value
+        }
+      })
+    }
+
+    // Path B — fallback: in-browser ToolLoopAgent (unchanged behavior).
     const runtime = await createAIModelRuntime('design')
     if (runtime?.kind !== 'direct') {
       throw new Error('The Design model is not configured for direct API access')
@@ -250,6 +298,16 @@ export function createChatSessionManager({
       customAPIType: runtime.role.connection.customAPIType,
       chatMode: chatMode.value
     })
+  }
+
+  function getChatId(store: EditorStore): string {
+    // Per-tab chat session id. Switching pages inside the same tab keeps
+    // the chat history (chatId stable); opening a new tab starts fresh.
+    // The backend holds an in-memory ToolLoopAgent per chatId so reconnects
+    // resume instead of starting over.
+    const tab = getTabForStore(store)
+    if (tab) return `web-${tab.id}`
+    return `web-${store.state.documentName || 'default'}`
   }
 
   async function ensureChat(): Promise<Chat<UIMessage> | null> {

@@ -29,6 +29,35 @@ import {
 } from '@open-pencil/core/tools'
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
+// Mirror of `LibrarySnapshot` in `@open-pencil/agent/prompts`. Kept
+// inline so the frontend bundle doesn't depend on the agent package —
+// the wire shape is identical by construction.
+type LibraryTypeEntry = {
+  id: string
+  label: string
+  description: string
+}
+type LibraryProfileEntry = {
+  id: string
+  label: string
+  applicableTo: string[]
+  markdown: string
+}
+type LibraryReferenceEntry = {
+  id: string
+  name: string
+  applicableTo: string[]
+}
+export type LibrarySnapshot = {
+  /** id of the profile the user has locked; null when nothing is picked */
+  userPickedProfileId: string | null
+  types: LibraryTypeEntry[]
+  profiles: LibraryProfileEntry[]
+  references: LibraryReferenceEntry[]
+  /** True when the document has a 参考区 page (mirrors `MATERIALS_PAGE_NAME`). */
+  hasReferencesPage: boolean
+} | null
+
 import { profileSelection } from '@/app/ai/marketing/settings'
 import { getActiveEditorStore, type EditorStore } from '@/app/editor/active-store'
 
@@ -315,4 +344,48 @@ export function injectLibraryReferences(
   // tick so the references dropdown re-reads the marker set.
   injectionTick.value++
   return result
+}
+
+/**
+ * Serialize the current library state into a plain-data snapshot the
+ * agent backend can consume without touching the editor's SceneGraph.
+ * Shipped via the `x-op-library-snapshot` header on `/v1/chat`.
+ *
+ * Returns null when no library is loaded — the backend then emits no
+ * marketing overlay. The reference page flag is captured so the
+ * backend can emit the 参考区 paragraph even when no references are
+ * present yet (mirrors the frontend `buildMarketingOverlay` semantics).
+ *
+ * Shape must stay in lockstep with `packages/agent/src/prompts/library-snapshot.ts`
+ * `LibrarySnapshot` — see the comment there for the field contract.
+ */
+export function serializeLibrarySnapshot(graph: SceneGraph): LibrarySnapshot {
+  const session = getLibrarySession(graph)
+  if (!session) return null
+  const index = session.index
+  const selection = profileSelection.value
+  const userPicked = selection?.source === 'user'
+  const profileId = userPicked ? selection.id : null
+  const hasReferencesPage = graph.getPages().some((page) => page.name === MATERIALS_PAGE_NAME)
+
+  return {
+    userPickedProfileId: profileId ?? null,
+    types: index.types.map((t) => ({
+      id: t.id,
+      label: t.label,
+      description: t.description ?? ''
+    })),
+    profiles: index.profiles.map((p) => ({
+      id: p.id,
+      label: p.label,
+      applicableTo: [...p.applicableTo],
+      markdown: p.markdown
+    })),
+    references: index.references.map((r) => ({
+      id: r.id,
+      name: r.id, // references don't carry a display name; id is the most useful label
+      applicableTo: [...r.applicableTo]
+    })),
+    hasReferencesPage
+  }
 }

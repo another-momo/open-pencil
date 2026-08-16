@@ -115,6 +115,31 @@
         "ws": "^8.19.0",
       },
     },
+    "packages/agent": {
+      "name": "@open-pencil/agent",
+      "version": "0.14.0",
+      "bin": {
+        "openpencil-agent": "./dist/start.mjs",
+      },
+      "dependencies": {
+        "@ai-sdk/anthropic": "^3.0.74",
+        "@ai-sdk/deepseek": "^2.0.34",
+        "@ai-sdk/google": "^3.0.67",
+        "@ai-sdk/openai": "^3.0.58",
+        "@ai-sdk/valibot": "^2.0.27",
+        "@hono/node-server": "^1.19.11",
+        "@open-pencil/core": "workspace:*",
+        "@openrouter/ai-sdk-provider": "^2.9.0",
+        "ai": "^6.0.174",
+        "hono": "^4.12.5",
+        "valibot": "^1.2.0",
+        "ws": "^8.19.0",
+      },
+      "devDependencies": {
+        "@types/node": "^25.3.2",
+        "@types/ws": "^8.18.1",
+      },
+    },
     "packages/cli": {
       "name": "@open-pencil/cli",
       "version": "0.14.0",
@@ -852,6 +877,8 @@
     "@nodelib/fs.stat": ["@nodelib/fs.stat@2.0.5", "", {}, "sha512-RkhPPp2zrqDAQA/2jNhnztcPAlv64XdhIp7a7454A5ovI7Bukxgt7MX7udwAu3zg1DcpPU0rz3VV1SeaqvY4+A=="],
 
     "@nodelib/fs.walk": ["@nodelib/fs.walk@1.2.8", "", { "dependencies": { "@nodelib/fs.scandir": "2.1.5", "fastq": "^1.6.0" } }, "sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg=="],
+
+    "@open-pencil/agent": ["@open-pencil/agent@workspace:packages/agent"],
 
     "@open-pencil/cli": ["@open-pencil/cli@workspace:packages/cli"],
 

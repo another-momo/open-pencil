@@ -6,7 +6,11 @@ import { isAuthorized } from '#mcp/auth'
 import type { RPCJSONObject } from '#mcp/json'
 import type { PendingRequest } from '#mcp/rpc-types'
 
-const RPC_TIMEOUT = 20_000
+// The image-generation provider runs at 240s (`imageGenTimeoutMs` in
+// @open-pencil/core/tools/image-gen/providers.ts); the RPC envelope has
+// to comfortably exceed that or the LLM sees a transport timeout mid-
+// step. Keep a 60s margin to absorb WS overhead and image-byte transfer.
+const RPC_TIMEOUT = 300_000
 const APP_WAIT_TIMEOUT = 10_000
 
 const APP_NOT_CONNECTED_MESSAGE =

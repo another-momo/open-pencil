@@ -6,7 +6,7 @@ export const CODEGEN_PROMPT: string = codegenPrompt
 export { exportImage } from './vector'
 export { defineTool, nodeToResult, nodeSummary, requireNode, NodeNotFoundError } from './schema'
 export type { ToolDef, ParamDef, ParamType } from './schema'
-export { toolsToAI, buildDebugLog } from './ai-adapter'
+export { toolsToAI, buildDebugLog, paramToValibot, MEDIA_OUTPUT_TOOLS } from './ai-adapter'
 export type { ToolLogEntry, ToolDebugLog, AIAdapterOptions, StepBudget } from './ai-adapter'
 export { calcClusterConfidence, wrapEvalCode } from './analyze'
 export {

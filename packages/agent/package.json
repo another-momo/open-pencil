@@ -1,0 +1,71 @@
+{
+  "name": "@open-pencil/agent",
+  "version": "0.14.0",
+  "license": "MIT",
+  "type": "module",
+  "imports": {
+    "#agent/*": {
+      "types": "./src/*.ts",
+      "bun": "./src/*.ts",
+      "default": "./dist/*.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
+    },
+    "./discovery": {
+      "types": "./dist/discovery.d.mts",
+      "import": "./dist/discovery.mjs",
+      "default": "./dist/discovery.mjs"
+    },
+    "./prompts": {
+      "types": "./dist/prompts/index.d.mts",
+      "import": "./dist/prompts/index.mjs",
+      "default": "./dist/prompts/index.mjs"
+    }
+  },
+  "bin": {
+    "openpencil-agent": "./dist/start.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun run build:prompts && bunx tsdown --config tsdown.config.ts",
+    "build:prompts": "bun scripts/inline-prompts.ts",
+    "dev": "bun run build:prompts && bun --watch src/start.ts",
+    "start": "node dist/start.mjs",
+    "prepublishOnly": "bun run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/open-pencil/open-pencil.git",
+    "directory": "packages/agent"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.74",
+    "@ai-sdk/deepseek": "^2.0.34",
+    "@ai-sdk/google": "^3.0.67",
+    "@ai-sdk/openai": "^3.0.58",
+    "@ai-sdk/valibot": "^2.0.27",
+    "@hono/node-server": "^1.19.11",
+    "@open-pencil/core": "workspace:*",
+    "@openrouter/ai-sdk-provider": "^2.9.0",
+    "ai": "^6.0.174",
+    "hono": "^4.12.5",
+    "valibot": "^1.2.0",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.2",
+    "@types/ws": "^8.18.1"
+  }
+}

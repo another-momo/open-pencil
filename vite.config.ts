@@ -9,7 +9,7 @@ import { defineConfig } from 'vite'
 
 import packageJson from './package.json'
 import { createOpenPencilAliases } from './vite/aliases'
-import { localAutomationToken, openPencilAutomationPlugin } from './vite/automation'
+import { localAutomationToken, openPencilAgentPlugin, openPencilAutomationPlugin } from './vite/automation'
 import { copyCanvasKitAssetsPlugin } from './vite/canvaskit-assets'
 import { openPencilPwaPlugin } from './vite/pwa'
 import { rawMarkdownPlugin } from './vite/raw-markdown'
@@ -32,6 +32,7 @@ export default defineConfig(async ({ command }) => ({
     Icons({ compiler: 'vue3' }),
     Components({ resolvers: [IconsResolver({ prefix: 'icon' })] }),
     openPencilAutomationPlugin(command, host),
+    openPencilAgentPlugin(command, host),
     vue(),
     openPencilPwaPlugin()
   ],

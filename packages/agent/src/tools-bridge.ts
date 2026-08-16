@@ -46,9 +46,9 @@ export function bridgeToolsToAI(tools: ToolDef[], bridge: FrontendBridge): ToolS
     const toolOpts: Record<string, unknown> = {
       description: def.description,
       inputSchema: valibotSchema(v.object(shape as Record<string, never>)),
-      execute: async (args: Record<string, unknown>) => {
+      execute: async (args: Record<string, unknown>, options: { abortSignal?: AbortSignal } = {}) => {
         try {
-          const response = await bridge.sendRPC('tool', { name: def.name, args })
+          const response = await bridge.sendRPC('tool', { name: def.name, args }, options.abortSignal)
           if (response.ok) {
             return response.result
           }

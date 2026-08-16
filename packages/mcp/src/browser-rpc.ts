@@ -183,7 +183,20 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
           pending.delete(id)
           settle.reject(new Error(`RPC timeout (${Math.round(RPC_TIMEOUT / 1000)}s)`))
         }, RPC_TIMEOUT)
-        pending.set(id, { resolve: settle.resolve, reject: settle.reject, timer })
+        pending.set(id, {
+          resolve: settle.resolve,
+          reject: settle.reject,
+          timer,
+          abort: () => {
+            // The agent side cancelled this RPC (user clicked Stop in
+            // the chat UI). Reject with a clear, namespaced message
+            // so the AI SDK's onError surfaces something actionable
+            // rather than a generic "RPC failed".
+            clearTimeout(timer)
+            pending.delete(id)
+            settle.reject(new Error('RPC aborted by caller'))
+          }
+        })
         try {
           ws.send(JSON.stringify({ ...body, type: 'request', id }))
         } catch (e) {
@@ -311,6 +324,18 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
       return
     }
     if (msg.type === 'response') handleBrowserResponse(msg, ws)
+    if (msg.type === 'abort') {
+      // The agent side is telling us to cancel an in-flight RPC.
+      // We don't have a single-request "abort" envelope from the
+      // browser app side; the browser app drives cancellation of its
+      // own tool execution by simply not responding. So this branch
+      // only fires for `id`s that exist in `pending` (i.e. RPCs the
+      // bridge dispatched on behalf of an authenticated client).
+      if (!msg.id) return
+      const req = pending.get(msg.id)
+      if (!req) return
+      req.abort()
+    }
   }
 
   function handleClose(ws: WebSocket) {

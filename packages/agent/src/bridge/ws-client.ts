@@ -54,7 +54,7 @@ function nextReconnectDelay(attempt: number): number {
 export { nextReconnectDelay }
 
 export type RpcEnvelope = {
-  type: 'request' | 'response' | 'auth' | 'register'
+  type: 'request' | 'response' | 'auth' | 'register' | 'abort'
   id?: string
   token?: unknown
   command?: string
@@ -362,24 +362,70 @@ export class FrontendBridge extends EventEmitter<FrontendBridgeEvents> {
     return this.ws?.readyState === WebSocket.OPEN
   }
 
-  async sendRPC(command: string, args: unknown): Promise<RpcResponse> {
+  async sendRPC(command: string, args: unknown, signal?: AbortSignal): Promise<RpcResponse> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('Bridge not connected')
     }
     const id = randomUUID()
     return new Promise<RpcResponse>((resolve, reject) => {
+      // Aborts always reject — they don't depend on the pending map
+      // existing. We capture `aborted` into a single helper so the
+      // pre-flight check and the listener handler stay consistent.
+      const abortNow = (): void => {
+        if (signal && !signal.aborted) signal.removeEventListener('abort', onAbort)
+        clearTimeout(timer)
+        // Don't bother sending an abort envelope if the request never
+        // went out — the bridge never saw it.
+        if (requestSent) {
+          try {
+            this.ws?.send(JSON.stringify({ type: 'abort', id } satisfies RpcEnvelope))
+          } catch {
+            // socket is dying — close handler will reject the rest
+          }
+        }
+        reject(new Error('RPC aborted by caller'))
+      }
+
       const timer = setTimeout(() => {
+        if (signal) signal.removeEventListener('abort', onAbort)
         this.pending.delete(id)
         reject(new Error(`Bridge RPC timeout (${BRIDGE_RPC_TIMEOUT_MS / 1000}s)`))
       }, BRIDGE_RPC_TIMEOUT_MS)
-      this.pending.set(id, { resolve, reject, timer })
+
+      const onAbort = () => abortNow()
+
+      let requestSent = false
+
+      if (signal) {
+        if (signal.aborted) {
+          abortNow()
+          return
+        }
+        signal.addEventListener('abort', onAbort, { once: true })
+      }
+
+      this.pending.set(id, {
+        resolve: (value) => {
+          if (signal) signal.removeEventListener('abort', onAbort)
+          clearTimeout(timer)
+          resolve(value)
+        },
+        reject: (error) => {
+          if (signal) signal.removeEventListener('abort', onAbort)
+          clearTimeout(timer)
+          reject(error)
+        },
+        timer
+      })
       try {
         this.ws!.send(
           JSON.stringify({ type: 'request', id, command, args } satisfies RpcEnvelope)
         )
+        requestSent = true
       } catch (e) {
-        clearTimeout(timer)
         this.pending.delete(id)
+        clearTimeout(timer)
+        if (signal) signal.removeEventListener('abort', onAbort)
         reject(e instanceof Error ? e : new Error(String(e)))
       }
     })

@@ -15,7 +15,7 @@ import {
 // duration of one test: it accepts auth, then echoes any `request`
 // envelopes back as `response` envelopes using a configurable handler.
 
-type Handler = (command: string, args: unknown) => unknown
+type Handler = (command: string, args: unknown) => unknown | Promise<unknown>
 
 type CreateOptions = {
   onConnection?: (ws: WebSocket) => void
@@ -66,26 +66,32 @@ function createTestBridge(
         }
 
         if (parsed.type === 'request' && parsed.id && parsed.command) {
-          try {
-            const result = handler(parsed.command, parsed.args)
-            ws.send(
-              JSON.stringify({
-                type: 'response',
-                id: parsed.id,
-                ok: true,
-                result
-              } satisfies RpcEnvelope)
-            )
-          } catch (err) {
-            ws.send(
-              JSON.stringify({
-                type: 'response',
-                id: parsed.id,
-                ok: false,
-                error: err instanceof Error ? err.message : String(err)
-              } satisfies RpcEnvelope)
-            )
-          }
+          ;(async () => {
+            try {
+              const result = await handler(parsed.command, parsed.args)
+              // If the bridge has closed by the time the handler
+              // resolves, drop the response silently.
+              if (ws.readyState !== ws.OPEN) return
+              ws.send(
+                JSON.stringify({
+                  type: 'response',
+                  id: parsed.id,
+                  ok: true,
+                  result
+                } satisfies RpcEnvelope)
+              )
+            } catch (err) {
+              if (ws.readyState !== ws.OPEN) return
+              ws.send(
+                JSON.stringify({
+                  type: 'response',
+                  id: parsed.id,
+                  ok: false,
+                  error: err instanceof Error ? err.message : String(err)
+                } satisfies RpcEnvelope)
+              )
+            }
+          })()
         }
       })
     })
@@ -396,5 +402,111 @@ describe('HEARTBEAT_CONSTANTS exports', () => {
     expect(HEARTBEAT_CONSTANTS.STALE_MISS_LIMIT).toBe(3)
     expect(HEARTBEAT_CONSTANTS.RECONNECT_BASE_MS).toBe(1_000)
     expect(HEARTBEAT_CONSTANTS.RECONNECT_CAP_MS).toBe(30_000)
+  })
+})
+
+describe('FrontendBridge.sendRPC abort', () => {
+  test('rejects immediately when called with an already-aborted signal', async () => {
+    const setup = await createTestBridge(() => null)
+    testHandles.push(setup)
+    const bridge = new FrontendBridge({
+      heartbeatIntervalMs: 60_000,
+      heartbeatTimeoutMs: 60_000
+    })
+    await bridge.connect({
+      socketPath: null,
+      httpPort: Number(new URL(setup.url).port),
+      authToken: setup.authToken
+    })
+    testBridges.push(bridge)
+
+    const ctrl = new AbortController()
+    ctrl.abort()
+    await expect(bridge.sendRPC('tool', { name: 'x' }, ctrl.signal)).rejects.toThrow(/aborted/)
+    // The aborted RPC must not have sent a `request` envelope — only
+    // the auth frame should be in `received`.
+    expect(setup.received.find((m) => m.type === 'request')).toBeUndefined()
+  })
+
+  test('emits an abort envelope and rejects when the signal fires mid-RPC', async () => {
+    // Server hangs the handler forever — RPC stays pending until the
+    // agent aborts it.
+    const setup = await createTestBridge(
+      () => new Promise(() => {
+        // never resolve
+      })
+    )
+    testHandles.push(setup)
+    const bridge = new FrontendBridge({
+      heartbeatIntervalMs: 60_000,
+      heartbeatTimeoutMs: 60_000
+    })
+    await bridge.connect({
+      socketPath: null,
+      httpPort: Number(new URL(setup.url).port),
+      authToken: setup.authToken
+    })
+    testBridges.push(bridge)
+
+    const ctrl = new AbortController()
+    const pending = bridge.sendRPC('tool', { name: 'x', args: {} }, ctrl.signal)
+    // Give the WS layer a tick to deliver the request frame.
+    await new Promise((r) => setTimeout(r, 50))
+
+    ctrl.abort()
+
+    // Wait for the abort promise to settle rather than relying on
+    // .rejects.toThrow (which can race against the listener).
+    const settled = await pending.catch((e) => e as Error)
+    expect(settled).toBeInstanceOf(Error)
+    expect((settled as Error).message).toMatch(/aborted/)
+
+    // Give the WS layer a tick to deliver the abort envelope.
+    await new Promise((r) => setTimeout(r, 50))
+
+    const abort = setup.received.find((m) => m.type === 'abort')
+    expect(abort).toBeDefined()
+    expect(abort?.id).toBeString()
+
+    // The request that was already in flight should still be present.
+    const request = setup.received.find((m) => m.type === 'request')
+    expect(request).toBeDefined()
+    expect(request?.id).toBe(abort?.id)
+  })
+
+  test('a server response after abort is ignored (no double-resolve)', async () => {
+    // Server hangs so the agent has time to abort before any reply.
+    // After the abort, we manually inject a late response frame to
+    // confirm the bridge doesn't re-settle the rejected promise.
+    const setup = await createTestBridge(
+      () => new Promise(() => {
+        // never resolve — keep the request pending
+      })
+    )
+    testHandles.push(setup)
+    const bridge = new FrontendBridge({
+      heartbeatIntervalMs: 60_000,
+      heartbeatTimeoutMs: 60_000
+    })
+    await bridge.connect({
+      socketPath: null,
+      httpPort: Number(new URL(setup.url).port),
+      authToken: setup.authToken
+    })
+    testBridges.push(bridge)
+
+    const ctrl = new AbortController()
+    const pending = bridge.sendRPC('tool', { name: 'x' }, ctrl.signal)
+    await new Promise((r) => setTimeout(r, 50))
+    ctrl.abort()
+
+    const settled = await pending.catch((e) => e as Error)
+    expect(settled).toBeInstanceOf(Error)
+    expect((settled as Error).message).toMatch(/aborted/)
+
+    // Re-awaiting an already-rejected promise stays rejected; this
+    // proves no late `response` frame triggered a resolve.
+    const re = await pending.catch((e) => e as Error)
+    expect(re).toBeInstanceOf(Error)
   })
 })

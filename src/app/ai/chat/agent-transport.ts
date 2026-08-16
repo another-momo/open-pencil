@@ -1,8 +1,6 @@
 import { useLocalStorage } from '@vueuse/core'
 import { computed } from 'vue'
 
-import { IS_BROWSER } from '@open-pencil/core/constants'
-
 import type { AIProviderID } from '@open-pencil/core/constants'
 
 import type { ChatMode } from '@/app/ai/marketing/settings'
@@ -110,7 +108,9 @@ export function getForcedAgentBackend(): AgentBackendInfo | null {
 }
 
 export async function probeAgentBackend(): Promise<AgentBackendInfo | null> {
-  if (!IS_BROWSER) return null
+  // Check window presence at call time (not module-load time) so the
+  // test harness can stub `globalThis.window` after imports resolve.
+  if (typeof window === 'undefined') return null
   if (isAgentBackendDisabled()) return null
   // Browser mode never talks to the backend.
   if (getAgentMode() === 'browser') return null

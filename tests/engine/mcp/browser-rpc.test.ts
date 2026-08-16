@@ -316,29 +316,42 @@ describe('BrowserRpcBridge reconnection', () => {
       bridge.handleMessage(data, clientPair.serverWs)
     })
     bridge.handleConnection(clientPair.serverWs)
+    clientPair.clientWs.send(JSON.stringify({ type: 'auth', token: AUTH_TOKEN }))
+    // The bridge adds the client to authenticatedClients without
+    // echoing anything back, so we can't wait for a server reply. A
+    // short delay is enough for the auth to be processed.
     await new Promise<void>((resolve) => {
-      clientPair.clientWs.send(JSON.stringify({ type: 'auth', token: AUTH_TOKEN }))
-      // Wait briefly for the auth message to be processed
-      clientPair.clientWs.once('message', () => resolve())
+      setTimeout(resolve, 50)
     })
 
-    // Capture the request ID from the browser side. Set up the listener
-    // BEFORE sending the RPC to avoid a race where the request message
-    // arrives before the handler is attached.
-    const capturedIdPromise = new Promise<string>((resolve) => {
-      browserPair.clientWs.on('message', function handler(raw: Buffer) {
-        const msg = JSON.parse(raw.toString())
-        if (msg.type === 'request') {
-          browserPair.clientWs.off('message', handler)
-          resolve(msg.id)
+    // Hook the server-side WS so we can capture the request id the
+    // bridge sends. This is more reliable than listening on
+    // browserPair.clientWs because ws emit timing is not always
+    // observable from the test.
+    const origSend = browserPair.serverWs.send.bind(browserPair.serverWs)
+    let capturedId: string | null = null
+    browserPair.serverWs.send = function (data: unknown, ...rest: unknown[]) {
+      try {
+        const parsed = JSON.parse(String(data)) as { type?: string; id?: string }
+        if (parsed.type === 'request' && typeof parsed.id === 'string') {
+          capturedId = parsed.id
         }
-      })
-    })
+      } catch {
+        // not JSON, ignore
+      }
+      return origSend(data as Parameters<typeof origSend>[0], ...(rest as never[]))
+    } as typeof browserPair.serverWs.send
 
     // Send an RPC — it goes to the real browser.
     const rpcPromise = bridge.sendRPC(RPC_BODY)
 
-    const capturedId = await capturedIdPromise
+    // Wait for the request envelope to leave the server-side ws.
+    for (let i = 0; i < 200 && !capturedId; i++) {
+      await new Promise<void>((r) => {
+        setTimeout(r, 5)
+      })
+    }
+    expect(capturedId).not.toBeNull()
 
     // Have the non-browser client inject a fake response with a random UUID.
     // The ws guard (browserWs !== ws) fires because the message arrives from
@@ -364,7 +377,7 @@ describe('BrowserRpcBridge reconnection', () => {
     // are silently dropped.
     const result = await rpcPromise
     expect(result).toEqual({ ok: true, real: true })
-  })
+  }, 12_000)
 
   test('response with matching UUID from non-browser WebSocket is rejected by ws guard', async () => {
     // This test specifically exercises the browserWs !== ws guard with
@@ -390,29 +403,43 @@ describe('BrowserRpcBridge reconnection', () => {
       bridge.handleMessage(data, attackerPair.serverWs)
     })
     bridge.handleConnection(attackerPair.serverWs)
+    attackerPair.clientWs.send(JSON.stringify({ type: 'auth', token: AUTH_TOKEN }))
+    // The bridge adds the client to authenticatedClients without
+    // echoing anything back, so we can't wait for a server reply. A
+    // short delay is enough for the auth to be processed.
     await new Promise<void>((resolve) => {
-      attackerPair.clientWs.send(JSON.stringify({ type: 'auth', token: AUTH_TOKEN }))
-      attackerPair.clientWs.once('message', () => resolve())
+      setTimeout(resolve, 50)
     })
 
-    // Set up the message listener BEFORE sending the RPC to avoid a race
-    // where the request arrives before the handler is attached.
-    const capturedIdPromise = new Promise<string>((resolve) => {
-      browserPair.clientWs.on('message', function handler(raw: Buffer) {
-        const msg = JSON.parse(raw.toString())
-        if (msg.type === 'request') {
-          browserPair.clientWs.off('message', handler)
-          resolve(msg.id)
+    // Hook the server-side WS so we can capture the request id the
+    // bridge sends. Same pattern as the previous test: relying on
+    // browserPair.clientWs 'message' listeners has timing issues
+    // under Bun, while observing what the bridge actually sends is
+    // deterministic.
+    const origSend = browserPair.serverWs.send.bind(browserPair.serverWs)
+    let capturedId: string | null = null
+    browserPair.serverWs.send = function (data: unknown, ...rest: unknown[]) {
+      try {
+        const parsed = JSON.parse(String(data)) as { type?: string; id?: string }
+        if (parsed.type === 'request' && typeof parsed.id === 'string') {
+          capturedId = parsed.id
         }
-      })
-    })
+      } catch {
+        // not JSON, ignore
+      }
+      return origSend(data as Parameters<typeof origSend>[0], ...(rest as never[]))
+    } as typeof browserPair.serverWs.send
 
     // Send an RPC — it goes to the real browser.
     const rpcPromise = bridge.sendRPC(RPC_BODY)
 
-    const capturedId = await capturedIdPromise
+    for (let i = 0; i < 200 && !capturedId; i++) {
+      await new Promise<void>((r) => {
+        setTimeout(r, 5)
+      })
+    }
     expect(capturedId).toBeTruthy()
-    const requestId = capturedId
+    const requestId = capturedId as string
 
     // The attacker sends a fake response with the REAL request UUID
     // from a different WebSocket. The browserWs !== ws guard must
@@ -436,5 +463,5 @@ describe('BrowserRpcBridge reconnection', () => {
     const result = (await rpcPromise) as { legitimate?: boolean; injected?: boolean }
     expect(result.legitimate).toBe(true)
     expect(result.injected).toBeUndefined()
-  })
+  }, 12_000)
 })

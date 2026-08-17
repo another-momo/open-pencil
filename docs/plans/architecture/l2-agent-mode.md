@@ -1,6 +1,6 @@
 # 营销图片设计 Agent 模式：详细规划
 
-> 本文档定义营销 Agent 模式的设计：核心理念、工作流、素材类型体系、资源管理、运行时机制与校验。**状态与任务进度见 `README.md`（唯一状态来源）**；冒烟错误目录见 `../knowledge/error-catalog.md`，实测方法论见 `../knowledge/methodology.md`。
+> 本文档定义营销 Agent 模式的设计：核心理念、工作流、素材类型体系、运行时机制。**资源管理 / 锚点 / 校验**已迁移到 [`l2-brand-config.md`](./l2-brand-config.md)（P3 重大重构），本文档保留工作流骨架。**状态与任务进度见 `README.md`（唯一状态来源）**；冒烟错误目录见 `../knowledge/error-catalog.md`，实测方法论见 `../knowledge/methodology.md`。
 
 ## 1. 核心设计理念
 
@@ -63,106 +63,63 @@ Checkpoint 交互是纯对话，不消耗步数。AI 在等待用户输入时暂
 
 ## 3. 素材类型体系
 
-> 2026-07-31 重写：素材类型配置全部迁入 **Library .fig**，代码只保留扫库 + 解析（详见 `l2-resource-library.md` §4）。
+> 2026-08-17 重写（P3）：素材类型配置迁入 **brand config**（用户级 CRUD 资产，SQLite 存储），Library .fig 库、锚点组件与 validate 校验机制已整体删除。brand config 的数据模型、API 与 UI 详见 `l2-brand-config.md`。
 
 ### 3.1 为什么需要素材类型
 
-素材类型是用户意图到系统配置的映射层。用户说"做一张朋友圈广告"，系统需要知道：设计尺寸（根 frame 宽高）、需要哪些 section、引用哪些锚点组件、风格约束。素材类型封装了这些预设，用户无需手动配置。
+素材类型是用户意图到系统配置的映射层。用户说"做一张朋友圈广告"，系统需要知道：设计尺寸（根 frame 宽高）、风格约束、平台语境。素材类型封装了这些预设，用户无需手动配置。
 
 ### 3.2 素材类型配置
 
-每个素材类型配置包含以下内容，按消费方分为两类（消费机制见 §5）：
+每个素材类型是一条纯数据记录（不再有画布载体）：
 
-**给 `setup_material_type` 工具执行的（确定性，代码完成）：**
-
-- **尺寸**：固定值或可变高（长图类型）
-- **锚点组件**：来自库 Components 区的组件引用，指定放置位置（`anchor_first` / `anchor_last`）
-
-**给 AI 用的（软上下文）：**
-
-- **风格档案（profile）**：独立的 Markdown 文档（配色、字体、语气、版式），由 setup 选中后注入 system prompt overlay——风格与类型解耦，换风格 = 切 profile（见 `l2-resource-library.md` §2）
+- **id / label**：类型标识与展示名
+- **尺寸（size）**：`WxH` 固定值，或 `Wx` 空高（HUG，长图随内容生长）
 - **类型描述（description）**：一句话说明，供 AI 推断类型时匹配用户意图
 
-素材类型配置存储在 **Library .fig 的 Types 区**：每个类型一个 frame，配置项是 `key: value` 纯文本子节点（`id` / `label` / `size` / `description` / `anchor_first` / `anchor_last`）。用户新增类型 = 在库文件里加一个 frame，不需要改代码。
+风格档案（profile）与类型解耦，独立存储：`{ id, label, applicable_to, markdown }`——markdown 是自由文本风格指南（配色、字体、语气、版式），由用户选中后注入 system prompt overlay；换风格 = 切 profile（见 `l2-brand-config.md` §2）。
 
-### 3.3 存储与解析
+配置存储在 **brand config**（`~/.openpencil/brand.db`）：出厂默认层（`public/default-brand/config.yaml` 首次启动 seed，只读）+ 用户层（CRUD 覆写）两层合并，user 优先。CRUD 走 agent backend 的 `/v1/brand/types` / `/v1/brand/profiles` 端点，前端入口是 BrandConfigPanel。用户新增类型 = 面板里加一条记录（或编辑 YAML 导入），**不需要改代码**。
 
-素材类型配置存储在 **Library .fig 的 Types 区**（独立 page，按页名 `Types` 定位，无 pluginData）：
+### 3.3 预设素材类型
 
-- 每个类型一个 frame，配置项是 `key: value` 纯文本子节点
-- 已知 key：`id` / `label` / `size` / `description` / `anchor_first` / `anchor_last`
-- `size` 支持 `750x` 空高（height = null，长图）；`anchor_first` / `anchor_last` 引用按 Components 区 frame name 匹配
-- 未知 key 忽略并记 warning；畸形条目不抛错，跳过并写入 `LibraryIndex.warnings`
-- 用户新增类型 = 在库文件里加一个 frame + 文本子节点，**不需要改代码**
+出厂预设 `public/default-brand/config.yaml`（ship-with 仓库，agent 首次启动 seed 进默认层）收录以下 7 个预设：
 
-代码侧对应实现：`packages/core/src/tools/marketing/library.ts:parseLibraryIndex`（库 → `LibraryIndex.types[]`）。
-
-### 3.4 预设素材类型
-
-默认库 `default-library.fig`（`tools/marketing-library/` 生成，构建期资产 ship-with）收录以下 7 个预设：
-
-| 素材类型 ID | label | 尺寸 | 锚点组件 |
-|---|---|---|---|
-| `wechat_moments` | 朋友圈广告 | 1080×1080 | 无 |
-| `wechat_article_cover` | 公众号封面 | 900×500 | 无 |
-| `xiaohongshu` | 小红书图 | 1080×1440 | 无 |
-| `ecommerce_detail` | 电商详情页 | 750×N | 无 |
-| `event_poster` | 活动海报 | 1080×1920 | 无 |
-| `dsp_banner` | DSP 广告 | 300×250（IAB） | 无 |
-| `product_long` | 产品长图 | 750×N | 无 |
-
-> **2026-08-11 变更**：所有预设类型的锚点声明已移除（`xiaohongshu` / `ecommerce_detail` / `product_long` 原分别声明 BrandBar / CTABar）——**锚点机制本身保留**（Components 区、物化、validate 结构校验均在），但 shipped 类型暂不再声明锚点，机制待重新设计。`setup_material_type` 的 note 与 marketing prompt 的锚点规则已同步改为"无锚点时不提锚点"。
+| 素材类型 ID | label | 尺寸 |
+|---|---|---|
+| `wechat_moments` | 朋友圈广告 | 1080×1080 |
+| `wechat_article_cover` | 公众号封面 | 900×500 |
+| `xiaohongshu` | 小红书图 | 1080×1440 |
+| `ecommerce_detail` | 电商详情页 | 750×N（HUG） |
+| `event_poster` | 活动海报 | 1080×1920 |
+| `dsp_banner` | DSP 广告 | 300×250（IAB） |
+| `product_long` | 产品长图 | 750×N（HUG） |
 
 无预设覆盖的尺寸走 `custom` 兜底（AI 传 width/height）。
 
 ## 4. 资源体系
 
-> 2026-07-31 重写：资源体系已统一为 Library .fig 单一载体（详见 `l2-resource-library.md`）。
+> 2026-08-17 重写（P3）：资源体系统一为 **brand config** 单一载体（YAML 文件格式 + SQLite 运行时），详见 `l2-brand-config.md`。
 
 ### 4.1 资源分层
 
 | 层 | 资源 | 存储 | 注入方式 |
 |---|---|---|---|
-| **组件层** | 锚点组件（BrandBar / CTABar）+ `readonly:` 声明 | 库 Components 区的真 COMPONENT 节点 | 跨文档克隆物化到目标文档 Components 页 |
-| **类型层** | 尺寸、锚点引用、类型描述 | 库 Types 区的 frame + key-value 文本 | setup 读库，`LibraryIndex.types` |
-| **风格层** | profile Markdown + `applicable_to` 适用类型 | 库 Profiles 区的 plain TEXT 节点 | setup 选中后由 app 注入 system prompt overlay |
-| **参考层** | 参考样例 frame + `applicable_to` / `tag` 标注 | 库 References 区 | 用户勾选 → app 克隆进工作文档"参考区"页（注入由 `libraryReferenceId` marker 去重） |
-| **执行层** | AI Agent + 运行时工具 | 营销 prompt + 工具 | setup_material_type / validate / 内容填充 |
+| **类型层** | 尺寸、类型描述 | brand config types（默认层 + 用户层） | 前端会话启动时 push 进 core 类型注册表，`setup_material_type` 按 id 解析 |
+| **风格层** | profile Markdown + `applicable_to` 适用类型 | brand config profiles | 用户在 MarketingConfigBar 选中 → 请求携带 `pickedProfileId` → overlay 注入 system prompt（见 §5.3） |
+| **执行层** | AI Agent + 运行时工具 | 营销 prompt + 工具 | setup_material_type / 内容填充 |
 
-各库的解析契约与警告通道集中记录在 `l2-resource-library.md` §4 与 §9.3。
+P3 删除了旧组件层与参考层：锚点组件、`readonly:` 声明、参考样例页、validate 结构校验均已移除——设计画布上不再存在任何库来源的实例、克隆或标记，AI 只操作自己创建的节点。
 
-### 4.2 组件资产与物化
+### 4.2 存储与合并
 
-OpenPencil 的组件是文档级的（实例只在当前文档内解析）。库组件以**真 COMPONENT 节点**存在于 Library .fig 的 Components 区，用户可直接在画布上编辑结构、样式和 `readonly:` 声明。
-
-`setup_material_type` 物化时经 `cloneSubtreeAcrossGraphs` 把组件子树从库 graph 克隆到目标文档的 "Components" 页（图片字节按内容寻址 hash 搬运；`readonly:` 标记文本在克隆后剥离，不进实例），同名组件在页面级复用——多设计共享一份定义，改定义全实例同步。
-
-物化约束（Q10）：库组件禁用 variables 与嵌套实例（跨文档引用无法迁移），扫库时检测进 warnings。
-
-readonly 语义是**声明式**：setup 把 readonly 节点名写进返回 note 和 prompt，约束 AI 不修改；不再做运行时基线校验（Q13，见 `l2-resource-library.md` §3）。
-
-使用真组件（而非普通 frame）的理由：
-
-- 单文档内系列设计（如 5 张 banner 共用品牌条）：修改组件定义，所有实例同步更新
-- 实例是不透明容器：单击选中整个实例（不会误选内部元素），天然保护锚点
-- .pen 格式原生支持组件（`reusable` frame + `ref` 节点），保存/加载无问题
-
-**实例内容填充与 override 记录**：OpenPencil 的组件同步是单向的（组件定义 → 实例），靠实例的 `overrides` 记录跳过已覆盖属性。AI 工具（`update_node` / `batch_update`）修改实例子节点时自动把改过的属性写入实例的 `overrides`；`render` / `node_replace_with` 替换实例内已映射子节点时，`preserveInstanceChildReplacement` 把旧节点的 componentId 映射转移给新节点并冻结 sync 白名单——AI 填的内容不会被组件同步冲掉。
-
-### 4.3 校验机制
-
-**validate 是纯代码的结构校验（脱库）**，只检查两类违规：
-
-- `anchor_deleted`：锚点实例被删——期望位置从锚点记录自身的 position 推导（`top ↔ first`、`bottom ↔ last`）
-- `anchor_misplaced`：锚点不在根 frame 的首/尾位置
-
-校验数据全部来自会话注册表中的锚点记录（由 pluginData marker 跨重开恢复），**不读素材类型配置**——库未加载或库错了，validate 照常工作（断裂矩阵见 `l2-resource-library.md` §6.1）。重开文档后 setup 修复模式需要原库（组件定义是修复的物化来源）；根 frame marker 记录库名，session 启动时比对并引导用户重新提交。
-
-**违规处理 — 修复前询问用户**：validate 无法区分修改来自 AI 还是用户。检测到违规时 AI 报告并询问：锚点被删 → 用户确认后重新 setup（修复模式重物化缺失锚点）；锚点错位 → reorder 移回或询问是否有意。
+- **两层结构**：默认层（出厂预设 seed，应用代码永不修改）+ 用户层（BrandConfigPanel CRUD / YAML 整库导入替换）；合并视图永远 user 优先
+- **运行时**：agent 进程持有 `BrandRepository`（SQLite，`~/.openpencil/brand.db`，`OPENPENCIL_BRAND_DB` 可覆盖）；前端经 `/v1/brand/manifest` 读合并视图，Web 版（无 agent）走硬编码 fallback
+- 数据模型、YAML schema 与 API 端点的完整契约见 `l2-brand-config.md` §2-§3
 
 ## 5. 运行时机制
 
-素材类型配置通过 `setup_material_type` 工具发挥作用——这一个工具同时完成"自动机制"和"prompt 注入"两件事。
+素材类型配置通过 `setup_material_type` 工具发挥作用——工具负责确定性执行，风格上下文由 system prompt overlay 注入。
 
 ### 5.1 setup_material_type 工具
 
@@ -174,28 +131,34 @@ setup_material_type({ id: "wechat_moments" })
 
 **工具执行（确定性，代码完成）**：
 
-1. 创建根 frame（尺寸由素材类型决定，默认白色底色——避免 describe 报 "Empty frame with no fill" 误导 AI 做无谓修复）——OpenPencil 没有全局画布尺寸，设计都在顶级 FRAME 节点中
-2. 物化锚点组件：`cloneSubtreeAcrossGraphs` 从库 Components 区克隆组件到 "Components" 页，`createInstance` 放到素材类型配置指定的位置（首/尾）
-3. 选中风格档案：显式 `profile` 参数优先；否则第一个 `applicable_to` 命中当前类型的 profile，再无则第一个 profile
-4. 在根 frame 和锚点实例上写 pluginData marker（type / template / position / component / library 五类键），供跨重开恢复
+1. 按 id 从激活类型注册表解析尺寸（前端会话启动时把 brand config types 经 `setActiveMaterialTypes` push 进注册表；两条聊天路径——浏览器内 ToolLoopAgent 与 agent backend 经 automation bridge 反调——都在编辑器进程内执行工具，一处 push 全覆盖）；未知 id 报错并列出可用 id
+2. 创建根 frame（尺寸由素材类型决定，默认白色底色——避免 describe 报 "Empty frame with no fill" 误导 AI 做无谓修复）——OpenPencil 没有全局画布尺寸，设计都在顶级 FRAME 节点中
+3. 在根 frame 上写 pluginData marker（type 等键），供跨重开恢复
 
 **工具返回（进入对话上下文）**：
 
-`size`、锚点实例 ID、`activeProfileId`（当前生效的 profile——其 Markdown 由 app 层注入后续轮次的 system prompt overlay，见 Q6）、库解析 `warnings`（库里有畸形条目时 AI 转告用户）。
+`size`（HUG 类型 height 为 null）、`page`、`rootFrameId` / `rootFrameName`、`adopted`（+ `existingChildren`）。不再返回锚点实例 ID、`activeProfileId` 或库解析 warnings——这些机制已删除。
 
-此外 `note` 字段携带**含真实 rootFrameId 的操作硬指令**：`render every section INTO the root frame with render({ parent_id: "<rootFrameId>", jsx: ... })`。冒烟测试证明（见 `../knowledge/error-catalog.md` R2-1）：prompt 规则不足以保证 AI 使用 `parent_id`，而工具结果常驻对话上下文、且带着具体 ID，是最可靠的注入位置。readonly 声明节点名也在 note 中（声明式约束）。
+此外 `note` 字段携带**含真实 rootFrameId 的操作硬指令**：`render every section INTO the root frame with render({ parent_id: "<rootFrameId>", jsx: ... })`。冒烟测试证明（见 `../knowledge/error-catalog.md` R2-1）：prompt 规则不足以保证 AI 使用 `parent_id`，而工具结果常驻对话上下文、且带着具体 ID，是最可靠的注入位置。
 
-### 5.2 素材类型切换与修复
+### 5.2 素材类型续建与新建
 
-`setup_material_type` 支持三种调用模式：
+`setup_material_type` 的 continue/new 是 **PAGE 级**语义：
 
-- **首次**：全量物化（创建根 frame + 所有锚点实例 + 注册表）
-- **切换**：AI 推断错误或用户要求更换素材类型时再次调用——清除旧锚点实例和注册表条目，按新类型重建
-- **修复**：锚点实例被意外删除时调用——检测缺失的锚点，只重物化缺失部分。修复需要原库（组件定义的物化来源）；类型不在当前库时错误信息引导重新提交对应库文件
+- **首次**：创建新根 frame
+- **续建（mode: "continue"，默认）**：同页同类型设计已存在 → 直接 adopt（返回 `adopted: true` + 既有子节点数，由用户确认继续还是重做）；跨页从不 adopt——同类型设计在别的页面时错误信息引导先切页
+- **新建（mode: "new"）**：总是另起一个根 frame——一个文档可共存多个设计
 
-"Components"页面幂等：已存在则不重复创建；同名组件复用不重复克隆。
+### 5.3 profile overlay 注入
 
-### 5.3 运行时流程
+风格上下文不进工具结果，走 system prompt overlay：
+
+- 前端每轮请求只携带 `brandSelection.pickedProfileId`——用户在 MarketingConfigBar profile chip 的显式选择（null = 未激活；只有显式 pick 才 ship 非空 id，故非空即 user-picked）
+- agent 后端 `buildMarketingOverlay(brandSelection, brandRepository)` 生成 overlay：全量类型清单（"## Material types in the current brand"）+ 有 user-picked profile 时的 "## Active style profile" Markdown；未 pick 时 profile 目录不下发——没有用户选定风格，AI 无权知道有哪些 profile
+- 前端 Path B（无 agent 的 Web 版）由 `src/app/ai/marketing/library.ts` 的同构 `buildMarketingOverlay` 注入，两边实现保持逐字节一致
+- `pickedProfileId` 不在当前 brand config 中（整库导入替换后可能失效）→ overlay 明示 AI 请用户重新选择或清空 chip
+
+### 5.4 运行时流程
 
 ```
 用户描述需求
@@ -203,15 +166,13 @@ setup_material_type({ id: "wechat_moments" })
     ├─→ AI 推断素材类型（不确定时询问用户；L3 chips 可用户手选锁定）
     │
     ├─→ AI 调用 setup_material_type：
-    │     · 执行：创建根 frame + 从库克隆物化组件（COMPONENT + INSTANCE）
-    │     · 返回：size + 锚点 ID + activeProfileId + warnings
-    │     · overlay：profile Markdown 注入后续轮次 system prompt
+    │     · 执行：按 brand config 尺寸创建根 frame（或 adopt 同页既有设计）
+    │     · 返回：size + page + adopted + note（含 rootFrameId 硬指令）
+    │     · overlay：类型清单 + active profile Markdown 注入 system prompt
     │
     ├─→ AI 按 prompt 规则执行工作流（Phase 1-4）
     │
-    └─→ AI 调用 validate 校验（每完成一个 section + 最终检查）
-          · 通过 → 继续
-          · 违规 → 报告用户并询问：误删锚点则修复模式重物化，错位则移回或确认有意
+    └─→ AI 在每段收尾调用 describe + batch_update 修复问题
 ```
 
 ## 6. 图片来源策略

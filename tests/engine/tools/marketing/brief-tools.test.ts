@@ -16,6 +16,12 @@ import { expectDefined } from '#tests/helpers/assert'
 import { attachMiniLibrary } from '#tests/helpers/marketing-library'
 import { getTool, setupToolTest } from '#tests/helpers/tools'
 
+import { setActiveMaterialType } from '../../../../packages/core/src/tools/marketing/setup'
+
+// Default active type used by brief tests — historical default fixture
+// (long-image product post). Tests that need a different type override it.
+setActiveMaterialType({ id: 'product_long', label: '产品长图', size: { width: 750, height: null } })
+
 interface ReadBriefResult {
   brief?: null
   ambiguous?: boolean

@@ -1,9 +1,0 @@
-{
-  "name": "@open-pencil/tool-marketing-library",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "generate": "bun src/generate.ts",
-    "test": "bun test tests"
-  }
-}

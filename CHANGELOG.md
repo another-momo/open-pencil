@@ -2,6 +2,51 @@
 
 ## Unreleased
 
+### Breaking: P3 — Brand Config 化 (Library 解耦 + 用户级持久化)
+
+营销设计的"library"机制整体重构：anchor / readonly / validate / components page / references page / cloneSubtreeAcrossGraphs 全部删除；`.fig` 二进制库格式被 YAML 配置取代；用户配置存储到本地 SQLite (`~/.openpencil/brand.db`)。
+
+迁移指南：`docs/plans/architecture/l2-brand-config.md`、`docs/library-yaml-format.md`、`docs/plans/tasks/agent-backend-p3-brand-config.md`。
+
+**Added**
+
+- New brand config YAML format: `public/default-brand/config.yaml` ships 7 preset types (朋友圈广告 / 公众号封面 / 小红书图 / 电商详情页 / 活动海报 / DSP 广告 / 产品长图) and 8 preset profiles (休闲活泼 casual_v1 / 水彩海报 v0 冻结基线 / 水彩海报 v1 / 杂志封面海报 editorial_poster_v1 / 扁平几何海报 solid_poster_v1 / 水彩海报 v1 center-left / 水彩海报 v2 / 水彩海报 v3).
+- New `packages/agent/src/brand/` module: `BrandConfig` types, zod schema, hand-rolled YAML loader/serializer, SQLite-backed `BrandRepository`, and `loadDefaultBrandConfig` / `defaultBrandDbPath` helpers.
+- New agent HTTP endpoints (`/v1/brand/*`):
+  - `GET /v1/brand/manifest` — effective (user + default) config
+  - `GET /v1/brand/types` · `GET /v1/brand/profiles` — flat lists
+  - `PUT /v1/brand/types/:id` · `PUT /v1/brand/profiles/:id` — upsert user row
+  - `DELETE /v1/brand/types/:id` · `DELETE /v1/brand/profiles/:id` — remove user row
+  - `POST /v1/brand/reset` — clear user layer (default preserved)
+  - `GET /v1/brand/export` — merged YAML attachment download
+  - `POST /v1/brand/import` — body=YAML, transactional whole-file replacement
+  - `GET /v1/brand/metadata` — counts + seed_version
+- New `BrandConfigPanel.vue` (4-tab drawer: 素材类型 / 风格档案 / 导入导出 / 恢复默认) for in-place brand config management.
+- New `setActiveMaterialType(type)` hook in `core/tools/marketing/setup.ts` so the chat transport pushes the active brand-config type into the core tool.
+- New `.github/workflows/no-stale-library.yml` CI lint rule: greps 16 stale keywords (anchor / readonly / validate / cloneSubtreeAcrossGraphs / LibrarySession / LibrarySnapshot / default-library.fig / 参考区 / BrandBar / CTABar / x-op-library-snapshot / etc.) in non-archived source; fails PRs that re-introduce them.
+
+**Removed**
+
+- `packages/core/src/tools/marketing/clone.ts` (cloneSubtreeAcrossGraphs).
+- `packages/core/src/tools/marketing/validate.ts` (anchor_deleted / anchor_misplaced check).
+- `packages/core/src/tools/marketing/library.ts` (LibrarySession / parseLibraryIndex / loadLibrary / setLibrarySession / getLibrarySession / setDefaultLibrary / getDefaultLibrary / injectLibraryReferences / listInjectedReferenceIds / MATERIALS_PAGE_NAME).
+- `tools/marketing-library/` — the entire `tools/` workspace that generated `default-library.fig`.
+- `public/default-library.fig` (176 KB binary).
+- `validate` tool from `CORE_TOOLS` — no longer in the agent's tool list.
+- `setup_material_type` no longer materializes anchor components or writes a readonly note; it just creates a root frame at the resolved size.
+- `image-gen/apply.ts` no longer treats library-reference nodes as protected (the reference mechanism is gone).
+- Library snapshot fields `LibraryReferenceEntry`, `serializeLibrarySnapshot`, `useInjectedReferenceIds`, `injectLibraryReferences` (frontend), `attachMiniLibrary` helper logic (test shim only).
+- Anchor / library-reference pluginData markers (setup writes only the root-frame marker now).
+- `docs/plans/architecture/l2-resource-library.md`, `docs/library-format.md` — superseded by `l2-brand-config.md` and `library-yaml-format.md`.
+
+**Changed**
+
+- `setup_material_type` description: "Creates the root frame at the design size" — no anchor machinery described.
+- `look` description: no longer says "confirm structural or readonly concerns with validate"; instead points to `describe` for structural concerns and warns that visual observations are advisory.
+- Marketing system prompt (`packages/agent/src/prompts/system-prompt-marketing.md` + `src/app/ai/chat/system-prompt-marketing.md`): dropped Anchor Component Rules, Validation paragraph, anchor instance references in Phase 2 and Phase 4; replaced with size-as-binding-spec guidance.
+- Frontend `MarketingConfigBar.vue` keeps its profile-chip UX but library-reference helpers (`useInjectedReferenceIds`, `injectLibraryReferences`) are no-op shims pending the Bar's re-wire to `BrandConfigPanel` (mount entry is a follow-up; the panel itself is fully functional via direct import).
+- Agent backend now opens `BrandRepository` eagerly in `createAgentServer()` (path: `~/.openpencil/brand.db`, env override `OPENPENCIL_BRAND_DB`, tests fallback `:memory:`); close hook releases the SQLite connection.
+
 ### Added
 
 - Add the `@open-pencil/agent` workspace package and a "local agent backend" form factor: the web app's built-in chat can now route through a local Node process (`http://127.0.0.1:7601`) that hosts the `ToolLoopAgent` loop and dispatches tool execution back to the editor via a reverse WebSocket RPC, eliminating CORS / Anthropic browser-dangerous-header pain for direct provider calls. The agent is opt-in: when unreachable the frontend transparently falls back to running the same agent loop in-browser. Library state for the marketing mode is serialized by the frontend and shipped in the request body so the agent never touches the live SceneGraph. See `packages/agent/README.md` and `docs/plans/architecture/l2-agent-backend.md` for protocol and operations.

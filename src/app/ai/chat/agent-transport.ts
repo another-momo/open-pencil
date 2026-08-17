@@ -148,7 +148,7 @@ export async function probeAgentBackend(): Promise<AgentBackendInfo | null> {
   return inflight
 }
 
-function resolveAgentBackendURL(): string | null {
+export function resolveAgentBackendURL(): string | null {
   const fromWindow = windowAgentURL()
   if (fromWindow) return fromWindow.replace(/\/$/, '')
   const fromStorage = readAgentURL()

@@ -119,7 +119,6 @@ export function beginNewBurst(store?: EditorStore): void {
 const MARKETING_ONLY_TOOLS = new Set([
   'look',
   'setup_material_type',
-  'validate',
   'read_brief',
   'create_brief'
 ])

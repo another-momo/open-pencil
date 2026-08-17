@@ -36,7 +36,7 @@ const previewCls = useDialogUI({
   content: 'z-[60] max-h-[85vh] w-[560px] max-w-[90vw] rounded-lg p-4 shadow-xl'
 })
 
-const profiles = computed(() => library.value?.index.profiles ?? [])
+const profiles = computed(() => library.value?.profiles ?? [])
 const selectedId = computed(() => profileSelection.value?.id ?? null)
 
 const query = ref('')
@@ -148,11 +148,11 @@ watch(open, (isOpen) => {
                     {{ profile.description }}
                   </div>
                   <div
-                    v-if="profile.applicableTo.length > 0"
+                    v-if="profile.applicable_to.length > 0"
                     class="mt-1.5 truncate text-[10px] text-muted"
                   >
                     <span class="text-surface/70">{{ dialogs.profileGalleryApplicableTo }}:</span>
-                    {{ formatApplicableTo(profile.applicableTo) }}
+                    {{ formatApplicableTo(profile.applicable_to) }}
                   </div>
                   <div v-else class="mt-1.5 text-[10px] text-muted">
                     <span class="text-surface/70">{{ dialogs.profileGalleryApplicableTo }}:</span>

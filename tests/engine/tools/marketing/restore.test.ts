@@ -1,79 +1,51 @@
-import { describe, expect, test } from 'bun:test'
-
-import { getMarketingState } from '@open-pencil/core/tools'
-
-import { clearMarketingState, listMarketingDesigns } from '#core/tools/marketing/registry'
-import { restoreStateFromCanvas } from '#core/tools/marketing/restore'
+import { expect, test } from 'bun:test'
 
 import { expectDefined } from '#tests/helpers/assert'
 import { attachMiniLibrary } from '#tests/helpers/marketing-library'
-import type { SetupToolResult } from '#tests/helpers/marketing-types'
 import { getTool, setupToolTest } from '#tests/helpers/tools'
 
-function setupDesign(id: string) {
+import { setActiveMaterialType } from '../../../../packages/core/src/tools/marketing/setup'
+import { restoreStateFromCanvas } from '../../../../packages/core/src/tools/marketing/restore'
+
+function setupDesign(typeId: string) {
+  setActiveMaterialType({ id: typeId, label: '产品长图', size: { width: 750, height: null } })
   const env = setupToolTest()
   attachMiniLibrary(env.graph)
-  const result = getTool('setup_material_type').execute(env.figma, { id }) as SetupToolResult
+  const result = getTool('setup_material_type').execute(env.figma, { id: typeId }) as Record<string, unknown>
   expect(result.error).toBeUndefined()
-  return { ...env, result }
+  return { env, rootFrameId: result.rootFrameId as string }
 }
 
-describe('restoreStateFromCanvas', () => {
-  test('restores a design after the registry is wiped (document reopen)', () => {
-    const { graph, result } = setupDesign('product_long')
-    const rootFrameId = result.rootFrameId as string
-    const anchorInstances = (result.anchors ?? []).map((a) => a.instanceId)
+test('restoreStateFromCanvas rebuilds registry entries from canvas markers', () => {
+  const { env, rootFrameId } = setupDesign('product_long')
+  const restored = restoreStateFromCanvas(env.graph)
+  expect(restored).toHaveLength(1)
+  expect(restored[0]?.materialTypeId).toBe('product_long')
+  expect(restored[0]?.rootFrameId).toBe(rootFrameId)
+})
 
-    // Wiping the registry simulates a fresh session; the next state access
-    // lazily rebuilds it from canvas markers
-    clearMarketingState(graph)
-    expect(listMarketingDesigns(graph)).toHaveLength(1)
+test('restoreStateFromCanvas restores multiple coexisting designs', () => {
+  setActiveMaterialType({ id: 'product_long', label: '产品长图', size: { width: 750, height: null } })
+  const env = setupToolTest()
+  attachMiniLibrary(env.graph)
+  const r1 = getTool('setup_material_type').execute(env.figma, { id: 'product_long' }) as Record<string, unknown>
+  expect(r1.error).toBeUndefined()
+  setActiveMaterialType({ id: 'wechat_moments', label: '朋友圈广告', size: { width: 1080, height: 1080 } })
+  const r2 = getTool('setup_material_type').execute(env.figma, { id: 'wechat_moments' }) as Record<string, unknown>
+  expect(r2.error).toBeUndefined()
 
-    const state = expectDefined(getMarketingState(graph, rootFrameId))
-    expect(state.materialTypeId).toBe('product_long')
-    expect(state.rootFrameId).toBe(rootFrameId)
-    expect(state.anchors.map((a) => a.instanceId).sort()).toEqual(anchorInstances.sort())
-  })
+  const restored = restoreStateFromCanvas(env.graph)
+  expect(restored).toHaveLength(2)
+})
 
-  test('restored anchors make validate work again', () => {
-    const { graph, figma, result } = setupDesign('product_long')
-    clearMarketingState(graph)
+test('documents without marketing markers restore nothing', () => {
+  const { graph } = setupToolTest()
+  expect(restoreStateFromCanvas(graph)).toEqual([])
+})
 
-    const validate = getTool('validate').execute(figma, { id: result.rootFrameId as string }) as {
-      valid: boolean
-      note?: string
-    }
-    expect(validate.valid).toBe(true)
-  })
-
-  test('restores multiple coexisting designs', () => {
-    const { graph, figma } = setupDesign('product_long')
-    const second = getTool('setup_material_type').execute(figma, {
-      id: 'wechat_moments'
-    }) as SetupToolResult
-    expect(second.error).toBeUndefined()
-
-    clearMarketingState(graph)
-    const restored = restoreStateFromCanvas(graph)
-    expect(restored).toHaveLength(2)
-    expect(listMarketingDesigns(graph)).toHaveLength(2)
-  })
-
-  test('restores root frames nested inside groups', () => {
-    const { graph, result } = setupDesign('product_long')
-    const rootFrameId = result.rootFrameId as string
-    const group = graph.createNode('GROUP', graph.getPages()[0].id, { name: 'wrapper' })
-    graph.reparentNode(rootFrameId, group.id)
-
-    clearMarketingState(graph)
-    const restored = restoreStateFromCanvas(graph)
-    expect(restored).toHaveLength(1)
-    expect(restored[0]?.rootFrameId).toBe(rootFrameId)
-  })
-
-  test('documents without marketing markers restore nothing', () => {
-    const { graph } = setupToolTest()
-    graph.createNode('FRAME', graph.getPages()[0].id, { name: 'unrelated' })
-    expect(restoreStateFromCanvas(graph)).toHaveLength(0)
-  })
+test('restored root frame can be fetched from the graph', () => {
+  const { env, rootFrameId } = setupDesign('product_long')
+  const restored = restoreStateFromCanvas(env.graph)
+  const node = expectDefined(env.graph.getNode(restored[0]?.rootFrameId ?? rootFrameId))
+  expect(node.type).toBe('FRAME')
 })

@@ -9,7 +9,7 @@ import type {
   AgentBackendInfo,
   AgentChatConfig
 } from '@/app/ai/chat/agent-transport'
-import { serializeLibrarySnapshot } from '@/app/ai/marketing/library'
+import { getActiveProfileId, getMarketingLibrary } from '@/app/ai/marketing/library'
 import type { EditorStore } from '@/app/editor/session/create'
 
 /**
@@ -32,7 +32,7 @@ import type { EditorStore } from '@/app/editor/session/create'
  *       x-op-connection-id: <info.connectionId>
  *       x-op-chat-id:       <chatId>
  *     body:
- *       { id, messages, trigger, agent: AgentChatConfig, librarySnapshot? }
+ *       { id, messages, trigger, agent: AgentChatConfig, brandSelection? }
  *   response:
  *     text/event-stream carrying AI SDK UIMessage chunks
  *     (x-vercel-ai-data-stream: v1)
@@ -63,8 +63,15 @@ export function createHttpAgentTransport({
         agent: config
       }
       if (config.chatMode === 'marketing') {
-        const snapshot = serializeLibrarySnapshot(store.graph)
-        if (snapshot) body.librarySnapshot = snapshot
+        const brand = getMarketingLibrary()
+        const pickedProfileId = getActiveProfileId(store)
+        if (brand) {
+          // BrandSelection: the frontend only ships the user's profile
+          // pick — types + profiles live in the agent's BrandRepository.
+          body.brandSelection = {
+            pickedProfileId: pickedProfileId ?? null
+          }
+        }
       }
       const response = await fetch(`${info.baseUrl}/v1/chat`, {
         method: 'POST',

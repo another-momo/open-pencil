@@ -34,22 +34,11 @@ export {
 export type { VisionMode, VisionProvider, VisionAnalyzer } from './marketing/vision'
 export { getMarketingState } from './marketing'
 export {
-  cloneSubtreeAcrossGraphs,
-  listDocumentLibraryNames,
-  markLibraryReference
-} from './marketing'
-export {
-  MATERIALS_PAGE_NAME,
-  getDefaultLibrary,
-  getLibrarySession,
-  injectLibraryReferences,
-  listInjectedReferenceIds,
-  loadLibrary,
-  parseLibraryIndex,
-  setDefaultLibrary,
-  setLibrarySession
-} from './marketing'
-export type { InjectReferencesResult, LibraryIndex, LibrarySession } from './marketing'
+  parseMaterialTypeSize,
+  setActiveMaterialType,
+  setActiveMaterialTypes
+} from './marketing/setup'
+export type { ActiveMaterialType } from './marketing/setup'
 export {
   BRIEF_CONCLUSIONS_NAME,
   BRIEF_CONTENT_GAP,

@@ -1,0 +1,55 @@
+# Defensive CI lint: no marketing library anchors / readonly / validate machinery
+# should appear in non-archived source. P3 removed the Library .fig upload flow;
+# this guard prevents accidental re-introduction.
+#
+# Keywords tracked (must NOT appear in non-archived source):
+#   readonly, validate (in marketing context), components page,
+#   references page, 参考区, cloneSubtreeAcrossGraphs, library session,
+#   LibrarySession, LibraryIndex, LibrarySnapshot, serializeLibrarySnapshot,
+#   x-op-library-snapshot, library warnings, default-library.fig,
+#   BrandBar, CTABar
+#
+# Bare `anchor` is deliberately NOT tracked: a graphics editor legitimately
+# uses the word for pen-tool anchors and SVG text-anchor. The retired
+# marketing anchor machinery stays covered by BrandBar / CTABar / 参考区 /
+# cloneSubtreeAcrossGraphs above.
+#
+# History/archived locations are explicitly exempted:
+#   docs/plans/history/
+#   docs/plans/archive/
+#   docs/review/2026-08-15-agent-backend-branch-review.md
+#   CHANGELOG*.md
+
+name: No stale marketing library references
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Grep for stale machinery
+        run: |
+          set -e
+          # Word-boundary anchored patterns. Keywords deliberately exclude
+          # `readonly` and `validate` — they collide with TS language
+          # features (`private readonly db`) and unrelated validators
+          # (`validateSchema`). Bare `anchor` is likewise excluded — pen-tool
+          # anchors and SVG text-anchor are legitimate graphics-editor terms;
+          # the retired marketing anchor machinery is still covered by
+          # BrandBar / CTABar / 参考区 / cloneSubtreeAcrossGraphs. The
+          # library-specific markers below are unambiguous and high-signal.
+          PATTERN='\b(BrandBar|CTABar|cloneSubtreeAcrossGraphs|LibrarySession|LibraryIndex|LibrarySnapshot|serializeLibrarySnapshot|x-op-library-snapshot|default-library\.fig|参考区)\b'
+          EXCLUDES='--exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.git --exclude-dir=docs/plans/archive --exclude-dir=docs/plans/history'
+          # Search code (not archived docs)
+          HITS=$(grep -rnE --include='*.ts' --include='*.vue' --include='*.json' --include='*.md' $EXCLUDES \
+            "$PATTERN" packages/ src/ tests/ tools/ vite/ 2>&1 || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::Stale marketing library references found:"
+            echo "$HITS"
+            exit 1
+          fi

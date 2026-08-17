@@ -19,7 +19,7 @@ import { resolveLanguageModelID } from '@/app/ai/chat/model'
 import SYSTEM_PROMPT_MARKETING_BASE from '@/app/ai/chat/system-prompt-base.md?raw'
 import SYSTEM_PROMPT_MARKETING from '@/app/ai/chat/system-prompt-marketing.md?raw'
 import SYSTEM_PROMPT from '@/app/ai/chat/system-prompt.md?raw'
-import { bindMarketingLibrary, buildMarketingOverlay } from '@/app/ai/marketing/library'
+import { buildMarketingOverlay, getMarketingLibrary, pushActiveMaterialTypes } from '@/app/ai/marketing/library'
 import { lookImagesKept } from '@/app/ai/marketing/settings'
 import type { ChatMode } from '@/app/ai/marketing/settings'
 import { createAIModelRuntime } from '@/app/ai/models'
@@ -139,7 +139,13 @@ export function createToolLoopTransport({
       // (docs/plans/l2-resource-library.md Q6).
       let instructions: string | undefined
       if (chatMode === 'marketing') {
-        bindMarketingLibrary(store.graph)
+        // Re-register the brand config's material types with
+        // setup_material_type per turn — covers the initial load and any
+        // mid-session BrandConfigPanel refresh (setBrandConfig also pushes
+        // on replacement). A null library (load failed) clears the
+        // registry so only `custom` works — same semantics as the overlay's
+        // no-types fallback.
+        pushActiveMaterialTypes(getMarketingLibrary())
         instructions = SYSTEM_PROMPT_MARKETING_FULL + buildMarketingOverlay(store.graph)
       }
       const keep = Math.min(3, Math.max(1, Math.round(lookImagesKept.value) || 2))

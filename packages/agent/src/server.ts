@@ -2,10 +2,17 @@ import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 
+import {
+  defaultBrandDbPath,
+  loadDefaultBrandConfig,
+  openBrandRepository,
+  type BrandRepository
+} from './brand/index.js'
 import { agentHost, agentPort, AGENT_VERSION } from './constants.js'
 import { activeConnectionCountAsync } from './credentials.js'
 import { writeAgentDiscovery, removeAgentDiscovery } from './discovery.js'
 import { authRoute } from './routes/auth.js'
+import { brandRoute } from './routes/brand.js'
 import { catalogRoute } from './routes/catalog.js'
 import { chatRoute, disposeBridge } from './routes/chat.js'
 import { healthRoute } from './routes/health.js'
@@ -39,6 +46,14 @@ function readCorsOrigins(): string[] {
 export async function createAgentServer(): Promise<ServerHandle> {
   const app = new Hono()
 
+  // BrandRepository is opened eagerly so the first request after restart
+  // sees the seeded default config rather than racing on I/O. Path is
+  // `~/.openpencil/brand.db` by default, overridable via OPENPENCIL_BRAND_DB.
+  const brandRepo: BrandRepository = openBrandRepository({
+    path: defaultBrandDbPath(),
+    seed: loadDefaultBrandConfig()
+  })
+
   const corsOrigins = readCorsOrigins()
   if (corsOrigins.length > 0) {
     // Allow common local dev hosts plus whatever the operator whitelisted.
@@ -48,7 +63,7 @@ export async function createAgentServer(): Promise<ServerHandle> {
       cors({
         origin: (origin) => (corsOrigins.includes(origin) ? origin : corsOrigins[0]),
         allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-        allowHeaders: ['Content-Type', 'x-op-connection-id', 'x-op-chat-id', 'x-op-library-snapshot'],
+        allowHeaders: ['Content-Type', 'x-op-connection-id', 'x-op-chat-id'],
         exposeHeaders: [],
         credentials: false,
         maxAge: 600
@@ -59,7 +74,8 @@ export async function createAgentServer(): Promise<ServerHandle> {
   app.route('/health', healthRoute())
   app.route('/v1/auth', authRoute())
   app.route('/v1/catalog', catalogRoute())
-  app.route('/v1/chat', chatRoute())
+  app.route('/v1/chat', chatRoute({ brandRepository: brandRepo }))
+  app.route('/v1/brand', brandRoute({ repo: brandRepo }))
 
   app.get('/', async (c) =>
     c.json({
@@ -73,7 +89,7 @@ export async function createAgentServer(): Promise<ServerHandle> {
   return {
     app,
     close: async () => {
-      // placeholder — the runtime shutdown lives in start.ts
+      brandRepo.close()
     }
   }
 }

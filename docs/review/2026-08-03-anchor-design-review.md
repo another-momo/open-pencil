@@ -1,5 +1,7 @@
 # Anchor 机制设计评审（2026-08-03）
 
+> **2026-08-17 DEPRECATED**: The entire anchor / readonly / validate / references machinery that this review analyzes has been **removed** in P3 (Brand Config 化). `library.ts` / `validate.ts` / `clone.ts` are deleted; `setup_material_type` no longer materializes anchor components; `readonly:` markers are gone. This document is preserved as the historical record of why the mechanism was insufficient — see `docs/plans/architecture/l2-brand-config.md` for the current architecture.
+
 > 评审对象：library schema 中 `anchor_first` / `anchor_last` 属性，以及配套的 `validate` 工具与 `setup` 物化流程。
 > 评审范围：用户提出的核心场景——"**品牌 logo 必须出现在海报顶部，但需要覆盖压在 hero 图之上**"——是否在当前数据模型下能实现。
 > 评审依据：fork 的源代码（`packages/core/src/tools/marketing/library.ts:21-32` / `setup.ts:255-280` / `validate.ts:36-71` / `setup.ts:178-190`）、SceneGraph API（`packages/scene-graph/src/instances.ts:183-209` / `index.ts:451`）、设计文档（`docs/library-format.md` / `docs/plans/architecture/l2-resource-library.md`）。

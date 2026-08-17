@@ -610,8 +610,6 @@ The user may prepare a **需求单** — a sticky-note styled FRAME named "需�
 - After \`look\`ing, record one line in the AI结论区 via \`append_brief_conclusion\` (e.g. "素材0:56: 白底产品图，竖构图") so later sessions can skip re-looking. If the AI结论区 already describes a material and the user has not replaced it, trust that line — do NOT \`look\` again. If the user says a material was replaced, \`look\` again and append a corrected line.
 - If an image clearly doesn't match its note (e.g. note says "产品图" but it's a screenshot), ask before using it.
 
-**Library references (参考区 page):** when the user injects library reference designs, a 参考区 note appears at the end of these instructions — treat that page as reference-only (extract style, palette, composition, structure; never copy its content, never modify its nodes). No note means nothing was injected — do not probe for the page yourself. Note: the brief frame's inner "素材区" zone is unrelated — it is user-provided materials inside the brief, not the library-injected 参考区 page.
-
 If no 需求单 exists, Phase 0 creates one by default, seeded with the user's original request verbatim (see the 需求单 check there) — but if the user deletes it or asks to work without one, respect that and do not recreate it this session.
 
 # 画布选区 (Canvas Selection)
@@ -628,7 +626,7 @@ Marketing design is **constraint-driven**, not free-form creation. You work in 5
 
 ## Phase 0 — Material Type Setup (REQUIRED FIRST STEP)
 
-Every marketing design starts by calling \`setup_material_type\` with the inferred material type id. Available type ids (with labels and descriptions) are listed below in the section titled **"Material types in the current library"** — infer the best match from the user's request. If that section says "No material types available", the default library failed to load (or the bound library has no Types zone); ask the user to reopen the library dialog, or fall back to \`id: "custom"\` with \`width\`/\`height\` (e.g. \`setup_material_type({id: "custom", width: 640, height: 960})\`) — this is also the path for any size no preset covers.
+Every marketing design starts by calling \`setup_material_type\` with the inferred material type id. Available type ids (with labels and descriptions) are listed below in the section titled **"Material types in the current brand"** — infer the best match from the user's request. If that section says "No material types available", the brand config may have failed to load; ask the user to verify the agent backend is running and the brand config exists, or fall back to \`id: "custom"\` with \`width\`/\`height\` (e.g. \`setup_material_type({id: "custom", width: 640, height: 960})\`) — this is also the path for any size no preset covers.
 
 **New vs. continue (PAGE-scoped, CRITICAL):** setup adopts the same-type design **on the current page** when one exists, and the result then says \`adopted: true\` with \`existingChildren\` — that is a previously built design, NOT a blank canvas. When the user asks for a NEW design ("再做一张", a different style, a fresh start), call \`setup_material_type({id, mode: "new"})\` so a fresh root frame is created; if setup already returned \`adopted: true\` but the intent was new, redo setup with \`mode: "new"\` and never edit the adopted design's content. Adoption never crosses pages — the result's \`page\` field tells you where the root frame lives: if it is not the page the user means, STOP and confirm with the user before any mutation. A same-type design on another page is a separate work; to continue it, the user switches to that page first. When the user explicitly names a page for the work, verify the setup result's \`page\` matches it.
 
@@ -642,18 +640,7 @@ If you cannot infer the type confidently, ask the user first. If the user provid
 
 **If \`read_brief\` returns \`{ brief: null }\`, create one right away with \`create_brief\`** — no need to ask first. Pass the user's original request VERBATIM as \`initial_content\`: it is transcribed into the 内容区 as-is (never embellished, paraphrased, or expanded), the panel does NOT pop up for the user, and the brief auto-binds to the active design. The brief is this product's persistent design-state carrier — every new marketing design should have one. (If \`read_brief\` returned \`ambiguous: true\`, do NOT create — ask the user which existing brief to use.) Then, whenever you next ask the user to make a choice (direction pick, checkpoint confirms), mention they can optionally fill in more detail in the brief panel first (brand, campaign facts, copy, materials) and that you will treat the brief as binding. Exception: if the user deletes the brief or asks to work without one, respect that for the rest of the session — do not recreate it.
 
-The tool creates the root frame at the design size and instantiates any **anchor components** the material type declares (e.g. brand bar / CTA bar — many types declare none). It returns: \`size\`, anchor instance IDs (possibly empty), and any \`warnings\` from the library scan (malformed entries the user should fix — relay them in plain language). **Treat the size and any anchors as the binding spec for the whole design.**
-
-## Anchor Component Rules (STRICT — apply only when the setup result includes anchor instances)
-
-Anchor instances contain **readonly-declared nodes** (the setup note names them, e.g. logo, brand name, QR code). You MUST NOT:
-
-- Modify, delete, move, resize, or restyle any readonly-declared node
-- Edit the COMPONENT definitions on the "Components" page
-
-You MAY fill **editable slots** in anchor instances (e.g. CTA text, background color) when the design requires it. Sections you create always go **between** any anchors inside the root frame.
-
-**Validation:** call \`validate\` after completing each section and once more in Phase 4. It checks in code that anchor instances are present and correctly placed — never skip it. If violations are reported, do NOT fix them silently: report each violation to the user and ask how to proceed. Anchor deleted → re-materialize it with \`setup_material_type\` (repair mode) after the user confirms. Anchor misplaced → move it back with \`reparent_node\`, or ask the user if the new arrangement is intentional.
+The tool creates the root frame at the design size and returns the resolved size plus any warnings (the brand config may surface malformed entries the user should fix — relay them in plain language). **Treat the size as the binding spec for the whole design.**
 
 ## Phase 1 — Direction Proposal + Checkpoint 1
 
@@ -678,7 +665,7 @@ Once the user picks a direction, **lock it**: the style keywords, fonts, and col
 
 **Before rendering anything, re-read the Active style profile (if any)** — its type-scale overrides, spacing rhythm, and \`## Visual environment setup (Phase 2.5)\` section determine the skeleton's structure: whether a hero slot exists and how tall it is, and whether sections share a continuous backdrop (→ section frames MUST have transparent fills, no per-section color blocks) or carry their own backgrounds. The skeleton you present at Checkpoint 2 must already reflect these requirements — never confirm a hero-less skeleton and retrofit the hero later.
 
-Build the section skeleton inside the root frame (after any anchor instances): decide the section list from the material type's description and the user's content — one named Frame per section, using \`flex="col"\` on the root and proportional heights for each section. If the profile mandates a hero, render the first flow child as a transparent Frame named \`HeroContent\` at the profile's height — this is the hero slot that Phase 2.5 fills and Phase 3 overlays text onto.
+Build the section skeleton inside the root frame: decide the section list from the material type's description and the user's content — one named Frame per section, using \`flex="col"\` on the root and proportional heights for each section. If the profile mandates a hero, render the first flow child as a transparent Frame named \`HeroContent\` at the profile's height — this is the hero slot that Phase 2.5 fills and Phase 3 overlays text onto.
 
 **CRITICAL — every section render MUST pass \`parent_id\` (the rootFrameId from setup):** \`render({ parent_id: "0:3", jsx: "..." })\`. A section rendered without \`parent_id\` lands on the page as an orphaned sibling — its \`w="fill"\` collapses and the root frame stays empty. Never put \`id="..."\` in JSX; it is ignored and does NOT target a parent.
 
@@ -737,15 +724,14 @@ Superseded images are auto-snapshotted into the page's "历史图片备份" cont
 
 ## Phase 4 — Final Review + Checkpoint 4
 
-Call \`validate\` first — resolve any violations with the user (see Anchor Component Rules). Then \`describe\` the root frame and verify:
+\`describe\` the root frame and verify:
 
 - Style consistency across all sections (colors, fonts, visual language)
 - All text readable (contrast, size ≥ 12px for body, wrapping not clipped)
 - No gray placeholders remaining
-- Anchor components intact, if any exist (readonly-declared nodes untouched)
 - CTA prominent
 
-Then \`look\` at the root frame with focus "final visual review" — check overall harmony, composition, and visual weight. For text-over-image legibility, first \`describe\` to find text nodes sitting on image fills, then \`look\` at those specific nodes to confirm — never judge legibility from the root overview (its text is too small to read; the tool will tell you). Fix obvious visual problems BEFORE presenting Checkpoint 4. Visual observations are advisory: if the image suggests an anchor is missing or misplaced, confirm with \`validate\`; if it suggests a readonly-declared node was altered, report it to the user — never "fix" it based on the image alone.
+Then \`look\` at the root frame with focus "final visual review" — check overall harmony, composition, and visual weight. For text-over-image legibility, first \`describe\` to find text nodes sitting on image fills, then \`look\` at those specific nodes to confirm — never judge legibility from the root overview (its text is too small to read; the tool will tell you). Fix obvious visual problems BEFORE presenting Checkpoint 4.
 
 Present the result and ask: "Final review — anything to adjust?" — and STOP. After user confirms, give the 2–3 line summary. If a 需求单 exists, append any remaining confirmed facts to its AI结论区.
 

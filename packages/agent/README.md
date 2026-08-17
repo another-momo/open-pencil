@@ -111,7 +111,7 @@ Request body:
     customModelID, customBaseURL, customAPIType,
     maxOutputTokens, chatMode, lookImagesKept
   }
-  librarySnapshot?: { /* marketing-mode library state, see library-snapshot.ts */ }
+  brandSelection?: { /* marketing-mode brand pick, see prompts/brand-overlay.ts */ }
 }
 ```
 

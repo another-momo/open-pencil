@@ -84,7 +84,7 @@ describe('chatRoute validation', () => {
   })
 })
 
-describe('chatRoute librarySnapshot decoding', () => {
+describe('chatRoute brandSelection decoding', () => {
   beforeEach(() => {
     setCredentialStore(new MemoryCredentialStore())
   })
@@ -93,50 +93,44 @@ describe('chatRoute librarySnapshot decoding', () => {
     resetCredentialStore()
   })
 
-  // librarySnapshot decoding happens AFTER messages[] and id validation
+  // brandSelection decoding happens AFTER messages[] and id validation
   // but BEFORE the bridge call, so the response we see here is the
-  // "agent not running" 503 — the snapshot was accepted (or rejected)
-  // before that branch. We assert the snapshot acceptance/rejection by
+  // "agent not running" 503 — the selection was accepted (or rejected)
+  // before that branch. We assert the selection acceptance/rejection by
   // looking at whether the response surfaces the bridge error vs the
   // shape-error.
   //
   // Bridge call requires a running mcp server with discovery file. We
   // can't easily stand one up in unit tests, so these tests focus on
-  // decodeLibrarySnapshot's contract via observable behavior.
+  // decodeBrandSelection's contract via observable behavior.
 
-  test('missing types/profiles array → snapshot is dropped (treated as no library)', async () => {
-    // The decode function returns null when the shape is wrong, so the
-    // route proceeds past it just as if no snapshot was sent. We can't
-    // observe the null return from outside, so this test only verifies
-    // the route doesn't 500 on a malformed snapshot.
+  test('legacy/unknown fields are dropped (treated as no selection)', async () => {
+    // The decode function only reads pickedProfileId — anything else is
+    // ignored, so the route proceeds just as if no selection was sent.
+    // We can't observe the decode result from outside, so this test only
+    // verifies the route doesn't 4xx/500 on a legacy-shaped selection.
     putCredential('conn-CHAT', 'sk-test')
     const response = await postChat({
       ...validBody,
-      librarySnapshot: { userPickedProfileId: 'p1', hasReferencesPage: false }
+      brandSelection: { userPickedProfileId: 'p1', hasReferencesPage: false }
     })
     // Will be 503 (bridge can't connect) — proves we passed decode without
     // a 4xx decode error.
     expect(response.status).toBe(503)
   })
 
-  test('well-formed librarySnapshot with empty arrays is accepted', async () => {
+  test('well-formed brandSelection is accepted', async () => {
     putCredential('conn-CHAT', 'sk-test')
     const response = await postChat({
       ...validBody,
-      librarySnapshot: {
-        userPickedProfileId: null,
-        types: [],
-        profiles: [],
-        references: [],
-        hasReferencesPage: false
-      }
+      brandSelection: { pickedProfileId: 'p1' }
     })
     expect(response.status).toBe(503)
   })
 
-  test('null librarySnapshot is accepted (no snapshot is a valid state)', async () => {
+  test('null brandSelection is accepted (no selection is a valid state)', async () => {
     putCredential('conn-CHAT', 'sk-test')
-    const response = await postChat({ ...validBody, librarySnapshot: null })
+    const response = await postChat({ ...validBody, brandSelection: null })
     expect(response.status).toBe(503)
   })
 })

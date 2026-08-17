@@ -3,7 +3,6 @@ import type { SceneNode } from '@open-pencil/scene-graph'
 import type { FigmaAPI } from '#core/figma-api'
 import { createImageFill } from '#core/tools/image-fill'
 import { getPageContentBounds } from '#core/tools/marketing/brief'
-import { libraryReferenceId } from '#core/tools/marketing/restore'
 
 import { isInImageHistory, snapshotBeforeOverwrite, type HistorySnapshot } from './history'
 import type { ImageGenProvider, ImageGenReference, ImageGenRequest } from './providers'
@@ -113,9 +112,7 @@ function protectedRedirect(figma: FigmaAPI, nodeId: string): ProtectedRedirect |
   const raw = figma.graph.getNode(nodeId)
   if (!raw) return undefined
   let protectedAs: string | undefined
-  if (libraryReferenceId(raw)) {
-    protectedAs = 'a library reference image'
-  } else if (isInImageHistory(figma.graph, raw.id)) {
+  if (isInImageHistory(figma.graph, raw.id)) {
     protectedAs = 'a generation-history snapshot'
   }
   if (!protectedAs) return undefined

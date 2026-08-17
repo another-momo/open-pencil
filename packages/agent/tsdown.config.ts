@@ -14,7 +14,7 @@ export default defineConfig({
     'agent-loop': './src/agent-loop.ts',
     'tools-bridge': './src/tools-bridge.ts',
     'prompts/index': './src/prompts/index.ts',
-    'prompts/library-snapshot': './src/prompts/library-snapshot.ts',
+    'prompts/brand-overlay': './src/prompts/brand-overlay.ts',
     catalog: './src/catalog.ts',
     credentials: './src/credentials.ts',
     elision: './src/elision.ts',
@@ -26,7 +26,8 @@ export default defineConfig({
     'providers/types': './src/providers/types.ts',
     constants: './src/constants.ts',
     discovery: './src/discovery.ts',
-    'bridge/ws-client': './src/bridge/ws-client.ts'
+    'bridge/ws-client': './src/bridge/ws-client.ts',
+    'brand/index': './src/brand/index.ts'
   },
   platform: 'node',
   format: ['esm'],

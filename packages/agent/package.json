@@ -26,6 +26,11 @@
       "types": "./dist/prompts/index.d.mts",
       "import": "./dist/prompts/index.mjs",
       "default": "./dist/prompts/index.mjs"
+    },
+    "./brand": {
+      "types": "./dist/brand/index.d.mts",
+      "import": "./dist/brand/index.mjs",
+      "default": "./dist/brand/index.mjs"
     }
   },
   "bin": {

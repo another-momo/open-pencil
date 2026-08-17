@@ -13,12 +13,7 @@ export {
   SYSTEM_PROMPT,
   SYSTEM_PROMPT_MARKETING_FULL
 } from './prompts/index.js'
-export type {
-  LibraryProfileEntry,
-  LibraryReferenceEntry,
-  LibrarySnapshot,
-  LibraryTypeEntry
-} from './prompts/index.js'
+export type { BrandSelection } from './prompts/index.js'
 export {
   consumeCredential,
   forgetCredential,

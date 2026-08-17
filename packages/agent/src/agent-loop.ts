@@ -4,12 +4,13 @@ import type { LanguageModel, ModelMessage } from 'ai'
 import type { AIProviderID } from '@open-pencil/core/constants'
 import { CORE_TOOLS } from '@open-pencil/core/tools'
 
+import type { BrandRepository } from './brand/index.js'
 import type { FrontendBridge } from './bridge/ws-client.js'
 import { bridgeToolsToAI } from './tools-bridge.js'
 import { createLanguageModel, resolveLanguageModelID } from './model-resolver.js'
 import { consumeCredential } from './credentials.js'
 import { SYSTEM_PROMPT, SYSTEM_PROMPT_MARKETING_FULL, buildMarketingOverlay } from './prompts/index.js'
-import type { LibrarySnapshot } from './prompts/index.js'
+import type { BrandSelection } from './prompts/index.js'
 import { elideMediaToolResults } from './elision.js'
 import { inlineMediaToolResultsAsUserMessages } from './media-rewriter.js'
 import {
@@ -23,7 +24,6 @@ export const MAX_AGENT_STEPS = 50
 const MARKETING_ONLY_TOOLS = new Set([
   'look',
   'setup_material_type',
-  'validate',
   'read_brief',
   'create_brief'
 ])
@@ -39,7 +39,8 @@ export type AgentRunOptions = {
   customAPIType: 'completions' | 'responses'
   maxOutputTokens: number
   chatMode: ChatMode
-  librarySnapshot: LibrarySnapshot
+  brandSelection: BrandSelection | null
+  brandRepository: BrandRepository
   lookImagesKept: number
   bridge: FrontendBridge
 }
@@ -50,9 +51,10 @@ export type AgentRunOptions = {
  * adaptations:
  *   1. `execute` for every tool is a reverse-RPC dispatch through the
  *      frontend automation bridge (see `tools-bridge.ts`).
- *   2. The marketing library overlay is built from a serialized snapshot
- *      the frontend ships in the `x-op-library-snapshot` header — the
- *      agent backend never touches the editor's SceneGraph.
+ *   2. The marketing brand-profile overlay is built from the agent's
+ *      own BrandRepository + the pickedProfileId the frontend ships in
+ *      the chat request body — the agent backend never touches the
+ *      editor's SceneGraph.
  */
 export function createAgent(options: AgentRunOptions): ToolLoopAgent {
   const apiKey = consumeCredential(options.connectionId)
@@ -99,7 +101,7 @@ export function createAgent(options: AgentRunOptions): ToolLoopAgent {
     prepareCall: (callOptions) => {
       let instructions = baseInstructions
       if (options.chatMode === 'marketing') {
-        instructions = baseInstructions + buildMarketingOverlay(options.librarySnapshot)
+        instructions = baseInstructions + buildMarketingOverlay(options.brandSelection, options.brandRepository)
       }
 
       const keep = Math.min(

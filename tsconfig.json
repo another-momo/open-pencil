@@ -49,6 +49,15 @@
       "tinykeys": [
         "./node_modules/tinykeys/dist/tinykeys.d.ts"
       ],
+      "@open-pencil/agent": [
+        "./packages/agent/src/index.ts"
+      ],
+      "@open-pencil/agent/brand": [
+        "./packages/agent/src/brand/index.ts"
+      ],
+      "@open-pencil/agent/prompts": [
+        "./packages/agent/src/prompts/index.ts"
+      ],
       "@open-pencil/vue": [
         "./packages/vue/src/index.ts"
       ],
@@ -83,7 +92,8 @@
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.vue"
+    "src/**/*.vue",
+    "packages/agent/src/bun.d.ts"
   ],
   "references": [
     {

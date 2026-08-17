@@ -5,8 +5,8 @@ import type { AgentBackendInfo, AgentChatConfig } from '@/app/ai/chat/agent-tran
 import { createHttpAgentTransport } from '@/app/ai/chat/http-agent-transport'
 import type { EditorStore } from '@/app/editor/session/create'
 
-// The transport uses `globalThis.fetch` directly and reads `store.graph` for
-// the library snapshot. We bypass both by passing a store stub and swapping
+// The transport uses `globalThis.fetch` directly and reads `store` for the
+// brand selection. We bypass both by passing a store stub and swapping
 // globalThis.fetch for a spy that hands back a controllable SSE body.
 
 type CapturedRequest = {
@@ -134,8 +134,8 @@ describe('createHttpAgentTransport.sendMessages', () => {
     expect(body.messages[0]).toHaveProperty('role')
     expect(body.messages[0]).toHaveProperty('content')
     expect(body.messages[0].role).toBe('user')
-    // Marketing mode is off → no librarySnapshot on the wire.
-    expect(body.librarySnapshot).toBeUndefined()
+    // Marketing mode is off → no brandSelection on the wire.
+    expect(body.brandSelection).toBeUndefined()
   })
 
   test('throws when the backend returns a non-2xx status with the body text', async () => {

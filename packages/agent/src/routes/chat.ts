@@ -5,11 +5,12 @@ import type { UIMessage } from 'ai'
 
 import { readDiscoveryFile } from '@open-pencil/mcp/discovery'
 
+import type { BrandRepository } from '../brand/index.js'
 import { FrontendBridge } from '../bridge/ws-client.js'
 import { createAgent } from '../agent-loop.js'
 import type { ChatMode } from '../agent-loop.js'
 import { consumeCredentialAsync } from '../credentials.js'
-import type { LibrarySnapshot } from '../prompts/index.js'
+import type { BrandSelection } from '../prompts/index.js'
 
 /**
  * Per-process bridge cache. The frontend automation server stays running
@@ -69,6 +70,8 @@ type ChatRequestBody = {
   id: string
   messages: UIMessage[]
   trigger?: 'submit-message' | 'regenerate-message'
+  // Brand selection — marketing mode only; decoded by decodeBrandSelection.
+  brandSelection?: unknown
   // Agent config — shipped by the frontend HttpChatTransport extension
   // via prepareSendMessagesRequest. NOT part of the SDK standard body.
   agent?: {
@@ -84,14 +87,14 @@ type ChatRequestBody = {
   }
 }
 
-function decodeLibrarySnapshot(value: unknown): LibrarySnapshot {
+function decodeBrandSelection(value: unknown): BrandSelection | null {
   if (!value || typeof value !== 'object') return null
-  // Already structured JSON from the request body. Validate basic shape
-  // before handing off — the agent-loop treats this as the canonical
-  // library snapshot, so a missing/empty object should fail closed.
-  const candidate = value as Partial<NonNullable<LibrarySnapshot>>
-  if (!Array.isArray(candidate.types) || !Array.isArray(candidate.profiles)) return null
-  return value as LibrarySnapshot
+  // P3: the frontend only ships pickedProfileId — types and profiles
+  // live in the agent's BrandRepository.
+  const candidate = value as Record<string, unknown>
+  const pickedRaw = candidate.pickedProfileId
+  const pickedProfileId = typeof pickedRaw === 'string' ? pickedRaw : null
+  return { pickedProfileId }
 }
 
 function requireAgent(body: ChatRequestBody): NonNullable<ChatRequestBody['agent']> {
@@ -101,7 +104,8 @@ function requireAgent(body: ChatRequestBody): NonNullable<ChatRequestBody['agent
   return body.agent
 }
 
-const chatHandler: MiddlewareHandler = async (c) => {
+const chatHandler = (c: Context, deps: ChatRouteDeps): ReturnType<MiddlewareHandler> =>
+  (async () => {
   const requestSignal = c.req.raw.signal
 
   let body: ChatRequestBody
@@ -124,7 +128,7 @@ const chatHandler: MiddlewareHandler = async (c) => {
   let agent: ToolLoopAgent
   try {
     const agentConfig = requireAgent(body)
-    const librarySnapshot = decodeLibrarySnapshot(body.librarySnapshot)
+    const brandSelection = decodeBrandSelection(body.brandSelection)
     const bridgeInstance = await getBridge()
     if (!(await consumeCredentialAsync(agentConfig.connectionId))) {
       return c.json({ error: 'API key not available — POST /v1/auth first' }, 500)
@@ -139,7 +143,8 @@ const chatHandler: MiddlewareHandler = async (c) => {
       maxOutputTokens: agentConfig.maxOutputTokens,
       chatMode: agentConfig.chatMode,
       lookImagesKept: agentConfig.lookImagesKept,
-      librarySnapshot,
+      brandSelection,
+      brandRepository: deps.brandRepository,
       bridge: bridgeInstance
     })
   } catch (e) {
@@ -157,11 +162,15 @@ const chatHandler: MiddlewareHandler = async (c) => {
   return result.toUIMessageStreamResponse({
     onError: (err) => (err instanceof Error ? err.message : String(err))
   })
+})()
+
+export interface ChatRouteDeps {
+  brandRepository: BrandRepository
 }
 
-export function chatRoute(): Hono {
+export function chatRoute(deps: ChatRouteDeps): Hono {
   const app = new Hono()
-  app.post('/', chatHandler)
+  app.post('/', (c) => chatHandler(c, deps))
   return app
 }
 

@@ -18,15 +18,9 @@ import { useI18n } from '@open-pencil/vue'
 
 import { ACP_AGENTS } from '@open-pencil/core/constants'
 
-import {
-  bindMarketingLibrary,
-  ensureMarketingLibrary,
-  maybeAutoOpenLibraryDialog,
-  openLibraryDialog
-} from '@/app/ai/marketing/library'
+import { ensureBrandConfig } from '@/app/ai/marketing/library'
 import BriefPanelDialog from '@/components/chat/BriefPanelDialog.vue'
 import MarketingConfigBar from '@/components/chat/MarketingConfigBar.vue'
-import MarketingLibraryDialog from '@/components/chat/MarketingLibraryDialog.vue'
 
 const { providerID, providerDef, modelID, customModelID, chatMode } = useAIChat()
 const { dialogs } = useI18n()
@@ -89,7 +83,7 @@ watch(
   chatMode,
   async (mode) => {
     if (mode !== 'marketing') return
-    await maybeAutoOpenLibraryDialog(getActiveEditorStore().graph)
+    await ensureBrandConfig()
   },
   { immediate: true }
 )
@@ -104,12 +98,11 @@ async function handleSubmit(e: Event) {
   const text = input.value.trim()
   if (!text) return
   if (chatMode.value === 'marketing') {
-    // Await the library load so the first turn's system-prompt overlay
+    // Await the brand-config load so the first turn's system-prompt overlay
     // already contains the material types list — otherwise a fast submit
     // right after switching to marketing mode would make the model see
     // "No material types available" and fall back to custom.
-    await ensureMarketingLibrary()
-    bindMarketingLibrary(getActiveEditorStore().graph)
+    await ensureBrandConfig()
   }
   emit('submit', text)
   input.value = ''
@@ -156,16 +149,6 @@ function handleNewBrief() {
         </ProviderModelSelect>
 
         <div class="ml-auto flex items-center gap-1">
-          <Tip v-if="chatMode === 'marketing'" :label="dialogs.materialLibrary">
-            <button
-              type="button"
-              data-test-id="library-dialog-button"
-              class="rounded p-0.5 text-muted hover:bg-hover hover:text-surface"
-              @click="openLibraryDialog"
-            >
-              <icon-lucide-library-big class="size-3" />
-            </button>
-          </Tip>
           <Tip v-if="chatMode === 'marketing'" :label="dialogs.newBrief">
             <button
               type="button"
@@ -227,7 +210,6 @@ function handleNewBrief() {
         </Tip>
       </form>
 
-      <MarketingLibraryDialog v-if="chatMode === 'marketing'" />
       <BriefPanelDialog v-if="chatMode === 'marketing'" />
     </div>
   </TooltipProvider>

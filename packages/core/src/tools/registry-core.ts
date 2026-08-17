@@ -12,8 +12,7 @@ import {
   prepareHeroScaffoldTool,
   readBriefTool,
   sampleHeroColorTool,
-  setupMaterialTypeTool,
-  validateTool
+  setupMaterialTypeTool
 } from './marketing'
 import {
   setBlend,
@@ -110,7 +109,6 @@ export const CORE_TOOLS: ToolDef[] = [
   generateImage,
   // Marketing
   setupMaterialTypeTool,
-  validateTool,
   lookTool,
   readBriefTool,
   createBriefTool,

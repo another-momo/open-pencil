@@ -12,9 +12,7 @@ import { setupToolTest } from '#tests/helpers/tools'
 function design(rootFrameId: string, materialTypeId = 'wechat_moments') {
   return {
     materialTypeId,
-    rootFrameId,
-    componentsPageId: 'components',
-    anchors: []
+    rootFrameId
   }
 }
 

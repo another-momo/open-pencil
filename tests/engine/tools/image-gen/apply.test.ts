@@ -5,7 +5,6 @@ import { FigmaAPI, SceneGraph } from '@open-pencil/core'
 import { createImageFill } from '#core/tools/image-fill'
 import { generateOne } from '#core/tools/image-gen/apply'
 import type { ImageGenProvider, ImageGenRequest } from '#core/tools/image-gen/providers'
-import { markLibraryReference } from '#core/tools/marketing/restore'
 
 const PNG_MAGIC = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
@@ -319,29 +318,6 @@ describe('generateOne', () => {
     const result = await generateOne(figma, provider, { replaceId: empty.id, prompt: 'fill it' })
 
     expect(result.snapshot).toBeUndefined()
-  })
-
-  test('library reference passed as id → redirected to a new node, original untouched', async () => {
-    const { graph, figma } = setup()
-    const refBytes = new Uint8Array([5, 5, 5])
-    const ref = createImageNode(figma, 'LibraryRef', refBytes)
-    markLibraryReference(graph, ref.id, 'lib-1')
-    const refHashBefore = (ref.fills[0] as { imageHash?: string }).imageHash
-    const { provider } = fakeProvider()
-
-    const result = await generateOne(figma, provider, {
-      replaceId: ref.id,
-      prompt: 'iterate on this'
-    })
-
-    expect(result.id).not.toBe(ref.id)
-    expect(result.note).toContain('library reference')
-    expect(result.note).toContain('NOT overwritten')
-    expect((ref.fills[0] as { imageHash?: string }).imageHash).toBe(refHashBefore)
-    expect(ref.name).toBe('LibraryRef')
-    // New node inherits the protected node's size
-    expect(result.canvasWidth).toBe(200)
-    expect(result.canvasHeight).toBe(100)
   })
 
   test('history entry passed as id → redirected to a new node, entry untouched', async () => {

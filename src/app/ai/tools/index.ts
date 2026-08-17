@@ -116,12 +116,7 @@ export function beginNewBurst(store?: EditorStore): void {
 }
 
 /** Marketing-only tools — hidden in ui mode where no marketing state exists. */
-const MARKETING_ONLY_TOOLS = new Set([
-  'look',
-  'setup_material_type',
-  'read_brief',
-  'create_brief'
-])
+const MARKETING_ONLY_TOOLS = new Set(['look', 'setup_material_type', 'read_brief', 'create_brief'])
 
 export function createAITools(store: EditorStore, chatMode: ChatMode = 'ui') {
   let beforeSnapshot: Map<string, SceneNode> | null = null

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import type { ModelMessage } from 'ai'
 
 import { elideMediaToolResults, MEDIA_OUTPUT_TOOLS } from '#agent/elision'
+import type { ModelMessage } from 'ai'
 
 function mediaToolMessage(toolName: string, base64: string): ModelMessage {
   return {
@@ -98,10 +98,7 @@ describe('agent.elideMediaToolResults (parity with src/app/ai/chat/elision.ts)',
   })
 
   test('non-media tool results are not elided', () => {
-    const messages = [
-      textMessage('user', 'inspect'),
-      jsonToolMessage('describe')
-    ]
+    const messages = [textMessage('user', 'inspect'), jsonToolMessage('describe')]
     expect(elideMediaToolResults(messages, 0)).toBe(messages)
   })
 

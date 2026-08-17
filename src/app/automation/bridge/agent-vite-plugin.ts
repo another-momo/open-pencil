@@ -50,17 +50,13 @@ export function agentPlugin(corsOrigin: string, enabled: boolean = true): Plugin
         delete childEnv.OPENPENCIL_AGENT_HOST
         delete childEnv.OPENPENCIL_AGENT_CORS_ORIGINS
 
-        const spawned = spawn(
-          'bun',
-          ['--watch', 'packages/agent/src/start.ts'],
-          {
-            stdio: ['ignore', 'inherit', 'pipe'],
-            env: {
-              ...childEnv,
-              OPENPENCIL_AGENT_CORS_ORIGINS: corsOrigin
-            }
+        const spawned = spawn('bun', ['--watch', 'packages/agent/src/start.ts'], {
+          stdio: ['ignore', 'inherit', 'pipe'],
+          env: {
+            ...childEnv,
+            OPENPENCIL_AGENT_CORS_ORIGINS: corsOrigin
           }
-        )
+        })
         child = spawned
 
         spawned.on('error', (err) => {

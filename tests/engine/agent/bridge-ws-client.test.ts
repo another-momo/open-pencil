@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { createServer, type Server } from 'node:http'
 import { randomUUID } from 'node:crypto'
-import { WebSocket, WebSocketServer } from 'ws'
+import { createServer, type Server } from 'node:http'
 
 import {
   FrontendBridge,
@@ -9,6 +8,7 @@ import {
   nextReconnectDelay,
   type RpcEnvelope
 } from '#agent/bridge/ws-client'
+import { WebSocket, WebSocketServer } from 'ws'
 
 // Spins up an HTTP server that upgrades to a real WS pair. The "server"
 // side plays the role of the OpenPencil frontend mcp bridge for the
@@ -432,9 +432,10 @@ describe('FrontendBridge.sendRPC abort', () => {
     // Server hangs the handler forever — RPC stays pending until the
     // agent aborts it.
     const setup = await createTestBridge(
-      () => new Promise(() => {
-        // never resolve
-      })
+      () =>
+        new Promise(() => {
+          // never resolve
+        })
     )
     testHandles.push(setup)
     const bridge = new FrontendBridge({
@@ -479,9 +480,10 @@ describe('FrontendBridge.sendRPC abort', () => {
     // After the abort, we manually inject a late response frame to
     // confirm the bridge doesn't re-settle the rejected promise.
     const setup = await createTestBridge(
-      () => new Promise(() => {
-        // never resolve — keep the request pending
-      })
+      () =>
+        new Promise(() => {
+          // never resolve — keep the request pending
+        })
     )
     testHandles.push(setup)
     const bridge = new FrontendBridge({

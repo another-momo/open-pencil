@@ -33,15 +33,18 @@ test.describe('agent backend (Path A)', () => {
     await canvas.waitForInit()
 
     // Pin the frontend to the mock backend before the chat is opened.
-    await page.evaluate((info) => {
-      const setAgentBackend = window.openPencil?.setAgentBackend
-      if (!setAgentBackend) throw new Error('setAgentBackend injection not available')
-      setAgentBackend(info)
-    }, {
-      baseUrl: `http://127.0.0.1:${mockPort}`,
-      connectionId: 'e2e-conn',
-      version: 'mock-0.0.0'
-    })
+    await page.evaluate(
+      (info) => {
+        const setAgentBackend = window.openPencil?.setAgentBackend
+        if (!setAgentBackend) throw new Error('setAgentBackend injection not available')
+        setAgentBackend(info)
+      },
+      {
+        baseUrl: `http://127.0.0.1:${mockPort}`,
+        connectionId: 'e2e-conn',
+        version: 'mock-0.0.0'
+      }
+    )
   })
 
   test.afterAll(async () => {
@@ -106,15 +109,17 @@ async function startMockAgentServer() {
         chatHits.count++
         const stream = new ReadableStream({
           start(controller) {
-            controller.enqueue(new TextEncoder().encode(
-              'data: {"type":"start","messageId":"mock-1"}\n\n'
-            ))
-            controller.enqueue(new TextEncoder().encode(
-              'data: {"type":"text-delta","id":"text-1","delta":"mock agent response"}\n\n'
-            ))
-            controller.enqueue(new TextEncoder().encode(
-              'data: {"type":"finish","finishReason":"stop"}\n\n'
-            ))
+            controller.enqueue(
+              new TextEncoder().encode('data: {"type":"start","messageId":"mock-1"}\n\n')
+            )
+            controller.enqueue(
+              new TextEncoder().encode(
+                'data: {"type":"text-delta","id":"text-1","delta":"mock agent response"}\n\n'
+              )
+            )
+            controller.enqueue(
+              new TextEncoder().encode('data: {"type":"finish","finishReason":"stop"}\n\n')
+            )
             controller.close()
           }
         })

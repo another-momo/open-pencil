@@ -5,15 +5,10 @@
  */
 
 import { describe, expect, test } from 'bun:test'
-
-import {
-  parseBrandYaml,
-  parseYaml,
-  stringifyBrandYaml,
-  stringifyYaml
-} from '#agent/brand/index.js'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+
+import { parseBrandYaml, parseYaml, stringifyBrandYaml, stringifyYaml } from '#agent/brand/index.js'
 
 const SAMPLE = `schema_version: 1
 name: Acme Brand

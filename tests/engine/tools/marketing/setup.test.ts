@@ -6,7 +6,10 @@ import { getMarketingState } from '@open-pencil/core/tools'
 import { expectDefined } from '#tests/helpers/assert'
 import { getTool, setupToolTest } from '#tests/helpers/tools'
 
-import { setActiveMaterialType, setActiveMaterialTypes } from '../../../../packages/core/src/tools/marketing/setup'
+import {
+  setActiveMaterialType,
+  setActiveMaterialTypes
+} from '../../../../packages/core/src/tools/marketing/setup'
 
 function run(id: string, opts?: { width?: number; height?: number; mode?: 'new' | 'continue' }) {
   const { graph, figma } = setupToolTest()
@@ -19,7 +22,11 @@ function run(id: string, opts?: { width?: number; height?: number; mode?: 'new' 
 }
 
 test('setup_material_type creates root frame at the resolved size', () => {
-  setActiveMaterialType({ id: 'product_long', label: '产品长图', size: { width: 750, height: null } })
+  setActiveMaterialType({
+    id: 'product_long',
+    label: '产品长图',
+    size: { width: 750, height: null }
+  })
   const { graph, result } = run('product_long')
   expect(result.error).toBeUndefined()
 
@@ -32,7 +39,11 @@ test('setup_material_type creates root frame at the resolved size', () => {
 })
 
 test('setup_material_type with fixed-size type uses FIXED sizing', () => {
-  setActiveMaterialType({ id: 'wechat_moments', label: '朋友圈广告', size: { width: 1080, height: 1080 } })
+  setActiveMaterialType({
+    id: 'wechat_moments',
+    label: '朋友圈广告',
+    size: { width: 1080, height: 1080 }
+  })
   const { graph, result } = run('wechat_moments')
   expect(result.rootFrameId).toBeDefined()
 
@@ -66,16 +77,27 @@ test('unknown material type returns a clear error', () => {
 })
 
 test('repeat call with the same id on the same page adopts the existing design', () => {
-  setActiveMaterialType({ id: 'wechat_moments', label: '朋友圈广告', size: { width: 1080, height: 1080 } })
+  setActiveMaterialType({
+    id: 'wechat_moments',
+    label: '朋友圈广告',
+    size: { width: 1080, height: 1080 }
+  })
   const { figma, result: first } = run('wechat_moments')
   const firstRootId = first.rootFrameId as string
-  const result2 = getTool('setup_material_type').execute(figma, { id: 'wechat_moments' }) as Record<string, unknown>
+  const result2 = getTool('setup_material_type').execute(figma, { id: 'wechat_moments' }) as Record<
+    string,
+    unknown
+  >
   expect(result2.rootFrameId).toBe(firstRootId)
   expect(result2.adopted).toBe(true)
 })
 
 test('mode "new" creates a fresh frame even when a same-type design exists on the page', () => {
-  setActiveMaterialType({ id: 'wechat_moments', label: '朋友圈广告', size: { width: 1080, height: 1080 } })
+  setActiveMaterialType({
+    id: 'wechat_moments',
+    label: '朋友圈广告',
+    size: { width: 1080, height: 1080 }
+  })
   const { figma, result: first } = run('wechat_moments')
   const firstRootId = first.rootFrameId as string
   const result2 = getTool('setup_material_type').execute(figma, {
@@ -87,20 +109,37 @@ test('mode "new" creates a fresh frame even when a same-type design exists on th
 })
 
 test('setup stamps the material-type marker on the root frame', () => {
-  setActiveMaterialType({ id: 'wechat_moments', label: '朋友圈广告', size: { width: 1080, height: 1080 } })
+  setActiveMaterialType({
+    id: 'wechat_moments',
+    label: '朋友圈广告',
+    size: { width: 1080, height: 1080 }
+  })
   const { graph, result } = run('wechat_moments')
   const rootFrame = expectDefined(graph.getNode(result.rootFrameId as string))
-  expect((rootFrame as { pluginData?: { pluginId: string; key: string; value: string }[] }).pluginData).toEqual(
+  expect(
+    (rootFrame as { pluginData?: { pluginId: string; key: string; value: string }[] }).pluginData
+  ).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ pluginId: 'open-pencil-marketing', key: 'material-type', value: 'wechat_moments' })
+      expect.objectContaining({
+        pluginId: 'open-pencil-marketing',
+        key: 'material-type',
+        value: 'wechat_moments'
+      })
     ])
   )
 })
 
 test('setup writes a marketing state entry the registry can read back', () => {
-  setActiveMaterialType({ id: 'wechat_moments', label: '朋友圈广告', size: { width: 1080, height: 1080 } })
+  setActiveMaterialType({
+    id: 'wechat_moments',
+    label: '朋友圈广告',
+    size: { width: 1080, height: 1080 }
+  })
   const { figma, result } = run('wechat_moments')
-  const state = getMarketingState(figma.graph as unknown as SceneGraph, result.rootFrameId as string)
+  const state = getMarketingState(
+    figma.graph as unknown as SceneGraph,
+    result.rootFrameId as string
+  )
   expect(state?.materialTypeId).toBe('wechat_moments')
   expect(state?.rootFrameId).toBe(result.rootFrameId)
 })

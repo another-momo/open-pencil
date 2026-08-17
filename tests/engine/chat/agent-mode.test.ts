@@ -129,7 +129,8 @@ describe('probeAgentBackend respects agentMode', () => {
 
   test('mode="backend" with /health returning non-OK → probe returns null, no throw', async () => {
     setAgentMode('backend')
-    globalThis.fetch = (async () => new Response('upstream broken', { status: 503 })) as typeof fetch
+    globalThis.fetch = (async () =>
+      new Response('upstream broken', { status: 503 })) as typeof fetch
     const info = await probeAgentBackend()
     expect(info).toBeNull()
   })

@@ -17,7 +17,11 @@ import {
   setUserMaterialType,
   setUserProfile
 } from '@/app/ai/marketing/settings'
-import { ensureBrandConfig, listMarketingTypes, useMarketingLibrary } from '@/app/ai/marketing/library'
+import {
+  ensureBrandConfig,
+  listMarketingTypes,
+  useMarketingLibrary
+} from '@/app/ai/marketing/library'
 import { AppDialogRoot } from '@/components/ui/dialog'
 import { menuItem, useMenuUI } from '@/components/ui/menu'
 import Tip from '@/components/ui/Tip.vue'

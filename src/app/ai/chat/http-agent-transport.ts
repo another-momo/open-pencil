@@ -1,14 +1,6 @@
-import {
-  convertToModelMessages,
-  type ChatTransport,
-  type UIMessage,
-  type UIMessageChunk
-} from 'ai'
+import { convertToModelMessages, type ChatTransport, type UIMessage, type UIMessageChunk } from 'ai'
 
-import type {
-  AgentBackendInfo,
-  AgentChatConfig
-} from '@/app/ai/chat/agent-transport'
+import type { AgentBackendInfo, AgentChatConfig } from '@/app/ai/chat/agent-transport'
 import { getActiveProfileId, getMarketingLibrary } from '@/app/ai/marketing/library'
 import type { EditorStore } from '@/app/editor/session/create'
 
@@ -83,9 +75,7 @@ export function createHttpAgentTransport({
       if (!response.ok) {
         const text = await response.text().catch(() => '')
         console.error('[agent-transport] backend error', response.status, text)
-        throw new Error(
-          `Agent backend returned ${response.status}: ${text || response.statusText}`
-        )
+        throw new Error(`Agent backend returned ${response.status}: ${text || response.statusText}`)
       }
       if (!response.body) throw new Error('Agent backend returned an empty body')
       return parseUIMessageStream(response.body)
@@ -106,9 +96,7 @@ export function createHttpAgentTransport({
  *   ...
  * Each `data:` line is a complete JSON object. Blank lines separate events.
  */
-function parseUIMessageStream(
-  body: ReadableStream<Uint8Array>
-): ReadableStream<UIMessageChunk> {
+function parseUIMessageStream(body: ReadableStream<Uint8Array>): ReadableStream<UIMessageChunk> {
   const reader = body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''

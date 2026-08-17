@@ -101,7 +101,9 @@ describe('brand config e2e smoke', () => {
 
     // 8. After import, the wechat_moments user override is gone (default
     //    remains). xiaohongshu appears with the casual_v1 profile.
-    const manifestAfterImport = await (await call(app, '/manifest')).json() as EffectiveBrandConfig
+    const manifestAfterImport = (await (
+      await call(app, '/manifest')
+    ).json()) as EffectiveBrandConfig
     const wm = manifestAfterImport.types.find((entry) => entry.id === 'wechat_moments')
     expect(wm?.layer).toBe('default')
     expect(manifestAfterImport.profiles.find((entry) => entry.id === 'casual_v1')).toBeTruthy()
@@ -109,13 +111,13 @@ describe('brand config e2e smoke', () => {
     // 9. Reset the user layer — only factory remains
     const reset = await call(app, '/reset', { method: 'POST' })
     expect(reset.status).toBe(200)
-    const manifestAfterReset = await (await call(app, '/manifest')).json() as EffectiveBrandConfig
+    const manifestAfterReset = (await (await call(app, '/manifest')).json()) as EffectiveBrandConfig
     expect(manifestAfterReset.types).toHaveLength(1)
     expect(manifestAfterReset.types[0]?.id).toBe('wechat_moments')
     expect(manifestAfterReset.profiles).toHaveLength(0)
 
     // 10. Metadata endpoint reflects the cleared state
-    const meta = await (await call(app, '/metadata')).json() as {
+    const meta = (await (await call(app, '/metadata')).json()) as {
       counts: { userTypes: number; userProfiles: number }
     }
     expect(meta.counts.userTypes).toBe(0)

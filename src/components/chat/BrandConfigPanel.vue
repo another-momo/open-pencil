@@ -16,7 +16,11 @@
 
 import { computed, onMounted, ref, watch } from 'vue'
 
-import type { EffectiveBrandConfig, EffectiveBrandProfile, EffectiveBrandType } from '@open-pencil/agent/brand'
+import type {
+  EffectiveBrandConfig,
+  EffectiveBrandProfile,
+  EffectiveBrandType
+} from '@open-pencil/agent/brand'
 import { resolveAgentBackendURL } from '@/app/ai/chat/agent-transport'
 import { setBrandConfig } from '@/app/ai/marketing/library'
 
@@ -231,7 +235,9 @@ const tabs: { id: Tab; label: string }[] = [
         </thead>
         <tbody>
           <tr v-for="entry in config.types" :key="entry.id">
-            <td><code>{{ entry.id }}</code></td>
+            <td>
+              <code>{{ entry.id }}</code>
+            </td>
             <td>{{ entry.label }}</td>
             <td>{{ entry.size }}</td>
             <td>{{ entry.description ?? '—' }}</td>
@@ -261,7 +267,8 @@ const tabs: { id: Tab; label: string }[] = [
             </span>
           </header>
           <p class="brand-panel__applicable">
-            适用类型: {{ entry.applicable_to.length === 0 ? '（全部）' : entry.applicable_to.join(', ') }}
+            适用类型:
+            {{ entry.applicable_to.length === 0 ? '（全部）' : entry.applicable_to.join(', ') }}
           </p>
           <pre class="brand-panel__markdown">{{ entry.markdown }}</pre>
           <footer>
@@ -284,12 +291,15 @@ const tabs: { id: Tab; label: string }[] = [
         placeholder="schema_version: 1&#10;name: ...&#10;types:&#10;  - id: ...&#10;profiles: ..."
       />
       <p v-if="importError" class="brand-panel__error">{{ importError }}</p>
-      <button class="brand-panel__primary" :disabled="!importingYaml" @click="runImport">导入（整库替换）</button>
+      <button class="brand-panel__primary" :disabled="!importingYaml" @click="runImport">
+        导入（整库替换）
+      </button>
     </section>
 
     <section v-if="activeTab === 'danger'" class="brand-panel__section">
       <p class="brand-panel__warn">
-        恢复出厂会清空所有用户自定义的 type / profile，默认预设不会受影响。建议先导出当前配置再恢复。
+        恢复出厂会清空所有用户自定义的 type /
+        profile，默认预设不会受影响。建议先导出当前配置再恢复。
       </p>
       <button class="brand-panel__danger" @click="reset">恢复出厂设置</button>
     </section>
@@ -325,10 +335,12 @@ const tabs: { id: Tab; label: string }[] = [
         applicable_to (逗号分隔，空 = 全部)
         <input
           :value="editingProfile.applicable_to.join(', ')"
-          @input="editingProfile.applicable_to = ($event.target as HTMLInputElement).value
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean)"
+          @input="
+            editingProfile.applicable_to = ($event.target as HTMLInputElement).value
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
+          "
         />
       </label>
       <label>

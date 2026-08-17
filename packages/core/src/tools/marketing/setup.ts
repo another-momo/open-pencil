@@ -20,7 +20,11 @@ import {
   listMarketingDesigns,
   setMarketingState
 } from '#core/tools/marketing/registry'
-import { markMarketingRoot, marketingRootType, type MarketingDocumentState } from '#core/tools/marketing/restore'
+import {
+  markMarketingRoot,
+  marketingRootType,
+  type MarketingDocumentState
+} from '#core/tools/marketing/restore'
 
 export interface SetupResult {
   materialType: string
@@ -254,7 +258,9 @@ function buildOriginPart(input: {
     input.siblingPages.length > 0
       ? ` A separate "${input.label}" design exists on page ${input.siblingPages
           .map((name) => `"${name}"`)
-          .join(', ')} — to continue THAT one, switch to its page first and call setup_material_type again (adoption never crosses pages).`
+          .join(
+            ', '
+          )} — to continue THAT one, switch to its page first and call setup_material_type again (adoption never crosses pages).`
       : ''
   return `Created NEW blank root frame "${input.rootFrameName}" (${input.rootFrameId}) on page "${input.pageName}".${siblingHint}`
 }

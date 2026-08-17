@@ -7,11 +7,7 @@
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 
-import {
-  openBrandRepository,
-  type BrandConfig,
-  type BrandRepository
-} from '#agent/brand/index.js'
+import { openBrandRepository, type BrandConfig, type BrandRepository } from '#agent/brand/index.js'
 
 const SAMPLE: BrandConfig = {
   schema_version: 1,
@@ -90,7 +86,12 @@ describe('BrandRepository', () => {
   })
 
   test('deleteUserProfile removes the user override and reports false for unknown ids', () => {
-    repo.upsertUserProfile({ id: 'casual_v1', label: 'override', applicable_to: [], markdown: '# x' })
+    repo.upsertUserProfile({
+      id: 'casual_v1',
+      label: 'override',
+      applicable_to: [],
+      markdown: '# x'
+    })
     expect(repo.deleteUserProfile('casual_v1')).toBe(true)
     const fallback = repo.effectiveProfiles().find((entry) => entry.id === 'casual_v1')
     expect(fallback?.layer).toBe('default')
@@ -101,7 +102,12 @@ describe('BrandRepository', () => {
 
   test('resetUserLayer clears all user overrides but preserves defaults', () => {
     repo.upsertUserType({ id: 'wechat_moments', label: 'override', size: '1080x1080' })
-    repo.upsertUserProfile({ id: 'casual_v1', label: 'override', applicable_to: [], markdown: '# x' })
+    repo.upsertUserProfile({
+      id: 'casual_v1',
+      label: 'override',
+      applicable_to: [],
+      markdown: '# x'
+    })
     repo.resetUserLayer()
     const counts = repo.counts()
     expect(counts.userTypes).toBe(0)
@@ -116,9 +122,7 @@ describe('BrandRepository', () => {
       schema_version: 1,
       name: 'Imported',
       types: [{ id: 'wechat_video', label: '视频号', size: '1080x1920' }],
-      profiles: [
-        { id: 'minimal_v1', label: '极简', applicable_to: [], markdown: '# 极简' }
-      ]
+      profiles: [{ id: 'minimal_v1', label: '极简', applicable_to: [], markdown: '# 极简' }]
     })
     const config = repo.effectiveConfig()
     // default_* stays: wechat_moments + product_long (only user layer was replaced)

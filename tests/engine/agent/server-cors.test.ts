@@ -9,7 +9,10 @@ afterEach(() => {
   else process.env.OPENPENCIL_AGENT_CORS_ORIGINS = originalEnv
 })
 
-async function preflight(app: Awaited<ReturnType<typeof createAgentServer>>['app'], origin: string) {
+async function preflight(
+  app: Awaited<ReturnType<typeof createAgentServer>>['app'],
+  origin: string
+) {
   const request = new Request('http://localhost/v1/chat', {
     method: 'OPTIONS',
     headers: {
@@ -50,8 +53,7 @@ describe('CORS middleware (custom origins)', () => {
   })
 
   test('accepts a comma-separated list', async () => {
-    process.env.OPENPENCIL_AGENT_CORS_ORIGINS =
-      'https://a.example.com, https://b.example.com'
+    process.env.OPENPENCIL_AGENT_CORS_ORIGINS = 'https://a.example.com, https://b.example.com'
     const { app } = await createAgentServer()
     const responseA = await preflight(app, 'https://a.example.com')
     const responseB = await preflight(app, 'https://b.example.com')

@@ -1,5 +1,5 @@
-import { EventEmitter } from 'node:events'
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
+import { EventEmitter } from 'node:events'
 
 /**
  * The agent vite plugin is exercised in two ways:

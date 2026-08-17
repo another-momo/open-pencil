@@ -323,7 +323,9 @@ function validateInputs(args: Record<string, unknown>): { error: string } | Vali
     rawCanvasHeight !== undefined &&
     (typeof rawCanvasHeight !== 'number' || !Number.isFinite(rawCanvasHeight))
   ) {
-    return { error: `canvas_height must be a finite number when given (got ${JSON.stringify(rawCanvasHeight)}).` }
+    return {
+      error: `canvas_height must be a finite number when given (got ${JSON.stringify(rawCanvasHeight)}).`
+    }
   }
   const canvasHeight = rawCanvasHeight
   const heroHeight = typeof args.hero_height === 'number' ? args.hero_height : DEFAULT_HERO_HEIGHT

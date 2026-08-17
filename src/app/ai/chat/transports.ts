@@ -10,16 +10,20 @@ import type { AgentBackendInfo } from '@/app/ai/chat/agent-transport'
 import { provisionAgentCredential } from '@/app/ai/chat/agent-transport'
 import { elideMediaToolResults } from '@/app/ai/chat/elision'
 import { createHttpAgentTransport } from '@/app/ai/chat/http-agent-transport'
-import { resolveAPIKey } from '@/app/ai/chat/storage'
 import {
   censusMediaToolResults,
   inlineMediaToolResultsAsUserMessages
 } from '@/app/ai/chat/media-tool-results'
 import { resolveLanguageModelID } from '@/app/ai/chat/model'
+import { resolveAPIKey } from '@/app/ai/chat/storage'
 import SYSTEM_PROMPT_MARKETING_BASE from '@/app/ai/chat/system-prompt-base.md?raw'
 import SYSTEM_PROMPT_MARKETING from '@/app/ai/chat/system-prompt-marketing.md?raw'
 import SYSTEM_PROMPT from '@/app/ai/chat/system-prompt.md?raw'
-import { buildMarketingOverlay, getMarketingLibrary, pushActiveMaterialTypes } from '@/app/ai/marketing/library'
+import {
+  buildMarketingOverlay,
+  getMarketingLibrary,
+  pushActiveMaterialTypes
+} from '@/app/ai/marketing/library'
 import { lookImagesKept } from '@/app/ai/marketing/settings'
 import type { ChatMode } from '@/app/ai/marketing/settings'
 import { createAIModelRuntime } from '@/app/ai/models'

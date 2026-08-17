@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 
-import { authRoute } from '#agent/routes/auth'
 import {
   activeConnectionCount,
   consumeCredential,
@@ -9,6 +8,7 @@ import {
   resetCredentialStore,
   setCredentialStore
 } from '#agent/credentials'
+import { authRoute } from '#agent/routes/auth'
 
 const app = authRoute()
 
@@ -108,9 +108,7 @@ describe('authRoute DELETE /:connectionId', () => {
     await sendJson('/', { body: { connectionId: 'conn-Y', apiKey: 'sk-secret' } })
     expect(consumeCredential('conn-Y')).toBe('sk-secret')
 
-    const response = await app.fetch(
-      new Request('http://localhost/conn-Y', { method: 'DELETE' })
-    )
+    const response = await app.fetch(new Request('http://localhost/conn-Y', { method: 'DELETE' }))
     expect(response.status).toBe(200)
     const body = (await response.json()) as { ok: boolean }
     expect(body.ok).toBe(true)

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
+
 import type { UIMessage, UIMessageChunk } from 'ai'
 
 import type { AgentBackendInfo, AgentChatConfig } from '@/app/ai/chat/agent-transport'

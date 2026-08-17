@@ -34,11 +34,7 @@ function upsertMarker(
   upsertPluginData(graph, nodeId, MARKETING_PLUGIN_ID, entries)
 }
 
-export function markMarketingRoot(
-  graph: SceneGraph,
-  nodeId: string,
-  materialTypeId: string
-): void {
+export function markMarketingRoot(graph: SceneGraph, nodeId: string, materialTypeId: string): void {
   upsertMarker(graph, nodeId, [
     { key: ROLE_KEY, value: ROLE_ROOT },
     { key: TYPE_KEY, value: materialTypeId }

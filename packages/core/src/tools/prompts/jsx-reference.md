@@ -69,19 +69,19 @@ Aliases: View = Frame, Rect = Rectangle
 
 ## Text Props
 
-| Prop           | Type                                         | Description                            |
-| -------------- | -------------------------------------------- | -------------------------------------- |
-| size           | number                                       | Font size (default 14)                 |
-| font           | string                                       | Font family                            |
+| Prop           | Type                                         | Description                                                                                                                                                                                           |
+| -------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| size           | number                                       | Font size (default 14)                                                                                                                                                                                |
+| font           | string                                       | Font family                                                                                                                                                                                           |
 | weight         | number \| string                             | Font weight: 100-900 or a name (case-insensitive): thin, extralight, light, regular, normal, medium, semibold, demibold, bold, extrabold, heavy, black. Unknown names fall back to 400 with a warning |
-| color          | string                                       | Text color (hex)                       |
-| textAlign      | "left" \| "center" \| "right" \| "justified" | Text alignment                         |
-| lineHeight     | number                                       | Line height in px                      |
-| letterSpacing  | number                                       | Letter spacing in px                   |
-| textDecoration | "underline" \| "strikethrough"               | Text decoration                        |
-| textCase       | "upper" \| "lower" \| "title"                | Text transform                         |
-| maxLines       | number                                       | Max visible lines (enables truncation) |
-| truncate       | boolean                                      | Enable text truncation                 |
+| color          | string                                       | Text color (hex)                                                                                                                                                                                      |
+| textAlign      | "left" \| "center" \| "right" \| "justified" | Text alignment                                                                                                                                                                                        |
+| lineHeight     | number                                       | Line height in px                                                                                                                                                                                     |
+| letterSpacing  | number                                       | Letter spacing in px                                                                                                                                                                                  |
+| textDecoration | "underline" \| "strikethrough"               | Text decoration                                                                                                                                                                                       |
+| textCase       | "upper" \| "lower" \| "title"                | Text transform                                                                                                                                                                                        |
+| maxLines       | number                                       | Max visible lines (enables truncation)                                                                                                                                                                |
+| truncate       | boolean                                      | Enable text truncation                                                                                                                                                                                |
 
 ## Shape Props
 

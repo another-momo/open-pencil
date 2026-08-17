@@ -81,14 +81,11 @@ if (IS_BROWSER) {
 
 // React to mode flips — clear cache and re-probe so the next chat
 // routes through the right path.
-watch(
-  agentMode,
-  () => {
-    chatSession.markTransportDirty()
-    resetAgentBackendCache()
-    void refreshAgentBackend()
-  }
-)
+watch(agentMode, () => {
+  chatSession.markTransportDirty()
+  resetAgentBackendCache()
+  void refreshAgentBackend()
+})
 
 const chatSession = createChatSessionManager({
   isConfigured,

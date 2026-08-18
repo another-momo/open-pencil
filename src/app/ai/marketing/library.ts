@@ -27,7 +27,7 @@ import { parseMaterialTypeSize, setActiveMaterialTypes } from '@open-pencil/core
 import type { ActiveMaterialType } from '@open-pencil/core/tools'
 
 import { profileSelection } from '@/app/ai/marketing/settings'
-import { getActiveEditorStore, type EditorStore } from '@/app/editor/active-store'
+import type { EditorStore } from '@/app/editor/active-store'
 
 /**
  * Mirror of `BrandSelection` in `@open-pencil/agent/prompts`. P3: the

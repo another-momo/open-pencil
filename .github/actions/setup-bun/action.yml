@@ -15,6 +15,26 @@ inputs:
 runs:
   using: composite
   steps:
+    # LFS objects are ~230MB per full pull; the free-tier bandwidth budget is
+    # 1 GiB/month, so every uncached CI run burns a quarter of it. Fingerprint
+    # the pointer files (content = oid of each target object) and cache
+    # .git/lfs/objects so repeat runs only fetch objects that actually changed.
+    - name: Compute LFS fingerprint
+      if: inputs.lfs == 'true'
+      id: lfs-fingerprint
+      shell: bash
+      run: |
+        fp=$(git lfs ls-files -n | sort | tr '\n' '\0' | xargs -0 cat | sha256sum | cut -d' ' -f1)
+        echo "fingerprint=$fp" >> "$GITHUB_OUTPUT"
+
+    - name: Cache LFS objects
+      if: inputs.lfs == 'true'
+      uses: actions/cache@v6
+      with:
+        path: .git/lfs/objects
+        key: lfs-${{ steps.lfs-fingerprint.outputs.fingerprint }}
+        restore-keys: lfs-
+
     - name: Pull LFS files
       if: inputs.lfs == 'true'
       shell: bash

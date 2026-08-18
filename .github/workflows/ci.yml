@@ -22,9 +22,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # No LFS here: format/lint/typecheck/storybook don't read binary
+      # fixtures, and the LFS bandwidth budget is tiny (1 GiB/month free).
       - uses: ./.github/actions/setup-bun
-        with:
-          lfs: 'true'
 
       - name: Format check
         run: bun run format:check

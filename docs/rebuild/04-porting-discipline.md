@@ -1,39 +1,41 @@
 # 04 · 移植纪律（Phase 2+）
 
-> 日期：2026-08-18 | 供货方：旧分支 `feature/agent-backend`。移植不是搬家，是带验收的复审。
+> 状态：已核验（2026-08-18，R1-R4）| 供货方：旧分支 `feature/agent-backend` @ `a1c33881`。移植不是搬家，是带验收的复审。
 
-## 1. 移植清单（实测，见 00 §3）
+## 1. 移植清单（实测）
 
-| 移植对象 | 规模 | 来源（旧分支路径） |
-|---|---|---|
-| 营销工具 | 14 文件 | `packages/core/src/tools/marketing/` |
-| 生图管线 | 4 文件 | `packages/core/src/tools/image-gen/` |
-| 测试规约 | 16 文件 224 用例 | `tests/engine/tools/{marketing,image-gen}/` |
-| brand config | 数据 + schema | `public/default-brand/config.yaml`、`packages/agent/src/brand/`（schema/loader/repository 剥离 AI SDK 依赖后移植） |
-| prompts | markdown 内容 | `packages/agent/src/prompts/`、`src/app/ai/chat/system-prompt-marketing.md` |
-| 需求单 | 机制 + UI | core brief 系列 + `src/app/ai/marketing/brief-panel.ts` + `src/components/chat/BriefPanelDialog.vue` 等 |
-| Chat UI | 3+ 组件 | `src/components/chat/`（拥有区部分） |
+| 移植对象 | 规模 | 来源（旧分支路径） | 注意 |
+|---|---|---|---|
+| 营销工具 | 恰 14 文件 | `packages/core/src/tools/marketing/` | 注册名实测：setup_material_type、look、compose_backdrop、sample_hero_color、derive_palette、prepare_hero_scaffold、create_brief/read_brief/append_brief_conclusion |
+| 生图管线 | 恰 4 文件 | `packages/core/src/tools/image-gen/` | **历史快照内置**（history.ts），随移植自带 |
+| 测试规约 | 恰 16 文件 | `tests/engine/tools/{marketing,image-gen}/`（12+4） | `bun test` 报告 224 通过（2026-08-18） |
+| brand config | 数据 + schema | `public/default-brand/config.yaml`（7 type + 8 profile）+ `packages/agent/src/brand/`（schema/loader/repository） | repository 语义含 SQLite 用户覆盖层；剥离 AI SDK 依赖后移植 |
+| prompts | markdown 内容 | **源是 `src/app/ai/chat/system-prompt{,-marketing}.md`**；agent 侧是构建期拷贝 | 两段式组装（base+marketing）；只移植源，消除双副本 |
+| 需求单 | 机制 + UI | core brief 系列 + `src/app/ai/marketing/brief-panel.ts` + `src/components/chat/BriefPanelDialog.vue` | — |
+| marketing app 层 | 4 文件 | `src/app/ai/marketing/{brief-panel,library,settings,vision-settings}.ts` | library.ts 实测是 brand HTTP 服务 shim，按新后端重塑；settings 含生图凭证链（F0.3②） |
+| Chat UI | 组件若干 | `src/components/chat/`（BriefPanelDialog/MarketingConfigBar/BrandConfigPanel/ProfileGalleryDialog/ChatProfileSelect/ChatInput/ChatMessage）+ **`src/components/ChatPanel.vue`（根目录）** | 路径按实际来 |
+| 视觉回路语义 | 1 份 | 双份镜像取一：`src/app/ai/chat/{elision,media-tool-results}.ts` 或 `packages/agent/src/{elision,media-rewriter}.ts` | 对新 runtime 媒体模型实现（C4a） |
+| 生图凭证 UI | 1 组件 | `ImageGenKeysSection.vue`（实际路径移植时确认） | F0.3② 的一部分 |
 
-**不移植**：`packages/agent` 其余全部（agent-loop / elision / media-rewriter / model-resolver / routes——AI SDK 形状的对话机器，见 00 §4）、.fig 素材库机制、L3 目录、validate readonly baseline、ACP/collab/desktop（删除区）。
+**不移植**：`packages/agent` 其余全部（agent-loop/elision/media-rewriter/model-resolver/routes/prompts/generated 生成物/inline-prompts 脚本）、core 的 `ai-adapter.ts`（AI SDK 耦合，用缝替代）、.fig 素材库机制、「素材图理解」phantom、L3 目录、validate（无此工具，如需走 C3c 新建）、ACP/collab/desktop/demos（删除区）。
 
 ## 2. 三条纪律
 
-1. **逐字 → 测试绿 → 重构另起 commit**。行为变更只能是显式决策、单独 commit、测试同步改。防两个退化：赶进度盲抄（得到同样的代码 + 丢失的历史），或逐文件重设计（变相重写，scope 爆炸）。
-2. **测试即规约**。测试随块移植（或先行）；绿灯前不许重构实现。语义锁在测试里（`replace_id` 降级、覆盖快照、页作用域……），移植时不许动语义，只许动实现。
-3. **引擎补丁随需登记**。不设 phase：闭环跑到哪撞出哪个问题（如长会话 OOM 再现），哪个补丁带回归测试进，按 02 §3.2 编号登记。
+1. **逐字 → 测试绿 → 重构另起 commit**。行为变更只能是显式决策、单独 commit、测试同步改。防两个退化：赶进度盲抄 / 逐文件重设计（变相重写）。
+2. **测试即规约**。测试随块移植（或先行）；绿灯前不许重构实现。语义锁在测试里（`replace_id` 降级、覆盖快照、页作用域……），移植时不动语义只动实现。
+3. **引擎补丁随需登记**。不设 phase：闭环跑到哪撞出哪个问题，哪个补丁带回归测试进，按 02 §3.2 编号登记。
 
 ## 3. 次序
 
 1. Phase 0 验收通过（02 §5）
-2. Phase 1 runtime spike 硬门通过（03），`packages/agent` 出生
-3. **最小价值闭环**：C1 薄切（brief 创建/绑定）→ C2 薄切（config.yaml 加载 + overlay 注入）→ C3 薄切（setup / generate_image / look / compose_backdrop）→ C4（对新 runtime 媒体模型实现视觉回路）→ C5 薄切（最简 chat UI + session）
-4. 增强逐块进：validate、生图历史、ProfileGallery 精化、references 软过滤、素材理解缓存……每块自带测试
-5. B4 serve 入口 + F1 产品化
-6. **parity 线**（01 §5）达成 → 切换默认分支，旧分支转入只读参考
+2. Phase 1 runtime spike 硬门通过（03）→ **F0 地基切片**（01 §2，验收 "hello-tool"）
+3. **层 1 价值闭环薄切**（01 §3）：C2a → C3a → C4a → C1a → C5a（次序按依赖现场调，验收：闭环端到端）
+4. 层 2 增强逐块进（01 §4）
+5. **parity 线**（01 §7）达成 → owner 拍板切换，旧分支转只读参考
 
 ## 4. 移植操作约定
 
-- 从旧分支拷文件：`git checkout feature/agent-backend -- <path>`，逐个 PR 进，PR 描述注明对应能力块（C1/C2/…）与验收测试。
-- 落位按 02 §3.5 目录约定；core 工具一律新文件，注册走缝合缝。
+- 从旧分支拷文件：`git checkout feature/agent-backend -- <path>`，逐块 PR，PR 描述注明能力块编号与验收测试，tracker §3 登记一行。
+- 落位按 02 §3.5 目录约定；core 工具一律新文件，注册走缝合缝（02 §3.4）。
 - 每完成一个能力块，zone registry 里对应「待重分类」项按仪式摘除。
-- 每合并一次 upstream，刷新 registry 与补丁清单——机制活着，文档就不会烂。
+- 每合并一次 upstream，当场刷新 registry 与补丁清单，tracker 记合并记录。

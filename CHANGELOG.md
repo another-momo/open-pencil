@@ -47,6 +47,10 @@
 - Frontend `MarketingConfigBar.vue` keeps its profile-chip UX but library-reference helpers (`useInjectedReferenceIds`, `injectLibraryReferences`) are no-op shims pending the Bar's re-wire to `BrandConfigPanel` (mount entry is a follow-up; the panel itself is fully functional via direct import).
 - Agent backend now opens `BrandRepository` eagerly in `createAgentServer()` (path: `~/.openpencil/brand.db`, env override `OPENPENCIL_BRAND_DB`, tests fallback `:memory:`); close hook releases the SQLite connection.
 
+**Fixed**
+
+- Brand defaults now reseed automatically whenever the shipped `public/default-brand/config.yaml` content changes: seeding is gated by a content hash (`brand_meta.default_hash`, sha256 of the serialized config) instead of the manually bumped `seed_version`, so existing `~/.openpencil/brand.db` installs pick up filled-in preset markdown on next launch without any migration (user overrides are never touched).
+
 ### Added
 
 - Add the `@open-pencil/agent` workspace package and a "local agent backend" form factor: the web app's built-in chat can now route through a local Node process (`http://127.0.0.1:7601`) that hosts the `ToolLoopAgent` loop and dispatches tool execution back to the editor via a reverse WebSocket RPC, eliminating CORS / Anthropic browser-dangerous-header pain for direct provider calls. The agent is opt-in: when unreachable the frontend transparently falls back to running the same agent loop in-browser. Library state for the marketing mode is serialized by the frontend and shipped in the request body so the agent never touches the live SceneGraph. See `packages/agent/README.md` and `docs/plans/architecture/l2-agent-backend.md` for protocol and operations.

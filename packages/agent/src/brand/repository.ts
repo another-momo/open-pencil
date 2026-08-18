@@ -6,7 +6,7 @@
  *   brand_default_profiles — immutable factory preset, seeded from the shipped YAML
  *   brand_user_types    — per-user overrides, may shadow or extend default_types
  *   brand_user_profiles — per-user overrides, may shadow or extend default_profiles
- *   brand_meta          — key/value (seed_version, last_import_at, …)
+ *   brand_meta          — key/value (default_hash, seed_version, last_import_at, …)
  *
  * Effective read: rows in user_* shadow rows in default_* with the same id.
  * Use `effectiveTypes()` / `effectiveProfiles()` / `effectiveConfig()` to
@@ -18,10 +18,12 @@
  */
 
 import { mkdirSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { dirname } from 'node:path'
 
 import { Database } from 'bun:sqlite'
 
+import { stringifyBrandYaml } from './loader.js'
 import { resolveSize } from './size.js'
 import type {
   BrandConfig,
@@ -36,7 +38,11 @@ import type {
 export interface BrandRepositoryOptions {
   /** SQLite file path or `:memory:` */
   path: string
-  /** Default brand config to seed on first open. Required unless the DB already has seed_version=1. */
+  /**
+   * Default brand config to seed. On first open the factory preset is always
+   * seeded; on later opens the default_* tables are reseeded whenever the
+   * config's content hash differs from the stored `brand_meta.default_hash`.
+   */
   seed?: BrandConfig
 }
 
@@ -102,7 +108,22 @@ CREATE TABLE IF NOT EXISTS brand_meta (
 );
 `
 
+/**
+ * Legacy schema-generation marker reported by `/v1/brand/metadata`. Kept for
+ * diagnostics only — it no longer gates reseeding; `default_hash` does.
+ */
 const SEED_VERSION = '3'
+
+/**
+ * Stable content hash of a seed config. Serialized via `stringifyBrandYaml`
+ * (the same deterministic serializer used for export), so any edit to the
+ * shipped YAML — even a single markdown character — flips the hash. This
+ * replaces the old manual SEED_VERSION bump, which was easy to forget and
+ * left existing installs stuck on stale factory presets.
+ */
+function seedContentHash(config: BrandConfig): string {
+  return createHash('sha256').update(stringifyBrandYaml(config), 'utf8').digest('hex')
+}
 
 export class BrandRepository {
   private readonly db: Database
@@ -125,12 +146,15 @@ export class BrandRepository {
       .get(key)?.value
   }
 
-  /** Idempotent seed of the immutable factory preset + schema-version marker. */
+  /**
+   * Idempotent seed of the immutable factory preset. Reseeds the default_*
+   * tables (in one transaction) whenever the seed config's content hash
+   * differs from the stored `brand_meta.default_hash` — first open included.
+   * The user layer is never touched.
+   */
   seed(config: BrandConfig): void {
-    const existing = this.db.query<{ value: string }, []>(
-      `SELECT value FROM brand_meta WHERE key = 'seed_version'`
-    ).get()
-    if (existing?.value === SEED_VERSION) return
+    const hash = seedContentHash(config)
+    if (this.metaValue('default_hash') === hash) return
 
     const tx = this.db.transaction(() => {
       this.db.exec('DELETE FROM brand_default_types')
@@ -148,9 +172,11 @@ export class BrandRepository {
       for (const profile of config.profiles) {
         insertProfile.run(profile.id, profile.label, JSON.stringify(profile.applicable_to), profile.markdown)
       }
-      this.db
-        .prepare(`INSERT OR REPLACE INTO brand_meta (key, value) VALUES (?, ?)`)
-        .run('seed_version', SEED_VERSION)
+      const writeMeta = this.db.prepare(
+        `INSERT OR REPLACE INTO brand_meta (key, value) VALUES (?, ?)`
+      )
+      writeMeta.run('default_hash', hash)
+      writeMeta.run('seed_version', SEED_VERSION)
     })
     tx()
   }

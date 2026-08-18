@@ -6,6 +6,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 import { openBrandRepository, type BrandConfig, type BrandRepository } from '#agent/brand/index.js'
 
@@ -137,5 +140,159 @@ describe('BrandRepository', () => {
   test('size is round-tripped through HUG (Wx) form', () => {
     const types = repo.effectiveTypes()
     expect(types.find((entry) => entry.id === 'product_long')?.size).toBe('750x')
+  })
+})
+
+/**
+ * Reseed gating is content-hash based: editing the shipped preset markdown
+ * must refresh existing databases without any manual version bump. These
+ * cases need a real file DB (close + reopen), so they use a temp dir
+ * instead of the shared `:memory:` store above.
+ */
+describe('BrandRepository reseed gating', () => {
+  /** Same shape as FULL, but with stub markdown — the pre-fix preset state. */
+  const STUB: BrandConfig = {
+    ...SAMPLE,
+    profiles: [
+      { id: 'casual_v1', label: '休闲', applicable_to: ['wechat_moments'], markdown: '# stub' },
+      { id: 'poster_v1', label: '海报', applicable_to: ['product_long'], markdown: '# poster stub' }
+    ]
+  }
+  /** Identical ids/labels, but the markdown bodies were filled in. */
+  const FULL: BrandConfig = {
+    ...STUB,
+    profiles: [
+      {
+        id: 'casual_v1',
+        label: '休闲',
+        applicable_to: ['wechat_moments'],
+        markdown: '# 休闲\n\nFull style guide: colors, fonts, tone, layout.'
+      },
+      {
+        id: 'poster_v1',
+        label: '海报',
+        applicable_to: ['product_long'],
+        markdown: '# Poster\n\nFull poster style guide body.'
+      }
+    ]
+  }
+
+  function tempDbPath(): { dir: string; dbPath: string } {
+    const dir = mkdtempSync(join(tmpdir(), 'openpencil-brand-test-'))
+    return { dir, dbPath: join(dir, 'brand.db') }
+  }
+
+  /**
+   * Remove the temp DB dir. On Windows the SQLite file stays locked while
+   * any `Database` handle is reachable — even after `close()` — so each
+   * test scopes repo usage inside an IIFE (letting the handles die before
+   * cleanup runs) and we force a GC pass before unlinking.
+   */
+  function cleanup(dir: string): void {
+    Bun.gc(true)
+    rmSync(dir, { recursive: true, force: true })
+  }
+
+  test('reseeds defaults when the seed config content changes (no version bump)', () => {
+    const { dir, dbPath } = tempDbPath()
+    try {
+      ;(() => {
+        const first = openBrandRepository({ path: dbPath, seed: STUB })
+        let stubHash: string | undefined
+        try {
+          expect(first.effectiveProfiles().find((p) => p.id === 'casual_v1')?.markdown).toBe('# stub')
+          stubHash = first.metaValue('default_hash')
+          expect(stubHash).toBeDefined()
+        } finally {
+          first.close()
+        }
+
+        const second = openBrandRepository({ path: dbPath, seed: FULL })
+        try {
+          const profiles = second.effectiveProfiles()
+          expect(profiles.find((p) => p.id === 'casual_v1')?.markdown).toBe(
+            '# 休闲\n\nFull style guide: colors, fonts, tone, layout.'
+          )
+          expect(profiles.find((p) => p.id === 'poster_v1')?.markdown).toBe(
+            '# Poster\n\nFull poster style guide body.'
+          )
+          expect(profiles.every((p) => p.layer === 'default')).toBe(true)
+          expect(second.metaValue('default_hash')).not.toBe(stubHash)
+        } finally {
+          second.close()
+        }
+      })()
+    } finally {
+      cleanup(dir)
+    }
+  })
+
+  test('user-layer rows survive a content-change reseed', () => {
+    const { dir, dbPath } = tempDbPath()
+    try {
+      ;(() => {
+        const first = openBrandRepository({ path: dbPath, seed: STUB })
+        try {
+          first.upsertUserProfile({
+            id: 'casual_v1',
+            label: '我的休闲',
+            applicable_to: ['wechat_moments'],
+            markdown: '# mine'
+          })
+          first.upsertUserType({ id: 'wechat_moments', label: '我的朋友圈', size: '1080x1080' })
+        } finally {
+          first.close()
+        }
+
+        const second = openBrandRepository({ path: dbPath, seed: FULL })
+        try {
+          // User overrides are untouched and still shadow the refreshed defaults.
+          const casual = second.effectiveProfiles().find((p) => p.id === 'casual_v1')
+          expect(casual?.layer).toBe('user')
+          expect(casual?.markdown).toBe('# mine')
+          const moments = second.effectiveTypes().find((t) => t.id === 'wechat_moments')
+          expect(moments?.layer).toBe('user')
+          expect(moments?.label).toBe('我的朋友圈')
+          // The non-shadowed default profile picked up the new markdown.
+          const poster = second.effectiveProfiles().find((p) => p.id === 'poster_v1')
+          expect(poster?.layer).toBe('default')
+          expect(poster?.markdown).toBe('# Poster\n\nFull poster style guide body.')
+          const counts = second.counts()
+          expect(counts.userProfiles).toBe(1)
+          expect(counts.userTypes).toBe(1)
+        } finally {
+          second.close()
+        }
+      })()
+    } finally {
+      cleanup(dir)
+    }
+  })
+
+  test('reopening with an unchanged seed config is a no-op', () => {
+    const { dir, dbPath } = tempDbPath()
+    try {
+      ;(() => {
+        const first = openBrandRepository({ path: dbPath, seed: STUB })
+        let beforeHash: string | undefined
+        let beforeConfig: ReturnType<BrandRepository['effectiveConfig']>
+        try {
+          beforeHash = first.metaValue('default_hash')
+          beforeConfig = first.effectiveConfig()
+        } finally {
+          first.close()
+        }
+
+        const second = openBrandRepository({ path: dbPath, seed: STUB })
+        try {
+          expect(second.metaValue('default_hash')).toBe(beforeHash)
+          expect(second.effectiveConfig()).toEqual(beforeConfig)
+        } finally {
+          second.close()
+        }
+      })()
+    } finally {
+      cleanup(dir)
+    }
   })
 })

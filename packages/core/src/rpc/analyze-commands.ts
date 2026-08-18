@@ -79,11 +79,11 @@ function collectColors(graph: SceneGraph): { colors: ColorInfo[]; totalNodes: nu
     totalNodes++
 
     for (const fill of node.fills) {
-      if (fill.visible === false || fill.type !== 'SOLID') continue
+      if (!fill.visible || fill.type !== 'SOLID') continue
       addColor(fill.color, null)
     }
     for (const stroke of node.strokes) {
-      if (stroke.visible === false) continue
+      if (!stroke.visible) continue
       addColor(stroke.color, null)
     }
     for (const effect of node.effects) {

@@ -145,10 +145,6 @@ function countMedia(messages: ModelMessage[]): number {
   return count
 }
 
-function findFirstMediaBase64(messages: ModelMessage[]): string | undefined {
-  return collectMediaBase64s(messages)[0]
-}
-
 function collectMediaBase64s(messages: ModelMessage[]): string[] {
   const out: string[] = []
   for (const message of messages) {

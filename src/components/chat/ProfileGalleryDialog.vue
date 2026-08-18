@@ -48,7 +48,6 @@ const filtered = computed(() => {
   return profiles.value.filter((profile) => {
     if (profile.id.toLowerCase().includes(q)) return true
     if (profile.label.toLowerCase().includes(q)) return true
-    if (profile.description.toLowerCase().includes(q)) return true
     return false
   })
 })
@@ -143,9 +142,6 @@ watch(open, (isOpen) => {
                   </div>
                   <div v-if="profile.label" class="truncate font-mono text-[10px] text-muted">
                     {{ profile.id }}
-                  </div>
-                  <div v-if="profile.description" class="mt-1 line-clamp-3 text-[10px] text-muted">
-                    {{ profile.description }}
                   </div>
                   <div
                     v-if="profile.applicable_to.length > 0"

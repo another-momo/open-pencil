@@ -23,8 +23,8 @@ export function installVisualNodeProxyAccessors(
         updateNode(this, internals, {
           fills: value.map((fill) => ({
             ...fill,
-            opacity: fill.opacity ?? 1,
-            visible: fill.visible ?? true,
+            opacity: fill.opacity,
+            visible: fill.visible,
             blendMode: fill.blendMode ?? 'NORMAL',
             color: normalizeColor(fill.color),
             gradientStops: fill.gradientStops?.map((stop) => ({
@@ -43,8 +43,8 @@ export function installVisualNodeProxyAccessors(
         updateNode(this, internals, {
           strokes: value.map((stroke) => ({
             ...stroke,
-            opacity: stroke.opacity ?? 1,
-            visible: stroke.visible ?? true,
+            opacity: stroke.opacity,
+            visible: stroke.visible,
             color: normalizeColor(stroke.color)
           }))
         })

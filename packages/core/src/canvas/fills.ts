@@ -22,13 +22,13 @@ export function paintFills(
 ): void {
   for (let index = 0; index < fills.length; index++) {
     const fill = fills[index]
-    if (fill.visible === false) continue
+    if (!fill.visible) continue
     const fillIndex = options.bindToNodeFills === false ? -1 : index
     const applied = options.patternStack
       ? applyFill(r, fill, node, graph, fillIndex, options.patternStack)
       : r.applyFill(fill, node, graph, fillIndex)
     if (!applied) continue
-    r.fillPaint.setAlphaf(fill.opacity ?? 1)
+    r.fillPaint.setAlphaf(fill.opacity)
     r.fillPaint.setBlendMode(figmaBlendModeToSkia(r.ck, fill.blendMode))
     draw(fill)
     r.fillPaint.setShader(null)

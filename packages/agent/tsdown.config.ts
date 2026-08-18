@@ -1,4 +1,4 @@
-import { copyFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -59,7 +59,14 @@ export default defineConfig({
   hooks: {
     'build:done': async () => {
       // Copy package.json so start.mjs can resolve its version at runtime.
-      copyFileSync(resolve(here, 'package.json'), resolve(here, 'dist', 'package.json'))
+      // Drop `exports` / `imports` — Node.js ignores them in nested
+      // package.json files and publint flags them.
+      const pkgPath = resolve(here, 'package.json')
+      const distPath = resolve(here, 'dist', 'package.json')
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Record<string, unknown>
+      delete pkg.exports
+      delete pkg.imports
+      writeFileSync(distPath, `${JSON.stringify(pkg, null, 2)}\n`)
     }
   }
 })

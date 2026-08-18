@@ -261,7 +261,7 @@ export function createChatSessionManager({
     const agentInfo = getAgentBackend?.()
     if (agentInfo) {
       const runtime = await createAIModelRuntime('design')
-      if (!runtime || runtime.kind !== 'direct') {
+      if (runtime?.kind !== 'direct') {
         throw new Error('The Design model is not configured for direct API access')
       }
       const apiKey = await resolveAPIKey()

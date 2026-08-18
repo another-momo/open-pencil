@@ -41,7 +41,7 @@ export function nodePathTransform(r: SkiaRenderer, child: SceneNode): number[] {
 }
 
 function hasVisibleImageFill(node: SceneNode): boolean {
-  return node.fills.some((fill) => fill.visible !== false && fill.type === 'IMAGE')
+  return node.fills.some((fill) => fill.visible && fill.type === 'IMAGE')
 }
 
 function canMakeTextSourcePath(node: SceneNode): boolean {
@@ -66,7 +66,7 @@ function lineStrokePath(r: SkiaRenderer, node: SceneNode): Path | null {
   const path = new r.ck.Path()
   path.moveTo(0, 0)
   path.lineTo(node.width, node.height)
-  const stroke = node.strokes.find((item) => item.visible !== false)
+  const stroke = node.strokes.find((item) => item.visible)
   const outline = path.stroke({ width: stroke?.weight ?? 1 })
   if (outline !== path) path.delete()
   return outline
@@ -82,16 +82,16 @@ function baseShapePath(r: SkiaRenderer, node: SceneNode): Path | null {
 }
 
 function nodeHasVisibleFill(node: SceneNode): boolean {
-  return node.fills.some((fill) => fill.visible !== false)
+  return node.fills.some((fill) => fill.visible)
 }
 
 export function nodeHasVisibleStroke(node: SceneNode): boolean {
-  return node.strokes.some((stroke) => stroke.visible !== false && stroke.weight > 0)
+  return node.strokes.some((stroke) => stroke.visible && stroke.weight > 0)
 }
 
 function addVisibleStrokeOutlines(target: Path, source: Path, node: SceneNode): void {
   for (const stroke of node.strokes) {
-    if (stroke.visible === false || stroke.weight <= 0) continue
+    if (!stroke.visible || stroke.weight <= 0) continue
     const outline = source.stroke({ width: stroke.weight })
     if (!outline) continue
     target.addPath(outline)
@@ -298,8 +298,8 @@ export function renderBooleanOperation(
   try {
     for (let fillIndex = 0; fillIndex < node.fills.length; fillIndex++) {
       const fill = node.fills[fillIndex]
-      if (fill.visible === false || !r.applyFill(fill, node, graph, fillIndex)) continue
-      r.fillPaint.setAlphaf(fill.opacity ?? 1)
+      if (!fill.visible || !r.applyFill(fill, node, graph, fillIndex)) continue
+      r.fillPaint.setAlphaf(fill.opacity)
       try {
         canvas.drawPath(path, r.fillPaint)
       } finally {
@@ -308,11 +308,11 @@ export function renderBooleanOperation(
     }
 
     for (const stroke of node.strokes) {
-      if (stroke.visible === false) continue
+      if (!stroke.visible) continue
       const color = r.resolveStrokeColor(stroke, 0, node, graph)
       r.strokePaint.setColor(r.ck.Color4f(color.r, color.g, color.b, color.a))
       r.strokePaint.setStrokeWidth(stroke.weight)
-      r.strokePaint.setAlphaf(stroke.opacity ?? 1)
+      r.strokePaint.setAlphaf(stroke.opacity)
       canvas.drawPath(path, r.strokePaint)
     }
   } finally {

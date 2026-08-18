@@ -389,7 +389,7 @@ export function parseMaterialTypeSize(
   const match = size.match(/^(\d+)x(\d+)?$/)
   if (!match) return undefined
   const width = Number(match[1])
-  const height = match[2] === undefined ? null : Number(match[2])
+  const height = match[2] ? Number(match[2]) : null
   if (!Number.isFinite(width) || width <= 0) return undefined
   if (height !== null && (!Number.isFinite(height) || height <= 0)) return undefined
   return { width, height }

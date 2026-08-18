@@ -1,20 +1,17 @@
 import { expect, test } from 'bun:test'
 
+import { restoreStateFromCanvas } from '#core/tools/marketing/restore'
+import { setActiveMaterialType } from '#core/tools/marketing/setup'
+
 import { expectDefined } from '#tests/helpers/assert'
 import { attachMiniLibrary } from '#tests/helpers/marketing-library'
-import { getTool, setupToolTest } from '#tests/helpers/tools'
-
-import { restoreStateFromCanvas } from '../../../../packages/core/src/tools/marketing/restore'
-import { setActiveMaterialType } from '../../../../packages/core/src/tools/marketing/setup'
+import { getTool, setupToolTest, type ToolResult } from '#tests/helpers/tools'
 
 function setupDesign(typeId: string) {
   setActiveMaterialType({ id: typeId, label: '产品长图', size: { width: 750, height: null } })
   const env = setupToolTest()
   attachMiniLibrary(env.graph)
-  const result = getTool('setup_material_type').execute(env.figma, { id: typeId }) as Record<
-    string,
-    unknown
-  >
+  const result = getTool('setup_material_type').execute(env.figma, { id: typeId }) as ToolResult
   expect(result.error).toBeUndefined()
   return { env, rootFrameId: result.rootFrameId as string }
 }
@@ -35,20 +32,14 @@ test('restoreStateFromCanvas restores multiple coexisting designs', () => {
   })
   const env = setupToolTest()
   attachMiniLibrary(env.graph)
-  const r1 = getTool('setup_material_type').execute(env.figma, { id: 'product_long' }) as Record<
-    string,
-    unknown
-  >
+  const r1 = getTool('setup_material_type').execute(env.figma, { id: 'product_long' }) as ToolResult
   expect(r1.error).toBeUndefined()
   setActiveMaterialType({
     id: 'wechat_moments',
     label: '朋友圈广告',
     size: { width: 1080, height: 1080 }
   })
-  const r2 = getTool('setup_material_type').execute(env.figma, { id: 'wechat_moments' }) as Record<
-    string,
-    unknown
-  >
+  const r2 = getTool('setup_material_type').execute(env.figma, { id: 'wechat_moments' }) as ToolResult
   expect(r2.error).toBeUndefined()
 
   const restored = restoreStateFromCanvas(env.graph)

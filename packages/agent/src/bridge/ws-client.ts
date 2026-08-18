@@ -53,7 +53,7 @@ function nextReconnectDelay(attempt: number): number {
 
 export { nextReconnectDelay }
 
-export type RpcEnvelope = {
+export type RPCEnvelope = {
   type: 'request' | 'response' | 'auth' | 'register' | 'abort'
   id?: string
   token?: unknown
@@ -97,7 +97,7 @@ export type FrontendBridgeEvents = {
   connect: []
   disconnect: []
   authenticated: []
-  rpc: [RpcEnvelope]
+  rpc: [RPCEnvelope]
   /**
    * Emitted when the server failed to pong STALE_MISS_LIMIT times in
    * a row. The bridge terminates the socket and the auto-reconnect
@@ -215,7 +215,7 @@ export class FrontendBridge extends EventEmitter<FrontendBridgeEvents> {
       ws.once('open', () => {
         this.emit('connect')
         ws.send(
-          JSON.stringify({ type: 'auth', token: this.authToken } satisfies RpcEnvelope)
+          JSON.stringify({ type: 'auth', token: this.authToken } satisfies RPCEnvelope)
         )
         // Give the bridge a moment to process auth before resolving;
         // any auth-failure close arrives within a few ms on localhost.
@@ -235,9 +235,9 @@ export class FrontendBridge extends EventEmitter<FrontendBridgeEvents> {
 
       ws.on('message', (raw) => {
         const data = typeof raw === 'string' ? raw : Buffer.from(raw as Buffer).toString('utf-8')
-        let parsed: RpcEnvelope
+        let parsed: RPCEnvelope
         try {
-          parsed = JSON.parse(data) as RpcEnvelope
+          parsed = JSON.parse(data) as RPCEnvelope
         } catch {
           return
         }
@@ -378,7 +378,7 @@ export class FrontendBridge extends EventEmitter<FrontendBridgeEvents> {
         // went out — the bridge never saw it.
         if (requestSent) {
           try {
-            this.ws?.send(JSON.stringify({ type: 'abort', id } satisfies RpcEnvelope))
+            this.ws?.send(JSON.stringify({ type: 'abort', id } satisfies RPCEnvelope))
           } catch {
             // socket is dying — close handler will reject the rest
           }
@@ -419,7 +419,7 @@ export class FrontendBridge extends EventEmitter<FrontendBridgeEvents> {
       })
       try {
         this.ws!.send(
-          JSON.stringify({ type: 'request', id, command, args } satisfies RpcEnvelope)
+          JSON.stringify({ type: 'request', id, command, args } satisfies RPCEnvelope)
         )
         requestSent = true
       } catch (e) {

@@ -1,15 +1,14 @@
 import { expect, test } from 'bun:test'
 
-import { SceneGraph } from '@open-pencil/core'
 import { getMarketingState } from '@open-pencil/core/tools'
-
-import { expectDefined } from '#tests/helpers/assert'
-import { getTool, setupToolTest } from '#tests/helpers/tools'
 
 import {
   setActiveMaterialType,
   setActiveMaterialTypes
-} from '../../../../packages/core/src/tools/marketing/setup'
+} from '#core/tools/marketing/setup'
+
+import { expectDefined } from '#tests/helpers/assert'
+import { getTool, setupToolTest, type ToolResult } from '#tests/helpers/tools'
 
 function run(id: string, opts?: { width?: number; height?: number; mode?: 'new' | 'continue' }) {
   const { graph, figma } = setupToolTest()
@@ -17,7 +16,7 @@ function run(id: string, opts?: { width?: number; height?: number; mode?: 'new' 
   if (opts?.width !== undefined) args.width = opts.width
   if (opts?.height !== undefined) args.height = opts.height
   if (opts?.mode) args.mode = opts.mode
-  const result = getTool('setup_material_type').execute(figma, args) as Record<string, unknown>
+  const result = getTool('setup_material_type').execute(figma, args) as ToolResult
   return { graph, figma, result }
 }
 
@@ -84,10 +83,7 @@ test('repeat call with the same id on the same page adopts the existing design',
   })
   const { figma, result: first } = run('wechat_moments')
   const firstRootId = first.rootFrameId as string
-  const result2 = getTool('setup_material_type').execute(figma, { id: 'wechat_moments' }) as Record<
-    string,
-    unknown
-  >
+  const result2 = getTool('setup_material_type').execute(figma, { id: 'wechat_moments' }) as ToolResult
   expect(result2.rootFrameId).toBe(firstRootId)
   expect(result2.adopted).toBe(true)
 })
@@ -103,7 +99,7 @@ test('mode "new" creates a fresh frame even when a same-type design exists on th
   const result2 = getTool('setup_material_type').execute(figma, {
     id: 'wechat_moments',
     mode: 'new'
-  }) as Record<string, unknown>
+  }) as ToolResult
   expect(result2.rootFrameId).not.toBe(firstRootId)
   expect(result2.adopted).toBe(false)
 })
@@ -136,10 +132,7 @@ test('setup writes a marketing state entry the registry can read back', () => {
     size: { width: 1080, height: 1080 }
   })
   const { figma, result } = run('wechat_moments')
-  const state = getMarketingState(
-    figma.graph as unknown as SceneGraph,
-    result.rootFrameId as string
-  )
+  const state = getMarketingState(figma.graph, result.rootFrameId as string)
   expect(state?.materialTypeId).toBe('wechat_moments')
   expect(state?.rootFrameId).toBe(result.rootFrameId)
 })

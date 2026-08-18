@@ -1,14 +1,16 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import { randomUUID } from 'node:crypto'
-import { createServer, type Server } from 'node:http'
+import { createServer } from 'node:http'
 
 import {
   FrontendBridge,
   HEARTBEAT_CONSTANTS,
   nextReconnectDelay,
-  type RpcEnvelope
+  type RPCEnvelope
 } from '#agent/bridge/ws-client'
-import { WebSocket, WebSocketServer } from 'ws'
+import { type WebSocket, WebSocketServer } from 'ws'
+
+import { expectDefined } from '#tests/helpers/assert'
 
 // Spins up an HTTP server that upgrades to a real WS pair. The "server"
 // side plays the role of the OpenPencil frontend mcp bridge for the
@@ -28,12 +30,12 @@ function createTestBridge(
   url: string
   authToken: string
   close: () => Promise<void>
-  received: RpcEnvelope[]
+  received: RPCEnvelope[]
   pingCount: { value: number; increment: () => void }
 }> {
   return new Promise((resolve, reject) => {
     const authToken = `test-token-${randomUUID().slice(0, 8)}`
-    const received: RpcEnvelope[] = []
+    const received: RPCEnvelope[] = []
     const pingCount = { value: 0, increment: () => (pingCount.value += 1) }
 
     const httpServer = createServer()
@@ -48,9 +50,9 @@ function createTestBridge(
       options.onConnection?.(ws)
       ws.on('message', (raw) => {
         const data = typeof raw === 'string' ? raw : Buffer.from(raw as Buffer).toString('utf-8')
-        let parsed: RpcEnvelope
+        let parsed: RPCEnvelope
         try {
-          parsed = JSON.parse(data) as RpcEnvelope
+          parsed = JSON.parse(data) as RPCEnvelope
         } catch {
           return
         }
@@ -78,7 +80,7 @@ function createTestBridge(
                   id: parsed.id,
                   ok: true,
                   result
-                } satisfies RpcEnvelope)
+                } satisfies RPCEnvelope)
               )
             } catch (err) {
               if (ws.readyState !== ws.OPEN) return
@@ -88,7 +90,7 @@ function createTestBridge(
                   id: parsed.id,
                   ok: false,
                   error: err instanceof Error ? err.message : String(err)
-                } satisfies RpcEnvelope)
+                } satisfies RPCEnvelope)
               )
             }
           })()
@@ -105,8 +107,12 @@ function createTestBridge(
         received,
         pingCount,
         close: async () => {
-          await new Promise<void>((res) => wss.close(() => res()))
-          await new Promise<void>((res) => httpServer.close(() => res()))
+          await new Promise<void>((res) => {
+            wss.close(() => res())
+          })
+          await new Promise<void>((res) => {
+            httpServer.close(() => res())
+          })
         }
       })
     })
@@ -227,7 +233,9 @@ describe('FrontendBridge heartbeat', () => {
     testBridges.push(bridge)
 
     // Wait long enough for several heartbeat ticks.
-    await new Promise((r) => setTimeout(r, 150))
+    await new Promise((r) => {
+      setTimeout(r, 150)
+    })
     expect(setup.pingCount.value).toBeGreaterThanOrEqual(2)
   })
 
@@ -254,9 +262,8 @@ describe('FrontendBridge heartbeat', () => {
     // pong — this exercises the `ws.on('pong', ...)` handler. The
     // lastPong / staleMisses fields are private but reflected in the
     // observable behavior of the next sendRPC.
-    const internal = bridge as unknown as { ws: WebSocket | null }
-    expect(internal.ws).not.toBeNull()
-    internal.ws!.emit('pong')
+    const ws = expectDefined(Reflect.get(bridge, 'ws') as WebSocket | null, 'bridge ws')
+    ws.emit('pong')
 
     // If the pong listener is wired, the next sendRPC round-trip
     // continues to work (proves the ws is still usable). We can't
@@ -306,7 +313,9 @@ describe('FrontendBridge heartbeat', () => {
 
     // After disconnect, no further pings should fire. Wait one tick
     // past the heartbeat interval and confirm the bridge has closed.
-    await new Promise((r) => setTimeout(r, 60))
+    await new Promise((r) => {
+      setTimeout(r, 60)
+    })
     expect(bridge.isOpen()).toBe(false)
   })
 })
@@ -343,9 +352,9 @@ describe('FrontendBridge reconnect backoff', () => {
 
     // Force the close handler to fire, which increments reconnectAttempts.
     await new Promise<void>((resolve) => {
-      const internal = bridge as unknown as { ws: WebSocket | null }
-      internal.ws!.once('close', () => resolve())
-      internal.ws!.terminate()
+      const ws = expectDefined(Reflect.get(bridge, 'ws') as WebSocket | null, 'bridge ws')
+      ws.once('close', () => resolve())
+      ws.terminate()
     })
     // The reconnect timer is now armed. Cancel it before it can fire
     // so the second connect() doesn't race a parallel reconnect.
@@ -359,8 +368,8 @@ describe('FrontendBridge reconnect backoff', () => {
     })
     testBridges.push(bridge)
 
-    const internal = bridge as unknown as { reconnectAttempts: number }
-    expect(internal.reconnectAttempts).toBe(0)
+    const reconnectAttempts = Reflect.get(bridge, 'reconnectAttempts') as number
+    expect(reconnectAttempts).toBe(0)
   })
 
   test('after reconnect failure, attempt delay follows the backoff', async () => {
@@ -384,13 +393,14 @@ describe('FrontendBridge reconnect backoff', () => {
       })
     } catch {
       // expected — connection refused
+      void 0
     }
     // Internal counter survives across the failed initial connect.
     // Subsequent attempts (not exercised here, see backoff formula test)
     // would use the formula. This test mostly guards against the
     // counter being reset on a failed first connect.
-    const internal = bridge as unknown as { reconnectAttempts: number }
-    expect(internal.reconnectAttempts).toBeGreaterThanOrEqual(0)
+    const reconnectAttempts = Reflect.get(bridge, 'reconnectAttempts') as number
+    expect(reconnectAttempts).toBeGreaterThanOrEqual(0)
   })
 })
 
@@ -452,7 +462,9 @@ describe('FrontendBridge.sendRPC abort', () => {
     const ctrl = new AbortController()
     const pending = bridge.sendRPC('tool', { name: 'x', args: {} }, ctrl.signal)
     // Give the WS layer a tick to deliver the request frame.
-    await new Promise((r) => setTimeout(r, 50))
+    await new Promise((r) => {
+      setTimeout(r, 50)
+    })
 
     ctrl.abort()
 
@@ -463,7 +475,9 @@ describe('FrontendBridge.sendRPC abort', () => {
     expect((settled as Error).message).toMatch(/aborted/)
 
     // Give the WS layer a tick to deliver the abort envelope.
-    await new Promise((r) => setTimeout(r, 50))
+    await new Promise((r) => {
+      setTimeout(r, 50)
+    })
 
     const abort = setup.received.find((m) => m.type === 'abort')
     expect(abort).toBeDefined()
@@ -499,7 +513,9 @@ describe('FrontendBridge.sendRPC abort', () => {
 
     const ctrl = new AbortController()
     const pending = bridge.sendRPC('tool', { name: 'x' }, ctrl.signal)
-    await new Promise((r) => setTimeout(r, 50))
+    await new Promise((r) => {
+      setTimeout(r, 50)
+    })
     ctrl.abort()
 
     const settled = await pending.catch((e) => e as Error)

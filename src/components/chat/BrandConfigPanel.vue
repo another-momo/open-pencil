@@ -23,6 +23,7 @@ import type {
 } from '@open-pencil/agent/brand'
 import { resolveAgentBackendURL } from '@/app/ai/chat/agent-transport'
 import { setBrandConfig } from '@/app/ai/marketing/library'
+import { downloadBlob } from '@/app/document/io/browser'
 
 const emit = defineEmits<{ close: [] }>()
 
@@ -36,13 +37,13 @@ const editingProfile = ref<EffectiveBrandProfile | null>(null)
 const importingYaml = ref('')
 const importError = ref('')
 
-const baseUrl = computed(() => resolveAgentBackendURL() ?? 'http://127.0.0.1:7601')
+const baseURL = computed(() => resolveAgentBackendURL() ?? 'http://127.0.0.1:7601')
 
 async function refresh() {
   loading.value = true
   error.value = ''
   try {
-    const res = await fetch(`${baseUrl.value}/v1/brand/manifest`)
+    const res = await fetch(`${baseURL.value}/v1/brand/manifest`)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     config.value = (await res.json()) as EffectiveBrandConfig
     // Keep the chat-side brand cache in sync so the MarketingConfigBar chips
@@ -61,9 +62,9 @@ watch(activeTab, () => {
 })
 
 async function api(path: string, init: RequestInit = {}): Promise<unknown> {
-  const res = await fetch(`${baseUrl.value}${path}`, {
+  const res = await fetch(`${baseURL.value}${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) }
+    headers: { 'Content-Type': 'application/json', ...init.headers }
   })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
@@ -155,13 +156,7 @@ async function newProfile() {
 async function downloadExport() {
   try {
     const yaml = (await api('/v1/brand/export')) as string
-    const blob = new Blob([yaml], { type: 'application/yaml' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'brand-config.yaml'
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadBlob(new TextEncoder().encode(yaml), 'brand-config.yaml', 'application/yaml')
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   }

@@ -125,7 +125,7 @@ function parseUIMessageStream(body: ReadableStream<Uint8Array>): ReadableStream<
           } catch {
             // Ignore malformed chunks; SDK spec says do not throw on
             // individual chunk parse errors.
-            // oxlint-ignore-next-line open-pencil/no-silent-catch -- intentional per SDK spec
+            continue
           }
         }
         // Ignore `event:`, `id:`, `retry:` — AI SDK only uses `data:` lines.

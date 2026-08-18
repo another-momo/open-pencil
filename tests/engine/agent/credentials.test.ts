@@ -143,7 +143,10 @@ describe('credentials', () => {
   // ourselves.
   describe.skipIf(!process.env.RUN_KEYRING_TESTS)('KeychainCredentialStore (integration)', () => {
     let store: CredentialStore
-    const testId = `test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const randomSuffix = Array.from(crypto.getRandomValues(new Uint8Array(3)), (b) =>
+      b.toString(16).padStart(2, '0')
+    ).join('')
+    const testId = `test-${Date.now()}-${randomSuffix}`
 
     beforeEach(async () => {
       const { KeychainCredentialStore } = await import('#agent/credentials')

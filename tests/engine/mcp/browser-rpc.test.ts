@@ -338,6 +338,7 @@ describe('BrowserRpcBridge reconnection', () => {
         }
       } catch {
         // not JSON, ignore
+        void 0
       }
       return origSend(data as Parameters<typeof origSend>[0], ...(rest as never[]))
     } as typeof browserPair.serverWs.send
@@ -346,7 +347,8 @@ describe('BrowserRpcBridge reconnection', () => {
     const rpcPromise = bridge.sendRPC(RPC_BODY)
 
     // Wait for the request envelope to leave the server-side ws.
-    for (let i = 0; i < 200 && !capturedId; i++) {
+    for (let i = 0; i < 200; i++) {
+      if (capturedId) break
       await new Promise<void>((r) => {
         setTimeout(r, 5)
       })
@@ -426,6 +428,7 @@ describe('BrowserRpcBridge reconnection', () => {
         }
       } catch {
         // not JSON, ignore
+        void 0
       }
       return origSend(data as Parameters<typeof origSend>[0], ...(rest as never[]))
     } as typeof browserPair.serverWs.send
@@ -433,7 +436,8 @@ describe('BrowserRpcBridge reconnection', () => {
     // Send an RPC — it goes to the real browser.
     const rpcPromise = bridge.sendRPC(RPC_BODY)
 
-    for (let i = 0; i < 200 && !capturedId; i++) {
+    for (let i = 0; i < 200; i++) {
+      if (capturedId) break
       await new Promise<void>((r) => {
         setTimeout(r, 5)
       })

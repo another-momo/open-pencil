@@ -41,7 +41,7 @@ describe('property access', () => {
     const api = createAPI()
     const rect = api.createRectangle()
     // Runtime callers (eval, external data) may pass partial fills.
-    rect.fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0, a: 1 } }] as unknown as Fill[]
+    rect.fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0, a: 1 } }] as Fill[]
     expect(rect.fills[0].opacity).toBe(1)
     expect(rect.fills[0].visible).toBe(true)
     expect(rect.fills[0].blendMode).toBe('NORMAL')
@@ -52,7 +52,7 @@ describe('property access', () => {
     const rect = api.createRectangle()
     rect.fills = [
       { type: 'SOLID', color: { r: 1, g: 0, b: 0, a: 1 }, visible: undefined, opacity: undefined }
-    ] as unknown as Fill[]
+    ] as Fill[]
     expect(rect.fills[0].opacity).toBe(1)
     expect(rect.fills[0].visible).toBe(true)
   })
@@ -66,7 +66,7 @@ describe('property access', () => {
         gradientStops: [{ position: 0, color: { r: 1, g: 0, b: 0 } }],
         gradientTransform: { m00: 0, m01: 1, m02: 0, m10: -1, m11: 0, m12: 1 }
       }
-    ] as unknown as Fill[]
+    ] as Fill[]
     const fill = rect.fills[0]
     expect(fill.gradientTransform?.m01).toBe(1)
     expect(fill.gradientStops?.[0].color.a).toBe(1)
@@ -79,7 +79,7 @@ describe('property access', () => {
     const rect = api.createRectangle()
     rect.strokes = [
       { color: { r: 0, g: 0, b: 0, a: 1 }, weight: 2, align: 'CENTER' }
-    ] as unknown as Stroke[]
+    ] as Stroke[]
     expect(rect.strokes[0].opacity).toBe(1)
     expect(rect.strokes[0].visible).toBe(true)
   })

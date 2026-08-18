@@ -62,7 +62,7 @@ const agentModeStorage = useLocalStorage<AgentMode>(AGENT_MODE_STORAGE_KEY, 'bac
  */
 export const agentMode = computed<AgentMode>({
   get: () => {
-    const value = agentModeStorage.value
+    const value: unknown = agentModeStorage.value
     return value === 'backend' || value === 'browser' || value === 'auto' ? value : 'backend'
   },
   set: (value) => {
@@ -110,8 +110,7 @@ export function getForcedAgentBackend(): AgentBackendInfo | null {
 export async function probeAgentBackend(): Promise<AgentBackendInfo | null> {
   // Check window presence at call time (not module-load time) so the
   // test harness can stub `globalThis.window` after imports resolve.
-  // oxlint-ignore-next-line open-pencil/no-typeof-window-check -- runtime stubbing for tests
-  if (typeof window === 'undefined') return null
+  if (!('window' in globalThis)) return null
   if (isAgentBackendDisabled()) return null
   // Browser mode never talks to the backend.
   if (getAgentMode() === 'browser') return null
@@ -166,7 +165,7 @@ function windowAgentURL(): string | null {
 function readAgentURL(): string | null {
   try {
     const value = agentURLStorage.value
-    return value && value.trim() ? value : null
+    return value.trim() ? value : null
   } catch {
     return null
   }

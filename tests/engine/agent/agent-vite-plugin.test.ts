@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
-import { EventEmitter } from 'node:events'
+
+import { expectDefined } from '#tests/helpers/assert'
 
 /**
  * The agent vite plugin is exercised in two ways:
@@ -15,6 +16,32 @@ import { EventEmitter } from 'node:events'
  * child the plugin captured in its closure.
  */
 
+type EventHandler = (...args: unknown[]) => void
+
+/** Minimal stand-in for the ChildProcess EventEmitter API (on + emit). */
+class FakeChildEmitter {
+  private handlers = new Map<string, EventHandler[]>()
+
+  on(event: string, handler: EventHandler): this {
+    const list = this.handlers.get(event) ?? []
+    list.push(handler)
+    this.handlers.set(event, list)
+    return this
+  }
+
+  emit(event: string, ...args: unknown[]): boolean {
+    const list = this.handlers.get(event) ?? []
+    for (const handler of list) handler(...args)
+    return list.length > 0
+  }
+}
+
+type FakeChild = FakeChildEmitter & {
+  stdout: FakeChildEmitter
+  stderr: FakeChildEmitter
+  kill: () => boolean
+}
+
 type SpawnCall = {
   command: string
   args: string[]
@@ -25,18 +52,12 @@ type SpawnCall = {
 }
 
 const calls: SpawnCall[] = []
-let lastChild:
-  | (EventEmitter & { stdout: EventEmitter; stderr: EventEmitter; kill: () => boolean })
-  | null = null
+let lastChild: FakeChild | null = null
 
-function makeFakeChild() {
-  const child = new EventEmitter() as EventEmitter & {
-    stdout: EventEmitter
-    stderr: EventEmitter
-    kill: () => boolean
-  }
-  child.stdout = new EventEmitter()
-  child.stderr = new EventEmitter()
+function makeFakeChild(): FakeChild {
+  const child = new FakeChildEmitter() as FakeChild
+  child.stdout = new FakeChildEmitter()
+  child.stderr = new FakeChildEmitter()
   child.kill = () => true
   return child
 }
@@ -59,7 +80,7 @@ afterEach(() => {
   calls.length = 0
   lastChild = null
   for (const key of Object.keys(process.env)) {
-    if (!(key in originalEnv)) delete process.env[key]
+    if (!(key in originalEnv)) Reflect.deleteProperty(process.env, key)
   }
   Object.assign(process.env, originalEnv)
 })
@@ -84,22 +105,25 @@ describe('agentPlugin (dev mode)', () => {
     await plugin.configureServer?.(undefined as never)
 
     expect(calls).toHaveLength(1)
-    expect(calls[0]!.command).toBe('bun')
-    expect(calls[0]!.args).toEqual(['--watch', 'packages/agent/src/start.ts'])
+    const call = expectDefined(calls[0], 'spawn call')
+    expect(call.command).toBe('bun')
+    expect(call.args).toEqual(['--watch', 'packages/agent/src/start.ts'])
   })
 
   test('forwards the dev server origin as CORS env', async () => {
     const plugin = agentPlugin('http://192.168.1.10:1420', true)
     await plugin.configureServer?.(undefined as never)
 
-    expect(calls[0]!.options.env.OPENPENCIL_AGENT_CORS_ORIGINS).toBe('http://192.168.1.10:1420')
+    expect(expectDefined(calls[0], 'spawn call').options.env.OPENPENCIL_AGENT_CORS_ORIGINS).toBe(
+      'http://192.168.1.10:1420'
+    )
   })
 
   test('uses pipe stderr (inherit stdout) so failures surface in Vite logs', async () => {
     const plugin = agentPlugin('http://localhost:1420', true)
     await plugin.configureServer?.(undefined as never)
 
-    expect(calls[0]!.options.stdio).toEqual(['ignore', 'inherit', 'pipe'])
+    expect(expectDefined(calls[0], 'spawn call').options.stdio).toEqual(['ignore', 'inherit', 'pipe'])
   })
 
   test('forwards non-error stderr through the parent', async () => {
@@ -114,7 +138,10 @@ describe('agentPlugin (dev mode)', () => {
       const plugin = agentPlugin('http://localhost:1420', true)
       await plugin.configureServer?.(undefined as never)
 
-      lastChild!.stderr.emit('data', Buffer.from('[openpencil-agent] listening on :7601'))
+      expectDefined(lastChild, 'lastChild').stderr.emit(
+        'data',
+        Buffer.from('[openpencil-agent] listening on :7601')
+      )
       expect(writes.some((w) => w.includes('listening on :7601'))).toBe(true)
     } finally {
       process.stderr.write = originalWrite
@@ -133,12 +160,12 @@ describe('agentPlugin (dev mode)', () => {
       await plugin.configureServer?.(undefined as never)
 
       let killed = false
-      lastChild!.kill = () => {
+      expectDefined(lastChild, 'lastChild').kill = () => {
         killed = true
         return true
       }
 
-      lastChild!.stderr.emit(
+      expectDefined(lastChild, 'lastChild').stderr.emit(
         'data',
         Buffer.from('Error: listen EADDRINUSE: address already in use :::7601')
       )
@@ -160,7 +187,7 @@ describe('agentPlugin (dev mode)', () => {
       const plugin = agentPlugin('http://localhost:1420', true)
       await plugin.configureServer?.(undefined as never)
 
-      lastChild!.emit('exit', 1)
+      expectDefined(lastChild, 'lastChild').emit('exit', 1)
       expect(errorLines.some((l) => l.includes('exited with code 1'))).toBe(true)
     } finally {
       console.error = originalConsoleError
@@ -178,7 +205,7 @@ describe('agentPlugin (dev mode)', () => {
       const plugin = agentPlugin('http://localhost:1420', true)
       await plugin.configureServer?.(undefined as never)
 
-      lastChild!.emit('exit', 0)
+      expectDefined(lastChild, 'lastChild').emit('exit', 0)
       expect(errorLines).toHaveLength(0)
     } finally {
       console.error = originalConsoleError
@@ -192,7 +219,7 @@ describe('agentPlugin (buildEnd)', () => {
     await plugin.configureServer?.(undefined as never)
 
     let killed = false
-    lastChild!.kill = () => {
+    expectDefined(lastChild, 'lastChild').kill = () => {
       killed = true
       return true
     }

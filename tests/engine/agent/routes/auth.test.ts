@@ -12,13 +12,13 @@ import { authRoute } from '#agent/routes/auth'
 
 const app = authRoute()
 
-async function sendJson(
+async function sendJSON(
   path: string,
   init: { method?: string; body?: unknown; headers?: Record<string, string> } = {}
 ) {
   const request = new Request(`http://localhost${path}`, {
     method: init.method ?? 'POST',
-    headers: { 'content-type': 'application/json', ...(init.headers ?? {}) },
+    headers: { 'content-type': 'application/json', ...init.headers },
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined
   })
   return app.fetch(request)
@@ -46,28 +46,28 @@ describe('authRoute POST /', () => {
   })
 
   test('returns 400 when body is not an object', async () => {
-    const response = await sendJson('/', { body: 'a string' })
+    const response = await sendJSON('/', { body: 'a string' })
     expect(response.status).toBe(400)
     const body = (await response.json()) as { error: string }
     expect(body.error).toMatch(/Body must be an object/)
   })
 
   test('returns 400 when connectionId is missing', async () => {
-    const response = await sendJson('/', { body: { apiKey: 'sk-test' } })
+    const response = await sendJSON('/', { body: { apiKey: 'sk-test' } })
     expect(response.status).toBe(400)
     const body = (await response.json()) as { error: string }
     expect(body.error).toMatch(/Missing connectionId/)
   })
 
   test('returns 400 when apiKey is missing or non-string', async () => {
-    const response = await sendJson('/', { body: { connectionId: 'conn-X' } })
+    const response = await sendJSON('/', { body: { connectionId: 'conn-X' } })
     expect(response.status).toBe(400)
     const body = (await response.json()) as { error: string }
     expect(body.error).toMatch(/Missing apiKey/)
   })
 
   test('returns 400 when apiKey is not a string', async () => {
-    const response = await sendJson('/', {
+    const response = await sendJSON('/', {
       body: { connectionId: 'conn-X', apiKey: 123 }
     })
     expect(response.status).toBe(400)
@@ -77,7 +77,7 @@ describe('authRoute POST /', () => {
 
   test('stores the credential and returns ok + expiresIn', async () => {
     expect(consumeCredential('conn-X')).toBeNull()
-    const response = await sendJson('/', {
+    const response = await sendJSON('/', {
       body: { connectionId: 'conn-X', apiKey: 'sk-secret' }
     })
     expect(response.status).toBe(200)
@@ -88,8 +88,8 @@ describe('authRoute POST /', () => {
   })
 
   test('republishing overwrites the previous credential', async () => {
-    await sendJson('/', { body: { connectionId: 'conn-X', apiKey: 'sk-old' } })
-    await sendJson('/', { body: { connectionId: 'conn-X', apiKey: 'sk-new' } })
+    await sendJSON('/', { body: { connectionId: 'conn-X', apiKey: 'sk-old' } })
+    await sendJSON('/', { body: { connectionId: 'conn-X', apiKey: 'sk-new' } })
     expect(consumeCredential('conn-X')).toBe('sk-new')
     expect(activeConnectionCount()).toBe(1)
   })
@@ -105,7 +105,7 @@ describe('authRoute DELETE /:connectionId', () => {
   })
 
   test('removes the entry and returns ok', async () => {
-    await sendJson('/', { body: { connectionId: 'conn-Y', apiKey: 'sk-secret' } })
+    await sendJSON('/', { body: { connectionId: 'conn-Y', apiKey: 'sk-secret' } })
     expect(consumeCredential('conn-Y')).toBe('sk-secret')
 
     const response = await app.fetch(new Request('http://localhost/conn-Y', { method: 'DELETE' }))

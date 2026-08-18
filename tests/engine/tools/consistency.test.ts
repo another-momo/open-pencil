@@ -96,7 +96,7 @@ describe('tool description consistency', () => {
   test('(a) capability tokens in descriptions are real params or allowlisted', () => {
     for (const tool of ALL_TOOLS) {
       const params = new Set(Object.keys(tool.params))
-      const allowed = new Set(DESCRIPTION_MENTION_ALLOWLIST[tool.name] ?? [])
+      const allowed = new Set(DESCRIPTION_MENTION_ALLOWLIST[tool.name])
       // batch_update's description lists its props whitelist — those names
       // come from SCENE_PROP_MAP (single source), not from its params.
       if (tool.name === 'batch_update') {
@@ -122,7 +122,7 @@ describe('tool description consistency', () => {
     const coreNames = new Set(CORE_TOOLS.map((t) => t.name))
     for (const file of PROMPT_FILES) {
       const text = readFileSync(resolve(REPO_ROOT, file), 'utf8')
-      const allowed = new Set(PROMPT_MENTION_ALLOWLIST[file] ?? [])
+      const allowed = new Set(PROMPT_MENTION_ALLOWLIST[file])
       const offenders = ALL_TOOLS.filter(
         (tool) =>
           !coreNames.has(tool.name) &&

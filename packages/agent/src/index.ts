@@ -7,7 +7,7 @@ export type { AgentRunOptions, ChatMode } from './agent-loop.js'
 export { createAgentServer, startServer } from './server.js'
 export type { ServerHandle } from './server.js'
 export { FrontendBridge } from './bridge/ws-client.js'
-export type { BridgeInfo, FrontendBridgeEvents, RpcResponse, RpcEnvelope } from './bridge/ws-client.js'
+export type { BridgeInfo, FrontendBridgeEvents, RpcResponse, RPCEnvelope } from './bridge/ws-client.js'
 export {
   buildMarketingOverlay,
   SYSTEM_PROMPT,

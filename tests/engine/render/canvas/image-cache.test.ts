@@ -14,7 +14,7 @@ beforeAll(async () => {
 })
 
 /** Encoded PNG bytes of a solid-color w×h image. */
-function makePngBytes(width: number, height: number, color: number): Uint8Array {
+function makePNGBytes(width: number, height: number, color: number): Uint8Array {
   const surface = expectDefined(ck.MakeSurface(width, height), 'encode surface')
   try {
     const canvas = surface.getCanvas()
@@ -67,7 +67,7 @@ describe('image cache budget', () => {
 
     const hashes = ['a', 'b', 'c']
     for (const [index, hash] of hashes.entries()) {
-      graph.images.set(hash, makePngBytes(size, size, 0xff000000 + index))
+      graph.images.set(hash, makePNGBytes(size, size, 0xff000000 + index))
       expect(renderer.applyImageFill(imageFill(hash), node, graph)).toBe(true)
     }
 
@@ -86,13 +86,13 @@ describe('image cache budget', () => {
     const node = makeImageNode(graph, size, size)
 
     for (const hash of ['a', 'b']) {
-      graph.images.set(hash, makePngBytes(size, size, 0xff000000))
+      graph.images.set(hash, makePNGBytes(size, size, 0xff000000))
       renderer.applyImageFill(imageFill(hash), node, graph)
     }
     // Touch 'a' so 'b' becomes the oldest entry.
     expect(renderer.applyImageFill(imageFill('a'), node, graph)).toBe(true)
 
-    graph.images.set('c', makePngBytes(size, size, 0xff000000))
+    graph.images.set('c', makePNGBytes(size, size, 0xff000000))
     renderer.applyImageFill(imageFill('c'), node, graph)
 
     expect([...renderer.imageCache.keys()]).toEqual(['a', 'c'])
@@ -109,7 +109,7 @@ describe('image cache budget', () => {
     const node = makeImageNode(graph, size, size)
 
     for (const hash of ['a', 'b']) {
-      graph.images.set(hash, makePngBytes(size, size, 0xff000000))
+      graph.images.set(hash, makePNGBytes(size, size, 0xff000000))
       renderer.applyImageFill(imageFill(hash), node, graph)
     }
     expect(renderer.imageCache.has('a')).toBe(false)
@@ -125,7 +125,7 @@ describe('image cache budget', () => {
     const renderer = makeRenderer()
     const graph = new SceneGraph()
     const node = makeImageNode(graph, size, size)
-    graph.images.set('a', makePngBytes(size, size, 0xff000000))
+    graph.images.set('a', makePNGBytes(size, size, 0xff000000))
     renderer.applyImageFill(imageFill('a'), node, graph)
     expect(renderer.imageCacheBytes).toBeGreaterThan(0)
 

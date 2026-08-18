@@ -23,6 +23,15 @@ type BrowserRPCBridgeOptions = {
 
 type ConnectionListener = (connected: boolean) => void
 
+// Connection waiters share most of the PendingRequest shape but are
+// never aborted individually — the abort path only applies to pending
+// RPC requests in `pending`.
+type ConnectionWaiter = {
+  resolve: (value: unknown) => void
+  reject: (error: Error) => void
+  timer: ReturnType<typeof setTimeout>
+}
+
 type BrowserMessage = {
   type: string
   id?: string
@@ -68,7 +77,7 @@ function createSettler<T>(resolve: (value: T) => void, reject: (error: Error) =>
 export function createBrowserRPCBridge({ authToken, onConnectionChange }: BrowserRPCBridgeOptions) {
   const pending = new Map<string, PendingRequest>()
   const clients = new Set<WebSocket>()
-  const connectionWaiters = new Set<PendingRequest>()
+  const connectionWaiters = new Set<ConnectionWaiter>()
   // Track which WebSocket clients have authenticated via a valid
   // register message. Unauthenticated clients can only send register;
   // all other message types (request, response) are rejected.
@@ -112,14 +121,12 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
 
   function waitForConnection(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      let waiter: PendingRequest | null = null
-
       const timer = setTimeout(() => {
-        if (waiter) connectionWaiters.delete(waiter)
+        connectionWaiters.delete(waiter)
         reject(new Error(APP_NOT_CONNECTED_MESSAGE))
       }, APP_WAIT_TIMEOUT)
 
-      waiter = {
+      const waiter: ConnectionWaiter = {
         resolve: () => {
           clearTimeout(timer)
           resolve()
@@ -270,6 +277,44 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
     }
   }
 
+  function handleAuth(ws: WebSocket, msg: BrowserMessage) {
+    // Authenticate a stdio bridge client without registering it as the
+    // browser app. This lets the client send request/response messages
+    // without becoming the RPC target. The token is validated the same
+    // way as registerBrowser — when auth is disabled (authToken === null),
+    // any token is accepted.
+    if (msg.token === null || typeof msg.token === 'string') {
+      if (!isAuthorized(msg.token, authToken)) {
+        ws.close()
+        return
+      }
+      authenticatedClients.add(ws)
+    } else if (msg.token !== undefined) {
+      ws.close()
+    }
+  }
+
+  function handleRegister(ws: WebSocket, msg: BrowserMessage) {
+    if (msg.token === null || typeof msg.token === 'string') {
+      registerBrowser(ws, msg.token)
+    } else if (msg.token !== undefined) {
+      ws.close()
+    }
+  }
+
+  function handleAbort(msg: BrowserMessage) {
+    // The agent side is telling us to cancel an in-flight RPC.
+    // We don't have a single-request "abort" envelope from the
+    // browser app side; the browser app drives cancellation of its
+    // own tool execution by simply not responding. So this branch
+    // only fires for `id`s that exist in `pending` (i.e. RPCs the
+    // bridge dispatched on behalf of an authenticated client).
+    if (!msg.id) return
+    const req = pending.get(msg.id)
+    if (!req) return
+    req.abort()
+  }
+
   function handleMessage(data: string, ws: WebSocket) {
     if (bridgeClosed) return
     let parsed: unknown
@@ -286,29 +331,12 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
     const msg = parsed as BrowserMessage
 
     if (msg.type === 'auth') {
-      // Authenticate a stdio bridge client without registering it as the
-      // browser app. This lets the client send request/response messages
-      // without becoming the RPC target. The token is validated the same
-      // way as registerBrowser — when auth is disabled (authToken === null),
-      // any token is accepted.
-      if (msg.token === null || typeof msg.token === 'string') {
-        if (!isAuthorized(msg.token, authToken)) {
-          ws.close()
-          return
-        }
-        authenticatedClients.add(ws)
-      } else if (msg.token !== undefined) {
-        ws.close()
-      }
+      handleAuth(ws, msg)
       return
     }
 
     if (msg.type === 'register') {
-      if (msg.token === null || typeof msg.token === 'string') {
-        registerBrowser(ws, msg.token)
-      } else if (msg.token !== undefined) {
-        ws.close()
-      }
+      handleRegister(ws, msg)
       return
     }
     // All non-register messages require authentication. Without this
@@ -324,18 +352,7 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
       return
     }
     if (msg.type === 'response') handleBrowserResponse(msg, ws)
-    if (msg.type === 'abort') {
-      // The agent side is telling us to cancel an in-flight RPC.
-      // We don't have a single-request "abort" envelope from the
-      // browser app side; the browser app drives cancellation of its
-      // own tool execution by simply not responding. So this branch
-      // only fires for `id`s that exist in `pending` (i.e. RPCs the
-      // bridge dispatched on behalf of an authenticated client).
-      if (!msg.id) return
-      const req = pending.get(msg.id)
-      if (!req) return
-      req.abort()
-    }
+    if (msg.type === 'abort') handleAbort(msg)
   }
 
   function handleClose(ws: WebSocket) {

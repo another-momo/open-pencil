@@ -6,6 +6,8 @@ import type { AgentBackendInfo, AgentChatConfig } from '@/app/ai/chat/agent-tran
 import { createHttpAgentTransport } from '@/app/ai/chat/http-agent-transport'
 import type { EditorStore } from '@/app/editor/session/create'
 
+import { expectDefined } from '#tests/helpers/assert'
+
 // The transport uses `globalThis.fetch` directly and reads `store` for the
 // brand selection. We bypass both by passing a store stub and swapping
 // globalThis.fetch for a spy that hands back a controllable SSE body.
@@ -37,10 +39,13 @@ async function collectChunks(stream: ReadableStream<UIMessageChunk>): Promise<UI
   return chunks
 }
 
-function makeStoreStub(): EditorStore {
+function makeStore(): EditorStore {
   // Only `graph` is touched in marketing mode; we keep `chatMode` at 'design'
-  // in tests so this stub never gets dereferenced.
-  return { graph: {} } as unknown as EditorStore
+  // in tests so this store never gets dereferenced. A Partial stub keeps the
+  // cast one step (no `as unknown as`) while skipping the real store's
+  // module-level indexedDB side effects.
+  const stub: Partial<EditorStore> = { graph: {} as EditorStore['graph'] }
+  return stub as EditorStore
 }
 
 describe('createHttpAgentTransport.sendMessages', () => {
@@ -78,7 +83,7 @@ describe('createHttpAgentTransport.sendMessages', () => {
     const transport = createHttpAgentTransport({
       info,
       chatId: 'web-tab-1',
-      store: makeStoreStub(),
+      store: makeStore(),
       config: baseConfig
     })
 
@@ -114,12 +119,13 @@ describe('createHttpAgentTransport.sendMessages', () => {
     await collectChunks(stream)
 
     expect(captured).not.toBeNull()
-    expect(captured!.url).toBe('http://127.0.0.1:7601/v1/chat')
-    expect(captured!.headers['content-type']).toBe('application/json')
-    expect(captured!.headers['x-op-connection-id']).toBe('web-conn-abc')
-    expect(captured!.headers['x-op-chat-id']).toBe('web-tab-1')
+    const request = expectDefined(captured, 'captured request')
+    expect(request.url).toBe('http://127.0.0.1:7601/v1/chat')
+    expect(request.headers['content-type']).toBe('application/json')
+    expect(request.headers['x-op-connection-id']).toBe('web-conn-abc')
+    expect(request.headers['x-op-chat-id']).toBe('web-tab-1')
 
-    const body = JSON.parse(captured!.body)
+    const body = JSON.parse(request.body)
     expect(body.id).toBe('web-tab-1')
     expect(body.trigger).toBe('submit-message')
     expect(body.agent).toMatchObject({
@@ -143,7 +149,7 @@ describe('createHttpAgentTransport.sendMessages', () => {
     const transport = createHttpAgentTransport({
       info,
       chatId: 'web-tab-1',
-      store: makeStoreStub(),
+      store: makeStore(),
       config: baseConfig
     })
 
@@ -176,7 +182,7 @@ describe('createHttpAgentTransport.sendMessages', () => {
     const transport = createHttpAgentTransport({
       info,
       chatId: 'web-tab-1',
-      store: makeStoreStub(),
+      store: makeStore(),
       config: baseConfig
     })
 
@@ -216,7 +222,7 @@ describe('createHttpAgentTransport SSE parsing', () => {
     const transport = createHttpAgentTransport({
       info: { baseUrl: 'http://x', connectionId: 'c', version: null },
       chatId: 'c',
-      store: { graph: {} } as unknown as EditorStore,
+      store: makeStore(),
       config: {
         connectionId: 'c',
         providerID: 'anthropic',
@@ -263,7 +269,7 @@ describe('createHttpAgentTransport SSE parsing', () => {
     const transport = createHttpAgentTransport({
       info: { baseUrl: 'http://x', connectionId: 'c', version: null },
       chatId: 'c',
-      store: { graph: {} } as unknown as EditorStore,
+      store: makeStore(),
       config: {
         connectionId: 'c',
         providerID: 'anthropic',
@@ -308,7 +314,7 @@ describe('createHttpAgentTransport SSE parsing', () => {
     const transport = createHttpAgentTransport({
       info: { baseUrl: 'http://x', connectionId: 'c', version: null },
       chatId: 'c',
-      store: { graph: {} } as unknown as EditorStore,
+      store: makeStore(),
       config: {
         connectionId: 'c',
         providerID: 'anthropic',
@@ -355,7 +361,7 @@ describe('createHttpAgentTransport.reconnectToStream', () => {
     const transport = createHttpAgentTransport({
       info: { baseUrl: 'http://x', connectionId: 'c', version: null },
       chatId: 'c',
-      store: { graph: {} } as unknown as EditorStore,
+      store: makeStore(),
       config: {
         connectionId: 'c',
         providerID: 'anthropic',

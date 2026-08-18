@@ -534,4 +534,3 @@ T8-T10 当前**完全缺失**——这是 channel B bug 没在 CI 里被捕获�
 1. **根因 1 边缘 case 路径 2 是否真实存在**：用户若按键序列是"输完 → Enter → Done"，在 reka-ui DialogClose 的特定 focus 路径下，Enter 是否真的不让 change fire；以及 DialogClose 在哪些环境跳过 blur。**未实测**。
 2. **真正持久化场景**：根因 5 提到的 `useLocalStorage` raw 序列化导致 localStorage 误改后失败——是否在 Tauri 版本（FS-backed localStorage）有过用户触发？**未知**。
 3. **fork-divergence D1 进度**：vision 凭证迁到 model profiles 的 PR 是否在排队？这是根治根因 2/3/5/6 的关键。具体进度—**未查**。
-

@@ -23,4 +23,3 @@ Design : apparence, remplissage, contour, effets, typographie, mise en page, exp
 ## Disposition mobile
 
 Sur mobile, les panneaux latéraux sont remplacés par un tiroir inférieur glissable avec onglets : Calques, Propriétés, Design, Code.
-

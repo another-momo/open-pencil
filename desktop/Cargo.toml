@@ -39,4 +39,3 @@ keyring = "4.1.5"
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2"
-

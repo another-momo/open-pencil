@@ -23,4 +23,3 @@ Design: aspetto, riempimento, contorno, effetti, tipografia, layout, esportazion
 ## Layout mobile
 
 Su mobile, i pannelli laterali sono sostituiti da un cassetto inferiore scorrevole con schede: Livelli, Proprietà, Design, Codice.
-

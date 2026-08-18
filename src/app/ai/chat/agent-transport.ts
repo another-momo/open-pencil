@@ -110,6 +110,7 @@ export function getForcedAgentBackend(): AgentBackendInfo | null {
 export async function probeAgentBackend(): Promise<AgentBackendInfo | null> {
   // Check window presence at call time (not module-load time) so the
   // test harness can stub `globalThis.window` after imports resolve.
+  // oxlint-ignore-next-line open-pencil/no-typeof-window-check -- runtime stubbing for tests
   if (typeof window === 'undefined') return null
   if (isAgentBackendDisabled()) return null
   // Browser mode never talks to the backend.

@@ -1,12 +1,22 @@
 import { afterEach, describe, expect, test } from 'bun:test'
+import { existsSync } from 'node:fs'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const temporaryDirectories: string[] = []
 const repositoryRoot = resolve(import.meta.dir, '../../..')
-const oxlint = join(repositoryRoot, 'node_modules/.bin/oxlint')
 const plugin = join(repositoryRoot, 'lint/plugin.js')
+
+function resolveOxlint(): string {
+  const base = join(repositoryRoot, 'node_modules/.bin/oxlint')
+  if (existsSync(base)) return base
+  if (existsSync(base + '.cmd')) return base + '.cmd'
+  if (existsSync(base + '.exe')) return base + '.exe'
+  return base
+}
+
+const oxlint = resolveOxlint()
 
 function lint(source: string): ReturnType<typeof Bun.spawnSync> {
   const directory = mkdtempSync(join(tmpdir(), 'open-pencil-acronym-lint-'))
@@ -16,7 +26,7 @@ function lint(source: string): ReturnType<typeof Bun.spawnSync> {
   writeFileSync(
     config,
     JSON.stringify({
-      jsPlugins: [plugin],
+      jsPlugins: [plugin.split('\\').join('/')],
       rules: { 'open-pencil/no-mixed-case-acronym-identifiers': 'error' }
     })
   )

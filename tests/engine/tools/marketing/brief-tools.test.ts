@@ -9,14 +9,13 @@ import {
   createBrief,
   findBrief,
   getPageContentBounds,
-  resolveBriefPlacement
+  resolveBriefPlacement,
+  setActiveMaterialType
 } from '@open-pencil/core/tools'
 
 import { expectDefined } from '#tests/helpers/assert'
 import { attachMiniLibrary } from '#tests/helpers/marketing-library'
 import { getTool, setupToolTest } from '#tests/helpers/tools'
-
-import { setActiveMaterialType } from '../../../../packages/core/src/tools/marketing/setup'
 
 // Default active type used by brief tests — historical default fixture
 // (long-image product post). Tests that need a different type override it.

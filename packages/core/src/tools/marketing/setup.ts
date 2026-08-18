@@ -50,6 +50,21 @@ export interface SetupResult {
  */
 export type SetupMode = 'continue' | 'new'
 
+/**
+ * Registry of material types from the active brand config, keyed by type id.
+ * The frontend pushes the full list whenever the brand config (re)loads
+ * (`setBrandConfig` in the marketing library service, plus a per-turn sync
+ * from the chat transport) — tool execution happens in the same process for
+ * both chat paths (in-browser ToolLoopAgent and the automation bridge), so
+ * one push covers both. An empty registry means "unknown type" — the tool
+ * then only accepts custom sizes.
+ */
+export interface ActiveMaterialType {
+  id: string
+  label: string
+  size: { width: number; height: number | null }
+}
+
 /** Walk parents up to the CANVAS node that owns `nodeId` (pages are CANVAS nodes). */
 function pageOfNode(graph: FigmaAPI['graph'], nodeId: string): SceneNode | undefined {
   let current = graph.getNode(nodeId)
@@ -60,19 +75,15 @@ function pageOfNode(graph: FigmaAPI['graph'], nodeId: string): SceneNode | undef
   return undefined
 }
 
-interface MaterialConfig {
-  id: string
-  label: string
-  size: { width: number; height: number | null }
-}
+
 
 /** Resolve the material config from the active brand config snapshot. */
-function resolveMaterialConfig(
+function resolveActiveMaterialType(
   type: { id: string; label: string; size: { width: number; height: number | null } } | undefined,
   graph: FigmaAPI['graph'],
   id: string,
   size?: { width: number; height: number }
-): MaterialConfig | { error: string } {
+): ActiveMaterialType | { error: string } {
   if (id === 'custom') {
     if (!size || size.width <= 0 || size.height <= 0) {
       return { error: 'Custom material type requires positive width and height.' }
@@ -105,7 +116,7 @@ function resolveMaterialConfig(
  */
 function findRootFrame(
   graph: FigmaAPI['graph'],
-  config: MaterialConfig,
+  config: ActiveMaterialType,
   pageId: string
 ): SceneNode | undefined {
   const page = graph.getNode(pageId)
@@ -137,7 +148,7 @@ function listSameTypeRoots(graph: FigmaAPI['graph'], typeId: string): SceneNode[
  * its type, otherwise the smallest free "label N" (N ≥ 2). Names are display
  * only (the marker is the machine identity).
  */
-function nextRootFrameName(graph: FigmaAPI['graph'], config: MaterialConfig): string {
+function nextRootFrameName(graph: FigmaAPI['graph'], config: ActiveMaterialType): string {
   const taken = new Set(listSameTypeRoots(graph, config.id).map((root) => root.name))
   if (!taken.has(config.label)) return config.label
   for (let n = 2; ; n++) {
@@ -146,7 +157,7 @@ function nextRootFrameName(graph: FigmaAPI['graph'], config: MaterialConfig): st
   }
 }
 
-function createRootFrame(figma: FigmaAPI, config: MaterialConfig, name: string): string {
+function createRootFrame(figma: FigmaAPI, config: ActiveMaterialType, name: string): string {
   const graph = figma.graph
   const pageId = figma.currentPage.id
 
@@ -183,7 +194,7 @@ function createRootFrame(figma: FigmaAPI, config: MaterialConfig, name: string):
 function resolveExistingDesign(
   graph: FigmaAPI['graph'],
   designs: MarketingDocumentState[],
-  config: MaterialConfig,
+  config: ActiveMaterialType,
   id: string,
   pageId: string,
   mode: SetupMode
@@ -270,7 +281,7 @@ function describeRoot(
   graph: FigmaAPI['graph'],
   figma: FigmaAPI,
   rootFrameId: string,
-  config: MaterialConfig
+  config: ActiveMaterialType
 ): { rootFrameName: string; pageName: string; childCount: number } {
   const rootNode = graph.getNode(rootFrameId)
   return {
@@ -289,7 +300,7 @@ export function setupMaterialType(
   const graph = figma.graph
   const brandType = getActiveMaterialType(id)
 
-  const config = resolveMaterialConfig(brandType, graph, id, size)
+  const config = resolveActiveMaterialType(brandType, graph, id, size)
   if ('error' in config) return config
 
   const pageId = figma.currentPage.id
@@ -353,11 +364,6 @@ export function setupMaterialType(
  * one push covers both. An empty registry means "unknown type" — the tool
  * then only accepts custom sizes.
  */
-export interface ActiveMaterialType {
-  id: string
-  label: string
-  size: { width: number; height: number | null }
-}
 
 let activeMaterialTypes = new Map<string, ActiveMaterialType>()
 

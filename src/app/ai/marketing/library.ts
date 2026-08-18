@@ -206,8 +206,8 @@ export async function ensureBrandConfig(): Promise<EffectiveBrandConfig | null> 
   if (current.value) return current.value
   loadPromise ??= (async () => {
     try {
-      const baseUrl = resolveAgentBackendURL() ?? 'http://127.0.0.1:7601'
-      const response = await fetch(`${baseUrl}/v1/brand/manifest`)
+      const baseURL = resolveAgentBackendURL() ?? 'http://127.0.0.1:7601'
+      const response = await fetch(`${baseURL}/v1/brand/manifest`)
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const config = (await response.json()) as EffectiveBrandConfig
       current.value = config
@@ -230,11 +230,7 @@ export function retryMarketingLibraryLoad(): Promise<EffectiveBrandConfig | null
   return ensureBrandConfig()
 }
 
-// Re-export for tests / consumers that still reference the marketing store
-// via the active-editor accessor.
-export function useEditorStore() {
-  return getActiveEditorStore()
-}
+
 
 // --- P3 no-op shims ---
 //

@@ -200,7 +200,9 @@ describe('BrandRepository reseed gating', () => {
         const first = openBrandRepository({ path: dbPath, seed: STUB })
         let stubHash: string | undefined
         try {
-          expect(first.effectiveProfiles().find((p) => p.id === 'casual_v1')?.markdown).toBe('# stub')
+          expect(first.effectiveProfiles().find((p) => p.id === 'casual_v1')?.markdown).toBe(
+            '# stub'
+          )
           stubHash = first.metaValue('default_hash')
           expect(stubHash).toBeDefined()
         } finally {

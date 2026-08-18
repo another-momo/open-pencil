@@ -1,6 +1,6 @@
 # Electron 迁移方案：抛弃 Tauri，只保留 Electron
 
-> 状态：草案 / 待决策  
+> 状态：**已否决（SUPERSEDED）** — 2026-08-18 标注：产品形态已定案为「本地 CLI 后端 + localhost Web UI」，Electron 与 Tauri 一同放弃。决策与理由见 `2026-08-13-localhost-serve-form.md` §5.4 与 `2026-08-12-productization.md` §5。本文仅作历史参考，勿以其为前提开展工作。
 > 创建日期：2026-08-12  
 > 背景：Tauri 版频繁卡死，多次优化未果，怀疑 WebView2 渲染层问题
 

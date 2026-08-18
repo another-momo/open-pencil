@@ -1,6 +1,6 @@
 # localhost 形态落地方案：`changjuan serve`（CLI + Web UI）
 
-> 状态：草案 / 基于代码调研的可行性分析，待拍板后转 plans
+> 状态：**方向已定案；M1/M2 已落地**（`feature/agent-backend`：agent loop 后端化 + `/v1/chat` 及 `/v1/brand` 路由 + WS 工具桥 + 前端 RemoteChatTransport）；M3（字体/文件 API 替换 Tauri 分支）与 M4（headless 编辑器实例）待做。后续施工以 `docs/plans/architecture/end-state-follow-model.md` 为准。2026-08-18 标注
 > 创建日期：2026-08-13
 > 背景：`2026-08-12-productization.md` §5 定了"本地 CLI 后端 + localhost Web UI"的形态方向，本文回答"具体怎么改"。结论来自对 monorepo 三个子系统（应用启动与平台分支、MCP server 骨架与 automation bridge、AI 编排链路）的逐文件调研。
 > 关联文档：`docs/idea/2026-08-12-productization.md`（产品化总方案，§5 是本文的决策前提）

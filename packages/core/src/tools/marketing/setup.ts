@@ -75,8 +75,6 @@ function pageOfNode(graph: FigmaAPI['graph'], nodeId: string): SceneNode | undef
   return undefined
 }
 
-
-
 /** Resolve the material config from the active brand config snapshot. */
 function resolveActiveMaterialType(
   type: { id: string; label: string; size: { width: number; height: number | null } } | undefined,

@@ -230,8 +230,6 @@ export function retryMarketingLibraryLoad(): Promise<EffectiveBrandConfig | null
   return ensureBrandConfig()
 }
 
-
-
 // --- P3 no-op shims ---
 //
 // The library-injection / reference-tracking machinery was deleted in P3.

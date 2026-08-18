@@ -77,9 +77,7 @@ describe('property access', () => {
   test('strokes setter fills in opacity/visible defaults', () => {
     const api = createAPI()
     const rect = api.createRectangle()
-    rect.strokes = [
-      { color: { r: 0, g: 0, b: 0, a: 1 }, weight: 2, align: 'CENTER' }
-    ] as Stroke[]
+    rect.strokes = [{ color: { r: 0, g: 0, b: 0, a: 1 }, weight: 2, align: 'CENTER' }] as Stroke[]
     expect(rect.strokes[0].opacity).toBe(1)
     expect(rect.strokes[0].visible).toBe(true)
   })

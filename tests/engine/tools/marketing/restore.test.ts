@@ -39,7 +39,9 @@ test('restoreStateFromCanvas restores multiple coexisting designs', () => {
     label: '朋友圈广告',
     size: { width: 1080, height: 1080 }
   })
-  const r2 = getTool('setup_material_type').execute(env.figma, { id: 'wechat_moments' }) as ToolResult
+  const r2 = getTool('setup_material_type').execute(env.figma, {
+    id: 'wechat_moments'
+  }) as ToolResult
   expect(r2.error).toBeUndefined()
 
   const restored = restoreStateFromCanvas(env.graph)

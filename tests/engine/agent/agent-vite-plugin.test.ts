@@ -123,7 +123,11 @@ describe('agentPlugin (dev mode)', () => {
     const plugin = agentPlugin('http://localhost:1420', true)
     await plugin.configureServer?.(undefined as never)
 
-    expect(expectDefined(calls[0], 'spawn call').options.stdio).toEqual(['ignore', 'inherit', 'pipe'])
+    expect(expectDefined(calls[0], 'spawn call').options.stdio).toEqual([
+      'ignore',
+      'inherit',
+      'pipe'
+    ])
   })
 
   test('forwards non-error stderr through the parent', async () => {

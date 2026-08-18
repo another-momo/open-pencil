@@ -2,10 +2,7 @@ import { expect, test } from 'bun:test'
 
 import { getMarketingState } from '@open-pencil/core/tools'
 
-import {
-  setActiveMaterialType,
-  setActiveMaterialTypes
-} from '#core/tools/marketing/setup'
+import { setActiveMaterialType, setActiveMaterialTypes } from '#core/tools/marketing/setup'
 
 import { expectDefined } from '#tests/helpers/assert'
 import { getTool, setupToolTest, type ToolResult } from '#tests/helpers/tools'
@@ -83,7 +80,9 @@ test('repeat call with the same id on the same page adopts the existing design',
   })
   const { figma, result: first } = run('wechat_moments')
   const firstRootId = first.rootFrameId as string
-  const result2 = getTool('setup_material_type').execute(figma, { id: 'wechat_moments' }) as ToolResult
+  const result2 = getTool('setup_material_type').execute(figma, {
+    id: 'wechat_moments'
+  }) as ToolResult
   expect(result2.rootFrameId).toBe(firstRootId)
   expect(result2.adopted).toBe(true)
 })

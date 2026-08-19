@@ -7,6 +7,6 @@
  * registry.ts (registered patch P22). Precedent in upstream's own style:
  * component-catalog.ts's registerComponentCatalog.
  */
-import type { ToolDef } from '../schema'
+import type { ToolDef } from '#core/tools/schema'
 
 export const FORK_TOOLS: ToolDef[] = []

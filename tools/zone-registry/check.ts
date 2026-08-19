@@ -37,86 +37,105 @@ interface Zones {
   deletedPaths: string[]
 }
 
+interface Changes {
+  modified: string[]
+  added: string[]
+  deleted: string[]
+  violations: string[]
+}
+
 function git(args: string[]): string {
   const quoted = args.map((a) => (/\s/.test(a) ? JSON.stringify(a) : a)).join(' ')
   return execSync(`git ${quoted}`, { cwd: root, encoding: 'utf8' }).trim()
+}
+
+function resolveBase(): string {
+  const baseIdx = process.argv.indexOf('--base')
+  const base =
+    baseIdx !== -1 ? process.argv[baseIdx + 1] : git(['merge-base', 'HEAD', 'upstream/master'])
+  if (!base) {
+    console.error('[zones] cannot resolve merge-base with upstream/master')
+    process.exit(1)
+  }
+  return base
+}
+
+// Working tree vs base (covers staged + unstaged; untracked handled separately)
+function collectChanges(base: string): Changes {
+  const changes: Changes = { modified: [], added: [], deleted: [], violations: [] }
+  const diff = git(['diff', '--name-status', base, '--'])
+  for (const line of diff ? diff.split('\n') : []) {
+    const parts = line.split('\t')
+    const status = parts[0]
+    if (status === 'M' || status === 'T') changes.modified.push(parts[1])
+    else if (status === 'A') changes.added.push(parts[1])
+    else if (status === 'D') changes.deleted.push(parts[1])
+    else if (status.startsWith('R')) {
+      changes.deleted.push(parts[1])
+      changes.added.push(parts[2])
+    } else {
+      changes.violations.push(`UNEXPECTED git status "${status}" for ${parts.slice(1).join(' → ')}`)
+    }
+  }
+  const untracked = git(['ls-files', '--others', '--exclude-standard'])
+  for (const line of untracked ? untracked.split('\n') : []) {
+    if (line) changes.added.push(line)
+  }
+  return changes
+}
+
+function checkModified(zones: Zones, modified: string[]): string[] {
+  const patchedFiles = new Set(
+    zones.patches.filter((p) => p.disposition !== 'revoked').map((p) => p.file)
+  )
+  const owned = new Set([...zones.ownedFiles, ...zones.stubs])
+  return modified
+    .filter((file) => !patchedFiles.has(file) && !owned.has(file))
+    .map(
+      (file) => `MODIFIED but not registered: ${file} (register a patch in zones.json or revert)`
+    )
+}
+
+function checkDeletedRegistered(zones: Zones, deleted: string[]): string[] {
+  return deleted
+    .filter(
+      (file) =>
+        !zones.deletedPaths.some(
+          (d) => file === d || file.startsWith(d.endsWith('/') ? d : `${d}/`)
+        )
+    )
+    .map(
+      (file) =>
+        `DELETED but not registered: ${file} (add the path to deletedPaths in zones.json or restore)`
+    )
+}
+
+function checkDeletedAbsent(zones: Zones): string[] {
+  return zones.deletedPaths
+    .filter((p) => existsSync(resolve(root, p)))
+    .map((p) => `DELETED path still exists: ${p}`)
+}
+
+function checkAdded(zones: Zones, added: string[]): string[] {
+  const owned = new Set([...zones.ownedFiles, ...zones.stubs])
+  return added
+    .filter((file) => !owned.has(file) && !zones.ownedRoots.some((r) => file.startsWith(r)))
+    .map((file) => `ADDED outside ownedRoots: ${file} (add an owned root or move the file)`)
 }
 
 function main() {
   const zones: Zones = JSON.parse(
     readFileSync(resolve(root, 'tools/zone-registry/zones.json'), 'utf8')
   )
-
-  const baseIdx = process.argv.indexOf('--base')
-  const base =
-    baseIdx >= 0 ? process.argv[baseIdx + 1] : git(['merge-base', 'HEAD', 'upstream/master'])
-  if (!base) {
-    console.error('[zones] cannot resolve merge-base with upstream/master')
-    process.exit(1)
-  }
-
-  // Working tree vs base (covers staged + unstaged; untracked handled separately)
-  const diff = git(['diff', '--name-status', base, '--'])
-  const modified: string[] = []
-  const added: string[] = []
-  const deleted: string[] = []
-  const violations: string[] = []
-  for (const line of diff ? diff.split('\n') : []) {
-    const parts = line.split('\t')
-    const status = parts[0]
-    if (status === 'M' || status === 'T') modified.push(parts[1])
-    else if (status === 'A') added.push(parts[1])
-    else if (status === 'D') deleted.push(parts[1])
-    else if (status.startsWith('R')) {
-      // rename: old path = deletion, new path = addition
-      deleted.push(parts[1])
-      added.push(parts[2])
-    } else {
-      violations.push(`UNEXPECTED git status "${status}" for ${parts.slice(1).join(' → ')}`)
-    }
-  }
-  const untracked = git(['ls-files', '--others', '--exclude-standard'])
-  for (const line of untracked ? untracked.split('\n') : []) {
-    if (line) added.push(line)
-  }
-
-  const patchedFiles = new Set(
-    zones.patches.filter((p) => p.disposition !== 'revoked').map((p) => p.file)
-  )
-  const owned = new Set([...zones.ownedFiles, ...zones.stubs])
-  const ownedRoots = zones.ownedRoots
-  const deletedRegistry = zones.deletedPaths
-
-  // 1. modified upstream files must be registered patches or owned
-  for (const file of modified) {
-    if (patchedFiles.has(file) || owned.has(file)) continue
-    violations.push(
-      `MODIFIED but not registered: ${file} (register a patch in zones.json or revert)`
-    )
-  }
-
-  // 2. deleted upstream files must be registered in deletedPaths
-  for (const file of deleted) {
-    if (deletedRegistry.some((d) => file === d || file.startsWith(d.endsWith('/') ? d : `${d}/`)))
-      continue
-    violations.push(
-      `DELETED but not registered: ${file} (add the path to deletedPaths in zones.json or restore)`
-    )
-  }
-
-  // 3. deleted paths must not exist
-  for (const p of deletedRegistry) {
-    if (existsSync(resolve(root, p))) {
-      violations.push(`DELETED path still exists: ${p}`)
-    }
-  }
-
-  // 4. new files only under ownedRoots
-  for (const file of added) {
-    if (owned.has(file)) continue
-    if (ownedRoots.some((r) => file.startsWith(r))) continue
-    violations.push(`ADDED outside ownedRoots: ${file} (add an owned root or move the file)`)
-  }
+  const base = resolveBase()
+  const changes = collectChanges(base)
+  const violations = [
+    ...changes.violations,
+    ...checkModified(zones, changes.modified),
+    ...checkDeletedRegistered(zones, changes.deleted),
+    ...checkDeletedAbsent(zones),
+    ...checkAdded(zones, changes.added)
+  ]
 
   if (violations.length > 0) {
     console.error(`[zones] ${violations.length} violation(s):`)
@@ -124,7 +143,7 @@ function main() {
     process.exit(1)
   }
   console.log(
-    `[zones] clean: ${modified.length} modified (all registered), ${added.length} added (owned), ${deleted.length} deleted (all registered), base ${base.slice(0, 8)}`
+    `[zones] clean: ${changes.modified.length} modified (all registered), ${changes.added.length} added (owned), ${changes.deleted.length} deleted (all registered), base ${base.slice(0, 8)}`
   )
 }
 

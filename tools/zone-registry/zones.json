@@ -187,6 +187,24 @@
       "file": "public/apple-touch-icon.png",
       "reason": "symlink pointed into deleted desktop/ (dangling on Linux CI, broke storybook); replaced with real PNG (pwa-192 copy)",
       "disposition": "permanent"
+    },
+    {
+      "id": "P28",
+      "file": "public/favicon-128.png",
+      "reason": "symlink into deleted desktop/ (dangling on Linux CI) — replaced with real PNG extracted from git history",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P29",
+      "file": "public/favicon-32.png",
+      "reason": "same as P28",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P30",
+      "file": "public/favicon.ico",
+      "reason": "same as P28",
+      "disposition": "permanent"
     }
   ],
   "deletedPaths": [

@@ -15,18 +15,30 @@ export function useCollab(_storeOrGetter: EditorStore | (() => EditorStore)) {
   const remotePeers = computed(() => state.value.peers)
   const followingPeer = ref<number | null>(null)
 
-  function connect(_roomId: string) {}
-  function disconnect() {}
+  function connect(_roomId: string) {
+    /* collab removed: intentionally a no-op */
+  }
+  function disconnect() {
+    /* collab removed: intentionally a no-op */
+  }
   function shareCurrentDoc(): string {
     return ''
   }
-  function updateCursor(_x: number, _y: number, _pageId: string) {}
-  function updateSelection(_ids: string[]) {}
-  function setLocalName(_name: string) {}
+  function updateCursor(_x: number, _y: number, _pageId: string) {
+    /* collab removed: intentionally a no-op */
+  }
+  function updateSelection(_ids: string[]) {
+    /* collab removed: intentionally a no-op */
+  }
+  function setLocalName(_name: string) {
+    /* collab removed: intentionally a no-op */
+  }
   function followPeer(clientId: number | null) {
     followingPeer.value = clientId
   }
-  function tickFollow() {}
+  function tickFollow() {
+    /* collab removed: intentionally a no-op */
+  }
 
   return {
     state,

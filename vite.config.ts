@@ -11,7 +11,6 @@ import packageJson from './package.json'
 import { createOpenPencilAliases } from './vite/aliases'
 import { localAutomationToken, openPencilAutomationPlugin } from './vite/automation'
 import { copyCanvasKitAssetsPlugin } from './vite/canvaskit-assets'
-import { openPencilPwaPlugin } from './vite/pwa'
 import { rawMarkdownPlugin } from './vite/raw-markdown'
 import { createDevServerOptions } from './vite/server'
 
@@ -32,8 +31,7 @@ export default defineConfig(async ({ command }) => ({
     Icons({ compiler: 'vue3' }),
     Components({ resolvers: [IconsResolver({ prefix: 'icon' })] }),
     openPencilAutomationPlugin(command, host),
-    vue(),
-    openPencilPwaPlugin()
+    vue()
   ],
   clearScreen: false,
   build: {

@@ -1,5 +1,4 @@
 /// <reference types="vite/client" />
-/// <reference types="vite-plugin-pwa/vanillajs" />
 /// <reference types="unplugin-icons/types/vue" />
 
 declare const __OPENPENCIL_APP_VERSION__: string

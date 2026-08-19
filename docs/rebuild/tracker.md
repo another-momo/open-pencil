@@ -64,7 +64,7 @@ check.ts 四处漏洞修复：①删除侧零校验（曾漏检 7 个 notificati
 | R3 | 2026-08-18 | 02 上游删除目标 | subagent 对账 | 删除目标均在；修正：locale 删 7 留 zh-CN、mergeLocaleMessage 虚构（实为 nanostores i18n）、IS_TAURI 37 处/16 文件、EditorView 切断点 5+、配置连带面（package.json/knip/steiger/oxlint）、browser-bridge 冲突、CI lfs 需补 7 处、registry.ts 9 行组合文件 + registerComponentCatalog 先例 | subagent C |
 | R4 | 2026-08-18 | 03 前端契约 + dsh 实况 | subagent 对账 + 读 dsh 源码 | 前端 = @ai-sdk/vue Chat 类 + 自写 UIMessage stream v1 解析；dsh 实测：Cordis 插件、session 事件溯源、compaction 可替换 seam、ToolResultBlock 递归含 ImageBlock（适配器当前 text-only）、stdio 子进程嵌入、多 provider 实为 pi-ai@0.82.1；pi sdk 本地不可查 → 降级【假设】 | subagent D |
 | P0-1 | 2026-08-19 | Phase 0 验收：构建/类型 | `build:packages` + `tsgo --noEmit` + `vue-tsc` ×2 | 全绿（含 AI SDK 7 合并后复跑） | 主 agent |
-| P0-2 | 2026-08-19 | Phase 0 验收：zone check | `bun tools/zone-registry/check.ts` | clean：24 modified（全登记）/15 added/951 deleted（base 0332b062） | 主 agent |
+| P0-2 | 2026-08-19 | Phase 0 验收：zone check | `bun tools/zone-registry/src/check.ts` | clean：24 modified（全登记）/15 added/951 deleted（base 0332b062） | 主 agent |
 | P0-3 | 2026-08-19 | Phase 0 验收：单测 | 可疑回归文件隔离跑（rebuild 8 文件 0 fail）+ 纯净基线对照（baseline worktree @15bd0ba1 同机跑，14 个环境性失败同源）+ 合并后定点 460 用例 | 无删除引入的回归；全量以 CI 为准（本机负载 flake 已登记 02 §0.7） | 主 agent |
 | P0-4 | 2026-08-19 | Phase 0 验收：冒烟 | vite build ✅、preview 画矩形全链路 ✅（截图存档）、dev server 启动 ✅、console 零报错、i18n 缝测试 2/2 ✅ | 通过；另发现并清除本机旧 PWA Service Worker 幽灵（02 §0.8） | 主 agent |
 | P0-5 | 2026-08-19 | 合并演习 | `git merge upstream/master`（15bd0ba1→0332b062，8 commits 含 AI SDK 7 #555） | 冲突 10 文件按 SOP 处理（删除区重删 / 配置类以 upstream 为基座重放）；新增 P24（notifications locale 裁剪）；i18n 缝避让至 src/app/i18n/fork/ | 主 agent |

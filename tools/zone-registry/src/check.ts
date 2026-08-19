@@ -18,7 +18,7 @@
  * filter normalizes real-content-over-pointer to a no-op, while any real
  * content change (e.g. force-added binaries) fails as unregistered.
  *
- * Usage: bun tools/zone-registry/check.ts [--base <ref>]  (default base: merge-base with upstream/master)
+ * Usage: bun tools/zone-registry/src/check.ts [--base <ref>]  (default base: merge-base with upstream/master)
  * Exit 0 = clean; exit 1 = violations listed on stderr.
  */
 import { execSync } from 'node:child_process'
@@ -26,7 +26,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 
 interface Zones {
   ownedRoots: string[]

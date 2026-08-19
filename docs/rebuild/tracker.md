@@ -27,6 +27,7 @@
 | D6 | 中文字体策略 | 62MB 普惠体全量 / 子集化 / 系统字体 | open | — | — | E1 |
 | D7 | runtime 选型 | pi sdk / dsh | open（Phase 1 spike 后定） | — | — | 03 §3：对立面是「pi sdk 直接驱动 vs Cordis+pi-ai」 |
 | D8 | 「素材图理解」是否新建立项 | 新建 / 确认放弃 | open | — | — | R2 实测：旧 changelog 声称的能力全仓无代码 |
+| D9 | dsh 集成形态 | a) 编辑器入壳（编辑器作 dsh 插件，React 壳）b) 无头 runtime（dsh 藏在我们后端） | **推荐 b**，待 owner 拍板 | — | — | spike 01 源码级证据：X 的 tab 切换会卸载编辑器孤岛（CanvasKit 重建）、dsh 无 host→浏览器请求通道（工具桥两路线等成本）、X≈33 人日方差大 vs Y≈25 人日 |
 
 ## 3. 任务表（能力块 = 1 PR + 验收测试 + 本表一行）
 
@@ -78,6 +79,7 @@ check.ts 四处漏洞修复：①删除侧零校验（曾漏检 7 个 notificati
 | CI-3 | 2026-08-19 | CI run 32246179576 | 同上 | Code quality lint 余 1 错：i18n 缝测试 `no-promise-executor-return` → 修法：7b8ecab1 | CI 守护 |
 | CI-4 | 2026-08-19 | CI run 32247060166 | 同上 | Code quality `check:arch`：steiger strict-tools-layout 拒 tools/zone-registry/check.ts（须落 tools/<domain>/src/**）→ 修法：3dcc4f2c 挪至 src/check.ts + 仓根解析改 ../../.. + 同步 package.json check:zones / zones.json $comment / 02 与 tracker 引用。无新补丁：挪动全程在 owned root 内，package.json 变更由既有 P17（scripts）覆盖 | CI 守护 |
 | CI-5 | 2026-08-19 | CI run 32248474442 | gh run view --json jobs | **全绿**：11/11 job success（Repository hygiene / Code quality / Package integrity / Component workshop / Engine tests ×7） | CI 守护 |
+| SP-1 | 2026-08-19 | dsh 集成路线对比（X 入壳 vs Y 无头） | 源码级核查（dsh + pi 本地仓库，95 次工具调用） | `docs/rebuild/spikes/01-dsh-integration-routes.zh.md`：**推荐 Y**；Y 唯一阻塞项 = 官方 sdk-jsonrpc-server 只 create 不 resume（自写 ~250 行薄 host 插件补 resume/cancel，2-3 人日，spike S1 验证）；多模态路径与旧 media-rewriter 同构（pi-ai 合成 user 消息带图）；X 的 tab 卸载孤岛硬伤 + 无 host→浏览器通道 | 研究 subagent |
 
 ## 6. 文档腐烂记录
 

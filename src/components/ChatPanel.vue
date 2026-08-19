@@ -31,6 +31,8 @@ import { useAIChat } from '@/app/ai/chat/use'
 import { toast } from '@/app/shell/ui'
 import { useI18n } from '@open-pencil/vue'
 
+import { useNotificationMessages } from '@/app/i18n/notifications'
+
 import type { Chat } from '@ai-sdk/vue'
 import type { UIMessage } from 'ai'
 import type { JSONObject } from '@open-pencil/scene-graph/primitives'
@@ -39,6 +41,7 @@ const IS_DEV = import.meta.env.DEV
 
 const { isConfigured, ensureChat, resetChat, chatFailure, clearChatFailure } = useAIChat()
 const { dialogs } = useI18n()
+const notifications = useNotificationMessages()
 
 const chat = ref<Chat<UIMessage> | null>(null)
 const isPreparingImages = ref(false)
@@ -50,7 +53,11 @@ void ensureChat()
     return undefined
   })
   .catch((error: unknown) => {
-    toast.error(error instanceof Error ? error.message : 'Failed to initialize chat')
+    toast.error(
+      notifications.value.chatInitializationFailed({
+        error: error instanceof Error ? error.message : String(error)
+      })
+    )
   })
 const messagesEnd = ref<HTMLDivElement>()
 const debugCopied = refAutoReset(false, 1500)
@@ -69,6 +76,13 @@ const failureMessage = computed(() => {
   }
 })
 const status = computed(() => chat.value?.status ?? 'ready')
+function isStreamingMessage(message: UIMessage, index: number): boolean {
+  return (
+    message.role === 'assistant' &&
+    index === messages.value.length - 1 &&
+    (status.value === 'submitted' || status.value === 'streaming')
+  )
+}
 const isThinking = computed(() => {
   const s = status.value
   if (s !== 'submitted' && s !== 'streaming') return false
@@ -242,7 +256,12 @@ function handleClearChat() {
 
           <!-- Messages -->
           <div v-else data-test-id="chat-messages" class="flex flex-col gap-3">
-            <ChatMessage v-for="msg in messages" :key="msg.id" :message="msg" />
+            <ChatMessage
+              v-for="(msg, index) in messages"
+              :key="msg.id"
+              :message="msg"
+              :streaming="isStreamingMessage(msg, index)"
+            />
 
             <!-- Thinking indicator: shown when AI is working but no visible activity -->
             <div v-if="isThinking" data-test-id="chat-typing-indicator" class="flex gap-2">

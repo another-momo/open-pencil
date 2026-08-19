@@ -3,7 +3,7 @@
   "ownedRoots": [
     "docs/",
     "tools/zone-registry/",
-    "src/app/i18n/",
+    "src/app/i18n/fork/",
     "packages/core/src/tools/fork/",
     "tests/engine/rebuild/"
   ],
@@ -50,7 +50,8 @@
     { "id": "P20", "file": ".github/workflows/ci.yml", "reason": "remove native-test-contracts job (desktop deleted)", "disposition": "permanent" },
     { "id": "P21", "file": ".lfsconfig", "reason": "REVOKED 2026-08-19: kept at upstream gateway (anonymous read verified working; fork's own GitHub LFS budget exceeded). Revisit when adding LFS files (e.g. fonts) — own hosting required for push", "disposition": "revoked" },
     { "id": "P22", "file": "packages/core/src/tools/registry.ts", "reason": "tool registration seam: ALL_TOOLS spreads FORK_TOOLS (owned packages/core/src/tools/fork/)", "disposition": "permanent" },
-    { "id": "P23", "file": "bun.lock", "reason": "lockfile regenerated after workspace/dependency changes (mechanical)", "disposition": "permanent" }
+    { "id": "P23", "file": "bun.lock", "reason": "lockfile regenerated after workspace/dependency changes (mechanical)", "disposition": "permanent" },
+    { "id": "P24", "file": "src/app/i18n/notifications/index.ts", "reason": "trim localeLoaders to zh-CN (locale policy); added by upstream #557 during merge rehearsal", "disposition": "permanent" }
   ],
   "deletedPaths": [
     "desktop",

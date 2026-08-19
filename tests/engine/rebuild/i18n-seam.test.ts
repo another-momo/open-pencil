@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test'
 
 import { setLocale } from '#vue/i18n/locale'
 
-import { rebuildMessages } from '@/app/i18n/messages'
+import { rebuildMessages } from '@/app/i18n/fork/messages'
 
 test('fork i18n seam: en default resolves', () => {
   setLocale('en')

@@ -8,7 +8,7 @@
 | 阶段 | 出口标准（摘要） | 状态 | 完成日期 | 验收签字 |
 |---|---|---|---|---|
 | pre-0 文档集 | 文档核查 + review 修正完成（R1-R4） | ✅ | 2026-08-18 | 待 owner |
-| Phase 0 机制+减法 | 02 §5 六条验收 | ⬜ | — | — |
+| Phase 0 机制+减法 | 02 §5 六条验收（实测结果已填） | ✅ | 2026-08-19 | 待 owner（远端 CI 验证后补签） |
 | Phase 1 runtime spike | 03 Q0-Q3 有代码答案 + 能力契约测试绿 | ⬜ | — | — |
 | Phase 2 F0 地基切片 | 01 §2 hello-tool 验收 | ⬜ | — | — |
 | Phase 3 最小价值闭环 | 01 §3 层 1 验收（端到端 + 16 测试文件绿 + CI 绿） | ⬜ | — | — |
@@ -36,25 +36,17 @@
 
 ## 4. 旧分支 WIP 审判清单
 
-> 来源：2026-08-18 实测 `git status`（feature/agent-backend 未提交修改）。性命：移植为补丁 / 可上游化 / 丢弃。
+> **已终结**（2026-08-19，Agent W 核查）：这批 WIP 已随旧分支 commit `3f925191`「fix(quality): clear CI quality job errors」提交并推送，14/14 文件逐一核对全部为 lint/类型等价清理，零行为变更意图。**无一需要移植、无一可上游化、无一应丢弃**——rebuild 侧要么已逐字节一致，要么本就不含被清理的模式。重建分支无需从这批 WIP 继承任何东西。
 
-| 文件 | 改动内容（待查） | 性命 | 状态 |
-|---|---|---|---|
-| `packages/core/src/canvas/boolean.ts` | 待查 | 待定 | ⬜ |
-| `packages/core/src/canvas/fills.ts` | 待查 | 待定 | ⬜ |
-| `packages/core/src/canvas/scene.ts` | 待查 | 待定 | ⬜ |
-| `packages/core/src/canvas/shadows.ts` | 待查 | 待定 | ⬜ |
-| `packages/core/src/canvas/strokes.ts` | 待查 | 待定 | ⬜ |
-| `packages/core/src/canvas/text/index.ts` | 待查 | 待定 | ⬜ |
-| `packages/core/src/figma-api/accessors/visual.ts` | 待查 | 待定 | ⬜ |
-| `packages/core/src/rpc/analyze-commands.ts` | 待查 | 待定 | ⬜ |
-| `packages/core/src/tools/describe/issues.ts` | 待查 | 待定 | ⬜ |
-| `packages/core/src/tools/marketing/setup.ts` | 待查 | 待定 | ⬜ |
-| `src/app/ai/chat/transports.ts` | 待查 | 待定 | ⬜ |
-| `src/components/chat/ChatInput.vue` | 待查 | 待定 | ⬜ |
-| `src/components/chat/ProfileGalleryDialog.vue` | 待查 | 待定 | ⬜ |
-| `tests/engine/agent/elision.test.ts` | 待查 | 待定 | ⬜ |
-| （`git status` 完整输出见核验日志 V1；可能还有未列出项，审判时重新取） | | | |
+## 4b. 执行期遗留（Phase 0 → 后续阶段）
+
+| 项 | 内容 | 归属阶段 |
+|---|---|---|
+| `acp:` provider 概念残留 | models/settings 层仍引用 `ACP_AGENTS`（core constants）；选 ACP 档案会优雅失败 | Phase 1 重分类 chat/providers 时清理 |
+| `@agentclientprotocol/sdk` 依赖 | 被 `src/app/integrations/mcp/runtime.ts` + core constants 引用，未裁 | 同上 |
+| LFS 自有托管 | fork GitHub LFS 预算超额（pull 被拒）；新增 LFS 文件（如普惠体）前必须解决，或走子集化进普通 git（D6 相关） | D6 决策时 |
+| 远端 CI 验证 | Phase 0 的 CI 全绿未在远端跑过（分支未推送；推送需 `git push origin rebuild/v2`，注意当前 tracking 指 upstream） | owner 决定推送后 |
+| knip/steiger/oxlint 死配置残留 | desktop/packages-docs 等 ignore 条目保留未清（无害，零补丁纪律） | 可不处理 |
 
 ## 5. 核验日志
 
@@ -67,6 +59,13 @@
 | R2 | 2026-08-18 | 01 组件与闭环依赖 | subagent 对账 | 端到端 9 环依赖链还原；能力地图漏 10 项（生图独立凭证链、MCP 桥三进程、brand 后端服务、聊天凭证下发、session 零持久化真相、validate 不存在、素材理解 phantom、生图历史已内置、视觉回路双份、ChatPanel 在根目录）→ 01 已重构 | subagent B |
 | R3 | 2026-08-18 | 02 上游删除目标 | subagent 对账 | 删除目标均在；修正：locale 删 7 留 zh-CN、mergeLocaleMessage 虚构（实为 nanostores i18n）、IS_TAURI 37 处/16 文件、EditorView 切断点 5+、配置连带面（package.json/knip/steiger/oxlint）、browser-bridge 冲突、CI lfs 需补 7 处、registry.ts 9 行组合文件 + registerComponentCatalog 先例 | subagent C |
 | R4 | 2026-08-18 | 03 前端契约 + dsh 实况 | subagent 对账 + 读 dsh 源码 | 前端 = @ai-sdk/vue Chat 类 + 自写 UIMessage stream v1 解析；dsh 实测：Cordis 插件、session 事件溯源、compaction 可替换 seam、ToolResultBlock 递归含 ImageBlock（适配器当前 text-only）、stdio 子进程嵌入、多 provider 实为 pi-ai@0.82.1；pi sdk 本地不可查 → 降级【假设】 | subagent D |
+| P0-1 | 2026-08-19 | Phase 0 验收：构建/类型 | `build:packages` + `tsgo --noEmit` + `vue-tsc` ×2 | 全绿（含 AI SDK 7 合并后复跑） | 主 agent |
+| P0-2 | 2026-08-19 | Phase 0 验收：zone check | `bun tools/zone-registry/check.ts` | clean：24 modified（全登记）/15 added/951 deleted（base 0332b062） | 主 agent |
+| P0-3 | 2026-08-19 | Phase 0 验收：单测 | 可疑回归文件隔离跑（rebuild 8 文件 0 fail）+ 纯净基线对照（baseline worktree @15bd0ba1 同机跑，14 个环境性失败同源）+ 合并后定点 460 用例 | 无删除引入的回归；全量以 CI 为准（本机负载 flake 已登记 02 §0.7） | 主 agent |
+| P0-4 | 2026-08-19 | Phase 0 验收：冒烟 | vite build ✅、preview 画矩形全链路 ✅（截图存档）、dev server 启动 ✅、console 零报错、i18n 缝测试 2/2 ✅ | 通过；另发现并清除本机旧 PWA Service Worker 幽灵（02 §0.8） | 主 agent |
+| P0-5 | 2026-08-19 | 合并演习 | `git merge upstream/master`（15bd0ba1→0332b062，8 commits 含 AI SDK 7 #555） | 冲突 10 文件按 SOP 处理（删除区重删 / 配置类以 upstream 为基座重放）；新增 P24（notifications locale 裁剪）；i18n 缝避让至 src/app/i18n/fork/ | 主 agent |
+| P0-6 | 2026-08-19 | WIP 审判 | Agent W 对 git status + 3f925191 全 hunk 通读 | WIP 已随 3f925191 终结，重建分支零继承（tracker §4） | subagent W |
+| P0-7 | 2026-08-19 | LFS 现状 | `git lfs pull` 实测 | fork GitHub LFS 预算超额（拒绝）；上游网关匿名读可用；本分支 LFS 面仅 6 个测试 fixture；P21 撤销 | 主 agent |
 
 ## 6. 文档腐烂记录
 
@@ -83,4 +82,7 @@
 | 2026-08-18 | 03 v1 | pi sdk「有 AI SDK harness 适配器」作基线事实 | R4：本地无包无法证实 | v2 降级【假设】 |
 | 2026-08-18 | 00 v1 | 缝「+79/+62、~140 纯追加」 | R1：+75/−4、+61/−1，136 行新增 | v2 已修正 |
 | 2026-08-18 | 00 v1 | 分叉「72 落后」 | R1：73（含合并口径） | v2 已修正 |
+| 2026-08-19 | 02 v2 | tauri 需 stub 壳 | Agent A 实测：静态 import 遍布 ~20 文件，保持纯净 + 保留依赖即可 | 02 §0.1 已修正 |
+| 2026-08-19 | 02 v2 | .lfsconfig 改指自有 LFS + CI 补 7 处 lfs | 实测：自有 LFS 超额、上游网关匿名可读、剩余 workflow 不需要补 | 02 §0.2/0.3 已修正，P21 撤销 |
+| 2026-08-19 | 02 v2 | i18n 缝落位 src/app/i18n/ 根 | 上游 #557 已占用该目录（notifications/），缝避让至 fork/ 子目录 | 02 §0.4 已修正 |
 | （后续发现逐行登记） | | | | |

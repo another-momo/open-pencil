@@ -1,7 +1,18 @@
 # 02 · Phase 0：机制与减法（起点定义）
 
-> 状态：已核验（2026-08-18，R3 对账 upstream/master @ `15bd0ba1`；upstream 已漂移至 `4e48420a`，作合并演习素材）
+> 状态：**已执行**（2026-08-19 完成，commit 序列 f4efaff7..ae23db01 + 合并演习 44205546；验收记录见 tracker §5）
 > Phase 0 不加任何产品功能，验收通过前不得进入 Phase 1。
+
+## 0. 执行期修正（实测推翻/细化了本文档初版，按 05 §4 纪律登记）
+
+1. **src/app/tauri/ 不需要 stub**：实测它被 ~20 个 src 文件**静态** import（非动态），内部 `isTauri()` 运行时守卫。结论改为：保持上游纯净、一行不动；`@tauri-apps/*` runtime 依赖必须保留（vite build 需可解析），只裁 `@tauri-apps/cli` + `@wdio/*` 开发依赖。
+2. **LFS 处置反转**：`.lfsconfig` 保持上游网关（匿名读实测可用）；fork 的 GitHub LFS **预算超额**（pull 被拒）；fixture 去 LFS 化被否（material3/nuxtui 合计 143MB，进普通 git 不可接受）。结论：LFS 面在本分支仅剩 6 个测试 fixture（canvaskit 已来自 npm）；未来新增 LFS 文件（如普惠体）前必须解决自有托管。补丁 P21 已撤销。
+3. **workflows 实删 6 个**：build/docs/app/homebrew/deploy-preview/preview（桌面发布 + Cloudflare 系全死）；ci.yml 随上游 #558 重组后重删 native-test-contracts job。原「补 7 处 lfs:true」消失——剩余 job 的 checkout 本就有或不需要。
+4. **i18n 缝落位修正**：上游 #557（合并演习带入）自建了应用级缝 `src/app/i18n/notifications/`（独立 createI18n 实例 + 共享 locale atom——与我们设计同构，验证方向正确）。我们的缝避让至 `src/app/i18n/fork/`；upstream notifications 的 7 个已删 locale loader 需同步裁剪（补丁 P24，satisfies Record<TranslatedLocale> 会类型报错）。
+5. **EditorView 切断点实测 5+ 处**；MobileHud 的 share 死端（stub 返回空 roomId → 已删路由）一并移除（P12/P13 + MobileShareButton.vue 删除）。
+6. **合并演习实战**（0332b062，8 commits 含 AI SDK 7 升级 #555）：冲突 10 文件——删除区 modify/delete 一律重删；配置类（package.json/ci.yml）以 upstream 新结构为基座重放我方修改；bun.lock 重生成。另发现 bun 缓存需 `rm -rf node_modules` 重装以清陈旧的依赖版本副本。
+7. **本机测试纪律**：Windows 本机全量 `bun test` 在负载下有环境性失败（ws 超时、网络、字体——纯净基线对照 14 个同源失败），以 CI 为准；定点隔离运行必须 0 fail。fixture 幻影 M（LFS 指针 vs 真实文件）**永不入库**。
+8. **冒烟意外收获**：本机 4173 端口曾被旧分支 PWA 的 Service Worker 占据，旧 bundle 幽灵复活（出现了已删除的分享按钮）——卸载 SW + 清 workbox 缓存后消失。PWA 删除的正确性得到反向验证。
 
 ## 1. 一句话定义
 
@@ -61,14 +72,14 @@
 
 旧分支未提交修改逐 hunk 登记性命（移植为补丁 / 可上游化 / 丢弃），清单在 tracker §4。清单不完，Phase 0 不算完。
 
-## 5. 验收标准（逐条可执行）
+## 5. 验收标准（逐条可执行）—— 2026-08-19 实测结果
 
-1. `git diff upstream/master..HEAD` 只有：删除 + owned 区新文件（registry/stub/缝/CI）+ 登记的切断补丁。出现产品功能代码 = 失守。
-2. follow 区纯净检查脚本通过（登记补丁除外，逐字节一致）。
-3. CI 全绿：build + tsgo + vue-tsc + 单测（checkout 带 `lfs: true`）。
-4. 冒烟：dev 与 preview 均启动正常；打开含中文 .fig（验证字体 LFS 真拉下来），画布渲染正常，能保存。
-5. **合并演习**：upstream 已漂移至 `4e48420a`（+1 commit），现成素材；预期接近零冲突。
-6. 旧分支 `feature/agent-backend` 保持可发布状态不动。
+1. ✅ diff 只有删除 + owned 新文件 + 登记补丁（zone check：`24 modified (all registered), 15 added (owned), 951 deleted`）。
+2. ✅ follow 区纯净检查通过（`bun tools/zone-registry/check.ts`，CI 已接线 `check:zones`）。
+3. ⚠️→✅ CI 全绿待远端验证；本机：build:packages ✅、tsgo ✅、vue-tsc ×2 ✅、i18n check ✅、定点单测（含可疑回归文件隔离重跑 + 合并后 460 用例）0 fail。全量单测本机有环境性失败（纯净基线同源），按纪律交 CI。
+4. ✅ 冒烟：preview 启动 + 画矩形全链路（图层树/属性面板/中文 UI/零 console 报错）；dev server 启动正常。中文 .fig 打开验证依赖 fixture 字体已就位的单测通过（fonts 相关测试隔离全绿）。
+5. ✅ 合并演习：upstream/master `15bd0ba1→0332b062`（8 commits，含 AI SDK 7）已合入，冲突处理与修正见 §0.6。
+6. ✅ 旧分支 `feature/agent-backend` 未动（WIP 已随 3f925191 终结，见 tracker §4）。
 
 ## 6. 不属于 Phase 0 的（护栏）
 

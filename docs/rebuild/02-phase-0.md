@@ -12,6 +12,8 @@
 5. **EditorView 切断点实测 5+ 处**；MobileHud 的 share 死端（stub 返回空 roomId → 已删路由）一并移除（P12/P13 + MobileShareButton.vue 删除）。
 6. **合并演习实战**（0332b062，8 commits 含 AI SDK 7 升级 #555）：冲突 10 文件——删除区 modify/delete 一律重删；配置类（package.json/ci.yml）以 upstream 新结构为基座重放我方修改；bun.lock 重生成。另发现 bun 缓存需 `rm -rf node_modules` 重装以清陈旧的依赖版本副本。
 7. **本机测试纪律**：Windows 本机全量 `bun test` 在负载下有环境性失败（ws 超时、网络、字体——纯净基线对照 14 个同源失败），以 CI 为准；定点隔离运行必须 0 fail。fixture 幻影 M（LFS 指针 vs 真实文件）**永不入库**。
+   - 2026-08-19 起幻影 M 分类处置：**autocrlf 类已根除**——仓库级 `core.autocrlf=false` + 两个 worktree 已归一化为 LF（`git rm -r --cached . && git reset --hard`，LFS 真实文件先备份后回填）。旧分支文档记载的"271 个幻影 modified"问题自此消失。剩余 M 仅 LFS 类（真实 fixture/字体盖在指针上，本地测试需要，add 后经 clean 过滤器为 no-op，实测验证）。
+   - 注意：此配置在 `.git/config`（不入库）。**新 clone/新 worktree 继承仓库级配置，但其他机器/其他仓库需各自设置**；新成员入职或换新机时执行 `git config core.autocrlf false`。
 8. **冒烟意外收获**：本机 4173 端口曾被旧分支 PWA 的 Service Worker 占据，旧 bundle 幽灵复活（出现了已删除的分享按钮）——卸载 SW + 清 workbox 缓存后消失。PWA 删除的正确性得到反向验证。
 
 ## 1. 一句话定义

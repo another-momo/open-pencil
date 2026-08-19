@@ -8,7 +8,7 @@ describe('browser locale matching', () => {
   })
 
   test('preserves browser language preference order', () => {
-    expect(resolveBrowserLocale(['it-IT', 'en-US'])).toBe('it')
+    expect(resolveBrowserLocale(['zh-CN', 'en-US'])).toBe('zh-CN')
   })
 
   test('prefers exact supported regional locales', () => {
@@ -17,7 +17,7 @@ describe('browser locale matching', () => {
   })
 
   test('does not substitute a different regional locale', () => {
-    expect(resolveBrowserLocale(['zh-TW', 'fr-CA'])).toBe('fr')
+    expect(resolveBrowserLocale(['zh-TW', 'fr-CA'])).toBe('en')
   })
 
   test('falls back to English when no locale matches', () => {

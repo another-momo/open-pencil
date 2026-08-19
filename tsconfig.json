@@ -43,9 +43,6 @@
       "#tests/*": [
         "./tests/*"
       ],
-      "#docs-config/*": [
-        "./packages/docs/.vitepress/*"
-      ],
       "tinykeys": [
         "./node_modules/tinykeys/dist/tinykeys.d.ts"
       ],

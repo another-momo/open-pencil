@@ -45,8 +45,12 @@
 | `acp:` provider 概念残留 | models/settings 层仍引用 `ACP_AGENTS`（core constants）；选 ACP 档案会优雅失败 | Phase 1 重分类 chat/providers 时清理 |
 | `@agentclientprotocol/sdk` 依赖 | 被 `src/app/integrations/mcp/runtime.ts` + core constants 引用，未裁 | 同上 |
 | LFS 自有托管 | fork GitHub LFS 预算超额（pull 被拒）；新增 LFS 文件（如普惠体）前必须解决，或走子集化进普通 git（D6 相关） | D6 决策时 |
-| 远端 CI 验证 | Phase 0 的 CI 全绿未在远端跑过（分支未推送；推送需 `git push origin rebuild/v2`，注意当前 tracking 指 upstream） | owner 决定推送后 |
-| knip/steiger/oxlint 死配置残留 | desktop/packages-docs 等 ignore 条目保留未清（无害，零补丁纪律） | 可不处理 |
+| 远端 CI 验证 | ~~分支未推送~~ **已推送**（2026-08-19 实测 `ls-remote origin rebuild/v2` = 4a17fc77 与本地同步，tracking 已修正为 origin）。CI 全绿与否待 GitHub Actions 实际跑完确认 | 观察 CI |
+| knip/steiger/oxlint 死配置残留 | desktop/packages-docs 等 ignore 条目保留未清（无害，零补丁纪律）；另有 knip.json `ignoreWorkspaces` 含 `packages/acp`（从未存在过的路径，上游死配置） | 可不处理 |
+
+## 4c. Phase 0 gate review 整改（2026-08-19，subagent A 轮机械审计）
+
+check.ts 四处漏洞修复：①删除侧零校验（曾漏检 7 个 notifications locale json 的删除——已补登）→ D 状态必须登记 deletedPaths；②R/C/T/U 状态逃逸 → 重命名拆解为删+增，其他状态显式报错；③revoked 补丁仍白名单 → 过滤；④头注释死规则（pendingReclass 字节一致）删除，与 zones.json 口径对齐。探针测试验证：未登记删除被抓（exit 1）。文档侧：02 修正 7 处正文残留矛盾（B14 表）+ 2 处计数错（chat 6 vue、collab 13 文件）。
 
 ## 5. 核验日志
 
@@ -66,6 +70,9 @@
 | P0-5 | 2026-08-19 | 合并演习 | `git merge upstream/master`（15bd0ba1→0332b062，8 commits 含 AI SDK 7 #555） | 冲突 10 文件按 SOP 处理（删除区重删 / 配置类以 upstream 为基座重放）；新增 P24（notifications locale 裁剪）；i18n 缝避让至 src/app/i18n/fork/ | 主 agent |
 | P0-6 | 2026-08-19 | WIP 审判 | Agent W 对 git status + 3f925191 全 hunk 通读 | WIP 已随 3f925191 终结，重建分支零继承（tracker §4） | subagent W |
 | P0-7 | 2026-08-19 | LFS 现状 | `git lfs pull` 实测 | fork GitHub LFS 预算超额（拒绝）；上游网关匿名读可用；本分支 LFS 面仅 6 个测试 fixture；P21 撤销 | 主 agent |
+| P0-8 | 2026-08-19 | Phase 0 gate review | subagent A 轮机械审计（zones.json 全项对账 + 02 全文矛盾扫描） | patches P1-P24 全部真实、deletedPaths 44 条全落实、ownedRoots 零例外；发现 check.ts 4 漏洞 + 02 正文 7 处残留矛盾 + 2 处计数错 → 全部整改（见 §4c）；fonts 测试复跑 77/0 绿；PWA 零残留实证 | subagent A |
+| P0-9 | 2026-08-19 | autocrlf 治理 | `core.autocrlf=false`（仓库级）+ 双 worktree LF 归一化 | autocrlf 类幻影 M 根除；LFS 类幻影保留（纪律约束） | 主 agent |
+| P0-10 | 2026-08-19 | 远端同步 | `git ls-remote origin rebuild/v2` | 远端 = 4a17fc77 = 本地 HEAD；tracking 已指向 origin | 主 agent |
 
 ## 6. 文档腐烂记录
 

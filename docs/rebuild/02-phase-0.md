@@ -1,6 +1,6 @@
 # 02 · Phase 0：机制与减法（起点定义）
 
-> 状态：**已执行**（2026-08-19 完成，commit 序列 f4efaff7..ae23db01 + 合并演习 44205546；验收记录见 tracker §5）
+> 状态：**已执行**（2026-08-19 完成，commit 序列 f4efaff7..68f67484 → 合并演习 44205546 → ae23db01，后续文档提交 cbc3fe4f、4a17fc77；验收记录见 tracker §5）
 > Phase 0 不加任何产品功能，验收通过前不得进入 Phase 1。
 
 ## 0. 执行期修正（实测推翻/细化了本文档初版，按 05 §4 纪律登记）
@@ -24,16 +24,17 @@
 
 | 删除对象 | 连带处理（实测切断点） |
 |---|---|
-| `desktop/`（Tauri 壳） | `src/app/tauri/` 改 stub 壳（`IS_TAURI` 恒 false；实测 IS_TAURI 共 37 处/16 文件、tauri 动态 import 29 处——动态 import 的是 @tauri-apps/* npm 包，不切断即可解析）；`tools/tauri-menu/`、`tests/engine/tauri/`（11 文件）、`tests/helpers/tauri/`、`tests/e2e/native/`、根 `wdio.conf.ts` 同删 |
-| `src/app/collab/`（10 文件）+ `src/components/CollabPanel/`（6+1） | **软切断载体是 `collab/use.ts` 的 `useCollab` + `COLLAB_KEY`**（无单一 collab-store 文件）；`/share/:roomId` 路由（router.ts:12，参数名是 roomId） |
-| `src/app/ai/acp/`（5 文件）+ `src/components/chat/ACPPermissionDialog.vue` | **引用点在 `src/components/ChatPanel.vue`**（:26 import、:341 使用），另波及 ChatInput.vue 与 `src/app/ai/chat/{storage,transports,use}.ts` |
+| `desktop/`（Tauri 壳） | **`src/app/tauri/` 保持上游纯净、一行不动**（§0.1 修正：它被 ~20 个 src 文件静态 import 且运行时守卫，stub 方案已否决）；`tools/tauri-menu/`、`tests/engine/tauri/`（11 文件）、`tests/helpers/tauri/`、`tests/e2e/native/`、根 `wdio.conf.ts`、`scripts/generate-tauri-menu.ts` 同删 |
+| `src/app/collab/`（13 文件，含 transport/）+ `src/components/CollabPanel/`（6+1） | **软切断载体是 `collab/use.ts` 的 stub**（保留 `useCollab`/`COLLAB_KEY`/类型表面，删其余 10 个实现文件）；`/share/:roomId` 路由（router.ts） |
+| `src/app/ai/acp/`（5 文件）+ `src/components/chat/ACPPermissionDialog.vue` | **引用点在 `src/components/ChatPanel.vue`**，另波及 ChatInput.vue 与 `src/app/ai/chat/{storage,transports,use}.ts` |
 | `packages/demos/` | ⚠️ 实测非 workspace 包，仅 2 个素材文件（videos/）；knip 里它的 ignoreWorkspaces 本是死配置 |
-| `packages/docs/`（vitepress workspace 包）+ `src/app/demo/` + `SafariBanner.vue`（仅 EditorView :32/:120 引用）+ `public/_headers`/`_redirects` + `tools/release-packages/` | EditorView demo import 在 :19/:48 |
-| 7 个翻译 locale（de/es/fr/it/ja/pl/ru） | **算术修正：上游共 9 个 locale = en base + 8 翻译，zh-CN 在 8 个翻译里——删 7 留 zh-CN**。切断点 2 个文件：`locale.ts`（AVAILABLE_LOCALES 等 4 个表）+ `create.ts`（localeLoaders 8 条动态 import） |
+| `packages/docs/`（vitepress workspace 包）+ `tools/docs/` + `src/app/demo/` + `SafariBanner.vue` + `public/_headers`/`_redirects` + `tools/release-packages/` | EditorView demo import（:19/:48） |
+| **6 个 workflows** | `build.yml`（桌面发布）、`docs.yml`（文档站）、`app.yml`（CF Pages 部署）、`homebrew.yml`（桌面分发）、`deploy-preview.yml` + `preview.yml`（CF PR 预览）；ci.yml 删 `native-test-contracts` job（补丁 P20）。剩余：ci / heavy-tests / native-contracts-image / pr-review-guidance |
+| 7 个翻译 locale（de/es/fr/it/ja/pl/ru） | 上游共 9 个 locale = en base + 8 翻译，zh-CN 在 8 个翻译里——删 7 留 zh-CN。切断点 2 个文件：`locale.ts`（4 个表）+ `create.ts`（localeLoaders）。合并演习追加：上游 #557 的 `notifications/locales/` 7 个 json 同步删除（P24） |
 
-**EditorView.vue 是切断点集中地**（实测单文件 5+ 处：collab import :13、`exposeCollaborationActions` :15、CollabPanel :23、SafariBanner :32/:120、useCollab provide :56-58、demo :19/:48）——逐个编号登记，不许打包成「1 处」。
+**EditorView.vue 是切断点集中地**（实测单文件 5+ 处：collab import、`exposeCollaborationActions`、CollabPanel、SafariBanner、useCollab provide、demo）——逐个编号登记，不许打包成「1 处」。
 
-**配置连带面**（R3 实测，减法清单必须含）：`package.json` 的 workspaces（packages/docs、tools/docs）与 scripts（`tauri`、`build:native-test`、`test:native`、`generate:tauri-menu`、4 个 `docs:*`、`check:docs`、`check:native-test` 总链）与依赖（8 个 @tauri-apps/* + 6 个 @wdio/* + @tauri-apps/cli）；knip.json、steiger.config.ts、oxlint.json 中对被删目录的引用。
+**配置连带面**（R3 实测 + §0.1 修正）：`package.json` 的 workspaces（-packages/docs、-tools/docs）与 scripts（删 tauri/wdio/docs 系，check 链摘除、加 check:zones）与依赖（裁 6 个 @wdio/* + @tauri-apps/cli + expect-webdriverio + vite-plugin-pwa + workbox-window + 未用的 yjs 系 4 个 + trystero；**8 个 @tauri-apps/* runtime 依赖保留**，vite build 需可解析）；`tsconfig.json` 删 `#docs-config/*` paths；knip.json、steiger.config.ts、oxlint.json 中对被删目录的 ignore 条目**保留未清**（无害，零补丁纪律，见 tracker §4b）。
 
 **删除标准**：目标态不存在、且建设过程也不需要。不符合两条的不删，见 §3.3。
 
@@ -51,28 +52,30 @@
 
 ### 3.3 待重分类（pending-reclass）——不删，打标
 
-目标态以自持形态存在、且现有代码是起点的上游部分，**Phase 0 保留为 follow 区并打标，一行不许改**。重分类时刻 = 第一次需要修改它的时刻。
+目标态以自持形态存在、且现有代码是起点的上游部分，**Phase 0 保留为 follow 区并打标**。重分类时刻 = 第一次需要修改它的时刻。
 
-清单（按文件点名）：`src/app/ai/chat/`（9 文件）、`src/components/chat/` 7 个 .vue + `attachment/`（**ACPPermissionDialog.vue 除外——它进删除区**）、`src/components/ChatPanel.vue`、`src/app/ai/providers/`（3）+ `models/`（6）、`src/app/ai/attachment/`、`src/app/ai/tools/`、`src/app/ai/vision-runtime.ts`、`src/app/automation/`（12）+ `packages/mcp` + `src/app/browser-bridge.ts`、`packages/cli`、`src/app/ai/debug/index.ts`、`.github/workflows/`（9 文件）。
+**豁免条款（与 zones.json `$comment` 对齐）**：待重分类文件可以携带**减法切断补丁**（如 chat/ 系被 ACP 删除波及的 P4-P8、ci.yml 的 P20）——补丁登记即合法，「一行不许改」只约束功能改动。
+
+清单（按文件点名）：`src/app/ai/chat/`（9 文件）、`src/components/chat/`（6 个 .vue + `attachment/`，ACPPermissionDialog 已删）、`src/components/ChatPanel.vue`、`src/app/ai/providers/`（3）+ `models/`（6）、`src/app/ai/attachment/`、`src/app/ai/tools/`、`src/app/ai/vision-runtime.ts`、`src/app/automation/`（12）+ `packages/mcp` + `src/app/browser-bridge.ts`、`packages/cli`、`src/app/ai/debug/index.ts`、`.github/workflows/`（剩余 4 个：ci/heavy-tests/native-contracts-image/pr-review-guidance）。
 
 ⚠️ **已登记的内部冲突**：`browser-bridge.ts` 被 EditorView 用于 `exposeCollaborationActions(collab)`——collab stub 化时类型可能不配合。处置：给它预备补丁额度，或 stub 签名对齐 `useCollab` 返回类型。R3 实测，勿回避。
 
 **重分类仪式**：① registry 改 owned；② 记录当时 upstream hash 打 tag（`reclass/<路径>/<hash>`）；③ 需同时裁剪的（如 mcp 砍对外功能）在重分类时刻做，不提前。
 
-### 3.4 两条缝合缝
+### 3.4 两条缝合缝（已落地）
 
-- **工具注册缝**：实测现状——`registry-core.ts`（CORE_TOOLS）/ `registry-extended.ts` / `registry.ts`（9 行组合 `ALL_TOOLS`）。缝 = registry.ts 加 1 行 spread（≤5 行，登记补丁）；零修改替代：owned 侧 `defineTool` 自建数组在消费侧合成。**好消息**：`component-catalog.ts` 的 `registerComponentCatalog` 是上游自有的注册式扩展先例，缝可仿照甚至上游化。
-- **i18n 缝**：⚠️ 修正——`mergeLocaleMessage` 是虚构 API，上游用 `@nanostores/i18n`（createI18n/localeFrom）。缝按 nanostores API 重新设计（owned 组件组自建 i18n 实例取文案），约束不变：`packages/vue` 零修改。设计验证是 Phase 0 任务。
+- **工具注册缝**：已落地为补丁 P22——`registry.ts` 加 import + spread 两行，owned 工具落 `packages/core/src/tools/fork/`（当前空数组占位）。上游 `component-catalog.ts` 的 `registerComponentCatalog` 是同构先例。
+- **i18n 缝**：已落地于 `src/app/i18n/fork/`——fork 自建 createI18n 实例绑共享 locale atom，自带 zh-CN 懒加载包，`packages/vue` 零修改。合并演习发现上游 #557 自建了同构的 `src/app/i18n/notifications/`，方向被上游验证；避让命名见 §0.4。验证：`tests/engine/rebuild/i18n-seam.test.ts` 2/2 绿。（教训记录：初版文档虚构了 `mergeLocaleMessage` API，R3 证伪后按上游实际用的 `@nanostores/i18n` 重新设计。）
 
 ### 3.5 基础设施纪律
 
-- `.lfsconfig` 实测内容 `[lfs] url = https://lfs.openpencil.dev`——指上游网关，必须改指自己的 LFS。CI checkout `lfs: true` 现状：10 处 checkout 仅 3 处有（ci.yml 2/3、heavy-tests.yml 1/1；build.yml 2 处全无）——**需补 7 处**，列入减法清单。
+- **LFS（已被 §0.2 取代，保留作记录）**：`.lfsconfig` 保持上游网关（匿名读实测可用）；fork 自有 GitHub LFS 预算超额；P21 撤销。新增 LFS 文件前必须解决自有托管（或走子集化进普通 git，联动 D6）。CI 的 `lfs: true` 补充项已随 workflows 删除消失。
 - `CHANGELOG.md` 永久保持上游原样；产品发版记录用 owned 新文件。
-- 目录落位约定：core 工具以新文件落 `packages/core/src/tools/`（A 类纪律）；app 层落 `src/app/ai/` owned 子目录；UI 落 `src/components/chat/` owned 文件；`packages/agent` 在 Phase 0 **不存在**，Phase 1 出生。
+- 目录落位约定：core 工具以新文件落 `packages/core/src/tools/`（A 类纪律，fork 工具经 `tools/fork/` 缝注册）；app 层落 `src/app/ai/` owned 子目录；UI 落 `src/components/chat/` owned 文件；fork i18n 落 `src/app/i18n/fork/`（避开上游 `notifications/`）；owned 测试落 `tests/engine/rebuild/`（已挂进 shards app 组）；`packages/agent` 在 Phase 0 **不存在**，Phase 1 出生。
 
-## 4. 前置：旧分支 WIP 审判
+## 4. 前置：旧分支 WIP 审判（已结案）
 
-旧分支未提交修改逐 hunk 登记性命（移植为补丁 / 可上游化 / 丢弃），清单在 tracker §4。清单不完，Phase 0 不算完。
+✅ 已结案（2026-08-19，Agent W）：WIP 已随旧分支 `3f925191` 提交，14/14 文件为 lint/类型等价清理，零行为变更，零需移植。详见 tracker §4。
 
 ## 5. 验收标准（逐条可执行）—— 2026-08-19 实测结果
 

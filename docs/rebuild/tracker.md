@@ -45,7 +45,7 @@
 | `acp:` provider 概念残留 | models/settings 层仍引用 `ACP_AGENTS`（core constants）；选 ACP 档案会优雅失败 | Phase 1 重分类 chat/providers 时清理 |
 | `@agentclientprotocol/sdk` 依赖 | 被 `src/app/integrations/mcp/runtime.ts` + core constants 引用，未裁 | 同上 |
 | LFS 自有托管 | fork GitHub LFS 预算超额（pull 被拒）；新增 LFS 文件（如普惠体）前必须解决，或走子集化进普通 git（D6 相关） | D6 决策时 |
-| 远端 CI 验证 | ~~分支未推送~~ **已推送**（2026-08-19 实测 `ls-remote origin rebuild/v2` = 4a17fc77 与本地同步，tracking 已修正为 origin）。CI 全绿与否待 GitHub Actions 实际跑完确认 | 观察 CI |
+| 远端 CI 验证 | ~~分支未推送~~ **已推送**（2026-08-19 实测 `ls-remote origin rebuild/v2` = 4a17fc77 与本地同步，tracking 已修正为 origin）。~~CI 全绿与否待确认~~ **CI 已全绿**（2026-08-19，run 32248474442，11/11 job success，5 轮修复史见 §5 CI-1~CI-5） | 已闭环 |
 | knip/steiger/oxlint 死配置残留 | desktop/packages-docs 等 ignore 条目保留未清（无害，零补丁纪律）；另有 knip.json `ignoreWorkspaces` 含 `packages/acp`（从未存在过的路径，上游死配置） | 可不处理 |
 
 ## 4c. Phase 0 gate review 整改（2026-08-19，subagent A 轮机械审计）
@@ -73,6 +73,11 @@ check.ts 四处漏洞修复：①删除侧零校验（曾漏检 7 个 notificati
 | P0-8 | 2026-08-19 | Phase 0 gate review | subagent A 轮机械审计（zones.json 全项对账 + 02 全文矛盾扫描） | patches P1-P24 全部真实、deletedPaths 44 条全落实、ownedRoots 零例外；发现 check.ts 4 漏洞 + 02 正文 7 处残留矛盾 + 2 处计数错 → 全部整改（见 §4c）；fonts 测试复跑 77/0 绿；PWA 零残留实证 | subagent A |
 | P0-9 | 2026-08-19 | autocrlf 治理 | `core.autocrlf=false`（仓库级）+ 双 worktree LF 归一化 | autocrlf 类幻影 M 根除；LFS 类幻影保留（纪律约束） | 主 agent |
 | P0-10 | 2026-08-19 | 远端同步 | `git ls-remote origin rebuild/v2` | 远端 = 4a17fc77 = 本地 HEAD；tracking 已指向 origin | 主 agent |
+| CI-1 | 2026-08-19 | CI run 32243617082 | gh run watch + --log-failed | 3 job 红：Repository hygiene（doc 链接校验，docs site 已删）、Component workshop（storybook build 挂：public/ 图标是指向已删 desktop/ 的悬空 symlink）、Code quality（format:check）→ 修法：P26 移除 check:docs 步骤、P27-P30 symlink 换真实 PNG | CI 守护 |
+| CI-2 | 2026-08-19 | CI run 32244794271 | 同上 | 3 job 红：Repository hygiene（test:tools）、Component workshop（storybook 仍挂）、Code quality lint 10 错（#core/* alias、!==-1、complexity 25、空函数、promise executor return 等）→ 修法：bdb3a042 逐项清理 | CI 守护 |
+| CI-3 | 2026-08-19 | CI run 32246179576 | 同上 | Code quality lint 余 1 错：i18n 缝测试 `no-promise-executor-return` → 修法：7b8ecab1 | CI 守护 |
+| CI-4 | 2026-08-19 | CI run 32247060166 | 同上 | Code quality `check:arch`：steiger strict-tools-layout 拒 tools/zone-registry/check.ts（须落 tools/<domain>/src/**）→ 修法：3dcc4f2c 挪至 src/check.ts + 仓根解析改 ../../.. + 同步 package.json check:zones / zones.json $comment / 02 与 tracker 引用。无新补丁：挪动全程在 owned root 内，package.json 变更由既有 P17（scripts）覆盖 | CI 守护 |
+| CI-5 | 2026-08-19 | CI run 32248474442 | gh run view --json jobs | **全绿**：11/11 job success（Repository hygiene / Code quality / Package integrity / Component workshop / Engine tests ×7） | CI 守护 |
 
 ## 6. 文档腐烂记录
 

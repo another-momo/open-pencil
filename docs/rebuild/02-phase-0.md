@@ -81,7 +81,7 @@
 
 1. ✅ diff 只有删除 + owned 新文件 + 登记补丁（zone check：`24 modified (all registered), 15 added (owned), 951 deleted`）。
 2. ✅ follow 区纯净检查通过（`bun tools/zone-registry/src/check.ts`，CI 已接线 `check:zones`）。
-3. ⚠️→✅ CI 全绿待远端验证；本机：build:packages ✅、tsgo ✅、vue-tsc ×2 ✅、i18n check ✅、定点单测（含可疑回归文件隔离重跑 + 合并后 460 用例）0 fail。全量单测本机有环境性失败（纯净基线同源），按纪律交 CI。
+3. ⚠️→✅ CI 已全绿（2026-08-19，run 32248474442，11/11 job；5 轮修复史见 tracker §5 CI-1~CI-5）；本机：build:packages ✅、tsgo ✅、vue-tsc ×2 ✅、i18n check ✅、定点单测（含可疑回归文件隔离重跑 + 合并后 460 用例）0 fail。全量单测本机有环境性失败（纯净基线同源），按纪律交 CI。
 4. ✅ 冒烟：preview 启动 + 画矩形全链路（图层树/属性面板/中文 UI/零 console 报错）；dev server 启动正常。中文 .fig 打开验证依赖 fixture 字体已就位的单测通过（fonts 相关测试隔离全绿）。
 5. ✅ 合并演习：upstream/master `15bd0ba1→0332b062`（8 commits，含 AI SDK 7）已合入，冲突处理与修正见 §0.6。
 6. ✅ 旧分支 `feature/agent-backend` 未动（WIP 已随 3f925191 终结，见 tracker §4）。

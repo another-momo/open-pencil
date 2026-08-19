@@ -5,13 +5,6 @@ import { locale } from '#vue/i18n/locale'
 import type { Locale, TranslatedLocale } from '#vue/i18n/locale'
 
 const localeLoaders = {
-  de: () => import('#vue/i18n/locales/de'),
-  es: () => import('#vue/i18n/locales/es'),
-  fr: () => import('#vue/i18n/locales/fr'),
-  it: () => import('#vue/i18n/locales/it'),
-  ja: () => import('#vue/i18n/locales/ja'),
-  pl: () => import('#vue/i18n/locales/pl'),
-  ru: () => import('#vue/i18n/locales/ru'),
   'zh-CN': () => import('#vue/i18n/locales/zh-cn')
 } satisfies Record<TranslatedLocale, () => Promise<{ default: ComponentsJSON }>>
 

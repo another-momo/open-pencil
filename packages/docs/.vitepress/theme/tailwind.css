@@ -1,4 +1,0 @@
-@import 'tailwindcss/theme' layer(theme);
-@import 'tailwindcss/utilities' layer(utilities);
-
-@source '../../../vue/src/primitives/**/*.vue';

@@ -98,6 +98,13 @@
     "packages/vue/src/i18n/locales/it",
     "packages/vue/src/i18n/locales/ja",
     "packages/vue/src/i18n/locales/pl",
-    "packages/vue/src/i18n/locales/ru"
+    "packages/vue/src/i18n/locales/ru",
+    "src/app/i18n/notifications/locales/de.json",
+    "src/app/i18n/notifications/locales/es.json",
+    "src/app/i18n/notifications/locales/fr.json",
+    "src/app/i18n/notifications/locales/it.json",
+    "src/app/i18n/notifications/locales/ja.json",
+    "src/app/i18n/notifications/locales/pl.json",
+    "src/app/i18n/notifications/locales/ru.json"
   ]
 }

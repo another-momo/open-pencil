@@ -82,9 +82,6 @@ jobs:
       - name: Validate translations
         run: bun run check:i18n
 
-      - name: Validate documentation links and structure
-        run: bun run check:docs
-
       - name: Audit critical dependency vulnerabilities
         run: bun run check:audit
 

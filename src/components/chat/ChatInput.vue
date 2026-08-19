@@ -193,9 +193,7 @@ function handleSubmit(e: Event) {
 
           <template #model>
             <div class="flex min-w-0 items-center">
-              <ChatProfileSelect
-                v-if="canSwitchProfile && (isCustomProvider || usesCustomModel)"
-              >
+              <ChatProfileSelect v-if="canSwitchProfile && (isCustomProvider || usesCustomModel)">
                 <template #value>
                   <span class="min-w-0 truncate">{{ selectedProfileName }}</span>
                 </template>

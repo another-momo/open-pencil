@@ -1,6 +1,6 @@
+import { FORK_TOOLS } from './fork'
 import { CORE_TOOLS } from './registry-core'
 import { EXTENDED_TOOLS } from './registry-extended'
-import { FORK_TOOLS } from './fork'
 import type { ToolDef } from './schema'
 
 export { CORE_TOOLS } from './registry-core'

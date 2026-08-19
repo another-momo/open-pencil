@@ -9,7 +9,8 @@
  *  3. deletedPaths do not exist on disk.
  *  4. New files (added vs merge-base) live under ownedRoots.
  *  5. Renames are decomposed (old path = deletion, new path = addition);
- *     unexpected git statuses (C/T/U/…) fail loudly.
+ *     typechanges (T, e.g. symlink→file) count as modifications;
+ *     other unexpected git statuses (C/U/…) fail loudly.
  *
  * pendingReclass is planning metadata only (see zones.json $comment):
  * modifications there are governed by rule 1 like everywhere else.
@@ -42,10 +43,13 @@ function git(args: string[]): string {
 }
 
 function main() {
-  const zones: Zones = JSON.parse(readFileSync(resolve(root, 'tools/zone-registry/zones.json'), 'utf8'))
+  const zones: Zones = JSON.parse(
+    readFileSync(resolve(root, 'tools/zone-registry/zones.json'), 'utf8')
+  )
 
   const baseIdx = process.argv.indexOf('--base')
-  const base = baseIdx >= 0 ? process.argv[baseIdx + 1] : git(['merge-base', 'HEAD', 'upstream/master'])
+  const base =
+    baseIdx >= 0 ? process.argv[baseIdx + 1] : git(['merge-base', 'HEAD', 'upstream/master'])
   if (!base) {
     console.error('[zones] cannot resolve merge-base with upstream/master')
     process.exit(1)
@@ -60,7 +64,7 @@ function main() {
   for (const line of diff ? diff.split('\n') : []) {
     const parts = line.split('\t')
     const status = parts[0]
-    if (status === 'M') modified.push(parts[1])
+    if (status === 'M' || status === 'T') modified.push(parts[1])
     else if (status === 'A') added.push(parts[1])
     else if (status === 'D') deleted.push(parts[1])
     else if (status.startsWith('R')) {
@@ -76,7 +80,9 @@ function main() {
     if (line) added.push(line)
   }
 
-  const patchedFiles = new Set(zones.patches.filter((p) => p.disposition !== 'revoked').map((p) => p.file))
+  const patchedFiles = new Set(
+    zones.patches.filter((p) => p.disposition !== 'revoked').map((p) => p.file)
+  )
   const owned = new Set([...zones.ownedFiles, ...zones.stubs])
   const ownedRoots = zones.ownedRoots
   const deletedRegistry = zones.deletedPaths
@@ -84,13 +90,18 @@ function main() {
   // 1. modified upstream files must be registered patches or owned
   for (const file of modified) {
     if (patchedFiles.has(file) || owned.has(file)) continue
-    violations.push(`MODIFIED but not registered: ${file} (register a patch in zones.json or revert)`)
+    violations.push(
+      `MODIFIED but not registered: ${file} (register a patch in zones.json or revert)`
+    )
   }
 
   // 2. deleted upstream files must be registered in deletedPaths
   for (const file of deleted) {
-    if (deletedRegistry.some((d) => file === d || file.startsWith(d.endsWith('/') ? d : `${d}/`))) continue
-    violations.push(`DELETED but not registered: ${file} (add the path to deletedPaths in zones.json or restore)`)
+    if (deletedRegistry.some((d) => file === d || file.startsWith(d.endsWith('/') ? d : `${d}/`)))
+      continue
+    violations.push(
+      `DELETED but not registered: ${file} (add the path to deletedPaths in zones.json or restore)`
+    )
   }
 
   // 3. deleted paths must not exist

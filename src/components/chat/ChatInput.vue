@@ -18,8 +18,6 @@ import { MAX_IMAGE_ATTACHMENTS, type ImageAttachmentDraft } from '@/app/ai/attac
 import { openSettingsDialog } from '@/app/settings/dialog'
 import { useI18n } from '@open-pencil/vue'
 
-import { ACP_AGENTS } from '@open-pencil/core/constants'
-
 const { providerID, providerDef, modelID, customModelID } = useAIChat()
 const { dialogs } = useI18n()
 
@@ -76,11 +74,6 @@ function removeImage(index: number) {
 }
 
 const isStreaming = computed(() => disabled || status === 'streaming' || status === 'submitted')
-const isACPProvider = computed(() => providerID.value.startsWith('acp:'))
-const acpAgentName = computed(() => {
-  const agentId = providerID.value.replace('acp:', '')
-  return ACP_AGENTS.find((a) => a.id === agentId)?.name ?? agentId
-})
 const isCustomProvider = computed(
   () => providerID.value === 'openai-compatible' || providerID.value === 'anthropic-compatible'
 )
@@ -200,14 +193,8 @@ function handleSubmit(e: Event) {
 
           <template #model>
             <div class="flex min-w-0 items-center">
-              <template v-if="isACPProvider">
-                <div class="flex min-w-0 items-center gap-1 px-1.5 text-[10px] text-muted">
-                  <icon-lucide-bot class="size-3 shrink-0" />
-                  <span class="truncate">{{ acpAgentName }}</span>
-                </div>
-              </template>
               <ChatProfileSelect
-                v-else-if="canSwitchProfile && (isCustomProvider || usesCustomModel)"
+                v-if="canSwitchProfile && (isCustomProvider || usesCustomModel)"
               >
                 <template #value>
                   <span class="min-w-0 truncate">{{ selectedProfileName }}</span>

@@ -1,11 +1,10 @@
 import { Chat } from '@ai-sdk/vue'
 import { DirectChatTransport, stepCountIs, ToolLoopAgent } from 'ai'
 import type { ChatTransport, FinishReason, LanguageModel, UIMessage } from 'ai'
-import type { ComputedRef, Ref } from 'vue'
+import type { ComputedRef } from 'vue'
 import { ref } from 'vue'
 
-import { ACP_AGENTS } from '@open-pencil/core/constants'
-import type { ACPAgentID, AIProviderID } from '@open-pencil/core/constants'
+import type { AIProviderID } from '@open-pencil/core/constants'
 
 import {
   classifyAIChatError,
@@ -23,8 +22,6 @@ type EditorStore = ReturnType<typeof getActiveEditorStore>
 
 type ChatSessionOptions = {
   isConfigured: ComputedRef<boolean>
-  isACPProvider: ComputedRef<boolean>
-  providerID: Ref<AIProviderID>
   credentialsReady: Promise<void>
   getActiveEditorStore: () => EditorStore
 }
@@ -56,16 +53,6 @@ function mergeProviderOptions(
 ): AIProviderOptions | undefined {
   if (!cacheOptions && !reasoningOptions) return undefined
   return { ...cacheOptions, ...reasoningOptions }
-}
-
-export async function createACPTransport(providerID: AIProviderID) {
-  const agentId = providerID.replace('acp:', '') as ACPAgentID
-  const agentDef = ACP_AGENTS.find((a) => a.id === agentId)
-  if (!agentDef) throw new Error(`Unknown ACP agent: ${agentId}`)
-
-  const { ACPChatTransport } = await import('@/app/ai/acp/transport')
-  const { homeDir } = await import('@tauri-apps/api/path')
-  return new ACPChatTransport({ agentDef, cwd: await homeDir() })
 }
 
 export function createToolLoopTransport({
@@ -119,8 +106,6 @@ export function createToolLoopTransport({
 
 export function createChatSessionManager({
   isConfigured,
-  isACPProvider,
-  providerID,
   credentialsReady,
   getActiveEditorStore
 }: ChatSessionOptions) {
@@ -129,7 +114,6 @@ export function createChatSessionManager({
   let currentChatStore: EditorStore | null = null
   let currentChatMessages = new WeakMap<EditorStore, UIMessage[]>()
   let chat: Chat<UIMessage> | null = null
-  let acpTransportInstance: { destroy(): Promise<void> } | null = null
   let overrideTransport: (() => ChatTransport<UIMessage>) | null = null
 
   function handleChatFinish({
@@ -154,18 +138,8 @@ export function createChatSessionManager({
     currentChatMessages = new WeakMap()
   }
 
-  async function createActiveACPTransport() {
-    await acpTransportInstance?.destroy()
-    const transport = await createACPTransport(providerID.value)
-    acpTransportInstance = transport
-    return transport as ChatTransport<UIMessage>
-  }
-
   async function createTransport(store: EditorStore) {
     if (overrideTransport) return overrideTransport()
-
-    void acpTransportInstance?.destroy()
-    acpTransportInstance = null
 
     const runtime = await createAIModelRuntime('design')
     if (runtime?.kind !== 'direct') {
@@ -196,9 +170,7 @@ export function createChatSessionManager({
 
     if (!chat || transportDirty || currentChatStore !== store) {
       const messages = currentChatMessages.get(store)
-      const transport: ChatTransport<UIMessage> = isACPProvider.value
-        ? await createActiveACPTransport()
-        : await createTransport(store)
+      const transport: ChatTransport<UIMessage> = await createTransport(store)
       chat = new Chat<UIMessage>({
         transport,
         messages,

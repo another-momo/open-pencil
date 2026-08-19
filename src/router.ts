@@ -7,9 +7,7 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', component: EditorView },
-    { path: '/storage', component: StorageView },
-    { path: '/demo', component: EditorView, meta: { demo: true } },
-    { path: '/share/:roomId', component: EditorView }
+    { path: '/storage', component: StorageView }
   ]
 })
 

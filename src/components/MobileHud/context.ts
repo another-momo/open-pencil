@@ -1,4 +1,3 @@
-import { useClipboard } from '@vueuse/core'
 import { computed, inject, provide, proxyRefs } from 'vue'
 import type { InjectionKey, ShallowUnwrapRef } from 'vue'
 import { useRouter } from 'vue-router'
@@ -14,9 +13,7 @@ import { DEFAULT_COLLAB_STATE, useCollabInjected } from '@/app/collab/use'
 import { useEditorStore } from '@/app/editor/active-store'
 import { toolIcons } from '@/app/editor/icons'
 import { openFileDialog } from '@/app/shell/menu/use'
-import { toast } from '@/app/shell/ui'
 import type { ToolbarActionItem } from '@/components/Toolbar/types'
-import { getShareURL } from '@/constants'
 
 type MenuAction = ToolbarActionItem
 
@@ -24,7 +21,6 @@ function createMobileHudContext() {
   const router = useRouter()
   const collab = useCollabInjected()
   const store = useEditorStore()
-  const { copy } = useClipboard()
   const { dialogs } = useI18n()
   const { getCommand } = useEditorCommands()
 
@@ -55,14 +51,6 @@ function createMobileHudContext() {
     getCommand('edit.redo').run()
   }
 
-  function share() {
-    if (!collab) return
-    const roomId = collab.shareCurrentDoc()
-    void router.push(`/share/${roomId}`)
-    void copy(getShareURL(roomId))
-    toast.info('Link copied to clipboard')
-  }
-
   function disconnect() {
     if (!collab) return
     collab.disconnect()
@@ -85,7 +73,6 @@ function createMobileHudContext() {
     menuItems,
     undo,
     redo,
-    share,
     disconnect,
     toggleFollowPeer
   }

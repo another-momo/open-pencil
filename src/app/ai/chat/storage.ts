@@ -1,6 +1,5 @@
 import { computed, ref, watch } from 'vue'
 
-import { IS_TAURI } from '@open-pencil/core/constants'
 import { setPexelsAPIKey, setUnsplashAccessKey } from '@open-pencil/core/tools'
 
 import {
@@ -36,10 +35,7 @@ export const pexelsKeyStatus = ref<CredentialStatus>('missing')
 export const unsplashKeyStatus = ref<CredentialStatus>('missing')
 const credentialRevision = ref(0)
 
-export const isACPProvider = computed(() => providerID.value.startsWith('acp:'))
-
 export const isConfigured = computed(() => {
-  if (isACPProvider.value) return IS_TAURI
   if (apiKeyStatus.value !== 'configured') return false
   const needsBaseURL =
     providerID.value === 'openai-compatible' || providerID.value === 'anthropic-compatible'

@@ -2,8 +2,6 @@
 import { onMounted, onUnmounted, provide, ref } from 'vue'
 import { tv } from 'tailwind-variants'
 import { useEventListener, useUrlSearchParams } from '@vueuse/core'
-import { useRoute } from 'vue-router'
-import { useHead } from '@unhead/vue'
 import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'reka-ui'
 
 import { useViewportKind, formatShortcut, useI18n } from '@open-pencil/vue'
@@ -16,11 +14,9 @@ import { exposeCollaborationActions } from '@/app/browser-bridge'
 import { spawnMCPIfNeeded } from '@/app/automation/mcp/spawn'
 import { isTauri } from '@/app/tauri/env'
 import { appMenuShortcut } from '@/app/shell/menu/shortcut'
-import { createDemoShapes } from '@/app/demo/document'
 import { useEditorStore } from '@/app/editor/active-store'
 import { createTab, activeTab, getActiveStore, tabCount } from '@/app/tabs'
 
-import CollabPanel from '@/components/CollabPanel/CollabPanel.vue'
 import EditorCanvas from '@/components/EditorCanvas.vue'
 import CanvasSplitRoot from '@/components/canvas/CanvasSplitRoot.vue'
 import FontStatusBanner from '@/components/font-status/FontStatusBanner.vue'
@@ -29,27 +25,19 @@ import MobileDrawer from '@/components/MobileDrawer.vue'
 import MobileHud from '@/components/MobileHud/MobileHud.vue'
 import PropertiesPanel from '@/components/PropertiesPanel.vue'
 import RenameSelectionDialog from '@/components/selection/RenameSelectionDialog.vue'
-import SafariBanner from '@/components/SafariBanner.vue'
 import TabBar from '@/components/TabBar.vue'
 import Tip from '@/components/ui/Tip.vue'
 import Toolbar from '@/components/Toolbar/Toolbar.vue'
 import splitterTheme from '@/theme/splitter'
 
-const route = useRoute()
 const params = useUrlSearchParams('history')
 const showChrome = !('no-chrome' in params)
 
-const createdInitialTab = tabCount() === 0
-const firstTab = createdInitialTab ? createTab() : (activeTab.value ?? createTab())
+if (tabCount() === 0 || !activeTab.value) createTab()
 const store = useEditorStore()
 const { dialogs } = useI18n()
 const { isMobile } = useViewportKind()
 
-if (createdInitialTab && route.meta.demo && !('test' in params)) {
-  void createDemoShapes(firstTab.store)
-}
-
-useHead({ title: route.meta.demo ? 'Demo' : undefined })
 useKeyboard()
 useEditorMenu()
 
@@ -117,7 +105,6 @@ onUnmounted(() => {
 
 <template>
   <div data-test-id="editor-root" class="flex h-screen w-screen flex-col">
-    <SafariBanner />
     <FontStatusBanner />
     <RenameSelectionDialog />
     <TabBar />
@@ -161,11 +148,6 @@ onUnmounted(() => {
         :max-size="30"
         class="flex flex-col"
       >
-        <div
-          class="flex shrink-0 items-center justify-between border-b border-border px-1.5 py-1.5"
-        >
-          <CollabPanel />
-        </div>
         <PropertiesPanel />
       </SplitterPanel>
     </SplitterGroup>

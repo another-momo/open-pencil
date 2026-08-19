@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ScrollAreaRoot, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from 'reka-ui'
-import { refAutoReset, useClipboard } from '@vueuse/core'
+import { refAutoReset } from '@vueuse/core'
 import { computed, markRaw, nextTick, ref, watch } from 'vue'
 
-import { getACPDebugText, clearACPDebugLog, hasACPDebugEntries } from '@/app/ai/acp/transport'
 import { copyChatLog } from '@/app/ai/debug'
 import {
   analyzeAttachedImages,
@@ -23,7 +22,6 @@ import type { ImageAttachmentDraft } from '@/app/ai/attachment/image/types'
 import { clearToolLogEntries, didHitStepLimit } from '@/app/ai/tools'
 import { activeTab } from '@/app/tabs'
 import { getActiveEditorStore } from '@/app/editor/active-store'
-import ACPPermissionDialog from '@/components/chat/ACPPermissionDialog.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
 import ChatMessage from '@/components/chat/ChatMessage.vue'
 import AppPlaceholder from '@/components/ui/AppPlaceholder.vue'
@@ -40,7 +38,6 @@ import type { JSONObject } from '@open-pencil/scene-graph/primitives'
 const IS_DEV = import.meta.env.DEV
 
 const { isConfigured, ensureChat, resetChat, chatFailure, clearChatFailure } = useAIChat()
-const { copy } = useClipboard()
 const { dialogs } = useI18n()
 
 const chat = ref<Chat<UIMessage> | null>(null)
@@ -57,7 +54,6 @@ void ensureChat()
   })
 const messagesEnd = ref<HTMLDivElement>()
 const debugCopied = refAutoReset(false, 1500)
-const acpLogCopied = refAutoReset(false, 1500)
 
 const messages = computed(() => chat.value?.messages ?? [])
 const failureMessage = computed(() => {
@@ -215,13 +211,6 @@ async function handleCopyDebug() {
   debugCopied.value = true
 }
 
-async function handleCopyACPLog() {
-  const text = getACPDebugText()
-  if (!text) return
-  await copy(text)
-  acpLogCopied.value = true
-}
-
 function handleClearChat() {
   attachmentOperationVersion += 1
   isPreparingImages.value = false
@@ -230,7 +219,6 @@ function handleClearChat() {
   chat.value = null
   resetChat()
   clearToolLogEntries()
-  clearACPDebugLog()
 }
 </script>
 
@@ -313,15 +301,6 @@ function handleClearChat() {
           {{ debugCopied ? 'Copied' : 'Copy log' }}
         </AppTextButton>
         <AppTextButton
-          v-if="IS_DEV && hasACPDebugEntries()"
-          :ui="{ base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover' }"
-          @click="handleCopyACPLog"
-        >
-          <icon-lucide-bug v-if="!acpLogCopied" class="size-3" />
-          <icon-lucide-check v-else class="size-3 text-green-400" />
-          {{ acpLogCopied ? 'Copied' : 'ACP log' }}
-        </AppTextButton>
-        <AppTextButton
           :ui="{ base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover' }"
           @click="handleClearChat"
         >
@@ -337,8 +316,6 @@ function handleClearChat() {
         @stop="handleStop"
         @error="toast.error"
       />
-
-      <ACPPermissionDialog />
     </template>
   </div>
 </template>

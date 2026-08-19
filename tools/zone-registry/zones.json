@@ -48,6 +48,7 @@
     { "id": "P18", "file": "tsconfig.json", "reason": "remove #docs-config/* paths (packages/docs deleted)", "disposition": "permanent" },
     { "id": "P19", "file": "tools/unit-tests/src/shards.ts", "reason": "app group: drop acp/tauri dirs, add tests/engine/rebuild", "disposition": "permanent" },
     { "id": "P20", "file": ".github/workflows/ci.yml", "reason": "remove native-test-contracts job (desktop deleted)", "disposition": "permanent" },
+    { "id": "P25", "file": ".github/workflows/ci.yml", "reason": "add push trigger scoped to rebuild/** branches (upstream CI is PR-only; we need push CI on the long-lived rebuild branch)", "disposition": "permanent" },
     { "id": "P21", "file": ".lfsconfig", "reason": "REVOKED 2026-08-19: kept at upstream gateway (anonymous read verified working; fork's own GitHub LFS budget exceeded). Revisit when adding LFS files (e.g. fonts) — own hosting required for push", "disposition": "revoked" },
     { "id": "P22", "file": "packages/core/src/tools/registry.ts", "reason": "tool registration seam: ALL_TOOLS spreads FORK_TOOLS (owned packages/core/src/tools/fork/)", "disposition": "permanent" },
     { "id": "P23", "file": "bun.lock", "reason": "lockfile regenerated after workspace/dependency changes (mechanical)", "disposition": "permanent" },

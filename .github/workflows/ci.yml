@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  push:
+    branches: ['rebuild/**']
   pull_request:
     branches: [master]
     paths-ignore:

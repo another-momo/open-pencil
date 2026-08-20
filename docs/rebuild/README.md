@@ -5,17 +5,17 @@
 
 ## 本目录是什么
 
-重建（re-fork + 绞杀式移植）的叙事与决策文档来源。阅读顺序：
+重建（re-fork + 绞杀式移植）的叙事与决策文档来源。**文档身份按主次分级**：
 
-1. [00-why-rebuild.md](00-why-rebuild.md) — 为什么重建、保留什么、实测数据
-2. [01-target-state.md](01-target-state.md) — 目标态、**按依赖排序**的能力地图（F0 地基 → 闭环 → 增强）、不加清单
-3. [02-phase-0.md](02-phase-0.md) — Phase 0 完成态定义与验收标准
-4. [03-phase-1-runtime.md](03-phase-1-runtime.md) — runtime 选型 spike 与硬门
-5. [04-porting-discipline.md](04-porting-discipline.md) — 移植纪律与 parity 线
-6. [05-process.md](05-process.md) — 工作方式与文档纪律
-7. [tracker.md](tracker.md) — 【活文档】阶段门 / 决策日志 / 任务 / WIP 审判 / 核验日志 / 腐烂记录
-
-子目录：`spikes/`（spike 报告，Phase 1 起）、`archive/`（过期文档坟墓，归档不删除）。
+| 文档 | 身份 | 作用 |
+|---|---|---|
+| [01-target-state.md](01-target-state.md) | **决策依据（核心）** | 「做哪些加法」+ runtime 选型对照（§7 三路线） |
+| [02-phase-0.md](02-phase-0.md) | **执行依据（核心）** | Phase 0 完成态与验收 |
+| [03-phase-1-runtime.md](03-phase-1-runtime.md) | 辅助参考（case study / 技术调研） | runtime 选型硬门与 spike 问题（不直接驱动 gate） |
+| [04-porting-discipline.md](04-porting-discipline.md) | 辅助参考 | 移植纪律与 parity 线 |
+| [05-process.md](05-process.md) | **执行依据（核心）** | 工作方式与文档纪律 |
+| [tracker.md](tracker.md) | **执行依据（核心，活文档）** | 阶段门 / 决策日志 / 任务 / WIP / 核验 / 腐烂 |
+| spikes/*.md | 辅助参考（源码核查报告） | dsh / pi 路线 + weshop 案例的实证 |
 
 ## 文档治理规则（吸取旧分支教训）
 

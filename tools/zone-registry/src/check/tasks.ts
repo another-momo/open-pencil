@@ -103,7 +103,10 @@ function readTaskDocumentStage(taskFilePath: string): TaskStage {
   const content = readFileSync(taskFilePath, 'utf8')
 
   // plan 章节：识别 §1 任务概述 / §2 任务清单 / §3 验收标准 任一即可（标题可带数字前缀如 `## 1.`)
-  const hasPlan = /^\s*#+\s+\d+\.\s*任务概述/m.test(content) || /^\s*#+\s+\d+\.\s*任务清单/m.test(content) || /^\s*#+\s+\d+\.\s*验收标准/m.test(content)
+  const hasPlan =
+    /^\s*#+\s+\d+\.\s*任务概述/m.test(content) ||
+    /^\s*#+\s+\d+\.\s*任务清单/m.test(content) ||
+    /^\s*#+\s+\d+\.\s*验收标准/m.test(content)
   // 自检章节：`## 自检` 或 `## N. 自检`，后接 · / 数字 / 空格
   const hasSelfCheck = /^##\s+(\d+\.\s+)?自检(\s|·|$)/m.test(content)
   // 核验章节：`## 核验-N` 或 `## N. 核验-N` 或 `## 核验 ·`
@@ -239,7 +242,9 @@ function main(): void {
 
   if (violations.length === 0) {
     const stageInfo = taskId ? `task T${taskId}` : '无 task'
-    console.log(`check-tasks: 大改动（${reasons.join(' / ')}），${stageInfo} 指针 + 文档存在 + tracker.md §2 一致`)
+    console.log(
+      `check-tasks: 大改动（${reasons.join(' / ')}），${stageInfo} 指针 + 文档存在 + tracker.md §2 一致`
+    )
     process.exit(0)
   }
 

@@ -269,3 +269,17 @@
 - **依据**：D12 决策
 - **内容**：12 个 `records/narrative/{00-04,05,README,tracker,spikes/01-04}.md` 末尾的「## 自检类」占位章节批量删除。理由：task 自检属 task 维度，归 `tasks/T<id>-<slug>.md`；文件维度档案不应混入 task 维度的内容
 - **影响**：12 文件被修改，全部改为 append-only 的纯文件维度档案
+
+## D13 · check-tasks.ts 增强（task 文档阶段识别 + tracker.md §2 一致性）+ 05 §5 迁移
+
+- **类型**：决策
+- **时间**：2026-08-20 21:30
+- **拍板**：owner（基于"check-tasks 只查 commit message 不查文档"的反思）
+- **内容**：
+  1. **05 §5 清理**：`05-process.md §5` "首轮执行记录" 是历史事件，按 [05-process.md §3.2](05-process.md) task 维度分离规则，应迁出至 task 档案。已迁移至 [tasks/T00-docset-v1-2026-08-18.md](../tasks/T00-docset-v1-2026-08-18.md)；05 §5 改为引用占位
+  2. **check-tasks.ts 增强**：从"只查 commit message"升级为"读 task 文档 + tracker.md §2 一致性"——
+     - 解析 `tasks/T<NN>-*.md` 文件，识别章节阶段（plan-only / plan+自检 / plan+自检+核验）
+     - 读 [tracker.md §2 任务表](../tracker.md)，验证 T 编号必须存在（或本次 commit 同步加入）
+     - 增强失败时给出明确的修复指引
+  3. **T02 task 自身**承载本次改进：计划 + 自检 + 核验三件套全部落 [tasks/T02-doc-discipline-check-2026-08-20.md](../tasks/T02-doc-discipline-check-2026-08-20.md)
+- **依据**：owner 触发（T01 落地后反思）

@@ -131,11 +131,7 @@ docs/rebuild/
 
 ## 5. 首轮执行记录（本纪律的第一次应用）
 
-- 2026-08-18：文档集 v1（commit `a1f92d6e`）经 owner 初审指出「01 能力地图预设顺序错误、缺支撑层」→ 启动核查轮 R1-R4：4 个只读 subagent 分对 00/01/02/03 + 本地 dsh 实况，主 agent 整体 review → 修正落地（v2）。主要战果：
-  - **01 重构**：能力地图从「按价值分层」改为「按依赖排序」，新增层 0 支撑底座 F0（7 块，含实测发现的生图独立凭证链、MCP 桥三进程、brand 后端服务、prompts 预构建脆依赖）；剔除 phantom（validate 工具、「素材图理解」均实测无代码）。
-  - **02 修正**：locale 算术（删 7 留 zh-CN，非删 8）、虚构 API 名（mergeLocaleMessage → 实为 @nanostores/i18n）、IS_TAURI 实测数字、EditorView 切断点 5+ 处、配置连带面（package.json scripts/deps、knip/steiger/oxlint）、browser-bridge 内部冲突登记。
-  - **03 修正**：pi sdk 先验全部降级为【假设】（本地无包）；dsh 基线改为实测（Cordis 插件模型、session/compaction seam、内容模型支持 tool-result 图片、stdio 子进程嵌入形态、多 provider 实为 pi-ai 驱动——选型的正确对立面是「pi sdk 直接驱动 vs Cordis + pi-ai」）。
-  - 详见 `records/docs-governance.md` 与各对象子文档。
+**已迁移至 [tasks/T00-docset-v1-2026-08-18.md](tasks/T00-docset-v1-2026-08-18.md)**——按 [05-process.md §3.2 task 维度规则](05-process.md)，历史执行记录归 task 档案，不入过程定义文档本身。本节仅作引用占位。
 
 ## 附录 A · subagent 文档核验 prompt 模板
 

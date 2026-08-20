@@ -26,7 +26,6 @@
  * Exit 0 = clean; exit 1 = violations listed on stderr.
  */
 import { execSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -75,8 +74,8 @@ function isBigChange(stats: DiffStats): string[] {
   const insertMatch = stats.shortstat.match(/(\d+) insertions?/)
   const deleteMatch = stats.shortstat.match(/(\d+) deletions?/)
   const totalLines =
-    (insertMatch ? parseInt(insertMatch[1], 10) : 0) +
-    (deleteMatch ? parseInt(deleteMatch[1], 10) : 0)
+    (insertMatch ? Number.parseInt(insertMatch[1], 10) : 0) +
+    (deleteMatch ? Number.parseInt(deleteMatch[1], 10) : 0)
   if (totalLines >= 200) reasons.push(`R2 变更行数 ${totalLines} >= 200`)
 
   const narrativeChanged = stats.files.some(

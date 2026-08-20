@@ -28,7 +28,7 @@
  * Exit 0 = clean; exit 1 = violations listed on stderr.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { resolve, dirname, basename, relative } from 'node:path'
+import { resolve, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -138,13 +138,13 @@ function findBareSectionRefs(content: string): BareSectionHit[] {
 
   let inCodeFence = false
   let fenceMarker = ''
-  let inHtmlComment = false
+  let inHTMLComment = false
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
 
     // HTML 注释块（多行）
-    if (inHtmlComment) {
-      if (line.includes('-->')) inHtmlComment = false
+    if (inHTMLComment) {
+      if (line.includes('-->')) inHTMLComment = false
       continue
     }
     const commentOpen = line.match(/<!--(?!.*-->)/)
@@ -152,7 +152,7 @@ function findBareSectionRefs(content: string): BareSectionHit[] {
       if (line.includes('-->')) {
         // 单行注释，已包含关闭符，继续
       } else {
-        inHtmlComment = true
+        inHTMLComment = true
       }
       continue
     }

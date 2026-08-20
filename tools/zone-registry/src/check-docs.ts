@@ -98,7 +98,7 @@ function main(): void {
         violations.push({
           file: `${docsDir}/${name}`,
           rule: check.name,
-          message: msg,
+          message: msg
         })
       }
     }

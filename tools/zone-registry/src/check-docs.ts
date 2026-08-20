@@ -28,7 +28,7 @@ interface Violation {
   message: string
 }
 
-const docsDir = process.argv.find((a) => a === '--docs')
+const docsDir = process.argv.some((a) => a === '--docs')
   ? process.argv[process.argv.indexOf('--docs') + 1]
   : 'docs/rebuild'
 

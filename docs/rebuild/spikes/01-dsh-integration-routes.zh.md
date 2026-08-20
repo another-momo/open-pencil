@@ -1,6 +1,8 @@
 # Spike 01 · dsh 集成路线对比：编辑器入壳（X）vs 无头 runtime（Y）
 
 > 状态：源码阅读完成（2026-08-19）| 回答 03 §2 的 Q0-Q3 中可由源码定论的部分，并为 D7/D9 提供选型依据。
+> 状态：**v2 修正**（2026-08-20，基于 spikes/03-weshop-case-deep-dive 实证）。v1 把 weshop 描述为「镶 dsh Chat 在旁边」、把 X 路线流式成本估为 0——**两处均错**，本次更新。
+> 配套：spikes/02-pi-sdk-runtime（pi 路线修正评估）/ spikes/03-weshop-case-deep-dive（X 路线实证）。
 > 陈述纪律：**【事实】**（附 文件:行号 证据）/ **【推断】**（由证据推出的结论）/ **【假设】**（未验证）。
 > 证据路径约定：`dsh/` = 参考项目/deepseek-harness（0.1.0-rc.7），`pi/` = 参考项目/pi，`old/` = open-pencil 旧分支 feature/agent-backend。
 
@@ -42,8 +44,8 @@ Y 的唯一实质 gap：**官方 sdk-jsonrpc-server 只 create 不 resume 持久
 | IndexedDB 文档库 | `src/app/storage/local-store/`（idb.ts 207 行等 6 文件） | **孤岛内保留** | IndexedDB 按 origin 隔离；dsh web 与我们 editor 若同端口服务则共享，否则各自一份——【假设】dsh web 前端与孤岛同 origin（同 bundle），IDB 数据库名不冲突即可用 |
 | 文件打开/保存、菜单 | `src/app/shell/menu/`（schema.ts 321 行等 13 文件） | **孤岛内保留**；与 dsh 壳的全局快捷键冲突需实测【假设】 | 菜单是孤岛内部 UI |
 | 属性面板/图层面板等 | `src/components/` 大量 | **孤岛内保留** | 同上 |
-| 聊天面板 | `src/components/ChatPanel.vue` + `src/components/chat/` 9 组件 | **废弃**，用 dsh 自带聊天 | 这是 X 的核心卖点 |
-| 营销 UI（MarketingConfigBar/BriefPanelDialog/ProfileGalleryDialog） | `src/components/chat/` 内 | **孤岛内保留 + 状态桥**，或重写为 React 注册到 dsh composer/header slot | 【推断】薄切期孤岛内保留成本最低：这些组件读的是 editor store 与 brand HTTP 服务，不依赖聊天 UI 本体；但「选 type/profile 随消息发送」的语义（旧 `http-agent-transport.ts:57-67` 把 brandSelection 塞进 chat 请求体）在 dsh 聊天里无处下手，需要改为「孤岛写入 → prompt 注入时读取」（经 F0.6 的 context provider，见 Z1）——语义可保，装配点搬家 |
+| 聊天面板 | `src/components/ChatPanel.vue` + `src/components/chat/` 9 组件 | **自写 React ChatPanel 消费 SessionFace**（≠ dsh 内置 Chat）| weshop 实证：overlay 旁路需自写 Chat 消费 dsh `SessionFace` API（subscribe/getSnapshot/prompt/cancel/wait.respond，5 方法，见 CanvasChat.jsx:192-246）。**修正了 v1 「废弃我们的用 dsh Chat」的错误**：dsh Chat 在 conversation 列被 SplitPanel 整列占据（X1 策略 B/C），且 dsh 没开放 plugin 引用自家 Chat 组件的干净路径——weshop 315 行 React Chat 是该路线的事实标准 |
+| 营销 UI（MarketingConfigBar/BriefPanelDialog/ProfileGalleryDialog） | `src/components/chat/` 内 | **孤岛内保留 + 状态桥**，或重写为 React 注册到 dsh composer/header slot | 【推断】薄切期孤岛内保留成本最低：这些组件读的是 editor store 与 brand HTTP 服务，不依赖聊天 UI 本体；但「选 type/profile 随消息发送」的语义（旧 `http-agent-transport.ts:57-67` 把 brandSelection 塞进 chat 请求体）在 dsh 聊天里无处下手，需要改为「孤岛写入 → prompt 注入时读取」（经 F0.6 的 context provider，见 Z1）——语义可保，装配点搬家。**强约束**：跨 session 的 marketing 状态（materialTypeSelection/profileSelection）必须经 dsh `settings/document-updated` 白名单通道（`remote-events.ts:28` 仅 11 个白名单事件），**不能自由订阅 cordis 事件**——这是 weshop 没遇到、open-pencil 必须自己解决的约束（spike 03 §B4） |
 | 调试面板（E2） | 前端自有 | **废弃/改用 dsh ui-trajectory** | dsh 自带 trajectory/session 视图 |
 
 【推断】X2 的真实成本不在「这些 UI 放哪」（大部分孤岛内原样保留），而在**双重 chrome 的产品降级**：dsh 壳自带 sidebar/workspace/session 列表/设置页，我们的孤岛再带一套 tabs/菜单/文件库，用户面对两套导航心智。WeShop 规避方式是只做 overlay 画布、不携带 app 壳——我们没有这个选项，编辑器就是产品本体。
@@ -214,23 +216,23 @@ Y 的唯一实质 gap：**官方 sdk-jsonrpc-server 只 create 不 resume 持久
 | F0.1 runtime 内核 | 1（组合现有 cordis.yml + 孤岛 session 粘合）| 4（sdk-client 集成 + cordis.yml + **resume/cancel 薄插件** 2-3 含 spike） |
 | F0.2 工具桥移植复审 | 2 | 2 |
 | F0.3 凭证 | 2（dsh credentials/settings 适配 + 生图链孤岛保留）| 2（env 注入 + 生图链原样） |
-| F0.4 传输契约 + chat | 0（废弃自有）+ **4**（营销 UI 与 dsh 壳/composer 集成、brandSelection 装配点迁移）| 3（chunk→UIMessage adapter + SSE 出口）+ 0.5（ChatPanel 微调） |
+| F0.4 传输契约 + chat | 5（自写 React ChatPanel + Vue→React 暴露 SessionFace + SessionFace 在 Vue 环境的桥层 + marketing UI 与 dsh composer 集成、brandSelection 装配点迁移）| 3（chunk→UIMessage adapter + SSE 出口）+ 0.5（ChatPanel 微调） |
 | F0.5 session↔文件 | 2（pluginData + dsh session 选中联动） | 1（pluginData + create/resume 调用；resume 插件已计入 F0.1） |
 | F0.6 prompt 注入 | 1 | 1 |
 | F0.7 prompts 构建链 | 0.5 | 0.5 |
-| 编辑器壳孤岛化（X 专属） | **4**（React wrapper/custom element、tsdown 构建进 dsh client 插件体系、样式/快捷键隔离） | — |
-| 常驻挂载策略（X 专属） | **2**（替换 conversation slot 或 overlay portal，含 tab 切换不卸载验证） | — |
+| 编辑器壳孤岛化（X 专属） | **5**（React wrapper/custom element、tsdown 构建进 dsh client 插件体系、样式/快捷键隔离） | — |
+| 常驻挂载策略（X 专属） | **2.5**（SplitPanel 接管 conversation 或 overlay portal + z=1M+ 越界绕过 retro-OS skin；weshop 实证 z=20 不够需 `createPortal` 到 body 并自管 z=1M+） | — |
 | 插件打包/安装/版本钉扎（X 专属） | **1.5**（cordis.patch.yml、profile pnpm、升级 smoke） | 0.5（npm 钉版本） |
-| **F0 小计** | **≈20** | **≈14.5** |
+| **F0 小计** | **≈24** | **≈14.5** |
 | C1a 需求单 | 2 | 2 |
 | C2a brand + overlay | 3.5（brand 服务归宿 + overlay 装配） | 3（brand 服务留后端，路径短） |
 | C3a 生成工具包装 | 2.5 | 2.5 |
 | C4a look 图片 | 3（pi-ai 路径 + attachment + 渲染 renderer）| 2（pi-ai 路径 + attachment；渲染原样） |
-| C5a ConfigBar 集成 | 2（孤岛↔dsh 状态桥） | 1 |
-| **层 1 小计** | **≈13** | **≈10.5** |
-| **合计（F0 + 层 1）** | **≈33 人日** | **≈25 人日** |
+| C5a ConfigBar 集成 | 2.5（孤岛↔dsh 状态桥，含跨 session 配置同步的 settings/document-updated 白名单约束） | 1 |
+| **层 1 小计** | **≈13.5** | **≈10.5** |
+| **合计（F0 + 层 1）** | **≈37-38 人日** | **≈25 人日** |
 
-【推断】读表注意：X 比 Y 贵约 30%，且 X 的增量几乎全在**不可控面**（dsh UI preview 颠簸、双框架孤岛、slot API 漂移）——这些人日的估算方差也更大。Y 的人日是「写自己后端的代码」，每层独立可测、可回滚。
+【推断】读表注意：X 比 Y 贵约 50%（v1 估的 30% 被低估），X 增量主要在 F0.4 自写 Chat + 跨框架 SessionFace 桥 + 营销状态白名单约束——这些是 weshop 实证才暴露的成本。X 的增量几乎全在**不可控面**（dsh UI preview 颠簸、双框架孤岛、slot API 漂移、SessionFace 与 Vue 的语义鸿沟）——这些人日的估算方差也更大。Y 的人日是「写自己后端的代码」，每层独立可测、可回滚。
 
 ---
 

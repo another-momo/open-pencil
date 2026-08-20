@@ -28,7 +28,7 @@
 | D6 | 中文字体策略 | 62MB 普惠体全量 / 子集化 / 系统字体 | open | — | — | E1 |
 | D7 | runtime 选型 | pi sdk / dsh | open（Phase 1 spike 后定） | — | — | 03 §3：对立面是「pi sdk 直接驱动 vs Cordis+pi-ai」 |
 | D8 | 「素材图理解」是否新建立项 | 新建 / 确认放弃 | open | — | — | R2 实测：旧 changelog 声称的能力全仓无代码 |
-| D9 | dsh 集成形态 | a) 编辑器入壳（编辑器作 dsh 插件，React 壳）b) 无头 runtime（dsh 藏在我们后端） | **推荐 b**，待 owner 拍板 | — | — | spike 01 源码级证据：X 的 tab 切换会卸载编辑器孤岛（CanvasKit 重建）、dsh 无 host→浏览器请求通道（工具桥两路线等成本）、X≈33 人日方差大 vs Y≈25 人日 |
+| D9 | dsh 集成形态 | a) 编辑器入壳（编辑器作 dsh 插件，React 壳）b) 无头 runtime（dsh 藏在我们后端）c) pi 直接驱动（库形态，spike 02 推荐） | **c 推 1、b 推 2**，a 受 weshop 实证上修（≈37-38 人日 vs b 25 / c 20），待 owner 拍板 | — | — | spike 01-03 源码级证据齐；X 真实瓶颈：自写 ChatPanel 消费 SessionFace + 跨 session 配置白名单约束（`remote-events.ts:28` 仅 11 个事件） |
 
 ## 3. 任务表（能力块 = 1 PR + 验收测试 + 本表一行）
 
@@ -81,6 +81,9 @@ check.ts 四处漏洞修复：①删除侧零校验（曾漏检 7 个 notificati
 | CI-4 | 2026-08-19 | CI run 32247060166 | 同上 | Code quality `check:arch`：steiger strict-tools-layout 拒 tools/zone-registry/check.ts（须落 tools/<domain>/src/**）→ 修法：3dcc4f2c 挪至 src/check.ts + 仓根解析改 ../../.. + 同步 package.json check:zones / zones.json $comment / 02 与 tracker 引用。无新补丁：挪动全程在 owned root 内，package.json 变更由既有 P17（scripts）覆盖 | CI 守护 |
 | CI-5 | 2026-08-19 | CI run 32248474442 | gh run view --json jobs | **全绿**：11/11 job success（Repository hygiene / Code quality / Package integrity / Component workshop / Engine tests ×7） | CI 守护 |
 | SP-1 | 2026-08-19 | dsh 集成路线对比（X 入壳 vs Y 无头） | 源码级核查（dsh + pi 本地仓库，95 次工具调用） | `docs/rebuild/spikes/01-dsh-integration-routes.zh.md`：**推荐 Y**；Y 唯一阻塞项 = 官方 sdk-jsonrpc-server 只 create 不 resume（自写 ~250 行薄 host 插件补 resume/cancel，2-3 人日，spike S1 验证）；多模态路径与旧 media-rewriter 同构（pi-ai 合成 user 消息带图）；X 的 tab 卸载孤岛硬伤 + 无 host→浏览器通道 | 研究 subagent |
+| SP-2 | 2026-08-20 | pi sdk 作为 runtime 可行性 | 源码级核查（pi monorepo 完整源码 v0.84.2，6211 commits） | `docs/rebuild/spikes/02-pi-sdk-runtime.zh.md`：**推荐 pi 直接驱动（库形态）**，F0+层 1 ≈ 20 人日；Q0-Q3 全部有源码级正面答案；resume 是一行 API 无 fork；流式 RPC event 流字段同构；session JSONL 树形天然支持 in-place branch | 研究 subagent |
+| SP-3 | 2026-08-20 | weshop 案例深度实证 | 源码级核查（weshop-dsh-plugin 全源码） | `docs/rebuild/spikes/03-weshop-case-deep-dive.zh.md`：**校正 spike 01 偏差**：weshop overlay 是「自带 React CanvasChat 消费 SessionFace」非「镶 dsh Chat」；X 路线工作量上修为 ≈37-38 人日（vs Y 25），差距从 30% 拉到 50%；新发现强约束：跨 session 营销配置同步必须经 dsh `settings/document-updated` 白名单通道（`remote-events.ts:28` 仅 11 个白名单事件） | 研究 subagent |
+| 修正-1 | 2026-08-20 | spike 01 v2 修正 | 依据 SP-3 实证 | X2 改「自写 ChatPanel」；Z1/F0.4 同步；工作量表 F0 +4 / C5a +0.5；总工作量 ≈33 → ≈37-38 人日 | 主 agent |
 
 ## 6. 文档腐烂记录
 

@@ -1,8 +1,17 @@
+<!--
+  写作纪律（改本文前必读）：
+  - 事实性声明必须附核验命令 + 日期，否则标为【假设】
+  - 计划被实测推翻时，直接改本文为新版本，完整理由记入 records/ 子文档
+  - 本文只保留当前态，不保留修正历史
+  - 改完后刷新本文头部的「状态」字段
+  - 详细规则见 docs/rebuild/05-process.md §4
+-->
+
 # 01 · 目标态定义
 
-> 状态：已核验（2026-08-18，R1-R4；2026-08-20 D2/D9 增补）
-> **文档身份**：**本文是「做哪些加法」的决策依据**，02 是 Phase 0 执行依据；03 与 spikes/*.md 是 case study 与技术调研，身份是辅助参考信息，不直接驱动 Phase gate。
-> 结构原则：**按依赖排序，不按价值排序**。没有支撑底座，闭环跑不起来——这是首轮 review 的核心修正。
+> **状态**：已核验 | **时间**：2026-08-20 16:00（R1-R4 后 2026-08-18 14:00 + D2/D9 增补）| **核验人**：subagent A-D + 主 agent + owner 拍板 D2
+> **身份**：**本文是「做哪些加法」的决策依据**；02-phase-0.md 是 Phase 0 执行依据；03-phase-1-runtime.md 与 spikes/*.md 是 case study 与技术调研，身份是辅助参考信息，不直接驱动 Phase gate。
+> **结构原则**：按依赖排序，不按价值排序。没有支撑底座，闭环跑不起来——这是首轮 review 的核心修正。
 
 ## 1. 一句话定义
 
@@ -19,7 +28,7 @@
 | F0.1 runtime 内核薄切 | session 持久化 + 流式输出 + extension 注入钩子 | 当前会话持久化为零（前端 `Chat` 纯内存，后端每请求新建 agent）——**从零新建** | 重建（Phase 1） |
 | F0.2 工具执行桥 | WS RPC 双向。**三进程**：vite dev server + agent 后端 + MCP 桥服务器（port 7600，discovery 文件 + token 注册/中继）；dev 下由两个 vite 插件分别拉起 | `src/app/automation/bridge/`（11 文件）、`packages/mcp/`、`agent-vite-plugin.ts` | 移植 + 复审 |
 | F0.3 凭证双链 | ①聊天 key 下发（`/v1/auth` provision，1h TTL）②**生图独立凭证**（key/baseURL/model 三键 + `setImageGenCredentials` 进程级注入 + 设置 UI）——无第二链 generate_image 必断（无 provider 注册，工具直接返回 error） | `agent-transport.ts:194-208`、`marketing/settings.ts:29,107-114`、`image-gen/providers.ts:83-99`、`ImageGenKeysSection.vue` | 移植并统一 |
-| F0.4 传输契约 + 最简 chat UI | 新 session 模型下的发送/渲染。**传输契约（runtime ↔ 后端 ↔ 前端）**与 **chat UI 组件**是两个独立块，分清楚：契约选型见 §2-D9 三路线对比；UI 不论走哪条路线都需要重做或自实现——Y/pi 路线下 Vue 自写，X 路线下 React 自写消费 dsh `SessionFace`。现状：全量 messages POST `/v1/chat`，UIMessage stream v1 SSE，自写 `parseUIMessageStream`。换 runtime 后契约重写 | `http-agent-transport.ts`、`ChatInput/ChatMessage.vue`、`src/components/ChatPanel.vue`（**在 components 根目录，不在 chat/**） | 重建 |
+| F0.4 传输契约 + 最简 chat UI | 新 session 模型下的发送/渲染。**传输契约（runtime ↔ 后端 ↔ 前端）**与 **chat UI 组件**是两个独立块，分清楚：契约选型见 [§2-D9 runtime 选型](#27-dsh-集成形态); UI 不论走哪条路线都需要重做或自实现——Y/pi 路线下 Vue 自写，X 路线下 React 自写消费 dsh `SessionFace`。现状：全量 messages POST `/v1/chat`，UIMessage stream v1 SSE，自写 `parseUIMessageStream`。换 runtime 后契约重写 | `http-agent-transport.ts`、`ChatInput/ChatMessage.vue`、`src/components/ChatPanel.vue`（**在 components 根目录，不在 chat/**） | 重建 |
 | F0.5 session↔文件绑定 | pluginData 读写 sessionId（编辑器 app 层 owned 代码） | 参照 `restore.ts` 的 pluginData 机制 | 新建 |
 | F0.6 prompt 注入点 | runtime extension 钩子；两段式 prompt（base + marketing）+ overlay 的装配点 | `generated/prompts.ts:769` 组装注释、`brand-overlay.ts` | 重建 |
 | F0.7 prompts 构建链 | agent 依赖 `prompts/generated/` 预构建，**缺失即启动即崩**——脆依赖 | `scripts/inline-prompts.ts` | 消除（构建进 CI 或运行时直读 md） |
@@ -65,7 +74,7 @@
 - **validate readonly baseline**——已废弃语义。
 - `src/components/L3/`——实测不存在；ACP / collab / desktop / demos / docs 站——删除区。
 
-## 6. 待拍板决策（拍板前对应块不动工；集中登记于 tracker §2）
+## 6. 待拍板决策（拍板前对应块不动工；集中登记于 [tracker.md §1 阶段门](tracker.md)）
 
 | # | 决策 | 影响 |
 |---|---|---|

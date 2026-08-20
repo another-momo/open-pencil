@@ -1,6 +1,17 @@
+<!--
+  写作纪律（改本文前必读）：
+  - 事实性声明必须附核验命令 + 日期，否则标为【假设】
+  - 计划被实测推翻时，直接改本文为新版本，完整理由记入 records/ 子文档
+  - 本文只保留当前态，不保留修正历史
+  - 改完后刷新本文头部的「状态」字段
+  - 详细规则见 docs/rebuild/05-process.md §4
+-->
+
 # 04 · 移植纪律（Phase 2+）
 
-> 状态：已核验（2026-08-18，R1-R4）| 供货方：旧分支 `feature/agent-backend` @ `a1c33881`。移植不是搬家，是带验收的复审。
+> **状态**：已核验 | **时间**：2026-08-18 14:00 | **核验人**：subagent A-D + 主 agent
+> **身份**：Phase 2+ 移植操作的过程纪律；每条规则都必须能被 CI 或核验命令检查。
+> **基线**：供货方 = 旧分支 `feature/agent-backend` @ `a1c33881`。移植不是搬家，是带验收的复审。
 
 ## 1. 移植清单（实测）
 
@@ -23,19 +34,19 @@
 
 1. **逐字 → 测试绿 → 重构另起 commit**。行为变更只能是显式决策、单独 commit、测试同步改。防两个退化：赶进度盲抄 / 逐文件重设计（变相重写）。
 2. **测试即规约**。测试随块移植（或先行）；绿灯前不许重构实现。语义锁在测试里（`replace_id` 降级、覆盖快照、页作用域……），移植时不动语义只动实现。
-3. **引擎补丁随需登记**。不设 phase：闭环跑到哪撞出哪个问题，哪个补丁带回归测试进，按 02 §3.2 编号登记。
+3. **引擎补丁随需登记**。不设 phase：闭环跑到哪撞出哪个问题，哪个补丁带回归测试进，按 [02-phase-0.md §3.2 补丁点登记制](02-phase-0.md) 编号登记。
 
 ## 3. 次序
 
-1. Phase 0 验收通过（02 §5）
-2. Phase 1 runtime spike 硬门通过（03）→ **F0 地基切片**（01 §2，验收 "hello-tool"）
-3. **层 1 价值闭环薄切**（01 §3）：C2a → C3a → C4a → C1a → C5a（次序按依赖现场调，验收：闭环端到端）
-4. 层 2 增强逐块进（01 §4）
-5. **parity 线**（01 §7）达成 → owner 拍板切换，旧分支转只读参考
+1. Phase 0 验收通过（[02-phase-0.md §5 验收标准](02-phase-0.md)）
+2. Phase 1 runtime spike 硬门通过（[03-phase-1-runtime.md](03-phase-1-runtime.md)）→ **F0 地基切片**（[01-target-state.md §2 层 0](01-target-state.md)，验收 "hello-tool"）
+3. **层 1 价值闭环薄切**（[01-target-state.md §3](01-target-state.md)）：C2a → C3a → C4a → C1a → C5a（次序按依赖现场调，验收：闭环端到端）
+4. 层 2 增强逐块进（[01-target-state.md §4](01-target-state.md)）
+5. **parity 线**（[01-target-state.md §7](01-target-state.md)）达成 → owner 拍板切换，旧分支转只读参考
 
 ## 4. 移植操作约定
 
-- 从旧分支拷文件：`git checkout feature/agent-backend -- <path>`，逐块 PR，PR 描述注明能力块编号与验收测试，tracker §3 登记一行。
-- 落位按 02 §3.5 目录约定；core 工具一律新文件，注册走缝合缝（02 §3.4）。
+- 从旧分支拷文件：`git checkout feature/agent-backend -- <path>`，逐块 PR，PR 描述注明能力块编号与验收测试，[tracker.md §2 任务表](tracker.md) 登记一行。
+- 落位按 [02-phase-0.md §3.5 基础设施纪律](02-phase-0.md) 目录约定；core 工具一律新文件，注册走缝合缝（[02-phase-0.md §3.4](02-phase-0.md)）。
 - 每完成一个能力块，zone registry 里对应「待重分类」项按仪式摘除。
 - 每合并一次 upstream，当场刷新 registry 与补丁清单，tracker 记合并记录。

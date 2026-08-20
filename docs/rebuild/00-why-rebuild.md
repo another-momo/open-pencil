@@ -1,7 +1,17 @@
+<!--
+  写作纪律（改本文前必读）：
+  - 事实性声明必须附核验命令 + 日期，否则标为【假设】
+  - 计划被实测推翻时，直接改本文为新版本，完整理由记入 records/ 子文档
+  - 本文只保留当前态，不保留修正历史
+  - 改完后刷新本文头部的「状态」字段
+  - 详细规则见 docs/rebuild/05-process.md §4
+-->
+
 # 00 · 为什么重建，以及保留什么
 
-> 状态：已核验（2026-08-18，核查轮 R1-R4）| 测量点：旧分支 `feature/agent-backend` @ `a1c33881`
-> 核验方式：4 个只读 subagent 对账 + 主 agent 整体 review，结果登记于 tracker.md 核验日志。
+> **状态**：已核验 | **时间**：2026-08-18 14:00（核查轮 R1-R4）| **核验人**：subagent A-D + 主 agent
+> **身份**：背景叙事，回答「为什么走 re-fork + 绞杀式移植这条路」，不直接驱动 Phase gate。
+> **基线**：旧分支 `feature/agent-backend` @ `a1c33881`；核验方式 = 4 个只读 subagent 对账 + 主 agent 整体 review，详细结果见 `records/docs-governance.md` §R1。
 
 ## 1. 问题
 
@@ -60,7 +70,7 @@ fork 自 2026-07-21 以来，越来越多精力消耗在两类工程债上：
 2. fork-divergence.md 声称 "CHANGELOG.md 与 upstream 逐字节一致"——实测相对 merge-base **+78/−0**（测量点 a1c33881；与较新 end-state 文档互相矛盾）。
 3. fork-divergence.md 登记的 `src/components/L3/` **不存在**（需求单 UI 在 `src/components/chat/`）。
 4. 同 changelog 声称的「素材图理解（hash 缓存描述）」**全仓无代码**——`brief.ts` 里的 hash 只是图片填充 hash。phantom 能力，见 01 不加清单。
-5. 未提交 WIP（8 个引擎文件 + setup.ts/transports.ts/ChatInput.vue 等）不在任何文档清单——审判清单见 tracker §4。
+5. 未提交 WIP（8 个引擎文件 + setup.ts/transports.ts/ChatInput.vue 等）不在任何文档清单——审判清单见 [records/upstream-merge.md 审判条目](records/upstream-merge.md)。
 
 ## 6. 旧文档参考（历史参考，信任前重新核验）
 

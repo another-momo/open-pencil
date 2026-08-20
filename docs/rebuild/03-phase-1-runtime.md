@@ -1,7 +1,17 @@
+<!--
+  写作纪律（改本文前必读）：
+  - 事实性声明必须附核验命令 + 日期，否则标为【假设】
+  - 计划被实测推翻时，直接改本文为新版本，完整理由记入 records/ 子文档
+  - 本文只保留当前态，不保留修正历史
+  - 改完后刷新本文头部的「状态」字段
+  - 详细规则见 docs/rebuild/05-process.md §4
+-->
+
 # 03 · Phase 1：runtime 选型 spike（硬门）
 
-> 状态：v3 重写（2026-08-20，承接 02-04 五份 spike）
-> **文档身份**：case study / 技术调研（辅助参考信息）；**决策依据在 01 §7 与 tracker.md D9**。03 不直接驱动 Phase gate。
+> **状态**：已核验（v3）| **时间**：2026-08-20 17:00 重写（承接 02-04 五份 spike）
+> **核验人**：主 agent（基于 spike 01-04 全部源码级核查记录）
+> **身份**：case study / 技术调研（辅助参考信息）；**决策依据在 01-target-state.md §7 与 `records/agent-runtime.md` D9**。03 不直接驱动 Phase gate。
 > **硬门**：runtime 未定，对话层一行代码不写。
 
 ---
@@ -23,7 +33,7 @@
 
 | 候选 | 排除理由 | 来源 |
 |---|---|---|
-| dsh-Y（dsh 无头 runtime） | 无法触达 dsh 用户群；多一份自管后端运维 | 你已拍板 + spike 01 §0 已论证 |
+| dsh-Y（dsh 无头 runtime） | 无法触达 dsh 用户群；多一份自管后端运维 | 你已拍板 + spikes/01-dsh-integration-routes.zh.md §0 已论证 |
 
 ### 1.2 仍待考虑的候选
 
@@ -36,7 +46,7 @@
 
 ---
 
-## 2. dsh-X 路线（核心证据：spike 04）
+## 2. dsh-X 路线（核心证据：spikes/04-dsh-x-design.zh.md）
 
 ### 2.1 一段话
 
@@ -44,16 +54,16 @@ open-pencil marketing 工作台作为**一个 dsh bundle** 发布：用户装 ds
 
 ### 2.2 关键约束与可观测证据
 
-| 维度 | 结论 | 证据（来自 spike 04 / 03） |
+| 维度 | 结论 | 证据（来自 spikes/04-dsh-x-design.zh.md / 03） |
 |---|---|---|
 | 分发机制 | `dsh plugin --profile web add <pkg>`；bundle 声明 `dsh.bundle` 字段自动追加到 profile | `参考项目/deepseek-harness/docs/user/develop/basic/publish.md:77-110` |
-| bundle ≠ plugin ≠ preset | 三者含义互异；plugin 是命令动词 | spike 04 §1 术语表 |
+| bundle ≠ plugin ≠ preset | 三者含义互异；plugin 是命令动词 | spikes/04-dsh-x-design.zh.md §1 术语表 |
 | `shell.overlay` 切 session **不卸载** | 核心论证：编辑器状态跨 session 保留 | `参考项目/deepseek-harness/packages/client/ui-layout/src/client/AppFrame.tsx:194`（`renderSlot('shell.overlay', {})` 无 `only` 参数）vs `packages/client/ui-conversation/src/client/skeleton/ConversationSession.tsx:168-172`（有 `only`） |
 | `SessionFace` 完整方法 | 11 方法（subscribe/getSnapshot + prompt/cancel/rename/loadOlder/updateQueue/readAttachment/command + pending.respond + projections） | `参考项目/deepseek-harness/packages/client/runtime/src/client/contract/session.ts:30-82, 89` |
-| 7600 port 是 open-pencil 自己的 | `AUTOMATION_HTTP_PORT = 7600` 在 `open-pencil/packages/core/src/constants.ts:347`；dsh 全仓零命中 | 04 v3 §C2 实证 |
-| 视觉回路多模态 | dsh host tool 调用 → pi-ai 适配器 → 与旧 `media-rewriter.ts` 同构的"图转合成 user 消息"路径 | spike 02 §P3 + `参考项目/weshop-dsh-plugin/src/integrations/pi.ts:18` |
+| 7600 port 是 open-pencil 自己的 | `AUTOMATION_HTTP_PORT = 7600` 在 `open-pencil/packages/core/src/constants.ts:347`；dsh 全仓零命中 | [spikes/04-dsh-x-design.zh.md §C2](spikes/04-dsh-x-design.zh.md) 实证 |
+| 视觉回路多模态 | dsh host tool 调用 → pi-ai 适配器 → 与旧 `media-rewriter.ts` 同构的"图转合成 user 消息"路径 | spikes/02-pi-sdk-runtime.zh.md §P3 + `参考项目/weshop-dsh-plugin/src/integrations/pi.ts:18` |
 | 系统提示注入 | marketing 选择项可走 `ctx.inject(['systemPrompt'], (promptCtx) => { promptCtx.systemPrompt.section(...) })`——不是只能经 message body | `参考项目/deepseek-harness/packages/bundle/web-app/src/index.ts:141-149` |
-| 工作量 | spike 4.5 人日 + Phase 2 实现 11 人日 ≈ **15.5 人日** | spike 04 §5 + 03 v3 §F |
+| 工作量 | spike 4.5 人日 + Phase 2 实现 11 人日 ≈ **15.5 人日** | [spikes/04-dsh-x-design.zh.md §5](spikes/04-dsh-x-design.zh.md) + [records/agent-runtime.md 修正-2](records/agent-runtime.md) |
 
 ### 2.3 风险（X 专属）
 
@@ -64,11 +74,11 @@ open-pencil marketing 工作台作为**一个 dsh bundle** 发布：用户装 ds
 
 ### 2.4 S-X spike 验证清单（4.5 人日）
 
-spike 04 §7.1 完整 6 项；其中**第 5 项**（shell.overlay 切 session 不卸载）是 X 路线的硬性 gate——挂了就回到其他路径。
+spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.overlay 切 session 不卸载）是 X 路线的硬性 gate——挂了就回到其他路径。
 
 ---
 
-## 3. pi sdk 路线（核心证据：spike 02）
+## 3. pi sdk 路线（核心证据：spikes/02-pi-sdk-runtime.zh.md）
 
 ### 3.1 一段话
 
@@ -80,14 +90,14 @@ spike 04 §7.1 完整 6 项；其中**第 5 项**（shell.overlay 切 session �
 |---|---|---|
 | 嵌入形态 | **库形态**——同进程 import，**无子进程边界** | `参考项目/pi/packages/coding-agent/package.json:12-26` + sdk.md:17-34 |
 | session 持久化 | JSONL **树形**（id/parentId），`SessionManager.open(path)` 一行装载 | `参考项目/pi/packages/session/.../session-manager.ts:1530-1549` |
-| 多模态 | 与 dsh 共享 pi-ai；"图转合成 user 消息"路径同构（**DeepSeek 有占位降级——静默不报错**，需 spike 实测） | `参考项目/pi/packages/ai/src/api/openai-completions.ts:1269-1337` + transform-messages.ts:35-57 |
-| 流式 RPC event | text_start/delta/end、toolcall_start/delta/end、tool_execution_*、compaction_*/auto_retry_*——与 UIMessage v1 字段**先天同构** | spike 02 §Y2 + `参考项目/pi/packages/session/...` |
-| 工具审批 | 无内置——需自写 extension（`tool_call` event 返回 `{block: true}`） | spike 02 §Y7 + extensions.md:778-799 |
-| skills | 无内置子系统；通过 extension event 链实现 | spike 02 §P8 |
+| 多模态 | 与 dsh 共享 pi-ai；"图转合成 user 消息"路径同构（**DeepSeek 有占位降级——静默不报错**，需 spike 实测） | [spikes/02-pi-sdk-runtime.zh.md §P3](spikes/02-pi-sdk-runtime.zh.md) + `参考项目/pi/packages/ai/src/api/openai-completions.ts:1269-1337` + transform-messages.ts:35-57 |
+| 流式 RPC event | text_start/delta/end、toolcall_start/delta/end、tool_execution_*、compaction_*/auto_retry_*——与 UIMessage v1 字段**先天同构** | spikes/02-pi-sdk-runtime.zh.md §Y2 + `参考项目/pi/packages/session/...` |
+| 工具审批 | 无内置——需自写 extension（`tool_call` event 返回 `{block: true}`） | spikes/02-pi-sdk-runtime.zh.md §Y7 + extensions.md:778-799 |
+| skills | 无内置子系统；通过 extension event 链实现 | spikes/02-pi-sdk-runtime.zh.md §P8 |
 | compaction | 可整体替换的 seam（`session_before_compact` event 钩子改写 summary） | `参考项目/pi/packages/.../compaction.md:280-310` |
-| 双 provider 路径 | pi-ai 的 declarative OpenAI 兼容网关路由（dsh 走同样路径） | spike 02 §P6 |
-| 工作量 | F0 + 层 1 ≈ **20 人日** | spike 02 §0 |
-| 颠簸 | pi **周更**，需 pin + 升级 smoke；Windows 下 photon-node WAS 需实测 | spike 02 §R-pi-1/8 |
+| 双 provider 路径 | pi-ai 的 declarative OpenAI 兼容网关路由（dsh 走同样路径） | spikes/02-pi-sdk-runtime.zh.md §P6 |
+| 工作量 | F0 + 层 1 ≈ **20 人日** | spikes/02-pi-sdk-runtime.zh.md §0 |
+| 颠簸 | pi **周更**，需 pin + 升级 smoke；Windows 下 photon-node WAS 需实测 | spikes/02-pi-sdk-runtime.zh.md §R-pi-1/8 |
 
 ### 3.3 优势（pi 路线独有）
 
@@ -150,7 +160,7 @@ spike 04 §7.1 完整 6 项；其中**第 5 项**（shell.overlay 切 session �
 
 - **A. 走 dsh-X**（推荐：你已表达偏好）
 - **B. 走 pi sdk**
-- **C. 双轨并行**：先走 X 发布，X 内部 host runtime 用 pi（spike 02 §6 提到的 hedge）
+- **C. 双轨并行**：先走 X 发布，X 内部 host runtime 用 pi（spikes/02-pi-sdk-runtime.zh.md §6 提到的 hedge）
 - **D. 维持现状**：继续等更多信号
 
 ### 5.2 触发任何选项的前置验证
@@ -166,7 +176,7 @@ spike 04 §7.1 完整 6 项；其中**第 5 项**（shell.overlay 切 session �
 
 ### 5.3 spike 启动条件
 
-待 owner 拍板 D9 后启动 S-X 或 S-pi（spike 04 §7.1 / spike 02 §6 各自的 4.5 人日验证清单）。
+待 owner 拍板 D9 后启动 S-X 或 S-pi（spikes/04-dsh-x-design.zh.md §7.1 / spikes/02-pi-sdk-runtime.zh.md §6 各自的 4.5 人日验证清单）。
 
 ---
 
@@ -181,14 +191,3 @@ spike 04 §7.1 完整 6 项；其中**第 5 项**（shell.overlay 切 session �
 | spikes/02-pi-sdk-runtime.zh.md | pi sdk 源码级核查（含 9 题 P1-P9 + 工作量表） |
 | spikes/03-weshop-case-deep-dive.zh.md | weshop 实证（X 路线的形态修正） |
 | **spikes/04-dsh-x-design.zh.md v4** | **X 路线专项设计**（完整落地形态 + S-X 6 项验证） |
-
----
-
-## 附录 A：v3 相对 v2 的修订记录
-
-- **范围缩减**：从三路线（X/Y/pi）→ 双路线（X/pi）。Y 路线已被你排除，不再构成有效候选。
-- **X 路线深化**：从 spike 01 §X 节升级到 spike 04 v4（316 行专项设计，含术语表 / session 切换不卸载实测 / 自写 ChatPanel 三因素论证 / 4 落地伪代码）
-- **pi 路线深化**：从 spike 01 §Y4 / §P 系列升级到 spike 02（pi-coding-agent 库形态确认 + RPC event 流同构 + JSONL 树形 session）
-- **决策框架简化**：v2 三选项（a/b/c）→ v3 双选项（X/pi），A 选项（dsh-X）保留为推荐
-- **身份声明更新**：从「决策依据」明确改为「case study 调研（辅助参考信息）」，决策依据在 01 §7 + tracker D9
-- **前置验证条目**：gh api + npm view 双数据采集加入（v2 缺失）

@@ -227,7 +227,11 @@ function taskFileMissingViolation(taskId: string): Violation {
   }
 }
 
-function checkTaskStage(stats: DiffStats, taskId: string, taskFilePattern: RegExp): Violation | null {
+function checkTaskStage(
+  stats: DiffStats,
+  taskId: string,
+  taskFilePattern: RegExp
+): Violation | null {
   const taskFileRel = stats.files.find((f) => taskFilePattern.test(f))
   if (!taskFileRel) return null
   const taskFilePath = resolve(root, taskFileRel)

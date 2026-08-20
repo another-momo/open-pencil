@@ -152,14 +152,6 @@ function main(): void {
   const taskRefMatch = commitMsg.match(/\btask:\s*T?(\d+)/i)
   const taskId = taskRefMatch ? taskRefMatch[1] : null
 
-  // 兼容 [BIG] 形式——若 commit 含 [BIG] 但无 task: T<NN>，尝试匹配
-  if (!taskId && /\[BIG\]/i.test(commitMsg)) {
-    // 尝试从 tracker.md §2 找最新 [BIG] 编号
-    const trackerIds = Array.from(readTrackerTaskTable())
-    taskId // placeholder
-    // 不强行补——要求显式 task: T<NN>
-  }
-
   if (hasExemption) {
     console.log(`check-tasks: 大改动命中（${reasons.join(' / ')}），但 [no-task-plan] 例外`)
     process.exit(0)
@@ -182,62 +174,17 @@ function main(): void {
   }
 
   if (taskId) {
-    // 检查 tasks/T<id>-*.md 是否在本次 commit 里被创建或更新
     const taskFilePattern = new RegExp(`^docs/rebuild/tasks/T${taskId}-[^/]+\\.md$`)
     const taskFileChanged = stats.files.some((f) => taskFilePattern.test(f))
     if (!taskFileChanged) {
-      violations.push({
-        rule: 'big-change-task-file',
-        message: `commit message 引用 T${taskId}，但本次 commit 不包含 \`tasks/T${taskId}-*.md\` 的创建或更新。请同步提交 task 计划文档。`
-      })
+      violations.push(taskFileMissingViolation(taskId))
+    } else {
+      const stageViolation = checkTaskStage(stats, taskId, taskFilePattern)
+      if (stageViolation) violations.push(stageViolation)
     }
 
-    // D13 检查：task 文档章节阶段识别
-    if (taskFileChanged) {
-      const taskFileRel = stats.files.find((f) => taskFilePattern.test(f))
-      if (taskFileRel) {
-        const taskFilePath = resolve(root, taskFileRel)
-        const stage = readTaskDocumentStage(taskFilePath)
-        if (stage === 'unknown' || stage === 'plan-only') {
-          // 第一个 commit 阶段（创建 task 计划），只要求有 plan
-          // 但如果本次 commit 还同时改了大量代码文件，应进入下一阶段（自检）
-          // 简化规则：本次 commit 含 docs/rebuild 改动 → 要求 task 文档含自检
-          const hasDocChanges = stats.files.some((f) => f.startsWith('docs/rebuild/'))
-          if (hasDocChanges && stage === 'unknown') {
-            violations.push({
-              rule: 'big-change-task-stage',
-              message: `本次 commit 改动 docs/rebuild/ 文档但 tasks/T${taskId}-*.md 不含 §1 任务概述 / §2 任务清单 / §3 验收标准章节。请补 task 文档结构。`
-            })
-          }
-        }
-      }
-    }
-
-    // D13 检查：tracker.md §2 任务表里 T<NN> 编号必须存在
-    // 注意：tracker.md 自身可能在本次 commit 里被改；这种情况下读 working tree
-    const trackerIds = readTrackerTaskTable()
-    if (!trackerIds.has(taskId)) {
-      // 但如果 tracker.md 本身在本次 commit 里，可能刚加进任务表——读 working tree 的版本
-      const trackerRel = 'docs/rebuild/tracker.md'
-      if (!stats.files.includes(trackerRel)) {
-        violations.push({
-          rule: 'big-change-task-tracker',
-          message: `commit message 引用 T${taskId}，但 [tracker.md §2 任务表](tracker.md) 不含 T${taskId} 编号。请同步更新 tracker.md 任务表。`
-        })
-      } else {
-        // tracker.md 在本次 commit 里——重新读 working tree 版本检查
-        const trackerPath = resolve(root, trackerRel)
-        if (existsSync(trackerPath)) {
-          const fresh = readFileSync(trackerPath, 'utf8')
-          if (!new RegExp(`\\bT${taskId}\\b`).test(fresh)) {
-            violations.push({
-              rule: 'big-change-task-tracker',
-              message: `commit message 引用 T${taskId}，但本次 commit 修改的 [tracker.md](tracker.md) 仍不含 T${taskId} 编号。`
-            })
-          }
-        }
-      }
-    }
+    const trackerViolation = checkTrackerConsistency(stats, taskId)
+    if (trackerViolation) violations.push(trackerViolation)
   }
 
   if (violations.length === 0) {
@@ -253,6 +200,71 @@ function main(): void {
     console.error(`  [${v.rule}] ${v.message}`)
   }
   process.exit(1)
+}
+
+// ─── 辅助函数（拆 main 复杂度） ─────────────────────────────────────────────
+
+function pointerViolation(reasons: string[]): Violation[] {
+  return [
+    {
+      rule: 'big-change-task-pointer',
+      message: `检测到大改动（${reasons.join(' / ')}），但 commit message 无 \`task: T<NN>\` 指针。
+
+要求（[05-process.md §3.2](05-process.md) + D11 + D12 + D13）：
+- commit message 必须含 \`task: T<NN>\` 形式（如 \`task: T02\`）
+- 同时必须创建/更新 \`tasks/T<NN>-<slug>.md\`（task 计划文档）
+- task 文档应含 §1 任务概述 / §2 任务清单 / §3 验收标准（plan-only 阶段即可）
+
+例外：在 commit message 加 \`[no-task-plan]\` tag（限 owner 标注，**仅限紧急 CI 红修复**）。`
+    }
+  ]
+}
+
+function taskFileMissingViolation(taskId: string): Violation {
+  return {
+    rule: 'big-change-task-file',
+    message: `commit message 引用 T${taskId}，但本次 commit 不包含 \`tasks/T${taskId}-*.md\` 的创建或更新。请同步提交 task 计划文档。`
+  }
+}
+
+function checkTaskStage(stats: DiffStats, taskId: string, taskFilePattern: RegExp): Violation | null {
+  const taskFileRel = stats.files.find((f) => taskFilePattern.test(f))
+  if (!taskFileRel) return null
+  const taskFilePath = resolve(root, taskFileRel)
+  const stage = readTaskDocumentStage(taskFilePath)
+  const hasDocChanges = stats.files.some((f) => f.startsWith('docs/rebuild/'))
+  if (hasDocChanges && stage === 'unknown') {
+    return {
+      rule: 'big-change-task-stage',
+      message: `本次 commit 改动 docs/rebuild/ 文档但 tasks/T${taskId}-*.md 不含 §1 任务概述 / §2 任务清单 / §3 验收标准章节。请补 task 文档结构。`
+    }
+  }
+  return null
+}
+
+function checkTrackerConsistency(stats: DiffStats, taskId: string): Violation | null {
+  const trackerIds = readTrackerTaskTable()
+  if (trackerIds.has(taskId)) return null
+
+  const trackerRel = 'docs/rebuild/tracker.md'
+  if (!stats.files.includes(trackerRel)) {
+    return {
+      rule: 'big-change-task-tracker',
+      message: `commit message 引用 T${taskId}，但 [tracker.md §2 任务表](tracker.md) 不含 T${taskId} 编号。请同步更新 tracker.md 任务表。`
+    }
+  }
+
+  const trackerPath = resolve(root, trackerRel)
+  if (existsSync(trackerPath)) {
+    const fresh = readFileSync(trackerPath, 'utf8')
+    if (!new RegExp(`\\bT${taskId}\\b`).test(fresh)) {
+      return {
+        rule: 'big-change-task-tracker',
+        message: `commit message 引用 T${taskId}，但本次 commit 修改的 [tracker.md](tracker.md) 仍不含 T${taskId} 编号。`
+      }
+    }
+  }
+  return null
 }
 
 main()

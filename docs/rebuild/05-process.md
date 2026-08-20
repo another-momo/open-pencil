@@ -68,11 +68,41 @@ docs/rebuild/
 
 > 第 4 步是 gate 的硬性前置条件——不跑核验就不能过 gate。subagent 核验 prompt 模板见附录 A。
 
-### 3.2 任务粒度
+### 3.2 任务粒度与大改动纪律（D11）
 
-- 能力块（C1-C5/B1-B4/F1）与引擎补丁（Pn）是基本任务单位：一块 = 一个 PR + 验收测试 + tracker 一行。
-- spike 单独成报告进 `spikes/`：问题、方法、代码链接、结论、对选型的影响。spike 自身的核验与修正记录归 `records/spikes.md`。
+**基本任务单位**：
+
+- 能力块（C1-C5/B1-B4/F1）与引擎补丁（Pn）是基本任务单位：一块 = 一个 PR + 验收测试 + tracker 一行 + **独立 task 计划文档**（见下）。
+- spike 单独成报告进 `spikes/`：问题、方法、代码链接、结论、对选型的影响。spike 自身的核验与修正记录归 `records/narrative/spikes/<file>.zh.md`。
 - 移植操作按 04 的纪律（逐字 → 绿 → 重构另 commit）。
+
+**Task 维度 vs 文件维度的严格分离**：
+
+- **Task 维度**（`tasks/T<id>-<slug>.md`）：一个 task 一个文档。承载 task 计划 + 自检报告 + subagent 核验——这是 task 全生命周期的唯一权威。
+- **文件维度**（`records/narrative/<file>.md`）：与文件一一对应。承载腐烂/修正/核验——针对**物理文件**的变更历史，不放 task 相关的自检/核验。
+- **Tracker.md**（[tracker.md](tracker.md)）：仅保留索引（任务编号 + 块号 + 状态 + PR），具体内容指针到 `tasks/T<id>.md`。**不重复 task 计划内容**。
+- **错误示范**：把"task 自检-N"放进 `records/narrative/<file>.md` 会破坏文件维度档案的纯度——必须放 `tasks/T<id>.md`。
+
+**大改动纪律（D11 决策）**：
+
+满足以下任一即为"大改动"：
+
+| 规则 | 阈值 | CI 检测 |
+|---|---|---|
+| R1 文件数 | 修改文件 ≥ 10 个 | `git diff --name-only \| wc -l` |
+| R2 行数 | 变更行 ≥ 200 行 | `git diff --shortstat` |
+| R3 叙事文档 | 修改任意 `docs/rebuild/{00-04,05,README,tracker,spikes}*.md` | 文件名匹配 |
+| R4 records 层 | 修改任意 `docs/rebuild/records/*.md` | 文件名匹配 |
+
+**大改动必产三件套**（05-process.md §3.2 + D11，**全部落在 `tasks/T<id>.md` 单个文档**）：
+
+1. **task 计划**（开工前）：创建 `tasks/T<id>-<slug>.md`，含任务清单、目标、验收标准。**同时**在 [tracker.md §2 任务表](tracker.md) 新增一行（编号指针 + 状态 + PR），`[BIG]` 大改动标记
+2. **自检报告**（完工时）：在同一 `tasks/T<id>.md` 追加「自检-N」章节——分标【事实/决策/假设】，对照原方案列出"承诺X / 落地Y / 偏差Z"。**不许**写进 `records/narrative/`
+3. **subagent 核验**（自检后）：派出只读 subagent 对照原方案 + task 计划 + 自检报告三方一致，结果记入同一 `tasks/T<id>.md`「核验-N」章节
+
+**CI 拦截**：`tools/zone-registry/src/check-tasks.ts` 检查命中大改动 → 必须有 task 计划指针（commit message 含 `task:` / `T<id>` / `[BIG]`） + `tasks/T<id>.md` 必须在本次 commit 里被创建或更新。**例外**：commit message 加 `[no-task-plan]` tag（限 owner 标注，**仅限紧急 CI 红修复**，24h 内必须补办）。
+
+**针对 agent 的核心约束**：主 agent 自认完成大改动任务前，**必须主动对照方案文档产出完成度对照报告**——不得"做而不报"或"号称完成未对照"。详见附录 B 的工作流程。
 
 ### 3.3 upstream 合并
 
@@ -144,3 +174,64 @@ docs/rebuild/
 ```
 
 **subagent 核验范围（不限于数字）**：所有能用命令+代码得到「对/错」结论的声明都应被核验。常见类型：数字（`ls | wc -l`、`grep | wc -l`）/文件存在（`ls`、`test -e`）/API 存在（`grep -r`）/依赖关系（`grep` 统计 import）/行为描述（读代码确认）/配置事实（`cat package.json | jq`）。
+
+---
+
+## 附录 B · 大改动工作流程（D11）
+
+**目标**：避免主 agent「号称完成未对照方案」类问题。流程强制主 agent 在大改动任务的全周期内产出可审计的中间产物。
+
+### B.1 开工前：task 计划登记（落在 `tasks/T<id>-<slug>.md`）
+
+- **创建独立 task 文档**：`tasks/T<id>-<slug>.md`（如 `tasks/T01-governance-2026-08-20.md`）
+- task 文档必须包含：任务概述 / 任务清单（多 step）/ 验收标准 / 参考方案文档 / 完成时间窗
+- **同时**在 [tracker.md §2 任务表](tracker.md) 新增一行（**仅一行**）：T 编号 + 块号 + 状态 + `[BIG]` 标记 + 任务计划指针（`tasks/T<id>.md`）
+- **CI 拦截**（commit 阶段）：`tools/zone-registry/src/check-tasks.ts` 检测到大改动 → 检查 commit message 含 `task: T<id>` / `[BIG]` 引用 + `tasks/T<id>.md` 在本次 commit 里被创建或更新
+
+### B.2 完工时：自检报告（**追加到同一 `tasks/T<id>.md` 末尾**）
+
+```markdown
+## 自检 · 2026-08-20 19:30
+
+**主 agent 任务清单**（对照原方案）：
+- [x] 子任务 1（【事实】已做）
+- [x] 子任务 2（【决策】做了 X 选择）
+- [ ] 子任务 3（【假设】待 subagent 核验）
+
+**承诺 vs 落地对照**：
+
+| 原方案承诺 | 实际落地 | 偏差 | 决策登记 |
+|---|---|---|---|
+| §2.1 计划修正规则 | ✅ 已做 | 无 | — |
+| §3.1 check-docs 6 条 | ⚠️ 仅 5 条 | R6 暂缓 | D12（语义判定不适合 CI）|
+| §4 存量整改 | ✅ 9 文件覆盖 | 无 | — |
+
+**完成度自评**：
+- 完全落地 X 条（Y%）
+- 部分落地 Z 条（W%）
+- 完全未做 V 条（U%）
+```
+
+### B.3 自检后：subagent 核验（**追加到同一 `tasks/T<id>.md` 末尾**）
+
+派出只读 subagent 独立核验，prompt 模板见附录 A。subagent 输出结果记入 `tasks/T<id>.md`「核验-N」章节。**核验不通过 → 重做自检 → 再核验**。
+
+### B.4 决策偏差登记
+
+自检中发现与原方案的偏差（如「R6 暂缓」「spike R5 豁免」等），必须登记为新的 D 决策（`records/docs-governance.md`），不允许"做而不报"。
+
+### B.5 三件套缺一不可的强制点
+
+| 检查点 | 触发 | 落点 | CI / 流程 |
+|---|---|---|---|
+| task 计划 | 大改动开工前 | `tasks/T<id>.md` 创建 | `check-tasks.ts` 自动拦截 commit |
+| 自检报告 | 主 agent 完工时 | `tasks/T<id>.md` 自检章节 | 主 agent 自律（D11） |
+| subagent 核验 | 自检完成后 | `tasks/T<id>.md` 核验章节 | gate review 第 4 步硬性前置 |
+
+**核心约束**：三件套**全部落在 `tasks/T<id>.md` 单个文档**——不允许分散在 records/ 子文档或 tracker.md。task 维度（task 文档）和文件维度（records 文档）严格分离。
+
+### B.6 例外机制
+
+- 紧急 commit（修 CI 红等）允许 `[no-task-plan]` tag 跳过 check-tasks 检查
+- 例外 tag 必须在 24h 内补办 task 计划登记（owner 监督）
+- 自检报告与核验**不允许**走例外——这是纪律底线

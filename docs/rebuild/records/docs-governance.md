@@ -251,3 +251,21 @@
 - **错误**：i18n 缝落位 src/app/i18n/ 根
 - **实况**：上游 #557 已占用该目录（notifications/），缝避让至 fork/ 子目录
 - **处置**：02 已修正（详见修正-2 第 4 条）
+## D12 · records 结构调整（v2 narrative/ 一一对应）+ R6 暂缓
+
+- **类型**：决策
+- **时间**：2026-08-20 20:00
+- **拍板**：owner（基于整改后的"task 维度 vs 文件维度"反思）
+- **内容**：
+  - **结构调整**：v1 records/ 11 对象子文档（agent-runtime / brand-config / chat-ui / i18n / ...）重组为 v2 narrative/ 一一对应（每文件一份档案）+ 横向档案（docs-governance / ci-infra / upstream-merge）保留并标"派生"
+  - **R6 暂缓**：check-docs.ts 第 6 条规则（fact-verify-command）暂不挂 CI——理由：语义判定不适合机器检查；交给 [05-process.md §3.1 gate review 第 4 步 subagent 核验](05-process.md)
+  - **任务维度分离**：新建 `tasks/` 子文档体系（`_index.md` + `T<id>-<slug>.md`）；task 计划 / 自检 / 核验 三件套**全部落在单 task 文档**，不再散落到 `records/narrative/<file>.md`
+  - **清理 narrative/ 自检误分类**：12 个 narrative 子文档末尾的「## 自检类」占位章节批量删除（详见修正-5）
+
+## 修正-5 · narrative/ 自检误分类清理
+
+- **类型**：修正（按对象：12 个 narrative 子文档）
+- **时间**：2026-08-20 20:00
+- **依据**：D12 决策
+- **内容**：12 个 `records/narrative/{00-04,05,README,tracker,spikes/01-04}.md` 末尾的「## 自检类」占位章节批量删除。理由：task 自检属 task 维度，归 `tasks/T<id>-<slug>.md`；文件维度档案不应混入 task 维度的内容
+- **影响**：12 文件被修改，全部改为 append-only 的纯文件维度档案

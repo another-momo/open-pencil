@@ -1,3 +1,12 @@
+<!--
+  写作纪律（改本文前必读）：
+  - 事实性声明必须附 文件:行号 证据 + 日期，否则标为【假设】
+  - 计划被实测推翻时，直接改本文为新版本，完整理由记入 records/narrative/spikes/03-weshop-case-deep-dive.zh.md
+  - 本文只保留当前态，不保留修正历史
+  - 改完后刷新本文头部的「状态」字段
+  - 详细规则见 docs/rebuild/05-process.md §4
+-->
+
 # Spike 03 · weshop-dsh-plugin 深度案例研究：校正 X 路线的真实形态
 
 > 状态：源码阅读完成（2026-08-20）| 回答 owner 对 weshop 的描述偏差，校正 spike 01 中 X 路线的若干假设与工作量。

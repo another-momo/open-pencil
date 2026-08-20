@@ -25,7 +25,7 @@ import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const root = resolve(here, '../../..')
+const root = resolve(here, '../../../..')
 
 interface Violation {
   file: string

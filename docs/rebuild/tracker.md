@@ -20,7 +20,8 @@
 | # | 问题 | 选项 | 状态 | 拍板 | 日期 | 理由/影响 |
 |---|---|---|---|---|---|---|
 | D1 | 参考图机制形态 | a) 文档内参考区 page b) 收编 brand config | open | — | — | C2/C3 边界 |
-| D2 | vision 通道 B 去留 | a) 保留独立凭证 b) 并入统一 provider c) 砍 | open | — | — | R2 实测：双份视觉回路+独立凭证是复杂度主源 |
+| D2 | vision 通道 B 去留 | **B 为默认**（不进主 agent 上下文 → 成本优势 + 可换视觉模型），A 为备选 | 已拍板 B 默认 | owner | 2026-08-20 | R2 实测：双份视觉回路 + 独立凭证是旧仓奠基代码；visionB 产品正确方向是「图片不进主 prompt」；spike 02 重新评估：pi 与 dsh 共用 pi-ai 的多模态路径，通道 B 与通道 A 是同 provider 配置下的两个调用形态选择，不增加工程复杂度 |
+| D2a | vision 通道 A 何时降级 | 主 agent 需要看图（如 `setup_material_type` 自动判断 frame 内配色）或视觉模型质量不足时 | owner | — | 2026-08-20 | A/B 同 provider 配置下两个调用形态——工程实现是同一段 RPC 路径，差异仅在「图字段不进 message 还是进」 |
 | D3 | session 模型 | a) 一文件一 session b) 一文件多 session | open | — | — | F0.5 + C5b |
 | D4 | 产品形态 | localhost serve 单用户是否定论 | open | — | — | B4 + cli 处置；建议 Phase 0 中期前定 |
 | D5 | chatMode（UI/营销双模式） | 保留双模式 / 只做营销 | open | — | — | C5 与 prompt 装配范围 |

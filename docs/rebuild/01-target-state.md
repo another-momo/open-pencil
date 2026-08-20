@@ -69,12 +69,12 @@
 | # | 决策 | 影响 |
 |---|---|---|
 | D1 | 参考图机制形态（参考区 page / 收编 brand config） | C2/C3 边界 |
-| D2 | vision 通道 B 去留（实测：双份视觉回路 + 独立凭证体系是复杂度主源） | C4b 复杂度 |
+| D2 | **vision 通道 B 为默认**（look 截图不进主 agent 上下文→成本优势 + 可换视觉模型；A 直送为备选，仅在 B 失败或 vision 模型质量不达标时降级） | C4 + F0.3 |
 | D3 | session 模型（一文件一个 / 多个） | F0.5 + C5b |
 | D4 | 产品形态（localhost serve 是否定论） | B4 + cli 处置 |
 | D5 | chatMode 双模式去留 | C5 与 prompt 装配范围 |
 | D6 | 中文字体策略（62MB 全量 / 子集化 / 系统字体） | E1 |
-| D7 | runtime 选型（pi sdk / dsh） | Phase 1 spike 后定，见 03 |
+| D7 | runtime 选型（pi sdk / dsh） | Phase 1 spike 后定，见 03；spike 02 推荐 pi 直接驱动 |
 | D8 | 「素材图理解」是否新建立项 | C1 增强范围 |
 
 ## 7. parity 线（新旧分支切换标准）

@@ -1,62 +1,194 @@
 # 03 · Phase 1：runtime 选型 spike（硬门）
 
-> 状态：v2（2026-08-20，依据 spikes/01-03 实证修正；v1 2026-08-18 R4 核验）
-> **文档身份**：case study / 技术调研（**辅助参考信息**）；runtime 选型的**决策依据在 01 §7 与 tracker.md D7/D9**。03 不直接驱动 Phase gate。
+> 状态：v3 重写（2026-08-20，承接 02-04 五份 spike）
+> **文档身份**：case study / 技术调研（辅助参考信息）；**决策依据在 01 §7 与 tracker.md D9**。03 不直接驱动 Phase gate。
 > **硬门**：runtime 未定，对话层一行代码不写。
 
-## 1. 为什么 runtime 是第一关键路径
+---
 
-实测（00 §4）：对话机器是 runtime 形状的。支撑底座 F0 的一半块（F0.1/0.4/0.6）直接建在 runtime 上，视觉回路依赖其媒体模型。在错误地基上建闭环 = 返工。
+## 0. 一句话结论
 
-## 2. spike 要回答的问题（用能跑的代码，按可预判性排序）
+经源码级核查（02/04 已落库），**真正值得考虑的候选只剩两条**：
 
-**Q0 嵌入形态（新增，最先回答）**：runtime 能否作为库跑在我们的后端进程里、调远程工具？
-- dsh 实测：无 widget/库形态；官方嵌入 API 是 `@deepseek-ai/dsh-sdk-client`——**stdio JSON-RPC 驱动完整 harness 子进程**，已知限制：无 prompt 级 cancel、无 per-prompt result、client→server notifications 未实现。
-- pi sdk：【假设】本地两仓库均无其包，嵌入形态未知，spike 时联网验证。
+- **dsh-X 路线**：编辑器作为 dsh bundle 发布到 `shell.overlay`，复用 dsh 现有用户群 + 唯一独占价值 = 分发与发现渠道
+- **pi sdk 路线**：pi-coding-agent 作库形态直接驱动（无子进程边界），Q0-Q3 全部源码级正面答案
 
-**Q1 多模态 tool-result（可预判 70%，仍必须实测）**：图片能否活着到达模型？
-- dsh 实测：内容模型结构化支持——`ToolResultBlock.content: ContentBlock[]` 递归含 `ImageBlock`，`contentHasImage` 显式递归 tool-result（`packages/llm/llm/src/types.ts:86-92`、`content.ts:13-15`）。**但**：适配器当前声明 text-only output（types.ts:66-69 注释），tool-result 消息固定 user role；图片经 pi-ai 适配器序列化到具体 provider（尤其 DeepSeek 系 chat-completions）后是否存活，**只有跑代码知道**——旧仓库已实测该类 provider 不吃 media tool-result，需改写层。
-- pi sdk：【假设】未知。
+老的 dsh-Y（无头）路线已不构成有效候选——你已明确表达："Y 路线貌似并不是 dsh 未来发展所关注的方向，没办法随 dsh 的发展触达更多用户"。
 
-**Q2 session 挂起/恢复 + 媒体省略插入点（可预判 80%）**：
-- dsh 实测：session 是一等能力——事件溯源持久化（jsonl/sqlite 双后端）、resume/fork/崩溃修复（`packages/session/`）。**compaction 是可整体替换的 Service Provider seam**（`ctx.compaction`，默认 `dsh-compaction-basic`）——自定义媒体省略可作为 compaction 后端或工具 output render 策略注入，比「在固定 runtime 里找钩子」宽松。
-- 真正要实测的是凭 **pluginData 里存的 sessionId** 恢复的具体链路（open-pencil 侧粘合代码，非 runtime 能力）。
-- pi sdk：【假设】其文档声称内建 session 管理/compaction，待验证。
+---
 
-**Q3 流格式 → 前端可消费（必须实测，先验下调）**：
-- 前端现状（实测）：`@ai-sdk/vue` 的 `Chat` 类 + 自写 `parseUIMessageStream` 消费 UIMessage stream v1 SSE。
-- dsh 实测：自研 chunk 协议（`block-start/text-delta/.../finish`），与 UIMessage stream 不同构；无现成 HTTP SSE 出口——接前端必须自写 adapter（chunk → UIMessageChunk），工作量与旧仓库自写解析器同级、方向相反。
-- pi sdk：【假设】「有 AI SDK harness 适配器可保 UIMessage 流」——本地无法证实，spike 联网验证前不得作选型依据。
-- 无论选谁：「前端零影响」不成立，传输层必写 adapter，ChatPanel 改造预算按此编制。
+## 1. 候选的来源与排除
 
-## 3. 选型基线（用 spike 数据修正）
+### 1.1 已排除的候选
 
-| | pi sdk | dsh（deepseek-harness） |
+| 候选 | 排除理由 | 来源 |
 |---|---|---|
-| 版本/稳定性 | 【假设】待查 | `0.1.0-rc.5`，README 明牌 developer preview + breaking changes |
-| 架构 | 【假设】extension API | Cordis 全插件化：`ctx.tools.register(defineTool(...))`、`ctx.systemPrompt.section(...)`，注册即 effect、卸载即回滚（实测 `tool-fs/src/read.ts:69-110`） |
-| LLM 层 | 待查 | 自研 `ctx.llm` + 适配器；**多 provider 能力由 `@earendil-works/pi-ai@0.82.1` 提供**——选 dsh 并不绕开 pi 生态 |
-| 嵌入形态 | 待查（Q0） | stdio 子进程 + 事件订阅（实测，有已知限制） |
-| session/compaction | 待查（Q2） | 一等能力 + 可替换 seam（实测） |
+| dsh-Y（dsh 无头 runtime） | 无法触达 dsh 用户群；多一份自管后端运维 | 你已拍板 + spike 01 §0 已论证 |
 
-**正确的对立面**（R4 修正）：不是「pi vs 非 pi」，而是「pi sdk 直接驱动」 vs 「Cordis 插件树 + pi-ai 适配器」。
+### 1.2 仍待考虑的候选
 
-## 4. 能力契约（F0.1 的验收标准，spike 即按此测试）
+| 候选 | 核心机制 | 关键依赖 |
+|---|---|---|
+| **dsh-X** | 编辑器作为 dsh bundle → React island 挂 `shell.overlay` → portal→body → 整块 Vue app | `参考项目/deepseek-harness/` |
+| **pi sdk** | `pi-coding-agent` 作库 import 进我们后端 → `SessionManager.open(path)` 装载 JSONL session | `参考项目/pi/` |
 
-- session 持久化：pluginData 关联文件，恢复完整上下文
-- 工具审批：危险操作可挂起等用户确认，审批往返穿 WebSocket 桥
-- skills：营销工作流可封装
-- 多 provider：主模型 +（可选）视觉模型的统一凭证（dsh 侧注意 pi-ai 的声明式 route 机制）
-- 流式输出：前端可消费（Q3）
-- 多模态 tool-result：look 图片到模型（Q1）
+两条路线**不互斥**：可以先 X 路线发布稳定后，再在 X 内复用 pi 作为 host runtime——这是 hedge 路径。
 
-## 5. 触发的重分类（按 02 §3.3 仪式执行）
+---
 
-- spike 接桥协议时：`src/app/automation/` + `packages/mcp` + `src/app/browser-bridge.ts`（扩审批往返）
-- F0.4 搭建时：`src/app/ai/chat/`（9 文件）、`src/components/ChatPanel.vue` + `src/components/chat/` 相关组件
+## 2. dsh-X 路线（核心证据：spike 04）
 
-## 6. 产出
+### 2.1 一段话
 
-- 选型结论 + Q0-Q3 实测答案（spike 报告进 `docs/rebuild/spikes/`）
-- 新 runtime 内核出生：F0.1/F0.4/F0.6 + 能力契约测试全绿
-- 失败预案：spike 失败只是删一个 spike 分支，Phase 0 骨架不伤筋骨
+open-pencil marketing 工作台作为**一个 dsh bundle** 发布：用户装 dsh → `dsh plugin --profile web add openpencil-marketing` → 多一个 agent preset（openpencil-design）+ 一组工具 + 一个 React island。切到 openpencil-design preset 时，shell.overlay portal→body 弹出整块 Vue app（编辑画布 + 自写 ChatPanel + 工具面板），通过 SessionFace 与 dsh host 通信，通过 7600 WS 桥与编辑器进程通信——**所有交互发生在 dsh web 标签页里，不开第二个标签**。
+
+### 2.2 关键约束与可观测证据
+
+| 维度 | 结论 | 证据（来自 spike 04 / 03） |
+|---|---|---|
+| 分发机制 | `dsh plugin --profile web add <pkg>`；bundle 声明 `dsh.bundle` 字段自动追加到 profile | `参考项目/deepseek-harness/docs/user/develop/basic/publish.md:77-110` |
+| bundle ≠ plugin ≠ preset | 三者含义互异；plugin 是命令动词 | spike 04 §1 术语表 |
+| `shell.overlay` 切 session **不卸载** | 核心论证：编辑器状态跨 session 保留 | `参考项目/deepseek-harness/packages/client/ui-layout/src/client/AppFrame.tsx:194`（`renderSlot('shell.overlay', {})` 无 `only` 参数）vs `packages/client/ui-conversation/src/client/skeleton/ConversationSession.tsx:168-172`（有 `only`） |
+| `SessionFace` 完整方法 | 11 方法（subscribe/getSnapshot + prompt/cancel/rename/loadOlder/updateQueue/readAttachment/command + pending.respond + projections） | `参考项目/deepseek-harness/packages/client/runtime/src/client/contract/session.ts:30-82, 89` |
+| 7600 port 是 open-pencil 自己的 | `AUTOMATION_HTTP_PORT = 7600` 在 `open-pencil/packages/core/src/constants.ts:347`；dsh 全仓零命中 | 04 v3 §C2 实证 |
+| 视觉回路多模态 | dsh host tool 调用 → pi-ai 适配器 → 与旧 `media-rewriter.ts` 同构的"图转合成 user 消息"路径 | spike 02 §P3 + `参考项目/weshop-dsh-plugin/src/integrations/pi.ts:18` |
+| 系统提示注入 | marketing 选择项可走 `ctx.inject(['systemPrompt'], (promptCtx) => { promptCtx.systemPrompt.section(...) })`——不是只能经 message body | `参考项目/deepseek-harness/packages/bundle/web-app/src/index.ts:141-149` |
+| 工作量 | spike 4.5 人日 + Phase 2 实现 11 人日 ≈ **15.5 人日** | spike 04 §5 + 03 v3 §F |
+
+### 2.3 风险（X 专属）
+
+- dsh 0.x preview API 漂移（slot API / cordis.patch.yml / SessionFace 生命周期 / preset schema）
+- Vue ↔ React 18+ 双框架桥（事件系统/CSS scoped/focus trap）
+- 7600 token 跨进程共享（编辑器→host tool→7600 RPC 鉴权链）
+- 自写 ChatPanel 的额外投入（vs 接管 conversation slot + dsh Chat）
+
+### 2.4 S-X spike 验证清单（4.5 人日）
+
+spike 04 §7.1 完整 6 项；其中**第 5 项**（shell.overlay 切 session 不卸载）是 X 路线的硬性 gate——挂了就回到其他路径。
+
+---
+
+## 3. pi sdk 路线（核心证据：spike 02）
+
+### 3.1 一段话
+
+`pi-coding-agent` 作**库形态**（不是子进程、不是协议层）直接 import 进我们的 Node 后端。`createAgentSession` + `SessionManager.open(path)` 一行 API 装载完整 JSONL session 上下文；自定义工具通过 extensions 注册；流式事件走 RPC event 流，与 UIMessage v1 字段**先天同构**。
+
+### 3.2 关键约束与可观测证据
+
+| 维度 | 结论 | 证据 |
+|---|---|---|
+| 嵌入形态 | **库形态**——同进程 import，**无子进程边界** | `参考项目/pi/packages/coding-agent/package.json:12-26` + sdk.md:17-34 |
+| session 持久化 | JSONL **树形**（id/parentId），`SessionManager.open(path)` 一行装载 | `参考项目/pi/packages/session/.../session-manager.ts:1530-1549` |
+| 多模态 | 与 dsh 共享 pi-ai；"图转合成 user 消息"路径同构（**DeepSeek 有占位降级——静默不报错**，需 spike 实测） | `参考项目/pi/packages/ai/src/api/openai-completions.ts:1269-1337` + transform-messages.ts:35-57 |
+| 流式 RPC event | text_start/delta/end、toolcall_start/delta/end、tool_execution_*、compaction_*/auto_retry_*——与 UIMessage v1 字段**先天同构** | spike 02 §Y2 + `参考项目/pi/packages/session/...` |
+| 工具审批 | 无内置——需自写 extension（`tool_call` event 返回 `{block: true}`） | spike 02 §Y7 + extensions.md:778-799 |
+| skills | 无内置子系统；通过 extension event 链实现 | spike 02 §P8 |
+| compaction | 可整体替换的 seam（`session_before_compact` event 钩子改写 summary） | `参考项目/pi/packages/.../compaction.md:280-310` |
+| 双 provider 路径 | pi-ai 的 declarative OpenAI 兼容网关路由（dsh 走同样路径） | spike 02 §P6 |
+| 工作量 | F0 + 层 1 ≈ **20 人日** | spike 02 §0 |
+| 颠簸 | pi **周更**，需 pin + 升级 smoke；Windows 下 photon-node WAS 需实测 | spike 02 §R-pi-1/8 |
+
+### 3.3 优势（pi 路线独有）
+
+1. **零 fork 代码**——所有能力是 SDK API，不像 dsh-Y 要自写 sdk-jsonrpc-server 补 resume
+2. **流式 RPC event 流字段同构**——adapter 工作量比 dsh-Y 减 50%
+3. **session JSONL 树形**——天然支持 in-place branching / fork，营销场景"修改早先决策"工作流免费友好
+4. **周更 + CHANGELOG**——透明升级，dsh 的 developer preview 颠簸风险不存在
+
+### 3.4 风险（pi 路线独有）
+
+- 周更 break 风险（pin + smoke 流程）
+- photon-node WAS Windows 安装未实测
+- 无官方插件生态（不像 dsh 有 profile/preset 分发）
+- 工具审批 / skills 需自写 extension
+
+### 3.5 pi 路线作为"独立产品"的可达性
+
+- 用户装 pi → `pi-coding-agent` CLI / 自管后端 → **需要自己写服务端集成**
+- 营销工作台的可达性取决于"用户会不会自己写服务端"——绝大多数用户**不会**
+- 这是 pi 路线**无法触达 dsh 用户群**的根本原因——也是 dsh-X 路线独占价值所在
+
+---
+
+## 4. 双路线对比（X vs pi）
+
+### 4.1 维度对比矩阵
+
+| 维度 | dsh-X | pi sdk |
+|---|---|---|
+| **独占价值** | dsh 分发与发现渠道（用户群一键触达） | 无（库形态，自己写服务端） |
+| **工作人日** | 15.5（spike 4.5 + 实现 11） | 20 |
+| **Q0 嵌入形态** | dsh plugin（npm 包 + 用户机器装 dsh） | 库 import（我们后端 import `pi-coding-agent`） |
+| **Q1 多模态** | 走 dsh host tool → pi-ai 适配器（与旧 `media-rewriter.ts` 同构） | 直接调 pi-ai（同样路径） |
+| **Q2 session 恢复** | `ctx.systemPrompt.assemble()` + lifecycle hook；无内置跨进程 resume（plugin 需自管持久化） | **`SessionManager.open(path)` 一行 API**（JSONL 树形持久化） |
+| **Q3 流式适配** | SessionFace RPC（11 方法面）→ 我们自写 React/Vue 适配 | RPC event 流字段**先天同构**于 UIMessage v1 |
+| **session 切换卸载** | shell.overlay **不卸载**（核心收益） | 不适用（无 dsh shell 概念） |
+| **工具审批** | dsh `ctx.approval.request` | 需自写 extension（`tool_call` event） |
+| **skills** | dsh `ctx.skills.register` | 需自写 extension event 链 |
+| **生态** | dsh 插件分发（`dsh plugin` + 第三方注册表待验） | pi 周更 + GitHub commits 透明 |
+| **上游耦合** | dsh 0.x preview 颠簸（slot API、cordis.patch.yml、preset schema） | pin 到具体版本即可控制 |
+| **关键技术风险** | 双框架桥（Vue ↔ React 18+）+ dsh preview 颠簸 | 周更 break + Windows photon-node WAS |
+
+### 4.2 何时选 X
+
+- **触达 dsh 用户群是核心价值**：X 是唯一路径
+- **接受 dsh 颠簸与双框架成本**：以市场覆盖换工程代价
+- **接受编辑器 Vue 形态固定**：shell.overlay 容器适配 Vue 编辑器
+
+### 4.3 何时选 pi
+
+- **不在乎分发渠道，只想要独立产品**：pi 路线是纯库，独立性强
+- **接受自写服务端与工具审批的额外成本**：但保留 dsh 颠簸自由度
+- **跨重开恢复是硬需求**：`SessionManager.open(path)` 一行 API 是杀手锏
+
+---
+
+## 5. 选型决策（待 owner 拍板）
+
+### 5.1 候选选项
+
+- **A. 走 dsh-X**（推荐：你已表达偏好）
+- **B. 走 pi sdk**
+- **C. 双轨并行**：先走 X 发布，X 内部 host runtime 用 pi（spike 02 §6 提到的 hedge）
+- **D. 维持现状**：继续等更多信号
+
+### 5.2 触发任何选项的前置验证
+
+无论选哪个，**第一步必须**：
+1. `gh api repos/deepseek-ai/deepseek-harness --jq '{stars: .stargazers_count, forks: .forks_count, open_issues: .open_issues_count}'`
+2. `npm view @deepseek-ai/dsh weekly-downloads`
+3. `npm view @earendil-works/pi-coding-agent weekly-downloads`
+
+阈值（owner 拍板后填）：
+- dsh stars < 1k 或 weekly < 500 → A/C 选项下注价值下降，可能倒向 B
+- pi weekly < 1k → B 选项下注价值下降，可能倒向 A（即使无 dsh 触达也赌运行时质量）
+
+### 5.3 spike 启动条件
+
+待 owner 拍板 D9 后启动 S-X 或 S-pi（spike 04 §7.1 / spike 02 §6 各自的 4.5 人日验证清单）。
+
+---
+
+## 6. 文档关系索引
+
+| 文档 | 角色 |
+|---|---|
+| 01-target-state.md §7 | **决策依据**（三路线对比 + 当前推荐） |
+| 01-target-state.md §8 | X 复用更贵的五条机制 |
+| tracker.md D9 | **决策日志**（待 owner 拍板） |
+| spikes/01-dsh-integration-routes.zh.md | dsh-Y vs dsh-X 原始对比（Y 已不构成有效候选） |
+| spikes/02-pi-sdk-runtime.zh.md | pi sdk 源码级核查（含 9 题 P1-P9 + 工作量表） |
+| spikes/03-weshop-case-deep-dive.zh.md | weshop 实证（X 路线的形态修正） |
+| **spikes/04-dsh-x-design.zh.md v4** | **X 路线专项设计**（完整落地形态 + S-X 6 项验证） |
+
+---
+
+## 附录 A：v3 相对 v2 的修订记录
+
+- **范围缩减**：从三路线（X/Y/pi）→ 双路线（X/pi）。Y 路线已被你排除，不再构成有效候选。
+- **X 路线深化**：从 spike 01 §X 节升级到 spike 04 v4（316 行专项设计，含术语表 / session 切换不卸载实测 / 自写 ChatPanel 三因素论证 / 4 落地伪代码）
+- **pi 路线深化**：从 spike 01 §Y4 / §P 系列升级到 spike 02（pi-coding-agent 库形态确认 + RPC event 流同构 + JSONL 树形 session）
+- **决策框架简化**：v2 三选项（a/b/c）→ v3 双选项（X/pi），A 选项（dsh-X）保留为推荐
+- **身份声明更新**：从「决策依据」明确改为「case study 调研（辅助参考信息）」，决策依据在 01 §7 + tracker D9
+- **前置验证条目**：gh api + npm view 双数据采集加入（v2 缺失）

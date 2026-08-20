@@ -41,7 +41,7 @@ function git(args: string): string {
     return execSync(`git ${args}`, {
       cwd: root,
       encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
+      stdio: ['ignore', 'pipe', 'ignore']
     }).trim()
   } catch {
     return ''
@@ -73,7 +73,11 @@ function isNarrative(file: string): { counterpart: string | null; isNew: boolean
     return { counterpart: null, isNew: false }
   }
   // 排除 check-docs.ts / check-bindings.ts / check-tasks.ts / package.json 等基础设施
-  if (file.startsWith('tools/zone-registry/') || file === 'package.json' || file === '.github/workflows/ci.yml') {
+  if (
+    file.startsWith('tools/zone-registry/') ||
+    file === 'package.json' ||
+    file === '.github/workflows/ci.yml'
+  ) {
     return { counterpart: null, isNew: false }
   }
 
@@ -86,7 +90,7 @@ function isNarrative(file: string): { counterpart: string | null; isNew: boolean
   const inner = narrativeMatch[1]
   return {
     counterpart: `docs/rebuild/records/narrative/${inner}`,
-    isNew: false,
+    isNew: false
   }
 }
 
@@ -119,14 +123,14 @@ function main(): void {
         violations.push({
           file,
           rule: 'binding',
-          message: `narrative 文件 ${file} 已修改，但对应 records ${counterpart} 未修改。请同步更新或加 [no-record] 例外`,
+          message: `narrative 文件 ${file} 已修改，但对应 records ${counterpart} 未修改。请同步更新或加 [no-record] 例外`
         })
       } else {
         // counterpart 也不存在——可能是新增 narrative 文件但忘记建对应档案
         violations.push({
           file,
           rule: 'binding',
-          message: `新增 narrative 文件 ${file}，但缺少对应 records ${counterpart}。请同时创建或加 [no-record] 例外`,
+          message: `新增 narrative 文件 ${file}，但缺少对应 records ${counterpart}。请同时创建或加 [no-record] 例外`
         })
       }
     }

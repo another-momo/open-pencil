@@ -55,7 +55,7 @@ const NARRATIVE_FILES = [
   /^tracker\.md$/,
   /^spikes\/.*\.zh\.md$/,
   /^records\/narrative\/.*\.md$/,
-  /^records\/.*\.md$/, // 横向档案
+  /^records\/.*\.md$/ // 横向档案
 ]
 
 function listDocs(dir: string, prefix = ''): string[] {
@@ -177,7 +177,9 @@ function findBareSectionRefs(content: string): BareSectionHit[] {
     // 跳过行内代码段：`` `...` `` 内的 § 不算
     const stripped = line.replace(/`[^`]*`/g, '')
     // 跳过 markdown 链接 [text](url) / [text][ref]——整体删
-    const noLinks = stripped.replace(/\[[^\]]*\]\([^)]*\)/g, '').replace(/\[[^\]]*\]\[[^\]]*\]/g, '')
+    const noLinks = stripped
+      .replace(/\[[^\]]*\]\([^)]*\)/g, '')
+      .replace(/\[[^\]]*\]\[[^\]]*\]/g, '')
 
     // 跳过文件名引用：xxx.md §N / xxx.zh.md §N 形式
     // 兼容 _index.md 这种特殊命名 + docs/rebuild-docs-governance-proposal.md 这种外部方案
@@ -228,7 +230,10 @@ function main(): void {
     // R5 引用格式：核心 narrative 严格；spikes/ + records/横向档案豁免
     //   （这些文件性质上是跨文档引用汇总或调研文档，豁免 R5 避免改造负担）。
     const isCoreNarrative =
-      /^0[0-4]-/.test(rel) || /^05-process\.md$/.test(rel) || /^README\.md$/.test(rel) || /^tracker\.md$/.test(rel)
+      /^0[0-4]-/.test(rel) ||
+      /^05-process\.md$/.test(rel) ||
+      /^README\.md$/.test(rel) ||
+      /^tracker\.md$/.test(rel)
 
     const checks: [string, (file: string, content: string) => string | null][] = []
     if (isCoreNarrative) {

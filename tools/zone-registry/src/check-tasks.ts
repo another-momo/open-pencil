@@ -46,7 +46,7 @@ function git(args: string): string {
     return execSync(`git ${args}`, {
       cwd: root,
       encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
+      stdio: ['ignore', 'pipe', 'ignore']
     }).trim()
   } catch {
     return ''
@@ -59,9 +59,7 @@ interface DiffStats {
 }
 
 function getDiffStats(): DiffStats {
-  const files = git(`diff --name-only ${base}`)
-    .split('\n')
-    .filter(Boolean)
+  const files = git(`diff --name-only ${base}`).split('\n').filter(Boolean)
   const shortstat = git(`diff --shortstat ${base}`)
   return { files, shortstat }
 }
@@ -114,7 +112,10 @@ function main(): void {
   }
 
   // 检查 task 计划指针：commit message 含 task: T<NN> / [BIG] / tracker.md §2
-  const taskRefMatch = commitMsg.match(/\btask:\s*T?(\d+)/i) || commitMsg.match(/\[BIG\]/i) || /tracker\.md\s+§\s*2/i.test(commitMsg)
+  const taskRefMatch =
+    commitMsg.match(/\btask:\s*T?(\d+)/i) ||
+    commitMsg.match(/\[BIG\]/i) ||
+    /tracker\.md\s+§\s*2/i.test(commitMsg)
   const taskId = taskRefMatch ? (commitMsg.match(/T?(\d+)/)?.[1] ?? null) : null
 
   if (hasExemption) {
@@ -133,7 +134,7 @@ function main(): void {
 - commit message 必须含 \`task: T<NN>\` / \`[BIG]\` / 或指向 tracker.md §2 任务表的引用
 - 同时必须创建/更新 \`tasks/T<NN>-<slug>.md\`（task 计划文档，承载计划 + 自检 + 核验三件套）
 
-例外：在 commit message 加 \`[no-task-plan]\` tag（限 owner 标注，**仅限紧急 CI 红修复**）。`,
+例外：在 commit message 加 \`[no-task-plan]\` tag（限 owner 标注，**仅限紧急 CI 红修复**）。`
     })
   }
 
@@ -144,7 +145,7 @@ function main(): void {
     if (!taskFileChanged) {
       violations.push({
         rule: 'big-change-task-file',
-        message: `commit message 引用 T${taskId}，但本次 commit 不包含 \`tasks/T${taskId}-*.md\` 的创建或更新。请同步提交 task 计划文档。`,
+        message: `commit message 引用 T${taskId}，但本次 commit 不包含 \`tasks/T${taskId}-*.md\` 的创建或更新。请同步提交 task 计划文档。`
       })
     }
   }

@@ -55,7 +55,12 @@ function resolveBase(): string {
   // In-progress merge: the base is the being-merged head (MERGE_HEAD), not the old
   // merge-base — otherwise every upstream change in flight shows up as an
   // unregistered modification and the merge commit can never pass pre-commit.
-  const mergeHead = git(['rev-parse', '-q', '--verify', 'MERGE_HEAD'])
+  let mergeHead = ''
+  try {
+    mergeHead = git(['rev-parse', '-q', '--verify', 'MERGE_HEAD'])
+  } catch {
+    // no in-progress merge — rev-parse exits 1
+  }
   const base = mergeHead || git(['merge-base', 'HEAD', 'upstream/master'])
   if (!base) {
     console.error('[zones] cannot resolve merge-base with upstream/master')

@@ -43,10 +43,10 @@
 | `acp:` provider 概念残留 | models/settings 层仍引用 `ACP_AGENTS`（core constants）；选 ACP 档案会优雅失败 | Phase 1 重分类 chat/providers 时清理 |
 | `@agentclientprotocol/sdk` 依赖 | 被 `src/app/integrations/mcp/runtime.ts` + core constants 引用，未裁 | 同上 |
 | LFS 自有托管 | fork GitHub LFS 预算超额（pull 被拒）；新增 LFS 文件（如普惠体）前必须解决，或走子集化进普通 git（D6 相关） | D6 决策时 |
-| knip/steiger/oxlint 死配置残留 | desktop/packages-docs 等 ignore 条目保留未清（无害，零补丁纪律）；另有 knip.json `ignoreWorkspaces` 含 `packages/acp`（从未存在过的路径，上游死配置） | 可不处理 |
+| knip/steiger/oxlint 死配置残留 | desktop/packages-docs 等 ignore 条目保留未清（无害，零补丁纪律）；~~knip.json `ignoreWorkspaces` 含 `packages/acp`~~ **已清**：T10 修复期 CI 实报 packages/acp + packages/demos 两条从未存在的死条目，删除并登记 P34（2026-08-21） | 可不处理 |
 ## 合并 · upstream/master@5201404f（T10，2026-08-21 开工）
 
-- **类型**：合并记录（进行中）
+- **类型**：合并记录（已闭环）
 - **时间**：2026-08-21
 - **分支**：merge/upstream-2026-08-21 → rebuild/v2
 - **漂移实测**（`git diff 0332b062..upstream/master`，2026-08-21）：79 commits / 864 文件（86 A / 762 M / 5 D / 11 R）；fork 点 0332b062 = 2026-08-18 23:09，上游头 5201404f = 2026-08-20 21:28——约 2 天 79 commits，上游极高活跃
@@ -64,3 +64,4 @@
   - 机制补强：check.ts resolveBase 加 MERGE_HEAD 分支（CI-8），否则合并中 zone check 必误报
   - 本地验证：四检查绿（zones 基线 5201404f：30M/88A/953D）+ build:packages ✅ + lint 0 errors + vite build ✅ 19.09s；全量单测按 owner 指示交远端 CI
   - 核验：subagent A 11 通过 / 1 警告 / 0 失败（[T10-verify.md](../../tasks/T10-verify.md)）；N1 备查：ACP_AGENTS 仍存活于 settings 三文件（ProfileEditor/ProviderSelect/ModelsPanel）——与上表「acp: provider 概念残留」遗留项同根，Phase 1 重分类时清理
+  - **闭环**（2026-08-21 补登）：合并 commit b84530bf + 附带 9f15c43f + 三轮 CI 修复（384560c3 tauri mocks 恢复/P34/format + 空 catch 与 task 指针；1749b877 TS6133 tabCount）→ 远端 CI run 32458703514 **12/12 success**；rebuild/v2 fast-forward 004b1f48 → 1749b877；ci.yml push 触发加 `spike/**`（P32）。逐 run 明细见 [T10-verify.md §6](../../tasks/T10-verify.md)

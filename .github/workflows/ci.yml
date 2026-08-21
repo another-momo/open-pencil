@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ['rebuild/**', 'merge/**']
+    branches: ['rebuild/**', 'merge/**', 'spike/**']
   pull_request:
     branches: [master]
     paths-ignore:

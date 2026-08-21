@@ -217,7 +217,7 @@
     {
       "id": "P32",
       "file": ".github/workflows/ci.yml",
-      "reason": "add rebuild-discipline job: check:zones + check:docs + check:bindings + check:tasks wired to CI (T09 — these checks were documented as CI-enforced since Phase 0 but never actually wired) T10 附带：push 触发面 += merge/**（§3.3 月合并分支先跑 CI 再落 rebuild/v2）",
+      "reason": "add rebuild-discipline job: check:zones + check:docs + check:bindings + check:tasks wired to CI (T09 — these checks were documented as CI-enforced since Phase 0 but never actually wired) T10 附带：push 触发面 += merge/**（§3.3 月合并分支先跑 CI 再落 rebuild/v2）；T10 收工再加 spike/**（Phase 1 spike 分支走 CI）",
       "disposition": "permanent"
     },
     {

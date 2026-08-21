@@ -147,3 +147,16 @@
 - **问题**：check.ts 原只用 `merge-base HEAD upstream/master` 作基线——合并进行中（MERGE_HEAD 存在）时，上游在途的 762 个修改全部显示为「未登记修改」，pre-commit 的 check:zones 必然误报，合并 commit 无法通过
 - **修正**：resolveBase() 增加 MERGE_HEAD 分支——合并中以被并入的头（upstream/master）为基线，zone check 恰好只校验我方解决增量（补丁重涂 + owned + 删除立场）
 - **实测**：修正后合并中实跑 `[zones] clean: 30 modified (all registered), 88 added (owned), 953 deleted (all registered), base 5201404f`；CI 侧不受影响（合并完成后 merge-base 自然前移）
+
+## CI-9 · T10 合并分支三轮修复至 12/12（merge/upstream-2026-08-21）
+
+- **类型**：核验
+- **时间**：2026-08-21
+- **分支**：merge/upstream-2026-08-21（CI 触发由 P32 扩展 `merge/**` 支撑）
+- **迭代**（`gh run list -R another-momo/open-pencil --branch merge/upstream-2026-08-21`）：
+  1. run 32455861262（9f15c43f）3 红——pi-mcp.test.ts 缺 tauri mocks（恢复 mocks.ts + deletedPaths 收窄为 6 文件）、knip 死 ignoreWorkspaces（清 packages/acp/demos 并登记 P34）、format:check（oxfmt 重排 zones.json）→ 384560c3
+  2. run 32457089797（384560c3）2 红——oxlint 空 catch（check.ts，注释不算语句，补赋值语句）、check-tasks R2（645 行变更缺 `task:` 指针，amend message 补 `task: T10` + force-with-lease）→ 同 commit amend
+  3. run 32458156576（384560c3）1 红——TS6133 tabCount 未用（P2 重涂残留 import）→ 1749b877
+  4. run 32458703514（1749b877）**12/12 success**——引擎六 job 全绿，本地所见 cli.test.ts 1 例 fail 未在 CI 复现（判定通过）
+- **机制侧记**：format:check 是净树 gate（oxfmt --write 后 `git status` 必须为空），本地有未提交改动时必然报红，属预期；T10 顺带把 push 触发加 `spike/**`（P32 注记）供 Phase 1 spike 分支走 CI
+- **结论**：merge 分支全绿后 fast-forward rebuild/v2（004b1f48 → 1749b877），T10 闭环

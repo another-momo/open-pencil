@@ -47,7 +47,8 @@ T10 把 upstream/master@5201404f 合并进 rebuild/v2（漂移 79 commits/864 �
 ## 4. 综合判定
 
 - ✅ **T10 合并解决与登记完整性通过核验**（2026-08-21 subagent A 实做，commit 前）
-- ⏳ 验收 ⑥（远端 CI 12/12）与 E1（合回 rebuild/v2 + spike 分支）待 push 后补登
+- ✅ 验收 ⑥（远端 CI 12/12）：run 32458703514（HEAD 1749b877）overall success、12 job 全绿（2026-08-21，含 cli.test.ts 判定——本地所见 1 例 fail 在 CI 未复现，引擎测试全绿）
+- ✅ E1（合回 rebuild/v2 + spike 分支）：rebuild/v2 fast-forward 004b1f48 → 1749b877 已推送（2026-08-21）
 
 ## 5. 新发现问题
 
@@ -57,4 +58,10 @@ T10 把 upstream/master@5201404f 合并进 rebuild/v2（漂移 79 commits/864 �
 ## 6. 补充（核验后）
 
 - 核验全程只读；探针在系统临时目录且已清理
-- 远端 CI 结果将由主 agent 在 push 后实测并追加本节（tasks/ 文件不触发 R3/R4 大改动检测）
+- 远端 CI 结果由主 agent 在 push 后实测（2026-08-21 补登，tasks/ 文件不触发 R3/R4 大改动检测）：
+  - run 32455861262（9f15c43f）3 红：pi-mcp.test.ts 缺 `#tests/helpers/tauri/mocks`、knip 死 ignoreWorkspaces（packages/acp/demos）、format:check（zones.json 排版）→ 修复 commit 1dd381c8（后 amend 为 384560c3）：恢复 mocks.ts + deletedPaths 收窄为 6 个仍删文件、knip.json 清死条目并登记 P34、oxfmt 重排 zones.json
+  - run 32457089797（384560c3）2 红：oxlint 空 catch（9f15c43f 引入，注释不算语句）→ catch 内补 `mergeHead = ''`；check-tasks R2 违规（645 行变更无 `task:` 指针）→ commit message amend 补 `task: T10`，force-with-lease 推送
+  - run 32458156576（384560c3）1 红：TS6133 `tabCount` 未用（P2 重涂残留 import）→ 修复 commit 1749b877
+  - run 32458703514（1749b877）**12/12 success**：引擎测试六 job 全绿（本地所见 cli.test.ts 1 例 fail 未复现，CI 判定通过）；期间本机 GitHub 连通性中断约 6 分钟，重试恢复
+  - 机制侧记：format:check 是净树 gate（oxfmt --write 后 git status 必须为空），本地有未提交改动时必然报红，属预期行为
+  - 附带机制更新：ci.yml push 触发加 `spike/**`（P32 注记），供 Phase 1 spike 分支走 CI

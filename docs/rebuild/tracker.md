@@ -25,18 +25,21 @@
 | Phase 4 增强补齐 | [01-target-state.md §4](01-target-state.md) 层 2 逐块进 | ⬜ | — | — |
 | parity 切换 | [01-target-state.md §7](01-target-state.md)，owner 决定 | ⬜ | — | — |
 
-## 2. 任务表（能力块 = 1 PR + 验收测试 + 本表一行 + 三件套路径列 D15）
+## 2. 任务表（每个 task 一行 + 三件套路径列 D15）
 
-| T 编号 | 块 | 内容 | 验收 | 状态 | PR | plan | self-check | verify |
-|---|---|---|---|---|---|---|---|---|
-| T00 | 文档治理 | 文档集首轮整改（R1-R4 核查轮）| ✅ 完成（历史回填） | ✅ | — | [T00-plan](tasks/T00-plan.md) | [T00-self-check](tasks/T00-self-check.md) | [T00-verify](tasks/T00-verify.md) |
-| T01 | 文档治理 | 文档体系整改（plan-correction / tracker拆分 / check-docs / binding / tasks）| ✅ 完成（待 owner 验收） | ✅ | — | [T01-plan](tasks/T01-plan.md) | [T01-self-check](tasks/T01-self-check.md) | [T01-verify](tasks/T01-verify.md) |
-| T02 | 文档治理 | 文档纪律二次检查（[05-process.md §5](05-process.md) 迁移 + check-tasks 增强）| ✅ 完成（CI 11/11 全绿） | ✅ | — | [T02-plan](tasks/T02-plan.md) | [T02-self-check](tasks/T02-self-check.md) | [T02-verify](tasks/T02-verify.md) |
-| T03 | 文档治理 | [05-process.md §4.10](05-process.md) 文件↔record 一一对应纪律补漏（D14 决策落地）| ✅ 完成（CI 11/11 全绿 + subagent A 18/18 通过） | ✅ | — | [T03-plan](tasks/T03-plan.md) | [T03-self-check](tasks/T03-self-check.md) | [T03-verify](tasks/T03-verify.md) |
-| T04 | 文档治理 | task 纪律 CI 强化（D15 三件套物理拆分 + 任务表路径检查）| ✅ 完成（CI 11/11 全绿 + subagent A 18/18 + 3 追加通过） | ✅ | — | [T04-plan](tasks/T04-plan.md) | [T04-self-check](tasks/T04-self-check.md) | [T04-verify](tasks/T04-verify.md) |
+> **T08 整改**：删除 PR 列。本仓库 `docs/rebuild/` 范围**不采用 PR 管理**——任务以 commit + 任务表登记为唯一载体。详见 [T08-plan.md §1.1](tasks/T08-plan.md)。
+
+| T 编号 | 块 | 内容 | 验收 | 状态 | plan | self-check | verify |
+|---|---|---|---|---|---|---|---|
+| T00 | 文档治理 | 文档集首轮整改（R1-R4 核查轮）| ✅ 完成（历史回填） | ✅ | [T00-plan](tasks/T00-plan.md) | [T00-self-check](tasks/T00-self-check.md) | [T00-verify](tasks/T00-verify.md) |
+| T01 | 文档治理 | 文档体系整改（plan-correction / tracker拆分 / check-docs / binding / tasks）| ✅ 完成（待 owner 验收） | ✅ | [T01-plan](tasks/T01-plan.md) | [T01-self-check](tasks/T01-self-check.md) | [T01-verify](tasks/T01-verify.md) |
+| T02 | 文档治理 | 文档纪律二次检查（[05-process.md §5](05-process.md) 迁移 + check-tasks 增强）| ✅ 完成（CI 11/11 全绿） | ✅ | [T02-plan](tasks/T02-plan.md) | [T02-self-check](tasks/T02-self-check.md) | [T02-verify](tasks/T02-verify.md) |
+| T03 | 文档治理 | [05-process.md §4.10](05-process.md) 文件↔record 一一对应纪律补漏（D14 决策落地）| ✅ 完成（CI 11/11 全绿 + subagent A 18/18 通过） | ✅ | [T03-plan](tasks/T03-plan.md) | [T03-self-check](tasks/T03-self-check.md) | [T03-verify](tasks/T03-verify.md) |
+| T04 | 文档治理 | task 纪律 CI 强化（D15 三件套物理拆分 + 任务表路径检查）| ✅ 完成（CI 11/11 全绿 + subagent A 18/18 + 3 追加通过） | ✅ | [T04-plan](tasks/T04-plan.md) | [T04-self-check](tasks/T04-self-check.md) | [T04-verify](tasks/T04-verify.md) |
 | T05 | 文档治理 | 00-05 系统性腐烂 review（外部 proposal 内化 + 05 §2 树状图重写 + D16 候选登记 + D17 本机绝对路径清理）| ✅ 完成（CI 11/11 全绿 × 2 commits + subagent A 19/19 通过） | ✅ | [T05-plan](tasks/T05-plan.md) | [T05-self-check](tasks/T05-self-check.md) | [T05-verify](tasks/T05-verify.md) |
 | T06 | CI 基础设施 | LFS cache 启用（每次 push 节省 ~99% 上游 LFS 流量）| ✅ 完成（setup-bun action.yml 加 actions/cache@v6） | ✅ | [T06-plan](tasks/T06-plan.md) | [T06-self-check](tasks/T06-self-check.md) | [T06-verify](tasks/T06-verify.md) |
-| — | （Phase 1 开工后逐行登记） | — | — | — | — | — | — | — |
+| T07 | 文档治理 | 修正 [05-process.md §4.10](05-process.md) 应用错误（横向档案 narrative 绑定撤回）+ 高频腐烂防御 | 🔄 进行中（T08 收尾后同步） | — | [T07-plan](tasks/T07-plan.md) | [T07-self-check](tasks/T07-self-check.md) | [T07-verify](tasks/T07-verify.md) |
+| — | （Phase 1 开工后逐行登记） | — | — | — | — | — | — |
 
 ## 3. 记录索引
 

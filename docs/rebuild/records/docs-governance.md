@@ -283,3 +283,17 @@
      - 增强失败时给出明确的修复指引
   3. **T02 task 自身**承载本次改进：计划 + 自检 + 核验三件套全部落 [tasks/T02-doc-discipline-check-2026-08-20.md](../tasks/T02-doc-discipline-check-2026-08-20.md)
 - **依据**：owner 触发（T01 落地后反思）
+
+## D14 · 05 §4.10 文件↔record 一一对应显式纪律条款（补漏）
+
+- **类型**：决策
+- **时间**：2026-08-21
+- **拍板**：owner（基于"05 未提及物理文件↔record 一一对应"的反思）
+- **问题**：D12 已决定 narrative/ 一一对应（每物理文件一份 record），但 05-process.md 只在 §3.2 一笔带过「`records/narrative/<file>.md` 承载腐烂/修正/核验」，**未把"一一对应"作为可被 CI 拦截的明文纪律条款**——导致后来读 05 的人不知道这是强约束，只当它是 `check-bindings.ts` 的实现细节
+- **处置**：
+  1. **05 §3.2 修订**：在"Task 维度 vs 文件维度的严格分离"段落显式补"一一对应"字样 + 列出"错误示范 2"（跨多文件共用主题聚合 record）
+  2. **05 §4 新增 §4.10**：标题「文件↔record 一一对应纪律（D14 候选）」，明文写下五条——核心约束 / 两层关系 / 修改触发 / 新增删除触发 / CI 拦截（check-bindings.ts + pre-commit + gate review 第 4 步）
+  3. **05 §3.1 gate review 列表补第 4 项**：文件↔record 一一对应核验全绿（check-bindings.ts）升级为 gate review 硬性前置
+  4. **05 §5 状态字段刷新**：「已核验」→「草稿」待 owner + subagent 核验（这次是流程定义修订，非历史事实）
+- **执行**：主 agent 已完成；commit message 应带 `task: T03`（待 owner 触发 T03 登记后）
+- **依据**：owner 触发（"请 review 05-process.md 为什么我没见到任何一个地方提及要 by 文件建立一一对应的 record"）

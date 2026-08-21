@@ -8,9 +8,10 @@
 
 # records/narrative/05-process.md
 
-> **状态**：已建立 | **时间**：2026-08-20 19:30 | **核验人**：主 agent
+> **状态**：已建立 | **时间**：2026-08-21 滚动 | **核验人**：主 agent
 > **物理绑定**：[05-process.md](../../05-process.md)（一一对应）
 > **身份**：本档案持有针对 05-process.md 的修正/核验记录。05 是过程定义，本身的修改决策归 `records/docs-governance.md`。
+> **变更触发**：2026-08-21 owner 提出 "05 未提及文件↔record 一一对应"问题 → D14 决策 → 本档案追加"修正-N · v4"条目。
 
 ---
 
@@ -62,3 +63,21 @@
   - §3.2 "任务粒度与大改动纪律" 重写——明确 task 维度 vs 文件维度分离、新增 [BIG] 标记的精确检测
   - 附录 B "大改动工作流程" 重写——明确三件套全部落 tasks/T<id>.md 单文档
 - **影响**：[05-process.md](../../05-process.md) 头部状态/时间刷新；后续所有 task 必须按新流程
+
+## 修正-N · 05-process.md v4（T03 整改：补 §4.10 文件↔record 一一对应纪律）
+
+- **类型**：修正（按对象：05-process.md）
+- **时间**：2026-08-21
+- **依据**：本轮整改 D14 决策（owner 触发）
+- **背景**：D12 已决定 narrative/ 一一对应（每物理文件一份 record），但 05 §3.2 只在"Task 维度 vs 文件维度的严格分离"段落里一笔带过「`records/narrative/<file>.md` 承载腐烂/修正/核验」——**未把"一一对应"作为可被 CI 拦截的明文纪律条款**，导致后来读 05 的人不知道这是强约束
+- **内容**：
+  - §3.2 "Task 维度 vs 文件维度的严格分离" 段落：文件维度条目显式补"**与物理文件一一对应**"字样，新增"错误示范 2"（跨多文件共用主题聚合 record）
+  - §4 新增 §4.10「文件↔record 一一对应纪律（D14 候选）」，明文五条——核心约束 / 两层关系（`records/<对象>.md` 主题聚合层 vs `records/narrative/<file>.md` 物理绑定层）/ 修改触发 / 新增删除触发 / CI 拦截（check-bindings.ts + pre-commit + gate review 第 4 步）
+  - §3.1 gate review 列表补第 4 项：文件↔record 一一对应核验全绿（check-bindings.ts）升级为 gate review 硬性前置
+  - 头部状态字段刷新：「已核验」→「草稿」+ 2026-08-21 + 待 owner + subagent 核验
+  - 头部纪律提示块补充：明确"文件↔record 一一对应纪律见 §4.10（owner 提出后新增 D14 候选）"
+- **影响**：
+  - 文件↔record 一一对应从 D12 的隐含约定升级为 05 §4.10 的明文纪律条款
+  - check-bindings.ts 的纪律依据从"有工具"升级为"05 §4.10 明确要求"
+  - 下次 gate review 时必须跑 `pnpm check:bindings` + 排 subagent 核验"文件↔record 一一对应"是否全量覆盖
+- **task 文档**：[tasks/T03-process-binding-clause-2026-08-21.md](../../tasks/T03-process-binding-clause-2026-08-21.md)

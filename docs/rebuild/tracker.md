@@ -31,7 +31,8 @@
 |---|---|---|---|---|---|---|
 | T00 | 文档治理 | 文档集首轮整改（R1-R4 核查轮）| ✅ 完成（历史回填） | ✅ | — | [T00](tasks/T00-docset-v1-2026-08-18.md) |
 | T01 | 文档治理 | 文档体系整改（plan-correction / tracker拆分 / check-docs / binding / tasks）| ✅ 完成（待 owner 验收） | ✅ | [T01](tasks/T01-governance-2026-08-20.md) |
-| T02 | 文档治理 | 文档纪律二次检查（[05-process.md §5](05-process.md) 迁移 + check-tasks 增强）| 🔄 进行中 | — | [T02](tasks/T02-doc-discipline-check-2026-08-20.md) |
+| T02 | 文档治理 | 文档纪律二次检查（[05-process.md §5](05-process.md) 迁移 + check-tasks 增强）| ✅ 完成（CI 11/11 全绿，核验-N 后置） | ✅ | [T02](tasks/T02-doc-discipline-check-2026-08-20.md) |
+| T03 | 文档治理 | [05-process.md §4.10](05-process.md) 文件↔record 一一对应纪律补漏（D14 决策落地）| 🔄 进行中 | — | [T03](tasks/T03-process-binding-clause-2026-08-21.md) |
 | — | （Phase 1 开工后逐行登记） | — | — | — | — | — |
 
 ## 3. 记录索引

@@ -49,3 +49,13 @@
 - **依据**：本轮整改 D13 决策
 - **内容**：原 tracker.md §2 任务表为空（"Phase 1 开工后逐行登记"），现填充 T00（历史回填）/ T01（已 commit 的整改）/ T02（本次改进）三行
 - **影响**：[tracker.md §2 任务表](../../tracker.md) 与 [tasks/_index.md §2 任务清单](../_index.md) 保持一致——两个表互为指针
+
+## 修正-N · tracker.md T02 状态更新 + T03 新增（T03 整改）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-21
+- **依据**：本轮整改 D14 决策（owner 触发）
+- **内容**：
+  - T02 行状态从「🔄 进行中」→「✅ 完成（CI 11/11 全绿，核验-N 后置）」
+  - 新增 T03 行：[05-process.md §4.10](05-process.md) 文件↔record 一一对应纪律补漏（D14 决策落地），状态「🔄 进行中」，任务计划指针 [tasks/T03-process-binding-clause-2026-08-21.md](../tasks/T03-process-binding-clause-2026-08-21.md)
+- **影响**：[tracker.md §2 任务表](../../tracker.md) 现含 T00/T01/T02/T03 四行，与 [tasks/_index.md §2 任务清单](../_index.md) 一致

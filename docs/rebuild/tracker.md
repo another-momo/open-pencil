@@ -38,9 +38,19 @@
 
 ## 3. 记录索引
 
-> 对象 → records/ 子文档
+> **两层结构**（[05-process.md §4.10 D14 + §4.11 D15](05-process.md)）：`records/narrative/` 物理绑定层（与文件 1:1）+ `records/topics/` 主题聚合层（跨文件横向档案）。**权威列表见 [`records/_index.md`](records/_index.md)**——本文档不重复维护。
 
-| 对象 | 文件 |
+### 3.1 narrative/ 物理绑定层
+
+按物理文件 1:1 绑定（每个被治理文件一份 `records/narrative/<file>.md`）。完整列表见 [_index.md §2](../records/_index.md)。
+
+> 截至 2026-08-21：8 个核心叙事文档 + 1 个 README + 1 个 tracker + 4 个 spike = 14 份 narrative 档案
+
+### 3.2 topics/ 主题聚合层（横向档案）
+
+按主题跨文件聚合。完整列表见 [_index.md §3](../records/_index.md)。
+
+| 对象 | 横向档案 |
 |---|---|
 | agent 后端 / runtime | `records/topics/agent-runtime.md` |
 | brand config / type / profile | `records/topics/brand-config.md` |
@@ -52,4 +62,3 @@
 | CI / zone registry / autocrlf | `records/topics/ci-infra.md` |
 | spike 文档 | `records/topics/spikes.md` |
 | 文档体系治理 | `records/topics/docs-governance.md` |
-| 全部子文档索引 | `records/_index.md` |

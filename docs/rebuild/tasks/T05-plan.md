@@ -21,7 +21,7 @@
 
 owner 在 T04 收尾后指出"`tracker.md` §3 记录索引章节信息已过期"，主 agent 借机系统性 review 00-05 全部叙事文档，识别并修复已暴露的腐烂点。本 task 落地发现的腐烂点修正：
 
-1. **腐烂点 1（高）**：外部建议文档 `docs/rebuild-docs-governance-proposal.md` 在仓库根外（`D:\Desktop\AgentLearn\00_DIYProjects\0720openpencil/docs/`），T01-plan.md / docs-governance.md 多处引用——外部依赖 + 无版本控制 + 路径不可追溯
+1. **腐烂点 1（高）**：外部建议文档 `docs/rebuild-docs-governance-proposal.md` 在仓库根外（工作区根 `docs/` 子目录，非本仓库内），T01-plan.md / docs-governance.md 多处引用——外部依赖 + 无版本控制 + 路径不可追溯
 2. **腐烂点 2（高）**：`05-process.md §2 文档体系` 树状图还是 D12 之前的旧结构——没有 `tasks/` 子目录、没有 `records/{narrative,topics}/` 两层结构、records/ 平铺横向档案
 3. **腐烂点 3（低，已撤销）**：原担心 00 / 04 状态字段停留在 2026-08-18——经查 narrative/00-why-rebuild.md + narrative/04-porting-discipline.md 确认两个文件均无新增腐烂/修正条目，状态字段维持原值合规（§4 第 2 条"修改才需刷新"，未修改可保持）。**撤销**。
 4. **腐烂点 4（中）**：D9「dsh 集成形态」状态 `open（待 owner 拍板）`——但 03-phase-1-runtime.md v3 已按"Y 路线弃 + X vs pi 待 spike 后"撰写；决策状态与文档内容不一致。主 agent **不自行拍板**，登记为 D16 候选让 owner 决定如何对齐。
@@ -29,7 +29,7 @@ owner 在 T04 收尾后指出"`tracker.md` §3 记录索引章节信息已过期
 ### 1.2 范围
 
 - `docs/rebuild/proposals/` 子目录创建
-- `docs/rebuild/proposals/governance-v1.md` 创建（从仓库外 `D:\Desktop\AgentLearn\00_DIYProjects/0720openpencil/docs/rebuild-docs-governance-proposal.md` 复制 + 加头部元信息）
+- `docs/rebuild/proposals/governance-v1.md` 创建（从仓库外 `docs/rebuild-docs-governance-proposal.md` 复制 + 加头部元信息）
 - `docs/rebuild/tasks/T01-plan.md` 引用路径更新（2 处）
 - `docs/rebuild/records/topics/docs-governance.md` 引用路径更新（2 处）
 - `docs/rebuild/05-process.md §2` 树状图重写（反映 `proposals/` + `tasks/` + `records/{narrative,topics}/` + `narrative/{tasks,proposals}/`）

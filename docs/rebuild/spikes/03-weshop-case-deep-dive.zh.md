@@ -11,7 +11,7 @@
 
 > 状态：源码阅读完成（2026-08-20）| 回答 owner 对 weshop 的描述偏差，校正 spike 01 中 X 路线的若干假设与工作量。
 > 陈述纪律：**【事实】**（附 文件:行号 证据）/ **【推断】**（由证据推出的结论）/ **【假设】**（未验证）。
-> 证据路径约定：`weshop/` = 参考项目/weshop-dsh-plugin；`dsh/` = 参考项目/deepseek-harness；`open-pencil/` = D:\Desktop\AgentLearn\00_DIYProjects\0720openpencil\open-pencil（v3 fork 当前分支）。
+> 证据路径约定：`weshop/` = 参考项目/weshop-dsh-plugin；`dsh/` = 参考项目/deepseek-harness；`open-pencil/` = 本仓库 `open-pencil-rebuild` 工作树（v3 fork 当前分支；早期曾在另一 worktree）。
 
 ## 0. 结论先行
 

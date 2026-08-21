@@ -332,3 +332,16 @@
   - **选项 C**：D9 维持 open，03 §0 加显式声明"Y 弃系 owner 讨论态度，未正式拍板；D9 决策悬而未决"
 - **执行**：本次 T05 只登记不一致、不解决决策本身
 - **依据**：T05 owner 触发（T05 任务清单第 4 项腐烂点：D9 vs 03 不一致）
+
+## D17 · 禁止本机绝对路径入库（owner 触发 · 待评估 CI 拦截）
+
+- **类型**：决策
+- **时间**：2026-08-21
+- **拍板**：owner（基于"上传 github 后对其他人用其他电脑会形成干扰，可能导致隐私泄露"反馈）
+- **问题**：T05 commit `9ecda65e`（未 push）发现 5 处本机绝对路径——3 处 T05 范围（narrative/proposals/governance-v1.md + narrative/05-process.md + tasks/T05-plan.md），2 处历史（spike/03-weshop-case-deep-dive.zh.md 在 commit `a5dab4a8`）
+- **处置**：
+  1. **5 处全清**：T05 范围 3 处用 Edit 改为"工作区根 docs/ 子目录 / 仓库根外"等描述性语句；spike 03 1 处用 Edit 改为"本仓库 open-pencil-rebuild 工作树"
+  2. **T05 commit 重建**：T05 落地后再补一个清理 commit（与 T05 commit 合并或独立 commit 二选一——本任务先做独立 commit，让 git history 反映"owner 反馈 → 主 agent 修正"路径）
+  3. **新纪律（提案）**：禁止本机绝对路径（`D:\\`、`C:\\`、`~/` 等）入库；写入 05 §4.11 之后的纪律条目或新建 §4.12
+  4. **CI 拦截（待评估）**：是否在 `check-docs.ts` 加 R6 检测（grep `D:\\|C:\\`）——owner 决定是否启用
+- **依据**：owner 提问"不要在本仓库内记录任何这样的本机绝对地址……全面检查一遍"

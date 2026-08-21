@@ -108,7 +108,7 @@
 - **类型**：修正（按对象：05-process.md）
 - **时间**：2026-08-21
 - **依据**：T05 owner 触发（owner 指出 §2 文档体系树状图全部过期，要求系统性 review 00-05 文档）
-- **腐烂点 1（高）**：外部建议文档 `docs/rebuild-docs-governance-proposal.md` 在仓库根外（`D:\Desktop\AgentLearn/.../docs/`），T01-plan.md / docs-governance.md 多处引用——外部依赖 + 无版本控制 + 路径不可追溯
+- **腐烂点 1（高）**：外部建议文档 `docs/rebuild-docs-governance-proposal.md` 在仓库根外（工作区根 `docs/` 子目录，非本仓库内），T01-plan.md / docs-governance.md 多处引用——外部依赖 + 无版本控制 + 路径不可追溯
   - **处置**：复制到 [`docs/rebuild/proposals/governance-v1.md`](../../proposals/governance-v1.md) + 加头部元信息（状态/时间/作者/来源/身份/采纳映射）；更新所有引用路径 4 处（T01-plan.md ×2 + docs-governance.md ×2）
 - **腐烂点 2（高）**：[§2 文档体系](../../05-process.md) 树状图还是 D12 之前的旧结构——没有 `tasks/` 子目录、没有 `records/{narrative,topics}/` 两层结构、records/ 平铺横向档案
   - **处置**：§2 树状图重写——补全 `proposals/` + `tasks/` + `records/{narrative,topics}/` + `narrative/{tasks,proposals}/`；真相分层补充 task 三件套层；proposals 集合独立说明

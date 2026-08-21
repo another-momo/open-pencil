@@ -25,3 +25,12 @@
 - **影响**：触发 spike 01 v2 修正 + 催生 spike 04（X 路线专项设计）
 
 ---
+
+## 修正-N · spikes/03-weshop-case-deep-dive.zh.md 头部路径描述修正（D17 owner 反馈）
+
+- **类型**：修正（按对象：spikes/03-weshop-case-deep-dive.zh.md）
+- **时间**：2026-08-21
+- **依据**：D17 owner 反馈（禁止本机绝对路径入库）
+- **原内容**：`open-pencil/` = `D:\Desktop\AgentLearn\00_DIYProjects\0720openpencil\open-pencil`（v3 fork 当前分支）
+- **新内容**：`open-pencil/` = 本仓库 `open-pencil-rebuild` 工作树（v3 fork 当前分支；早期曾在另一 worktree）
+- **影响**：删除本机绝对路径，避免上传 GitHub 后干扰其他用户

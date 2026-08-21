@@ -22,7 +22,7 @@
 - **时间**：2026-08-21
 - **触发**：T05 owner 提问"外部建议文档的真实地址不在仓库内……现在应该怎么处理？内化到仓库内并放到合适的目录下？"
 - **处置**：
-  - 源路径：`D:\Desktop\AgentLearn/00_DIYProjects/0720openpencil/docs/rebuild-docs-governance-proposal.md`（仓库根外，17257 字节）
+  - 源路径：仓库根外 `docs/rebuild-docs-governance-proposal.md`（17257 字节；T05 之前位于工作区根 `docs/` 子目录而非本仓库内）
   - 目标路径：`docs/rebuild/proposals/governance-v1.md`（仓库内）
   - 内容完整复制 + 加头部元信息（纪律提示块 + 状态/时间/作者/来源/身份/采纳映射）
 - **采纳映射**：proposal 中所有决策点已在仓库内落地为 D10 / D11 / D12 / D13 / D14 / D15 决策登记

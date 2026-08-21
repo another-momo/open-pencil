@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 # Pre-commit hook for rebuild/v2.
 #
-# Runs the three lightweight doc checks before each commit. Heavy checks
+# Runs the lightweight governance checks before each commit. Heavy checks
 # (lint, type-check, tests) stay in CI to avoid slowing down the dev loop.
 #
+#   check:zones    — every commit (git-diff only, cheap); zone purity can be
+#                    broken by ANY upstream file change, not just docs.
+#   check:docs     — only when docs/rebuild/*.md staged
+#   check:bindings — only when docs/rebuild/*.md staged
+#   check:tasks    — only when docs/rebuild/*.md staged
+#
 # Setup (one time, per clone / worktree):
-#   git config core.hooksPath tools/hooks
-# Or copy this file to .git/hooks/pre-commit.
+#   bun run hooks:install
+# Or: git config core.hooksPath tools/hooks
 #
 # Bypass (emergency only):
 #   git commit --no-verify
@@ -19,13 +25,14 @@ if [ -n "$CHECK_HOOKS_SKIP" ]; then
   exit 0
 fi
 
-echo "pre-commit: 跑 docs checks..."
+echo "pre-commit: 跑 check:zones..."
+bun run check:zones
 
-# 仅 docs/ rebuild/ 改动才触发（其他类型提交加速）
+# doc 三检查仅在 docs/rebuild/*.md 改动时触发
 changed_docs=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^docs/rebuild/.*\.md$' || true)
 
 if [ -z "$changed_docs" ]; then
-  echo "pre-commit: 无 docs/ 改动，跳过 check-docs"
+  echo "pre-commit: 无 docs/ 改动，跳过 check-docs/bindings/tasks"
   exit 0
 fi
 

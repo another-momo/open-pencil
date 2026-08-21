@@ -9,7 +9,7 @@
 
 # 02 · Phase 0：机制与减法（起点定义）
 
-> **状态**：已执行 + 已核验 | **时间**：2026-08-19 16:30 完成；本轮整改 2026-08-20 18:30
+> **状态**：已执行 + 已核验 | **时间**：2026-08-19 16:30 完成；本轮整改 2026-08-20 18:30；T09 修正 2026-08-21（§5 #2「CI 已接线」声称证伪）
 > **核验人**：subagent A（gate review 机械审计）+ 主 agent + subagent C/D（执行期 4 项核验 R3/R4/P0-1~P0-10）
 > **身份**：**本文是 Phase 0 执行依据**；01-target-state.md 是「做哪些加法」的决策依据；03-phase-1-runtime.md 与 spikes/*.md 是 case study 与技术调研，身份是辅助参考信息，不直接驱动 Phase gate。
 > **基线**：commit 序列 `f4efaff7..68f67484` → 合并演习 `44205546` → `ae23db01`，后续文档提交 `cbc3fe4f`、`4a17fc77`。执行期实测修正已迁移至 `records/topics/docs-governance.md` 修正-2 条目；合并演习细节见 `records/topics/upstream-merge.md` MERGE-1。
@@ -81,7 +81,7 @@ Phase 0 不加任何产品功能，验收通过前不得进入 Phase 1。
 ## 5. 验收标准（逐条可执行）—— 2026-08-19 实测结果
 
 1. ✅ diff 只有删除 + owned 新文件 + 登记补丁（zone check：`24 modified (all registered), 15 added (owned), 951 deleted`）。
-2. ✅ follow 区纯净检查通过（`bun tools/zone-registry/src/check.ts`，CI 已接线 `check:zones`）。
+2. ✅ follow 区纯净检查通过（`bun tools/zone-registry/src/check.ts`）。⚠️ T09 修正：验收时「CI 已接线 `check:zones`」的声称**不实**——四个纪律检查从未出现在任何 workflow（`grep -rn "check:zones" .github/` 零命中，`git log --all -S "check:zones" -- .github/` 空，2026-08-21 实测）；T09 起经 ci.yml `rebuild-discipline` job 真正接线（见 [records/topics/ci-infra.md CI-6](records/topics/ci-infra.md)）。
 3. ⚠️→✅ CI 已全绿（2026-08-19，run 32248474442，11/11 job；5 轮修复史见 `records/topics/ci-infra.md` CI-1~CI-5）；本机：build:packages ✅、tsgo ✅、vue-tsc ×2 ✅、i18n check ✅、定点单测（含可疑回归文件隔离重跑 + 合并后 460 用例）0 fail。全量单测本机有环境性失败（纯净基线同源），按纪律交 CI。
 4. ✅ 冒烟：preview 启动 + 画矩形全链路（图层树/属性面板/中文 UI/零 console 报错）；dev server 启动正常。中文 .fig 打开验证依赖 fixture 字体已就位的单测通过（fonts 相关测试隔离全绿）。
 5. ✅ 合并演习：upstream/master `15bd0ba1→0332b062`（8 commits，含 AI SDK 7）已合入，冲突处理与修正见 `records/topics/upstream-merge.md` MERGE-1。

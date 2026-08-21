@@ -101,3 +101,11 @@
 - **结论**：patches P1-P24 全部真实、deletedPaths 44 条全落实、ownedRoots 零例外；发现 check.ts 4 漏洞 + 02 正文 7 处残留矛盾 + 2 处计数错 → 全部整改；fonts 测试复跑 77/0 绿；PWA 零残留实证
 
 ---
+
+## 修正-N · 02-phase-0.md §5 #2「CI 已接线」声称证伪（T09）
+
+- **类型**：修正（按对象：02-phase-0.md）
+- **时间**：2026-08-21
+- **依据**：T09 review（ROT-15）
+- **内容**：§5 验收第 2 条「CI 已接线 check:zones」实测不实（四检查从未进 workflow；grep + git log -S 双证伪）；正文改为如实记录，T09 起经 rebuild-discipline job 真正接线
+- **影响**：Phase 0 验收记录恢复可信；gate review 步骤 1-5 的「已自动化」从此有 workflow 文件佐证

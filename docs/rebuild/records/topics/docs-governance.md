@@ -345,3 +345,88 @@
   3. **新纪律（提案）**：禁止本机绝对路径（`D:\\`、`C:\\`、`~/` 等）入库；写入 05 §4.11 之后的纪律条目或新建 §4.12
   4. **CI 拦截（待评估）**：是否在 `check-docs.ts` 加 R6 检测（grep `D:\\|C:\\`）——owner 决定是否启用
 - **依据**：owner 提问"不要在本仓库内记录任何这样的本机绝对地址……全面检查一遍"
+
+---
+
+## T09 整改登记（2026-08-21 · owner review 发现的系统性问题）
+
+> 触发：owner 要求对重建文档集整体 review + 立 T09 逐项核实修复。以下 ROT 条目均由主 agent 复核实测（证据命令见 [tasks/T09-self-check.md](../../tasks/T09-self-check.md)），修复落在同一 commit。
+
+## ROT-15 · 「CI 已接线」声称虚构（02 / README / 05 §3.1）
+
+- **类型**：腐烂 | **时间**：2026-08-21
+- **错的内容**：02-phase-0.md §5 #2「CI 已接线 check:zones」；README「check-docs.ts 已挂 CI」；05 §3.1 gate 步骤 1-5 标注「已自动化」
+- **实况**：四个纪律检查从未出现在任何 workflow——`grep -rn "check:zones\|check:docs\|check:bindings\|check:tasks" .github/` 零命中；`git log --all -S "check:zones" -- .github/` 空。pre-commit hook 本机未安装（`git config core.hooksPath` 空），且 hook 只跑三个 doc check、不跑 check:zones
+- **后果**：T06 改 `.github/actions/setup-bun/action.yml` 未登记补丁、tools/hooks/ 未入 ownedRoots，zone check 在 HEAD 上 3 处违规无人拦截（2026-08-21 实跑实测）
+- **修复**：T09 B 组——ci.yml 新增 rebuild-discipline job（P32）；zones.json 补登 P31 + ownedRoots += tools/hooks/；pre-commit 改为每次 commit 跑 check:zones；本机 hooks:install 已执行
+
+## ROT-16 · T06/T07/T08 verify.md 占位核验（§4.11 明文禁止项被系统化执行）
+
+- **类型**：腐烂 | **时间**：2026-08-21
+- **错的内容**：三份 verify.md 全为「（待 subagent 填）」占位模板（T06 18 处 / T07 19 处「（待」标记），而对应 self-check 均声称「subagent 核验-1 ✅ 已做」
+- **实况**：existsSync 只能查存在、查不了实做——D15 物理拆分解决了「章节占位误判」，但没有解决「文件级占位」
+- **修复**：T09 D 组——subagent A 实做核验回填三份 verify.md（T08 已由并行会话 commit 7d013794 先行回填）；T09 B4——check-tasks.ts 新增占位检测（D19），命中「（待）」「（待 subagent」「待 owner 触发」即拒收
+- **教训**：纪律文本里写「必须实做」不构成约束；能机器检查的必须机器检查
+
+## ROT-17 · T08-plan/self-check 的 T07 commit hash 张冠李戴
+
+- **类型**：腐烂 | **时间**：2026-08-21
+- **错的内容**：T08-plan.md §1.1 与 T08-self-check.md §4 写「T07 commit `0ac548e6` 实际未 push」
+- **实况**：`git show -s 0ac548e6` = T06 的 commit（已 push、CI 绿）；T07 = `5698019a`（subagent A 复核）
+- **修复**：T09 C7 两处改回 `5698019a`；narrative/tracker.md 内 T08 登记条目同款错误一并注记
+
+## ROT-18 · tracker.md 任务表结构性失守（真源/镜像分叉 + 列错位复发）
+
+- **类型**：腐烂 | **时间**：2026-08-21
+- **错的内容**：① T08 落地时只在镜像 tasks/_index.md 加行，真源 tracker.md 缺 T08 行（并行会话 7d013794 补）；② 7d013794 写入的 T07/T08 行缺「状态」cell（7 cell vs 8 列表头）——owner 反馈的「写错位」问题在修正后再次复发；③ T07 行状态列曾填「—」（非法状态值）；④ §3.1 计数「14 份 narrative 档案」实为 13（find 实测）；⑤ 「≤50 行」预算声明 vs 实际 69 行
+- **根因**：check-tasks.ts 的 `readTaskTable()` 读两表取并集，真源缺行不可见；表格 cell 数无机器检查
+- **修复**：T09 C1 全部修正；行数预算放宽为 ≤80 行并注明理由
+
+## ROT-19 · 05-process.md §3.2 与 §4.11/附录 B 直接矛盾（最高优先级文档内部打架）
+
+- **类型**：腐烂 | **时间**：2026-08-21
+- **错的内容**：§3.2 仍写「三件套全部落在 tasks/T\<id\>.md 单个文档」「追加『自检-N』章节」「[BIG] 大改动标记」「check-tasks.ts 旧路径」——[BIG] 块已在 cdf81eb4 删除、脚本已迁 check/ 子目录（7dc2769a）；README「gate review 硬性第 4 步 subagent 核验」步骤号错误（实为第 6 步，T08-verify 曾写第 5 步）
+- **修复**：T09 C2/C3——§3.2 按 D15 重写、§3.1 脚本路径与步骤号修正、PR 列残留清除（§3.2/§4.11/附录 B.1）、§2 树状图修正
+
+## ROT-20 · 03-phase-1-runtime.md 决策关键数字与引用失守
+
+- **类型**：腐烂 | **时间**：2026-08-21
+- **错的内容**：① X 路线工作量「15.5 人日」（引用 spike 04 §5 + 修正-2，两处均无此数字）vs records 层（修正-1 / SP-3 / 01 §8）≈37-38 人日——决策关键输入两处打架；② §5.1「A 推荐（你已表达偏好）」vs D9 记录「c（pi）推 1」；③ 视觉回路证据引用 `weshop-dsh-plugin/src/integrations/pi.ts:18` 悬空（文件不存在、全仓无 .ts、git 历史无）；④ pi 路径标签 `packages/session/` 实为 `packages/coding-agent/src/core/`（行号 1530 实测不变）；⑤ §5.2 给的 `npm view <pkg> weekly-downloads` 不是有效字段（实测返回空）
+- **修复**：T09 C5——数字对齐 records 层、推荐方向不一致显式标注（不改推荐本身，留 owner 拍板）、引用修正、§5.2 数据实采填入（dsh 175,615 stars / 周下载 648,007；pi 周下载 1,904,277；均远超阈值）
+
+## ROT-21 · 05 §2 树状图 / records _index / 04 §4 一致性残留
+
+- **类型**：腐烂 | **时间**：2026-08-21
+- **错的内容**：05 §2 树状图 tasks/ 只列 T00-T04（T05-T08 缺）、列了磁盘不存在的 `narrative/tasks/` 与 `archive/`；records/_index.md §2 称治理范围含「records 各文件」与 §4.10 横向档案豁免矛盾；04 §4「逐块 PR」与 T08 决策未对齐
+- **修复**：T09 C2/C4/C8——树状图通用化（T<NN> 模式）+ 删幻影目录 + archive 标注按需创建；_index §2 改为与 bindings.ts 口径一致的准确枚举；04 §4 对齐 T08
+
+## D19 · 占位检测机制化 + 纪律检查 CI 接线（T09 落地）
+
+- **类型**：决策
+- **时间**：2026-08-21
+- **拍板**：主 agent 机制落地（属既有纪律 D11/D15 的执行层补漏，不改变决策内容）；owner review 触发
+- **内容**：
+  1. **check-tasks.ts 占位检测**：对 commit 引用 task 的 self-check/verify 扫描占位标记（`（待）` / `（待 subagent` / `待 owner 触发`），命中即拒收——§4.11「禁止占位」从文本纪律升级为机器检查。模式集刻意收窄，避免误伤「（待拍板）」类合法散文
+  2. **ci.yml rebuild-discipline job**：check:zones + check:docs + check:bindings + check:tasks 四检查真正接线（P32 登记；含 upstream remote fetch 供 merge-base，push 区间用 `github.event.before`）
+  3. **pre-commit**：每次 commit 跑 check:zones（git-diff 级开销，zone 违规可来自任意上游文件改动）；doc 三检查仍按 docs 改动触发
+- **依据**：ROT-15/ROT-16 的根因——「已自动化」声称必须有 workflow 文件佐证；「必须实做」必须有占位检测佐证
+
+## 提案 · 治理冻结期（待 owner 拍板）
+
+- **类型**：决策（候选 · 待 owner 拍板）
+- **时间**：2026-08-21（T09 F2 登记）
+- **内容**：Phase 1 期间治理机制只准 ROT 登记（发现腐烂就记），**不新增治理机制**（不再加新检查、新目录层、新三件套变体）。T00-T09 九个 task 中八个是文档治理/CI 基建，治理成本已在吞噬产品进度；机制沉淀应让位于 Phase 1 spike
+- **例外**：gate 阻塞级的机制缺陷（如 ROT-15 这种「声称的自动化不存在」）不受冻结限制
+
+## ROT-22 · T09 核验轮二轮发现（占位骨架残留 + 步骤号残留 + 字面引述自伤）
+
+- **类型**：腐烂登记
+- **时间**：2026-08-21
+- **发现者**：T09 核验 subagent（N1-N4）+ 主 agent repo-wide 探针复查（N5）
+- **内容**：
+  1. **N5 · T05-verify.md 占位骨架残留**：§2 实测表（19/19 ✅）下方残留原占位模板 14 行（回填实测值时未删模板骨架），repo-wide 占位探针实测命中；已删除（T05-verify.md §5.4 注记）
+  2. **N2 · 步骤号残留**：一轮修正只改 README 正文，README 表格行 / 05 §4.10 / T05-verify / T08-verify 仍引用旧步骤号——全部统一为第 6 步（T08/T05 verify 附修正注记）
+  3. **N1 · 字面引述自伤**：T09-self-check 与 T06/T07 verify 的修正注记直接引述占位词原文，命中 D19 占位检测正则——注记改写为角括号「待 subagent 填」样式（不触发 `（待` 字面），占位检测与历史引述两立
+  4. **N4 · 轻微漂移**：T09-self-check zone 计数 83→84；05 §3.3 `check-docs.ts` → `check:docs`；附录 B.5 表 `check-tasks.ts` ×3 → 全路径 + 补「占位检测 D19」
+- **教训**：① 模板回填时必须删骨架，不能只往上贴实测值；② 同一事实多处引用时修正必须全文 grep 兜底（N2 即「改了正文没改表」）；③ 引述占位词本身会被占位检测命中——注记用不触发字面的写法
+- **对 ROT-16 的补充**：占位实例从 3 份（T06/T07/T08）修正为 4 份（+T05 骨架残留）；D19 检测范围不变（self-check/verify），历史注记一律改用不触发字面的引述样式

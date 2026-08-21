@@ -19,7 +19,7 @@ T08 是 owner 反馈"tracker.md 任务表 PR 列总是错位"的承载 task。�
 **核验人**：subagent A（general-purpose，只读核查）
 **时间**：2026-08-21
 **范围**：T08 全部交付物（PR 列删除 + 标题简化 + T07 行状态修正 + tasks/_index 同步 + T08 三件套 + 同步登记）
-**依据**：[05-process.md §3.1 gate review 第 5 步 subagent 文档核验](../05-process.md) + [附录 A subagent 文档核验 prompt 模板](../05-process.md) + [T08-plan.md §3 验收标准](T08-plan.md)
+**依据**：[05-process.md §3.1 gate review 第 6 步 subagent 文档核验](../05-process.md)（原写第 5 步，T09 核验轮修正）+ [附录 A subagent 文档核验 prompt 模板](../05-process.md) + [T08-plan.md §3 验收标准](T08-plan.md)
 
 ## 2. 逐条核验
 

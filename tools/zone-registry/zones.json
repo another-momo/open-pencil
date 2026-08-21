@@ -3,6 +3,7 @@
   "ownedRoots": [
     "docs/",
     "tools/zone-registry/",
+    "tools/hooks/",
     "src/app/i18n/fork/",
     "packages/core/src/tools/fork/",
     "tests/engine/rebuild/"
@@ -204,6 +205,18 @@
       "id": "P30",
       "file": "public/favicon.ico",
       "reason": "same as P28",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P31",
+      "file": ".github/actions/setup-bun/action.yml",
+      "reason": "LFS object cache via actions/cache@v6 (T06, D18; ~99% upstream LFS egress saved per push). Retroactively registered in T09 — landed 2026-08-21 without patch registration because no CI enforced check:zones",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P32",
+      "file": ".github/workflows/ci.yml",
+      "reason": "add rebuild-discipline job: check:zones + check:docs + check:bindings + check:tasks wired to CI (T09 — these checks were documented as CI-enforced since Phase 0 but never actually wired)",
       "disposition": "permanent"
     }
   ],

@@ -139,3 +139,26 @@
   - 叙事文档不再高频腐烂于档案目录变更
   - §4.10 文本修订形成正式纪律约束——后续横向档案修改不需要创建 `narrative/<topic>.md`
 - **task 文档**：[tasks/T07-plan.md](../../tasks/T07-plan.md) / [T07-self-check.md](../../tasks/T07-self-check.md) / [T07-verify.md](../../tasks/T07-verify.md)
+
+## 修正-N · 05-process.md v8（T09 整改：§3.2 除腐 + CI 接线口径 + 一致性残留）
+
+- **类型**：修正（按对象：05-process.md）
+- **时间**：2026-08-21
+- **依据**：T09 review（ROT-15/ROT-19/ROT-21）
+- **内容**：
+  1. §3.2「大改动必产三件套」按 D15 重写——删除「全部落在单个文档」「自检-N 章节」「[BIG] 标记」等 pre-D15 残留；脚本路径改 `tools/zone-registry/src/check/tasks.ts`
+  2. §3.1 gate review：脚本名修正为 check/ 子目录形式（check/docs.ts、check/bindings.ts、check/tasks.ts）；步骤 5 补 D19 占位检测；「已自动化」标注改为有 workflow 佐证的准确表述（T09 rebuild-discipline job）
+  3. §2 树状图：tasks/ 改 T<NN> 通用形式；删磁盘不存在的 `narrative/tasks/`；`archive/` 标注按需创建
+  4. §3.2/§4.11/附录 B.1 任务表列描述清除「PR」残留（对齐 T08 决策）
+- **影响**：过程定义文档内部矛盾消除；§3.1 与 README 的步骤号引用一致（subagent 核验 = 第 6 步）
+
+## 修正-N · 05-process.md 步骤号与脚本名二轮修正（T09 核验轮 N2/N4）
+
+- **类型**：修正（按对象：05-process.md）
+- **时间**：2026-08-21
+- **依据**：T09 核验 subagent 发现 N2/N4——一轮修正覆盖 §3.1/§3.2，但三处残留漏网
+- **内容**：
+  1. §4.10 CI 拦截段「gate review 第 4 步」→「第 6 步」（与 §3.1 现行步骤号一致）
+  2. §3.3 upstream 合并段 `check-docs.ts` → `check:docs`（旧脚本名残留）
+  3. 附录 B.5 表三行 `check-tasks.ts` → `tools/zone-registry/src/check/tasks.ts` 全路径，并在 self-check/verify 两行补「占位检测 D19」
+- **附带**：T08-verify.md 依据行「第 5 步」→「第 6 步」（tasks/ 文件不入 narrative 绑定，登记于此备查）

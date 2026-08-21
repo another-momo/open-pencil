@@ -19,7 +19,7 @@ T05 是 owner 触发"tracker.md §3 过期 + 05 §2 过期 + review 00-05"的承
 **核验人**：subagent A（general-purpose，只读核查）
 **时间**：2026-08-21
 **范围**：T05 全部交付物（腐烂点 1-4 处理 + D16 候选登记 + T05 三件套自身 + 文档同步）
-**依据**：[05-process.md §3.1 gate review 第 5 步 subagent 文档核验](../05-process.md) + [附录 A subagent 文档核验 prompt 模板](../05-process.md) + [T05-plan.md §3 验收标准](T05-plan.md)
+**依据**：[05-process.md §3.1 gate review 第 6 步 subagent 文档核验](../05-process.md)（原写第 5 步，T09 核验轮修正）+ [附录 A subagent 文档核验 prompt 模板](../05-process.md) + [T05-plan.md §3 验收标准](T05-plan.md)
 
 ## 2. 逐条核验
 
@@ -44,21 +44,6 @@ T05 是 owner 触发"tracker.md §3 过期 + 05 §2 过期 + review 00-05"的承
 | 17 | CI run `32438539671` (T05 commit) 通过 | ✅ | `gh run view 32438539671 --repo=another-momo/open-pencil --json conclusion` | `{"conclusion":"success"}` |
 | 18 | CI run `32439113885` (T05 收尾 commit) 通过 | ✅ | `gh run view 32439113885 --repo=another-momo/open-pencil --json conclusion` | `{"conclusion":"success"}` |
 | 19 | check-tasks 对 T05 commit 实跑 | ✅ | `bun tools/zone-registry/src/check/tasks.ts --base 9ecda65e~1 \| tail -20` | `check-tasks: 大改动（R1 文件数 14 >= 10 / R2 变更行数 836 >= 200 / R3 / R4），task T05 三件套齐全` |
-|---|---|---|---|---|
-| 1 | `docs/rebuild/proposals/governance-v1.md` 存在 + 头部有元信息 | （待 subagent 验证） | `ls docs/rebuild/proposals/governance-v1.md` + `head -20` | 期望 = 存在 + 含「状态/时间/作者/采纳映射」 |
-| 2 | T01-plan.md 引用路径替换（2 处） | （待） | `grep "rebuild-docs-governance-proposal\|proposals/governance-v1" docs/rebuild/tasks/T01-plan.md` | 期望 ≥ 2 处新路径 |
-| 3 | docs-governance.md 引用路径替换（2 处） | （待） | `grep "rebuild-docs-governance-proposal\|proposals/governance-v1" docs/rebuild/records/topics/docs-governance.md` | 期望 ≥ 2 处新路径 |
-| 4 | 05-process.md §2 树状图重写 | （待） | `grep -E "proposals/\|tasks/\|narrative/\|topics/" docs/rebuild/05-process.md \| head -10` | 期望 ≥ 5 处关键路径 |
-| 5 | docs-governance.md 含 D16 候选条目 | （待） | `grep "^## D16" docs/rebuild/records/topics/docs-governance.md` | 期望 = 1 |
-| 6 | T05 三件套存在 | （待） | `ls docs/rebuild/tasks/T05-*.md \| wc -l` | 期望 = 3 |
-| 7 | records/narrative/05-process.md 同步登记 | （待） | `grep "T05\|腐烂点\|proposals/governance-v1" docs/rebuild/records/narrative/05-process.md` | 期望 ≥ 1 |
-| 8 | tracker.md §2 含 T05 行 | （待） | `grep "T05" docs/rebuild/tracker.md` | 期望 ≥ 1 |
-| 9 | tasks/_index.md §2 含 T05 行 | （待） | `grep "T05" docs/rebuild/tasks/_index.md` | 期望 ≥ 1 |
-| 10 | 本地 check-docs 通过 | （待） | `bun run check:docs` | 期望 = 35/35 通过 |
-| 11 | 本地 check-bindings 通过 | （待） | `bun run check:bindings` | 期望 = 全绿 |
-| 12 | 本地 check-tasks 通过 | （待） | `bun run check:tasks` | 期望 = task T05 三件套齐全 |
-| 13 | commit 存在 | （待） | `git log --oneline -1` | 期望 = 含 T05 commit message |
-| 14 | CI run 通过 | （待） | `gh run list --repo=another-momo/open-pencil --branch=rebuild/v2 --limit=1 --json conclusion` | 期望 = success |
 
 ## 3. 总评
 
@@ -86,3 +71,9 @@ subagent 报告全绿后，主 agent 立即把 T05-verify.md 占位替换为实�
 
 - 5 处本机绝对路径全清（narrative/proposals ×1 + narrative/05-process ×1 + T05-plan ×2 + spike 03 ×1）
 - D17 候选等 owner 评估是否启用 `check-docs.ts` R6 检测（grep `D:\\|C:\\`）——本任务不擅自启用
+
+### 5.4 T09 核验轮清理（2026-08-21）
+
+- §2 实测表（19/19 ✅）下方残留了原占位模板的 14 行骨架（§5.2 粘贴实测值时未删模板行），T09 核验轮自查（repo-wide 占位探针）发现后已删除
+- 依据行步骤号「第 5 步」→「第 6 步」（与现行 [05-process.md §3.1](../05-process.md) 一致）
+- 登记：[records/topics/docs-governance.md](../records/topics/docs-governance.md) ROT-22

@@ -94,6 +94,42 @@ jobs:
       - name: Detect duplicated product code
         run: bun run test:dupes
 
+  # Fork-owned governance checks (docs/rebuild discipline + zone registry).
+  # P32: these were documented as CI-enforced since Phase 0 but were never
+  # actually wired — T09 retrofit. Scripts use only node builtins, so no
+  # bun install is needed; check:zones needs upstream/master for merge-base.
+  rebuild-discipline:
+    name: Rebuild discipline
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Fetch upstream for zone-check merge-base
+        run: |
+          git remote add upstream https://github.com/open-pencil/open-pencil.git
+          git fetch --no-tags upstream master
+
+      - name: Zone registry purity
+        run: bun run check:zones
+
+      - name: Rebuild docs format
+        run: bun run check:docs
+
+      - name: Narrative bindings and task three-piece
+        shell: bash
+        run: |
+          BASE="${{ github.event.before || github.event.pull_request.base.sha || 'HEAD~1' }}"
+          if [ "$BASE" = "0000000000000000000000000000000000000000" ]; then BASE="HEAD~1"; fi
+          echo "diff base: $BASE"
+          bun tools/zone-registry/src/check/bindings.ts --base "$BASE"
+          bun tools/zone-registry/src/check/tasks.ts --base "$BASE"
+
   storybook:
     name: Component workshop
     timeout-minutes: 10

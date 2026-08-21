@@ -9,8 +9,8 @@
 
 # 03 · Phase 1：runtime 选型 spike（硬门）
 
-> **状态**：已核验（v3）| **时间**：2026-08-20 17:00 重写（承接 02-04 五份 spike）
-> **核验人**：主 agent（基于 spike 01-04 全部源码级核查记录）
+> **状态**：已核验（v3 + T09 修正）| **时间**：2026-08-21（T09：X 工作量数字对齐 records 层、悬空/错误引用修正、§5.2 数据实采填入、推荐方向不一致显式标注）
+> **核验人**：主 agent（基于 spike 01-04 全部源码级核查记录；T09 修正点经 subagent A 复核）
 > **身份**：case study / 技术调研（辅助参考信息）；**决策依据在 01-target-state.md §7 与 `records/topics/agent-runtime.md` D9**。03 不直接驱动 Phase gate。
 > **硬门**：runtime 未定，对话层一行代码不写。
 
@@ -61,9 +61,9 @@ open-pencil marketing 工作台作为**一个 dsh bundle** 发布：用户装 ds
 | `shell.overlay` 切 session **不卸载** | 核心论证：编辑器状态跨 session 保留 | `参考项目/deepseek-harness/packages/client/ui-layout/src/client/AppFrame.tsx:194`（`renderSlot('shell.overlay', {})` 无 `only` 参数）vs `packages/client/ui-conversation/src/client/skeleton/ConversationSession.tsx:168-172`（有 `only`） |
 | `SessionFace` 完整方法 | 11 方法（subscribe/getSnapshot + prompt/cancel/rename/loadOlder/updateQueue/readAttachment/command + pending.respond + projections） | `参考项目/deepseek-harness/packages/client/runtime/src/client/contract/session.ts:30-82, 89` |
 | 7600 port 是 open-pencil 自己的 | `AUTOMATION_HTTP_PORT = 7600` 在 `open-pencil/packages/core/src/constants.ts:347`；dsh 全仓零命中 | [spikes/04-dsh-x-design.zh.md §C2](spikes/04-dsh-x-design.zh.md) 实证 |
-| 视觉回路多模态 | dsh host tool 调用 → pi-ai 适配器 → 与旧 `media-rewriter.ts` 同构的"图转合成 user 消息"路径 | spikes/02-pi-sdk-runtime.zh.md §P3 + `参考项目/weshop-dsh-plugin/src/integrations/pi.ts:18` |
+| 视觉回路多模态 | dsh host tool 调用 → pi-ai 适配器 → 与旧 `media-rewriter.ts` 同构的"图转合成 user 消息"路径 | [spikes/02-pi-sdk-runtime.zh.md §P3](spikes/02-pi-sdk-runtime.zh.md) + `参考项目/pi/packages/ai/src/api/openai-completions.ts:1284`（图-only tool result 占位合成）+ `参考项目/pi/packages/ai/src/api/transform-messages.ts` `downgradeUnsupportedImages`（2026-08-21 T09 复核；原引用 `weshop-dsh-plugin/src/integrations/pi.ts:18` 悬空已撤） |
 | 系统提示注入 | marketing 选择项可走 `ctx.inject(['systemPrompt'], (promptCtx) => { promptCtx.systemPrompt.section(...) })`——不是只能经 message body | `参考项目/deepseek-harness/packages/bundle/web-app/src/index.ts:141-149` |
-| 工作量 | spike 4.5 人日 + Phase 2 实现 11 人日 ≈ **15.5 人日** | [spikes/04-dsh-x-design.zh.md §5](spikes/04-dsh-x-design.zh.md) + [records/topics/agent-runtime.md 修正-2](records/topics/agent-runtime.md) |
+| 工作量 | S-X spike 4.5 人日；X 路线全量落地 ≈ **37-38 人日**（weshop 实证上修后口径；本文此前版本的「15.5 人日」系 v3 重写时误植的无源数字，T09 修正，详见 [records/topics/agent-runtime.md 修正-1 / SP-3](records/topics/agent-runtime.md)） | [spikes/04-dsh-x-design.zh.md §7.1](spikes/04-dsh-x-design.zh.md) + [01-target-state.md §8](01-target-state.md) |
 
 ### 2.3 风险（X 专属）
 
@@ -89,9 +89,9 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 | 维度 | 结论 | 证据 |
 |---|---|---|
 | 嵌入形态 | **库形态**——同进程 import，**无子进程边界** | `参考项目/pi/packages/coding-agent/package.json:12-26` + sdk.md:17-34 |
-| session 持久化 | JSONL **树形**（id/parentId），`SessionManager.open(path)` 一行装载 | `参考项目/pi/packages/session/.../session-manager.ts:1530-1549` |
+| session 持久化 | JSONL **树形**（id/parentId），`SessionManager.open(path)` 一行装载 | `参考项目/pi/packages/coding-agent/src/core/session-manager.ts:1530-1549`（T09 修正路径标签——原写 `packages/session/`，行号实测不变） |
 | 多模态 | 与 dsh 共享 pi-ai；"图转合成 user 消息"路径同构（**DeepSeek 有占位降级——静默不报错**，需 spike 实测） | [spikes/02-pi-sdk-runtime.zh.md §P3](spikes/02-pi-sdk-runtime.zh.md) + `参考项目/pi/packages/ai/src/api/openai-completions.ts:1269-1337` + transform-messages.ts:35-57 |
-| 流式 RPC event | text_start/delta/end、toolcall_start/delta/end、tool_execution_*、compaction_*/auto_retry_*——与 UIMessage v1 字段**先天同构** | spikes/02-pi-sdk-runtime.zh.md §Y2 + `参考项目/pi/packages/session/...` |
+| 流式 RPC event | text_start/delta/end、toolcall_start/delta/end、tool_execution_*、compaction_*/auto_retry_*——与 UIMessage v1 字段**先天同构** | [spikes/02-pi-sdk-runtime.zh.md §Y2](spikes/02-pi-sdk-runtime.zh.md) + `参考项目/pi/packages/coding-agent/src/core/`（session 与 RPC 实现所在包，T09 修正路径标签） |
 | 工具审批 | 无内置——需自写 extension（`tool_call` event 返回 `{block: true}`） | spikes/02-pi-sdk-runtime.zh.md §Y7 + extensions.md:778-799 |
 | skills | 无内置子系统；通过 extension event 链实现 | spikes/02-pi-sdk-runtime.zh.md §P8 |
 | compaction | 可整体替换的 seam（`session_before_compact` event 钩子改写 summary） | `参考项目/pi/packages/.../compaction.md:280-310` |
@@ -128,7 +128,7 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 | 维度 | dsh-X | pi sdk |
 |---|---|---|
 | **独占价值** | dsh 分发与发现渠道（用户群一键触达） | 无（库形态，自己写服务端） |
-| **工作人日** | 15.5（spike 4.5 + 实现 11） | 20 |
+| **工作人日** | ≈37-38（S-X spike 4.5 + 全量落地；weshop 实证上修，[records/topics/agent-runtime.md 修正-1](records/topics/agent-runtime.md)） | ≈20 |
 | **Q0 嵌入形态** | dsh plugin（npm 包 + 用户机器装 dsh） | 库 import（我们后端 import `pi-coding-agent`） |
 | **Q1 多模态** | 走 dsh host tool → pi-ai 适配器（与旧 `media-rewriter.ts` 同构） | 直接调 pi-ai（同样路径） |
 | **Q2 session 恢复** | `ctx.systemPrompt.assemble()` + lifecycle hook；无内置跨进程 resume（plugin 需自管持久化） | **`SessionManager.open(path)` 一行 API**（JSONL 树形持久化） |
@@ -158,21 +158,25 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 
 ### 5.1 候选选项
 
-- **A. 走 dsh-X**（推荐：你已表达偏好）
+- **A. 走 dsh-X**
 - **B. 走 pi sdk**
 - **C. 双轨并行**：先走 X 发布，X 内部 host runtime 用 pi（spikes/02-pi-sdk-runtime.zh.md §6 提到的 hedge）
 - **D. 维持现状**：继续等更多信号
 
+> ⚠️ **推荐方向不一致（T09 显式标注，2026-08-21）**：本文此前标注「A 推荐（你已表达偏好）」，而 [records/topics/agent-runtime.md D9](records/topics/agent-runtime.md) 记录为「当前推荐：c（pi 直接驱动）推 1」。按冲突裁决（records 子文档 > 叙事文档），推荐方向以 D9 记录 + owner 拍板为准；本节不再标注推荐项。Y 路线排除是否正式拍板见 [records/topics/docs-governance.md D16](records/topics/docs-governance.md)。
+
 ### 5.2 触发任何选项的前置验证
 
-无论选哪个，**第一步必须**：
-1. `gh api repos/deepseek-ai/deepseek-harness --jq '{stars: .stargazers_count, forks: .forks_count, open_issues: .open_issues_count}'`
-2. `npm view @deepseek-ai/dsh weekly-downloads`
-3. `npm view @earendil-works/pi-coding-agent weekly-downloads`
+**已实采（2026-08-21，T09）**：
 
-阈值（owner 拍板后填）：
-- dsh stars < 1k 或 weekly < 500 → A/C 选项下注价值下降，可能倒向 B
-- pi weekly < 1k → B 选项下注价值下降，可能倒向 A（即使无 dsh 触达也赌运行时质量）
+| 指标 | dsh | pi | 证据命令 |
+|---|---|---|---|
+| GitHub stars / forks / open issues | 175,615 / 19,021 / 0 | — | `gh api repos/deepseek-ai/deepseek-harness --jq '{stars: .stargazers_count, forks: .forks_count, open_issues: .open_issues_count}'` |
+| npm 周下载（last-week 窗口 2026-08-13..19） | `@deepseek-ai/dsh` = 648,007 | `@earendil-works/pi-coding-agent` = 1,904,277 | `curl https://api.npmjs.org/downloads/point/last-week/<pkg>` |
+
+注：本文此前给的 `npm view <pkg> weekly-downloads` 不是有效字段（2026-08-21 实测返回空），正确取数是上面的 npm downloads API——已修正。
+
+阈值判定（原阈值：dsh stars < 1k 或 weekly < 500 → A/C 价值下降；pi weekly < 1k → B 价值下降）：**两路线均远超阈值，不触发任何降级**——选型按路线自身优缺点与 owner 目标拍板，无外部信号阻塞。
 
 ### 5.3 spike 启动条件
 

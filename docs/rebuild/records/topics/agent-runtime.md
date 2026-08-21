@@ -98,3 +98,21 @@
 - **核验人**：主 agent
 - **范围**：spike 01-03 + weshop 案例 + dsh 本地源码（AppFrame.tsx:194 vs ConversationSession.tsx:168-172）
 - **结论**：`docs/rebuild/spikes/04-dsh-x-design.zh.md`（v4，314 行）：X 路线核心论证 = shell.overlay 切 session **不卸载**（无 `only` 参数）；自写 ChatPanel 三因素论证（session 持久化 > 控制自由度 > UX 控制权）；M1-M5 五 commit 里程碑；6 项 S-X spike 验证清单
+## SP-5 · runtime 选型前置数据实采（03 §5.2 落地）
+
+- **类型**：核验
+- **时间**：2026-08-21（T09）
+- **核验人**：主 agent
+- **实测**：
+  - dsh（`gh api repos/deepseek-ai/deepseek-harness`）：stars 175,615 / forks 19,021 / open_issues 0
+  - npm 周下载（`curl https://api.npmjs.org/downloads/point/last-week/<pkg>`，窗口 2026-08-13..19）：`@deepseek-ai/dsh` = 648,007；`@earendil-works/pi-coding-agent` = 1,904,277
+- **结论**：两路线均远超 03 §5.2 阈值（dsh stars ≥1k 且 weekly ≥500；pi weekly ≥1k）——外部信号不阻塞选型，D9 按路线优缺点 + owner 目标拍板
+- **修正**：03 §5.2 原命令 `npm view <pkg> weekly-downloads` 无效（实测返回空），已改为 npm downloads API
+
+## 修正-3 · X 路线工作量数字对齐 + 推荐方向不一致登记（T09）
+
+- **类型**：修正
+- **时间**：2026-08-21
+- **内容**：
+  1. 03-phase-1-runtime.md §2.2/§4.1 的「15.5 人日」系 v3 重写误植的无源数字（引用目标 spike 04 §5 与修正-2 均无此数字），已按本档案修正-1 / SP-3 与 [01-target-state.md §8](../../01-target-state.md) 对齐为 ≈37-38 人日
+  2. **推荐方向不一致登记**：03 §5.1 曾标「A（dsh-X）推荐（你已表达偏好）」，与本档案 D9「当前推荐：c（pi 直接驱动）推 1」矛盾——已按冲突裁决（records > 叙事）在 03 §5.1 显式标注，推荐以 D9 + owner 拍板为准。与 [records/topics/docs-governance.md D16](docs-governance.md)（Y 路线排除的拍板状态）并列为 D9 拍板前需一并厘清的两件事

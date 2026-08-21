@@ -54,3 +54,16 @@
 - **影响**：03 已修正为 v2；后续 SP-2 推翻 pi sdk 不可查假设
 
 ---
+
+## 修正-N · 03-phase-1-runtime.md T09 整改（数字对齐 + 引用修正 + 数据实采）
+
+- **类型**：修正（按对象：03-phase-1-runtime.md）
+- **时间**：2026-08-21
+- **依据**：T09 review（ROT-20）
+- **内容**：
+  1. §2.2/§4.1 X 路线工作量「15.5 人日」（无源）→ ≈37-38 人日（对齐 records/topics/agent-runtime.md 修正-1 / SP-3 与 01 §8）
+  2. §2.2 视觉回路证据：悬空引用 `weshop-dsh-plugin/src/integrations/pi.ts:18`（文件不存在）→ 替换为 pi 源码证据（openai-completions.ts:1284 + transform-messages.ts downgradeUnsupportedImages，2026-08-21 复核）
+  3. §3.2 pi 路径标签 `packages/session/` → `packages/coding-agent/src/core/`（行号 1530 实测不变）
+  4. §5.1 推荐方向不一致显式标注（「A 推荐」vs D9「c 推 1」；不改推荐本身，留 owner 拍板，链 D16）
+  5. §5.2 前置验证实采填入（2026-08-21：dsh 175,615 stars / 周下载 648,007；pi 周下载 1,904,277；均超阈值）；无效命令 `npm view weekly-downloads` 改为 npm downloads API
+- **影响**：D9 拍板材料齐备——数字一处口径、外部数据已采、两路线矛盾点全部显式化

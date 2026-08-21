@@ -9,7 +9,7 @@
 
 # records · 子文档索引（两层结构）
 
-> **状态**：D15 重组（横向档案独立为 topics/） | **时间**：2026-08-21 | **核验人**：主 agent
+> **状态**：D15 重组（横向档案独立为 topics/） | **时间**：2026-08-21（T09 修正绑定范围表述） | **核验人**：主 agent
 > **身份**：变更/核验/腐烂记录的索引入口。**两层结构**——`narrative/` 物理绑定层（与文件 1:1）+ `topics/` 主题聚合层（跨文件横向档案）。**禁止混用**：横向档案不替代物理绑定层；物理绑定层不替代横向档案。详见 [05-process.md §4.10 D14](05-process.md)。
 > **tracker.md 通过本文档找到具体记录**。
 
@@ -25,7 +25,9 @@
 
 ## 2. narrative/ 物理绑定层（与文件 1:1）
 
-**核心约束**（D14 §4.10）：每个被纳入文档治理范围的物理文件（含 00-04 / 05 / README / tracker / spikes / records 各文件）必须有自己的 `records/narrative/<file>.md`——文件名脱去 `.md` 后缀、连字符化（如 `00-why-rebuild.md` ↔ `records/narrative/00-why-rebuild.md`）。**一一对应**。
+**核心约束**（D14 §4.10）：每个被纳入文档治理范围的物理文件必须有自己的 `records/narrative/<file>.md`——文件名脱去 `.md` 后缀、连字符化（如 `00-why-rebuild.md` ↔ `records/narrative/00-why-rebuild.md`）。**一一对应**。
+
+绑定范围（与 `tools/zone-registry/src/check/bindings.ts` 强制口径一致，2026-08-21 T09 修正）：叙事文档 `00-05` / `README.md` / `tracker.md` / `spikes/*.zh.md` / `proposals/*.md` 需要 narrative 绑定；`tasks/` 三件套走任务表路径检查（D15），**不入** narrative；`records/topics/` 横向档案与 `records/_index.md` 自身**不需要** narrative 绑定（[05-process.md §4.10](../05-process.md) T07 修正）。
 
 | 物理文件 | narrative 绑定 |
 |---|---|

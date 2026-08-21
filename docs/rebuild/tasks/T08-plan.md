@@ -25,7 +25,7 @@ owner 指出 [tracker.md §2 任务表](tracker.md) 总是写错位（plan 填�
 
 1. **删除 tracker.md §2 任务表 PR 列**（9 列 → 8 列）
 2. **更新 §2 标题**：去掉"1 PR"提及；新标题简化为"每个 task 一行 + 三件套路径列 D15"
-3. **T07 行状态修正**：之前误填"✅ 完成"——T07 commit `0ac548e6` 实际未 push，CI 还没跑，改回"🔄 进行中"
+3. **T07 行状态修正**：之前误填"✅ 完成"——T07 commit `5698019a` 当时未 push、无专属 CI run，改回"🔄 进行中"。（T09 修正：本行原误写为 `0ac548e6`——那是 T06 的 commit；`git show -s 5698019a` 实测为 T07）
 4. **tasks/_index.md §2 任务清单加 T07 / T08 行**（与 tracker.md 同步）
 5. **同步 narrative/tracker.md 登记本次修订**
 

@@ -54,3 +54,18 @@
 - **影响**：
   - README.md 不再高频腐烂于横向档案变更
   - 横向档案列表的唯一真源是 `_index.md`，避免多文档重复维护
+
+## 修正-N · README.md gate 步骤号 + CI 声称修正（T09）
+
+- **类型**：修正（按对象：README.md）
+- **时间**：2026-08-21
+- **依据**：T09 review（ROT-15/ROT-19）
+- **内容**：「gate review 硬性第 4 步」→ 第 6 步（subagent 核验实际位置）；「check-docs.ts 已挂 CI」→ 准确表述（check/docs.ts；T09 起 rebuild-discipline job 真正接线，附 CI-6 指针）
+
+## 修正-N · README.md 步骤号二轮修正（T09 核验轮 N2）
+
+- **类型**：修正（按对象：README.md）
+- **时间**：2026-08-21
+- **依据**：T09 核验 subagent 发现 N2——一轮修正只改了正文 gate 条目（第 6 步），第一层表格行（README.md L29）仍残留「§3.1 gate review 第 4 步」
+- **内容**：第一层表格 05-process.md 行「第 4 步」→「第 6 步」；至此 README 两处步骤号引用均与 [05-process.md §3.1](../../05-process.md) 实际一致
+- **教训**：同一文档内多处引用同一事实时，修正必须全文 grep 兜底（本轮漏改即为「改了正文没改表」）

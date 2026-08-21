@@ -9,7 +9,7 @@
 
 # 04 · 移植纪律（Phase 2+）
 
-> **状态**：已核验 | **时间**：2026-08-18 14:00 | **核验人**：subagent A-D + 主 agent
+> **状态**：已核验 | **时间**：2026-08-21（T09：§4「逐块 PR」对齐 T08 不采用 PR 管理决策） | **核验人**：subagent A-D + 主 agent
 > **身份**：Phase 2+ 移植操作的过程纪律；每条规则都必须能被 CI 或核验命令检查。
 > **基线**：供货方 = 旧分支 `feature/agent-backend` @ `a1c33881`。移植不是搬家，是带验收的复审。
 
@@ -46,7 +46,7 @@
 
 ## 4. 移植操作约定
 
-- 从旧分支拷文件：`git checkout feature/agent-backend -- <path>`，逐块 PR，PR 描述注明能力块编号与验收测试，[tracker.md §2 任务表](tracker.md) 登记一行。
+- 从旧分支拷文件：`git checkout feature/agent-backend -- <path>`，逐块 commit（commit message 注明能力块编号与验收测试；`docs/rebuild/` 范围不采用 PR 管理——T08 决策，任务以 commit + 任务表登记为载体），[tracker.md §2 任务表](tracker.md) 登记一行。
 - 落位按 [02-phase-0.md §3.5 基础设施纪律](02-phase-0.md) 目录约定；core 工具一律新文件，注册走缝合缝（[02-phase-0.md §3.4](02-phase-0.md)）。
 - 每完成一个能力块，zone registry 里对应「待重分类」项按仪式摘除。
 - 每合并一次 upstream，当场刷新 registry 与补丁清单，tracker 记合并记录。

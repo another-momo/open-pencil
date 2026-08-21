@@ -9,8 +9,8 @@
 
 # tracker · 重建跟踪表（活文档·精简索引）
 
-> **状态**：已建立 | **时间**：2026-08-20 18:30 | **核验人**：主 agent
-> **身份**：阶段门 + 任务表 + 记录索引三块合一（≤50 行）。详细记录见 `records/` 子文档。更新纪律见 `05-process.md §4`。
+> **状态**：已建立 | **时间**：2026-08-21（T09 整改） | **核验人**：主 agent
+> **身份**：阶段门 + 任务表 + 记录索引三块合一（≤80 行；T09 由 ≤50 行放宽——任务表行数随 task 增长，原预算已不可达）。详细记录见 `records/` 子文档。更新纪律见 `05-process.md §4`。
 > **状态值**：⬜未开始 / 🔄进行中 / ✅完成 / ❌阻塞 / 🪦放弃
 
 ## 1. 阶段门
@@ -38,8 +38,9 @@
 | T04 | 文档治理 | task 纪律 CI 强化（D15 三件套物理拆分 + 任务表路径检查）| ✅ 完成（CI 11/11 全绿 + subagent A 18/18 + 3 追加通过） | ✅ | [T04-plan](tasks/T04-plan.md) | [T04-self-check](tasks/T04-self-check.md) | [T04-verify](tasks/T04-verify.md) |
 | T05 | 文档治理 | 00-05 系统性腐烂 review（外部 proposal 内化 + 05 §2 树状图重写 + D16 候选登记 + D17 本机绝对路径清理）| ✅ 完成（CI 11/11 全绿 × 2 commits + subagent A 19/19 通过） | ✅ | [T05-plan](tasks/T05-plan.md) | [T05-self-check](tasks/T05-self-check.md) | [T05-verify](tasks/T05-verify.md) |
 | T06 | CI 基础设施 | LFS cache 启用（每次 push 节省 ~99% 上游 LFS 流量）| ✅ 完成（setup-bun action.yml 加 actions/cache@v6） | ✅ | [T06-plan](tasks/T06-plan.md) | [T06-self-check](tasks/T06-self-check.md) | [T06-verify](tasks/T06-verify.md) |
-| T07 | 文档治理 | 修正 [05-process.md §4.10](05-process.md) 应用错误（横向档案 narrative 绑定撤回）+ 高频腐烂防御 | ✅ 完成（CI 11/11 全绿 + subagent A 通过） | [T07-plan](tasks/T07-plan.md) | [T07-self-check](tasks/T07-self-check.md) | [T07-verify](tasks/T07-verify.md) |
-| T08 | 文档治理 | tracker.md 任务表删 PR 列（owner 提议） | ✅ 完成（CI 11/11 全绿 + subagent A 12/12 通过） | [T08-plan](tasks/T08-plan.md) | [T08-self-check](tasks/T08-self-check.md) | [T08-verify](tasks/T08-verify.md) |
+| T07 | 文档治理 | 修正 [05-process.md §4.10](05-process.md) 应用错误（横向档案 narrative 绑定撤回）+ 高频腐烂防御 | ✅ 完成（核验由 T09 回填：subagent A 12 通过 + 1 警告，见 [T07-verify.md](tasks/T07-verify.md)） | ✅ | [T07-plan](tasks/T07-plan.md) | [T07-self-check](tasks/T07-self-check.md) | [T07-verify](tasks/T07-verify.md) |
+| T08 | 文档治理 | tracker.md 任务表删 PR 列（owner 提议） | ✅ 完成（CI 11/11 全绿 + subagent A 12/12 通过，commit 7d013794） | ✅ | [T08-plan](tasks/T08-plan.md) | [T08-self-check](tasks/T08-self-check.md) | [T08-verify](tasks/T08-verify.md) |
+| T09 | 文档治理+CI 基建 | review 发现核实与修复（CI 接线 + 占位检测 + 腐烂修正 + T06/T07 核验回填） | [T09-plan.md §3](tasks/T09-plan.md) 九条验收 | 🔄 | [T09-plan](tasks/T09-plan.md) | [T09-self-check](tasks/T09-self-check.md) | [T09-verify](tasks/T09-verify.md) |
 | — | （Phase 1 开工后逐行登记） | — | — | — | — | — | — |
 
 ## 3. 记录索引
@@ -50,7 +51,7 @@
 
 按物理文件 1:1 绑定（每个被治理文件一份 `records/narrative/<file>.md`）。完整列表见 [_index.md §2](../records/_index.md)。
 
-> 截至 2026-08-21：8 个核心叙事文档 + 1 个 README + 1 个 tracker + 4 个 spike = 14 份 narrative 档案
+> 截至 2026-08-21（`find docs/rebuild/records/narrative -type f | wc -l` 实测 = 13）：6 个核心叙事文档（00-05）+ README + tracker + 4 个 spike + 1 个 proposal = 13 份 narrative 档案
 
 ### 3.2 topics/ 主题聚合层（横向档案）
 

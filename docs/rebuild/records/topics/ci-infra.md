@@ -118,3 +118,16 @@
 - **流量实测**：T06 前 ~1 GB/次 → T06 后 ~7 MB/次（节省 ~99%）
 - **影响范围**：ci.yml 7 个 engine test job + heavy-tests.yml 1 个 job
 - **错误修正（owner 反馈 2026-08-21）**：T06 一开始误创建 `narrative/ci-infra.md`（横向档案不该有 narrative 绑定）——已撤回。**§4.10 D14 物理绑定纪律明确**：narrative/ 层**只绑物理文件**（如 05-process.md ↔ narrative/05-process.md），**横向档案不需要 narrative 绑定**——横向档案本身就是聚合层，"绑定对象"是主题而不是单文件
+
+## CI-6 · 纪律检查 CI 接线（T09）+ 历史「已接线」声称证伪
+
+- **类型**：核验 + 修正
+- **时间**：2026-08-21
+- **证伪**：02-phase-0.md §5 #2「CI 已接线 check:zones」与 README「check-docs.ts 已挂 CI」不实——`grep -rn "check:zones" .github/` 零命中、`git log --all -S "check:zones" -- .github/` 空（2026-08-21 实测）。Phase 0 验收时两个文件里只有 ci.yml 5 job 与 heavy-tests 等，从未含四检查
+- **接线内容**（ci.yml 新增 `rebuild-discipline` job，P32 登记）：
+  1. `check:zones`——需 upstream/master 供 merge-base，job 内 `git remote add upstream` + fetch（checkout fetch-depth: 0）
+  2. `check:docs`——无 git 依赖直接跑
+  3. `check:bindings` / `check:tasks`——`--base` 取 `github.event.before`（push 区间）/ PR base sha / 兜底 HEAD~1
+  4. 用 `oven-sh/setup-bun@v2` 直装（四脚本只用 node 内建，免 bun install）
+- **连带**：pre-commit 改为每次 commit 跑 check:zones（此前只按 docs 改动跑三个 doc check，zone 违规可从任意上游文件改动引入——T06 的 setup-bun 改动即漏网实例）；本机 `bun run hooks:install` 已执行（2026-08-21，`git config core.hooksPath` = tools/hooks 实测）
+- **历史影响评估**：T06（0ac548e6）改 setup-bun/action.yml 未登记补丁——在 T06 commit 与 7d013794 HEAD 上 `zones.json | grep -c "setup-bun"` = 0（subagent A 复核），由 T09 P31 补登；tools/hooks/ 两文件（3e982668/79cda9f5 引入）未入 ownedRoots，T09 补

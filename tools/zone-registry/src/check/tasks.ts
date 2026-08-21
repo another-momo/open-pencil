@@ -10,6 +10,11 @@
  * 填三件套相对路径列，CI 用 `existsSync` 检查三文件存在。零正则、零章节、
  * 零语义判定——三件套齐不齐一目了然。
  *
+ * D19 (T09): 占位检测。existsSync 只能查存在、查不了"实做"——T06/T07 的
+ * verify.md 曾是全占位模板（"（待 subagent 填）"）而 self-check 声称核验已做。
+ * 对 commit 引用 task 的 self-check / verify 做占位标记扫描，命中即拒收。
+ * 模式集刻意收窄到模板词汇，避免误伤"（待拍板）"等合法散文。
+ *
  * A "big change" is detected by any of:
  *   R1. file count >= 10
  *   R2. line count >= 200
@@ -229,6 +234,41 @@ function checkThreePieceExists(taskId: string, row: TaskTableRow | undefined): V
   return violations
 }
 
+// ─── D19：占位检测（05-process.md §4.11「禁止占位」的机器化）────────────────
+
+/**
+ * 占位模板词汇，刻意收窄以避免误伤"（待拍板）"等合法散文：
+ *   （待）/（待）        —— 模板里的空待办括号
+ *   （待 subagent…      —— "（待 subagent 填）" "（待 subagent 验证）" 等
+ *   待 owner 触发        —— D15 明文禁止的占位句
+ */
+const PLACEHOLDER_RE = /（待[)）]|（待\s*subagent|待\s*owner\s*触发/
+
+function checkNoPlaceholder(taskId: string, row: TaskTableRow): Violation[] {
+  const violations: Violation[] = []
+  for (const [label, rel] of [
+    ['self-check', row.selfCheck],
+    ['verify', row.verify]
+  ] as const) {
+    const abs = resolve(root, 'docs/rebuild', rel)
+    if (!existsSync(abs)) continue // 缺失由 checkThreePieceExists 报告
+    const content = readFileSync(abs, 'utf8')
+    const hit = content.match(PLACEHOLDER_RE)
+    if (hit) {
+      violations.push({
+        rule: `big-change-task-${label}-placeholder`,
+        message: `T${taskId} 的 ${label}（\`${rel}\`）含占位标记 \`${hit[0]}\`——占位核验/占位自检违反 05-process.md §4.11（D15/D19）。
+
+要求：
+- verify.md 必须是 subagent 实做核验后的实测值填报，不允许"（待 subagent 填）"类模板
+- self-check.md 完成度必须实时期更新，不允许"待 owner 触发核验"
+- 主 agent 主动派单核验，不依赖 owner 触发`
+      })
+    }
+  }
+  return violations
+}
+
 function main(): void {
   const stats = getDiffStats()
   if (stats.files.length === 0) {
@@ -259,6 +299,7 @@ function main(): void {
   if (taskId) {
     const row = taskTable.get(taskId)
     violations.push(...checkThreePieceExists(taskId, row))
+    if (row) violations.push(...checkNoPlaceholder(taskId, row))
   }
 
   if (violations.length === 0) {

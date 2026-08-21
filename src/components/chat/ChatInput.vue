@@ -74,6 +74,8 @@ function removeImage(index: number) {
 }
 
 const isStreaming = computed(() => disabled || status === 'streaming' || status === 'submitted')
+const isAgentProvider = computed(() => providerID.value === 'harness:pi')
+const agentName = computed(() => 'Pi')
 const isCustomProvider = computed(
   () => providerID.value === 'openai-compatible' || providerID.value === 'anthropic-compatible'
 )
@@ -193,7 +195,15 @@ function handleSubmit(e: Event) {
 
           <template #model>
             <div class="flex min-w-0 items-center">
-              <ChatProfileSelect v-if="canSwitchProfile && (isCustomProvider || usesCustomModel)">
+              <template v-if="isAgentProvider">
+                <div class="flex min-w-0 items-center gap-1 px-1.5 text-[10px] text-muted">
+                  <icon-lucide-bot class="size-3 shrink-0" />
+                  <span class="truncate">{{ agentName }}</span>
+                </div>
+              </template>
+              <ChatProfileSelect
+                v-else-if="canSwitchProfile && (isCustomProvider || usesCustomModel)"
+              >
                 <template #value>
                   <span class="min-w-0 truncate">{{ selectedProfileName }}</span>
                 </template>

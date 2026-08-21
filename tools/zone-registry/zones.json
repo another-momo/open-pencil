@@ -6,10 +6,13 @@
     "tools/hooks/",
     "src/app/i18n/fork/",
     "packages/core/src/tools/fork/",
-    "tests/engine/rebuild/"
+    "tests/engine/rebuild/",
+    "spikes/"
   ],
   "ownedFiles": [],
-  "stubs": ["src/app/collab/use.ts"],
+  "stubs": [
+    "src/app/collab/use.ts"
+  ],
   "pendingReclass": [
     "src/app/ai/chat/",
     "src/app/ai/providers/",
@@ -35,8 +38,8 @@
     },
     {
       "id": "P2",
-      "file": "src/views/EditorView.vue",
-      "reason": "remove demo import, SafariBanner, CollabPanel mount, useHead (deletion cuts)",
+      "file": "src/views/WorkspaceView.vue",
+      "reason": "remove createDemoShapes/useHead/SafariBanner + dead demo gate in shouldCreateHome (deletion cuts). T10: carrier migrated from src/views/EditorView.vue after upstream bb5960cd deleted it (files-workspace refactor); CollabPanel cut split to P33",
       "disposition": "permanent"
     },
     {
@@ -60,7 +63,7 @@
     {
       "id": "P6",
       "file": "src/app/ai/chat/transports.ts",
-      "reason": "remove ACP transport path (createACPTransport and session wiring)",
+      "reason": "remove ACP transport path (createACPTransport and session wiring) T10 重涂：上游本轮把 ACP transport 重构进 createChatSessionManager 并新增 harness(pi) 路径——维持裁 ACP（createACPTransport/createActiveACPTransport/isACPProvider），保 harness",
       "disposition": "permanent"
     },
     {
@@ -126,7 +129,7 @@
     {
       "id": "P17",
       "file": "package.json",
-      "reason": "workspaces (-docs/-tools-docs), scripts (-tauri/-wdio/-docs/*, +check:zones), deps (-wdio/-tauri-cli/-pwa/-yjs-family/-trystero)",
+      "reason": "workspaces (-docs/-tools-docs), scripts (-tauri/-wdio/-docs/*, +check:zones), deps (-wdio/-tauri-cli/-pwa/-yjs-family/-trystero) T10: workspaces += packages/harness（上游新增 pi harness 包，保 harness 裁 ACP 决策随附）；lint/format 路径同步加 packages/harness",
       "disposition": "permanent"
     },
     {
@@ -217,6 +220,12 @@
       "id": "P32",
       "file": ".github/workflows/ci.yml",
       "reason": "add rebuild-discipline job: check:zones + check:docs + check:bindings + check:tasks wired to CI (T09 — these checks were documented as CI-enforced since Phase 0 but never actually wired)",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P33",
+      "file": "src/components/editor/EditorWorkspace.vue",
+      "reason": "remove CollabPanel import + mount above PropertiesPanel (collab deletion cut; T10: migrated from P2 after upstream bb5960cd moved editor UI from EditorView.vue here)",
       "disposition": "permanent"
     }
   ],

@@ -171,7 +171,7 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 
 | 指标 | dsh | pi | 证据命令 |
 |---|---|---|---|
-| GitHub stars / forks / open issues | 175,615 / 19,021 / 0 | — | `gh api repos/deepseek-ai/deepseek-harness --jq '{stars: .stargazers_count, forks: .forks_count, open_issues: .open_issues_count}'` |
+| GitHub stars / forks / open issues | 175,615 / 19,021 / 0 | 94,558 / 11,699 / 134 | `gh api repos/deepseek-ai/deepseek-harness` / `gh api repos/earendil-works/pi`（2026-08-21 实测） |
 | npm 周下载（last-week 窗口 2026-08-13..19） | `@deepseek-ai/dsh` = 648,007 | `@earendil-works/pi-coding-agent` = 1,904,277 | `curl https://api.npmjs.org/downloads/point/last-week/<pkg>` |
 
 注：本文此前给的 `npm view <pkg> weekly-downloads` 不是有效字段（2026-08-21 实测返回空），正确取数是上面的 npm downloads API——已修正。
@@ -180,7 +180,9 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 
 ### 5.3 spike 启动条件
 
-待 owner 拍板 D9 后启动 S-X 或 S-pi（spikes/04-dsh-x-design.zh.md §7.1 / spikes/02-pi-sdk-runtime.zh.md §6 各自的 4.5 人日验证清单）。
+**已由 owner 于 2026-08-21 拍板启动**（[records/topics/agent-runtime.md D20](records/topics/agent-runtime.md)）：先完成 upstream 合并（T10——漂移实测 79 commits / 864 文件 / 约 2 天，触发 [05-process.md §3.3](05-process.md)「漂移显著时提前」条款），随后**双 spike 并行登记、S-pi 先行**（T11 = S-pi / T12 = S-X，分支 spike/s-pi、spike/s-x）；D9 维持 open，待 spike 证据拍板。
+
+（原口径「待 owner 拍板 D9 后启动 S-X 或 S-pi」已被 D20 取代——spike 先行产证据，D9 后拍。验证清单：spikes/04-dsh-x-design.zh.md §7.1 六项 / spikes/02-pi-sdk-runtime.zh.md §6 四项，各 4.5 人日。）
 
 ---
 

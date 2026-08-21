@@ -116,3 +116,24 @@
 - **内容**：
   1. 03-phase-1-runtime.md §2.2/§4.1 的「15.5 人日」系 v3 重写误植的无源数字（引用目标 spike 04 §5 与修正-2 均无此数字），已按本档案修正-1 / SP-3 与 [01-target-state.md §8](../../01-target-state.md) 对齐为 ≈37-38 人日
   2. **推荐方向不一致登记**：03 §5.1 曾标「A（dsh-X）推荐（你已表达偏好）」，与本档案 D9「当前推荐：c（pi 直接驱动）推 1」矛盾——已按冲突裁决（records > 叙事）在 03 §5.1 显式标注，推荐以 D9 + owner 拍板为准。与 [records/topics/docs-governance.md D16](docs-governance.md)（Y 路线排除的拍板状态）并列为 D9 拍板前需一并厘清的两件事
+
+## D20 · upstream 合并先行 + Phase 1 双 spike 并行（S-pi 先）
+
+- **类型**：决策
+- **时间**：2026-08-21
+- **拍板**：owner（会话原话：「先拉分支完成合并，然后再开启 phase 1」+「拉分支分别推进 dsh-x 路线和 pi 路线的 spike」）
+- **内容**：
+  1. **upstream 合并先行**：漂移实测 79 commits / 864 文件 / 约 2 天（0332b062→5201404f），触发 05-process.md §3.3「漂移显著时提前」；合并承载 task = T10，合并前不开 spike
+  2. **双 spike 并行登记**：T11 = S-pi（spike/s-pi 分支）、T12 = S-X（spike/s-x 分支）；**S-pi 先行**（主 agent 建议：等成本下 S-pi 有早期退出价值——pi 落地 ≈20 人日 vs X 37-38，D9 记录推 1；S-pi 全过则 S-X 可整体省掉）
+  3. **D9 维持 open**：spike 产证据后再拍板；03 §5.3 启动条件由「D9 拍板后启动 spike」改为本决策
+- **理由**：上游 2 天 79 commits 的速度下，合并每推迟一周冲突面翻倍；且 spike 验证的缝（transports.ts +61 行、ChatPanel/ChatInput、EditorView 被上游删除）本轮均被上游触及——对过期缝做 spike 会产出带保质期的证据
+
+## SP-6 · 上游已产品化 pi harness 传输路径（D9 重大证据，T10 合并发现）
+
+- **类型**：证据（核验）
+- **时间**：2026-08-21
+- **发现**：upstream/master@5201404f 在 chat 缝新增**第三条传输路径**——`HarnessChatTransport`（`src/app/ai/harness/transport.ts`，新包 `@open-pencil/harness`），adapter = 'pi'（`@ai-sdk/harness-pi@1.0.76`）+ sandbox 'just-bash'（`@ai-sdk/sandbox-just-bash`），走 `providerID === 'harness:pi'`，设置面有 thinkingLevel/permissionMode，MCP 经 `buildPiMCPServers()` 接入
+- **核验命令**：`git show upstream/master:src/app/ai/chat/transports.ts`（createActiveHarnessTransport）；`cat packages/harness/package.json`（deps）
+- **对 D9 的意义**：pi 路线在本代码库内已被上游亲自走过一遍并产品化——「pi event 流 → UIMessage v1 同构」（spike 02 §Y2）从源码推断升级为**上游在产实证**；S-pi spike 可直接对照上游实现做参照
+- **限制**：上游 harness 路径 `isConfigured` 要求 `IS_TAURI`（仅桌面端可用，web 端恒 false）——它是 coding-agent 面（bash/edit 工具），不是设计 runtime；不替代 D9 的选择，但是强参照
+- **处置**：T10 合并保 harness 裁 ACP（理由：harness 与 Phase 1 方向同向且上游持续维护，裁掉反而每次合并都重新冲突；ACP 为死面）；若 D9 最终不采用任何 pi 形态，再裁不迟（登记于此备查）

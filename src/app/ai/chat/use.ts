@@ -9,6 +9,7 @@ import {
   customAPIType,
   customBaseURL,
   customModelID,
+  isHarnessProvider,
   isConfigured,
   maxOutputTokens,
   modelID,
@@ -31,6 +32,7 @@ const activeTab = ref<'design' | 'code' | 'ai'>('design')
 
 const chatSession = createChatSessionManager({
   isConfigured,
+  isHarnessProvider,
   credentialsReady,
   getActiveEditorStore
 })

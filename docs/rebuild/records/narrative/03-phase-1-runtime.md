@@ -67,3 +67,13 @@
   4. §5.1 推荐方向不一致显式标注（「A 推荐」vs D9「c 推 1」；不改推荐本身，留 owner 拍板，链 D16）
   5. §5.2 前置验证实采填入（2026-08-21：dsh 175,615 stars / 周下载 648,007；pi 周下载 1,904,277；均超阈值）；无效命令 `npm view weekly-downloads` 改为 npm downloads API
 - **影响**：D9 拍板材料齐备——数字一处口径、外部数据已采、两路线矛盾点全部显式化
+
+## 修正-N · 03-phase-1-runtime.md §5.2/§5.3 修订（T10 启动登记）
+
+- **类型**：修正（按对象：03-phase-1-runtime.md）
+- **时间**：2026-08-21
+- **依据**：owner 拍板 D20（先合并 upstream + 双 spike 并行 S-pi 先行）
+- **内容**：
+  1. §5.3 spike 启动条件：「待 D9 拍板」→「已启动（D20）」——先 T10 合并，双 spike 登记 S-pi 先行，D9 待证据
+  2. §5.2 pi GitHub stars 空格补测：94,558 / 11,699 / 134（`gh api repos/earendil-works/pi`，2026-08-21）
+- **task 文档**：[tasks/T10-plan.md](../../tasks/T10-plan.md)

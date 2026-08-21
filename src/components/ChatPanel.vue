@@ -231,7 +231,9 @@ function handleClearChat() {
   clearChatFailure()
   clearImageAttachmentPresentations()
   chat.value = null
-  resetChat()
+  void resetChat().catch((error: unknown) => {
+    console.error('Chat reset error:', error)
+  })
   clearToolLogEntries()
 }
 </script>

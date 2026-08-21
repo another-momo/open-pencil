@@ -169,3 +169,10 @@
 - **时间**：2026-08-21
 - **依据**：T09 全部验收达成——远端 CI run 32447539784 12/12 success（含新 Rebuild discipline job 首跑），subagent A 核验 N1-N5 闭环
 - **内容**：任务表 T09 行状态 🔄 → ✅ 完成（附 CI 与核验证据指针）；tasks/_index.md 镜像行同步
+
+## 修正-N · tracker.md 任务表加 T10/T11/T12 行（T10 开工）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-21
+- **依据**：D20 owner 拍板（upstream 合并先行 + 双 spike 并行登记）
+- **内容**：任务表新增 T10（upstream 合并 + Phase 1 启动，🔄）/ T11（S-pi spike，⬜ 待 T10）/ T12（S-X spike，⬜ 待 T11 后按需触发）三行；tasks/_index.md 镜像同步

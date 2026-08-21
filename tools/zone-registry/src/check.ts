@@ -51,8 +51,12 @@ function git(args: string[]): string {
 
 function resolveBase(): string {
   const baseIdx = process.argv.indexOf('--base')
-  const base =
-    baseIdx !== -1 ? process.argv[baseIdx + 1] : git(['merge-base', 'HEAD', 'upstream/master'])
+  if (baseIdx !== -1) return process.argv[baseIdx + 1]
+  // In-progress merge: the base is the being-merged head (MERGE_HEAD), not the old
+  // merge-base — otherwise every upstream change in flight shows up as an
+  // unregistered modification and the merge commit can never pass pre-commit.
+  const mergeHead = git(['rev-parse', '-q', '--verify', 'MERGE_HEAD'])
+  const base = mergeHead || git(['merge-base', 'HEAD', 'upstream/master'])
   if (!base) {
     console.error('[zones] cannot resolve merge-base with upstream/master')
     process.exit(1)

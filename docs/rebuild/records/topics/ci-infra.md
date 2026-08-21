@@ -139,3 +139,11 @@
 - **方法**：`gh run view 32447539784 --json conclusion,jobs`
 - **结论**：**全绿 12/12**——含新 `Rebuild discipline` job 首跑成功（check:zones + check:docs + check/bindings.ts + check/tasks.ts 四检查首次在远端真实执行，CI-6 接线的生效证据）
 - **备注**：job 数 11 → 12（+Rebuild discipline）
+
+## CI-8 · zone check 合并中基线修正（MERGE_HEAD）
+
+- **类型**：核验 + 机制修正
+- **时间**：2026-08-21（T10 合并实战发现）
+- **问题**：check.ts 原只用 `merge-base HEAD upstream/master` 作基线——合并进行中（MERGE_HEAD 存在）时，上游在途的 762 个修改全部显示为「未登记修改」，pre-commit 的 check:zones 必然误报，合并 commit 无法通过
+- **修正**：resolveBase() 增加 MERGE_HEAD 分支——合并中以被并入的头（upstream/master）为基线，zone check 恰好只校验我方解决增量（补丁重涂 + owned + 删除立场）
+- **实测**：修正后合并中实跑 `[zones] clean: 30 modified (all registered), 88 added (owned), 953 deleted (all registered), base 5201404f`；CI 侧不受影响（合并完成后 merge-base 自然前移）

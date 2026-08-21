@@ -22,21 +22,21 @@
 
 D9 当前推荐 c（pi 直接驱动，库形态）。本 task 按 [spikes/02-pi-sdk-runtime.zh.md §6](../spikes/02-pi-sdk-runtime.zh.md) 的 S-pi 验证清单（4-5 人日）实证该路线。**spike 走通后即可供 owner 定 D9 = pi**。
 
-排序理由（2026-08-21 主 agent 建议、owner 拍板双 spike 并行）：两条 spike 等成本（4.5 vs 4-5 人日），但 S-pi 具备早期退出价值——pi 全量落地 ≈20 人日（X 路线 37-38）且 D9 记录推 1，S-pi 全过则 S-X 可能整体省掉；S-pi-1 纯库验证零编辑器环境依赖；其最大风险（多模态占位降级）有文档化回退、不阻塞选型。
+排序理由（2026-08-21 主 agent 建议、owner 拍板双 spike 并行）：两条 spike 等成本（4.5 vs 4-5 人日），但 S-pi 具备早期退出价值——pi 全量落地 ≈20 人日（X 路线 37-38）且 D9 记录推 1，S-pi 全过则 S-X 可能整体省掉；S-pi-1 纯库验证零编辑器环境依赖；其最大风险点是 S-pi-2 多模态端点接受度，失败则 C4a 走占位降级回退、不阻塞选型（[spikes/02 §6 风险段](../spikes/02-pi-sdk-runtime.zh.md)）。
 
 ### 1.2 范围（S-pi 四项验证，按序）
 
 | # | 验证项 | 预算 | 通过标准（照抄 spike 02 §6） |
 |---|---|---|---|
 | S-pi-1 | 库形态最小集成：Node 后端 import `@earendil-works/pi-coding-agent`（0.84.2），注册 echo 工具，in-memory session，事件流 | 1-1.5d | 库形态集成过 + 工具 execute 在我们进程内执行过 + 事件流正确 |
-| S-pi-2 | 多模态端到端：look 工具返回 ImageContent，视觉模型收到并描述图像；再切 DeepSeek 验证占位降级静默不报错 | 1-1.5d | 模型回复含图像描述（非占位）；DeepSeek 路径收到占位字符串、不报错、能继续完成任务 |
+| S-pi-2 | 多模态端到端：look 工具返回 ImageContent，视觉模型收到并描述图像；再切 deepseek-chat 复跑同 prompt——占位降级机制本身已由 pi-ai `transform-messages.ts:35-57` 源码证实（spikes/02 P3.2），本项验证的是**运行时未知量**：降级路径端到端不炸、任务可续 | 1-1.5d | 模型回复含图像描述（非占位）；DeepSeek 路径收到占位字符串、不报错、能继续完成任务；前置：离线查 `models.generated.ts` DeepSeek 条目 input 字段作为预期判定依据（spikes/02 §9-1） |
 | S-pi-3 | session 持久化 + F0.5：create → dispose → open 跨重启上下文恢复 | 0.5-1d | 跨重启 session 上下文完整恢复 |
-| S-pi-4 | 流式适配端到端：agent-core event 流 → UIMessage v1 chunk → SSE endpoint → 前端旧 Chat 类消费 | 0.5-1d | 前端一字不变能消费新 runtime 流（除适配器） |
+| S-pi-4 | 流式适配端到端：agent-core event 流 → UIMessage v1 chunk → SSE endpoint → 前端旧 Chat 类消费（适配器规模锚点：最小 150-200 行 TS，spikes/02 §6） | 0.5-1d | 前端一字不变能消费新 runtime 流（除适配器） |
 
 ### 1.3 实施约束
 
 - **代码落点**：`spikes/s-pi/`（T10 已登记 ownedRoot `spikes/`）；自含 package.json（**不进 root workspaces**——workspaces 为 packages/* 显式列表，2026-08-21 实测），不触碰任何上游文件
-- **包名纪律**：`@earendil-works/pi-coding-agent`（scoped，0.84.2，与本地 `参考项目/pi` 源码一致）；**非** unscoped `pi-coding-agent`（0.0.1 占位包，勿用）
+- **包名纪律**：`@earendil-works/pi-coding-agent`（scoped，0.84.2，与本地 `参考项目/pi` 源码一致）；**非** unscoped `pi-coding-agent`（0.0.1，description 自述 "Placeholder package name reservation" 的占位包，勿用——2026-08-21 `npm view pi-coding-agent` / `npm view @earendil-works/pi-coding-agent version` 双端实测）
 - **API key**：当前执行环境无 ANTHROPIC/DEEPSEEK/OPENAI key（2026-08-21 `printenv` 实测 0 命中）——离线可验项（安装/导入/API 面/序列化/事件订阅接线）先行，活模型调用项阻塞即上报 owner 补 key，不伪造通过
 
 ### 1.4 不在范围
@@ -45,7 +45,7 @@ D9 当前推荐 c（pi 直接驱动，库形态）。本 task 按 [spikes/02-pi-
 
 ## 2. 任务清单
 
-- [ ] P1 脚手架：spikes/s-pi/ + 自含 package.json + 安装固定版本
+- [ ] P1 脚手架：spikes/s-pi/ + 自含 package.json + 安装固定版本（含 spikes/02 R-pi-8 钦定必测：Windows npm install 实测 photon-node WAS / 是否需 `--ignore-scripts`）
 - [ ] P2 S-pi-1 离线面 + 活模型面（echo → prompt → tool call → 事件流）
 - [ ] P3 S-pi-2 多模态（视觉模型 + DeepSeek 占位降级双路径）
 - [ ] P4 S-pi-3 持久化跨重启恢复

@@ -137,3 +137,11 @@
 - **对 D9 的意义**：pi 路线在本代码库内已被上游亲自走过一遍并产品化——「pi event 流 → UIMessage v1 同构」（spike 02 §Y2）从源码推断升级为**上游在产实证**；S-pi spike 可直接对照上游实现做参照
 - **限制**：上游 harness 路径 `isConfigured` 要求 `IS_TAURI`（仅桌面端可用，web 端恒 false）——它是 coding-agent 面（bash/edit 工具），不是设计 runtime；不替代 D9 的选择，但是强参照
 - **处置**：T10 合并保 harness 裁 ACP（理由：harness 与 Phase 1 方向同向且上游持续维护，裁掉反而每次合并都重新冲突；ACP 为死面）；若 D9 最终不采用任何 pi 形态，再裁不迟（登记于此备查）
+
+## 修正-4 · T11-plan 整体评估（owner 质疑 DeepSeek 降级项系 dsh-y 污染）
+
+- **类型**：修正（按对象：tasks/T11-plan.md）+ 决策相关事实澄清
+- **时间**：2026-08-21
+- **起因**：owner 质疑 T11 S-pi-2「再切 DeepSeek 验证占位降级静默不报错」疑似从 dsh-y 路线污染
+- **核验**（subagent 只读评估，2026-08-21）：**非污染**——该句逐字出自真源 spikes/02 §6（02-pi-sdk-runtime.zh.md:631）；机制本体在共享 pi-ai 层（`transform-messages.ts:35-57` 静默降级 vs dsh `llm-deepseek/serialize.ts:63-66` 显式抛 UNSUPPORTED_CONTENT，spikes/02 P3.2 明牌此为两路线行为分叉点）；open-pencil 默认 DeepSeek 系 text-only 模型，C4a 图片在 DeepSeek 路径必然降级（02:211），故降级路径运行时表现是 pi 路线层 1 验收的正当证据。owner 直觉部分成立之处：「静默不报错」已是源码级【事实】，spike 的边际价值在运行时未知量（端到端不炸 + 任务可续，02:631）与离线前置（§9-1 catalog input 字段）
+- **处置**：T11-plan 六处修订——S-pi-2 表述改为验证运行时未知量 + §9-1 离线前置、P1 补 R-pi-8 Windows npm install 必测、包名声明补 npm view 核验命令与日期、§1.1 风险/回退倒置修正、S-pi-4 补 150-200 行锚点；T12-plan 顺带评估无污染

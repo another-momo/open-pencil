@@ -162,12 +162,15 @@ docs/rebuild/
 8. **纪律提示块**：每个叙事文档（00-04）的前 15 行必须包含纪律提示块。格式为 HTML 注释（源码可见，渲染不可见）。HTML 注释 vs blockquote：blockquote 给读者看（增加阅读噪音），HTML 注释给写的人看（agent 编辑文件时一定能看到前几行的注释）。本文档自身也需要纪律提示块。
 9. **交叉引用格式**：文档间引用必须使用 `文件名.md §N 标题` 格式。禁止使用无文件名的纯 § 编号引用。例：写 `02-phase-0.md §5 验收标准`，不写 `02 §5`。
 10. **文件↔record 一一对应纪律（owner 触发 · D14 决策）**：
-    - **核心约束**：每个被纳入文档治理范围的物理文件（含 00-04 / 05 / README / tracker / spikes / records 各文件）必须拥有自己的 `records/narrative/<file>.md`——文件名脱去 `.md` 后缀、连字符化（如 `00-why-rebuild.md` ↔ `records/narrative/00-why-rebuild.md`）。**一一对应**，不允许多文件共享一个 record，也不允许 record 单独存在没有对应文件。
-    - **两层关系**：`records/<对象>.md`（如 `agent-runtime.md`、`ci-infra.md`）是**主题聚合层**，按主题横向检索；`records/narrative/<file>.md` 是**物理绑定层**，纵向记录单个文件的腐烂/修正/核验。两者并存，主题聚合层为检索辅助，**不可替代**物理绑定层。
-    - **修改触发**：物理文件被改（任意 commit 改其内容）→ 同 commit 内必须更新对应 `records/narrative/<file>.md`（哪怕只追加一条「无变化」记录）。不允许"有修改、无 record"。
-    - **新增/删除触发**：新增物理文件 → 同步创建对应 record；物理文件被删或归档 → record 末尾标 `[ARCHIVED]`，归档但不删除。
-    - **CI 拦截**：`tools/zone-registry/src/check/bindings.ts` 检测到叙事层文件被改但未更新 `records/narrative/<file>.md` → 拒绝 commit（pre-commit）+ 拒绝 push（CI）。`docs/rebuild/05-process.md §3.1` gate review 第 4 步（subagent 文档核验）将"record 与物理文件一一对应"列为必查项。
-    - **常见误区**：以为 `records/<对象>.md` 里写了某文件就算绑定了——错。`records/<对象>.md` 是主题聚类（覆盖多文件），**不构成**与单文件的绑定关系，必须有独立的 `records/narrative/<file>.md`。
+    - **核心约束**：每个被纳入文档治理范围的**物理文件**（如 `00-why-rebuild.md`、`05-process.md`、`tracker.md`、`README.md`、各种 spike `.zh.md`）必须拥有自己的 `records/narrative/<file>.md`——文件名脱去 `.md` 后缀、连字符化（如 `00-why-rebuild.md` ↔ `records/narrative/00-why-rebuild.md`）。**一一对应**，不允许多文件共享一个 record，也不允许 record 单独存在没有对应文件。
+    - **两层关系**：`records/topics/<topic>.md`（如 `agent-runtime.md`、`ci-infra.md`）是**主题聚合层**（横向档案），按主题横向检索；`records/narrative/<file>.md` 是**物理绑定层**，纵向记录单个**物理文件**的腐烂/修正/核验。两者并存，主题聚合层为检索辅助，**不可替代**物理绑定层。
+    - **横向档案不需要 narrative 绑定**（owner 反馈 2026-08-21，T07 修正）：`records/topics/<topic>.md` 是横向档案，本身**没有"对应物理文件"**——它的"绑定对象"是主题（多个物理文件的腐烂/核验）而不是单文件。**不允许**为 `topics/ci-infra.md` / `topics/agent-runtime.md` 等横向档案创建 `narrative/<topic>.md`——`narrative/` 层**只绑物理文件**。
+    - **修改触发**：物理文件被改（任意 commit 改其内容）→ 同 commit 内必须更新对应 `records/narrative/<file>.md`（哪怕只追加一条「无变化」记录）。不允许"有修改、无 record"。横向档案被改 → 不触发 narrative 绑定。
+    - **新增/删除触发**：新增物理文件 → 同步创建对应 record；物理文件被删或归档 → record 末尾标 `[ARCHIVED]`，归档但不删除。横向档案新增/删除不触发 narrative。
+    - **CI 拦截**：`tools/zone-registry/src/check/bindings.ts` 检测到叙事层物理文件被改但未更新 `records/narrative/<file>.md` → 拒绝 commit（pre-commit）+ 拒绝 push（CI）。`docs/rebuild/05-process.md §3.1` gate review 第 4 步（subagent 文档核验）将"record 与物理文件一一对应"列为必查项。
+    - **常见误区**：
+      - 误区 1：以为 `records/topics/<对象>.md` 里写了某文件就算绑定了——错。`records/topics/<对象>.md` 是主题聚类（覆盖多文件），**不构成**与单文件的绑定关系，必须有独立的 `records/narrative/<file>.md`。
+      - 误区 2（T07 新增）：为横向档案创建 `narrative/<topic>.md`——错。横向档案不需要 narrative 绑定（见上面"横向档案不需要 narrative 绑定"条目）。修正案例：T06 一开始误创建 `records/narrative/ci-infra.md`——已撤回。
     - **暂不绑定**：纯转瞬文件（CI 临时产物、构建产物、缓存）不属于治理范围，不要求一一对应。
 11. **task 三件套物理拆分纪律（owner 触发 · D15 决策）**：
     - **核心约束**：每个 task 由**三个独立物理文件**承载——`tasks/T<NN>-plan.md` / `tasks/T<NN>-self-check.md` / `tasks/T<NN>-verify.md`（D15 决策）。**禁止**把三件套装回单文档 `tasks/T<id>-<slug>.md` 然后用章节正则识别——章节可以是占位（如「待 owner 触发」），CI 识别为通过但实际三件套不齐。

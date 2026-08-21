@@ -30,21 +30,16 @@
 | [tracker.md](tracker.md) | **执行依据（核心，活文档·精简）** | 阶段门 + 任务表 + 记录索引（≤50 行） |
 | spikes/*.md | 辅助参考（源码核查报告） | dsh / pi 路线 + weshop 案例的实证 |
 
-### 第二层：变更/核验/腐烂记录（按对象分，append-only）
+### 第二层：变更/核验/腐烂记录（append-only）
 
-| 对象 | 文件 |
-|---|---|
-| 全部子文档索引 | [records/_index.md](records/_index.md) |
-| agent 后端 / runtime | [records/topics/agent-runtime.md](records/topics/agent-runtime.md) |
-| brand config / type / profile | [records/topics/brand-config.md](records/topics/brand-config.md) |
-| Chat UI | [records/topics/chat-ui.md](records/topics/chat-ui.md) |
-| i18n 缝 / locale | [records/topics/i18n.md](records/topics/i18n.md) |
-| 营销工具 | [records/topics/tools-marketing.md](records/topics/tools-marketing.md) |
-| 生图管线 | [records/topics/tools-image-gen.md](records/topics/tools-image-gen.md) |
-| upstream 合并 | [records/topics/upstream-merge.md](records/topics/upstream-merge.md) |
-| CI / zone registry / autocrlf | [records/topics/ci-infra.md](records/topics/ci-infra.md) |
-| spike 文档 | [records/topics/spikes.md](records/topics/spikes.md) |
-| 文档体系治理 | [records/topics/docs-governance.md](records/topics/docs-governance.md) |
+两层结构（[05-process.md §4.10 D14 + §4.11 D15](05-process.md)）：
+
+- `records/narrative/` — **物理绑定层**：与物理文件 1:1 绑定（详见 [05-process.md §4.10](05-process.md)）
+- `records/topics/` — **主题聚合层**：横向档案（10 文件；agent-runtime / brand-config / chat-ui / ci-infra / docs-governance / i18n / spikes / tools-image-gen / tools-marketing / upstream-merge）
+
+**权威列表**：所有子文档与编号规则见 [`records/_index.md`](records/_index.md)——本文档不重复维护。
+
+> **高频腐烂防御**（T07 owner 反馈）：本表历史上高频腐烂（每次新加横向档案都需同步更新）。T07 起改为指向 `_index.md` 作为权威列表，避免叙事文档与档案目录的耦合。
 
 ## 真相分层与冲突裁决
 

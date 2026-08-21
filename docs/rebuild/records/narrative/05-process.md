@@ -120,3 +120,22 @@
   - §2 文档体系树状图与 D14（records 两层结构）+ D15（task 三件套）+ proposals 集合 一致
   - D16 候选登记后保持诚实——D9 vs 03 不一致问题等 owner 决定，主 agent 不擅自决断
 - **task 文档**：[tasks/T05-plan.md](../../tasks/T05-plan.md) / [T05-self-check.md](../../tasks/T05-self-check.md) / [T05-verify.md](../../tasks/T05-verify.md)
+
+## 修正-N · 05-process.md v7（T07 整改：§4.10 应用错误修正 + 高频腐烂防御）
+
+- **类型**：修正（按对象：05-process.md）
+- **时间**：2026-08-21
+- **依据**：T07 owner 反馈（两个治理问题）
+- **问题 1**：T06 一开始误创建 `records/narrative/ci-infra.md`——这是**误应用 §4.10 物理绑定纪律**。横向档案（`records/topics/<topic>.md`）本身没有"对应物理文件"，不需要 narrative 绑定。`narrative/` 层**只绑物理文件**（如 05-process.md ↔ narrative/05-process.md），不绑横向档案
+- **问题 2**：README.md / 05-process.md / tracker.md 中"列档案文件"的高频腐烂表——每次新加横向档案都需同步更新
+- **处置**：
+  1. **撤回 narrative/ci-infra.md**（T06 误创建的横向档案 narrative 绑定）——`git rm` 已删
+  2. **§4.10 文本修订**：明确"横向档案不需要 narrative 绑定"+ 新增"误区 2"（横向档案不该有 narrative 绑定）+ 撤回案例（T06 narrative/ci-infra.md）
+  3. **README.md 第二层列表简化**：从 11 行详细表改为指向 `records/_index.md` 作为权威列表 + "高频腐烂防御"标注
+  4. **05 §2 树状图保留**：本身就是规范层级描述（不是高频腐烂）
+  5. **tracker.md §3 已按同款思路简化**（T04 收尾已改：指向 _index.md + 简短顶层结构）
+- **影响**：
+  - 横向档案修改不再触发 narrative 绑定检查（与 `check-bindings.ts` 现有行为一致——本来就只检查物理文件 ↔ narrative 绑定）
+  - 叙事文档不再高频腐烂于档案目录变更
+  - §4.10 文本修订形成正式纪律约束——后续横向档案修改不需要创建 `narrative/<topic>.md`
+- **task 文档**：[tasks/T07-plan.md](../../tasks/T07-plan.md) / [T07-self-check.md](../../tasks/T07-self-check.md) / [T07-verify.md](../../tasks/T07-verify.md)

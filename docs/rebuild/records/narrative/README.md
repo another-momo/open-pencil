@@ -43,3 +43,14 @@
 - **依据**：本轮整改 D15 + owner 提议（横向档案独立为 records/topics/）
 - **内容**：[README.md](../../README.md) 内部对横向档案（agent-runtime / brand-config / chat-ui / i18n / tools-marketing / tools-image-gen / upstream-merge / ci-infra / spikes / docs-governance）的引用路径从 `records/<topic>.md` 更新为 `records/topics/<topic>.md`
 - **影响**：[README.md](../../README.md) 现引用 `records/topics/` 路径，与 [_index.md §3 主题聚合层列表](_index.md) 一致
+
+## 修正-N · README.md v2（T07 整改：第二层列表简化 + 高频腐烂防御）
+
+- **类型**：修正（按对象：README.md）
+- **时间**：2026-08-21
+- **依据**：T07 owner 反馈（README.md 第二层 11 行表高频腐烂）
+- **原内容**：第二层 11 行"对象 → 文件"详细表（agent-runtime / brand-config / chat-ui / ...），每次新加横向档案都需同步更新
+- **新内容**：简化为"两层结构"概述（narrative/ 物理绑定层 + topics/ 主题聚合层）+ 指向 [`records/_index.md`](../../_index.md) 作为权威列表 + "高频腐烂防御"标注
+- **影响**：
+  - README.md 不再高频腐烂于横向档案变更
+  - 横向档案列表的唯一真源是 `_index.md`，避免多文档重复维护

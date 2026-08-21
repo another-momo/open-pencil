@@ -107,3 +107,14 @@
   - .gitattributes 变更 key 失效（restore-keys 前缀匹配提供降级）
   - cache 失败默认 warning 而非 error——`git lfs pull` 仍能下载
 - **依据**：owner 派 agent 排查 + 评估后拍板"启用 LFS 缓存"
+
+---
+
+## T06 同步登记（2026-08-21 · setup-bun action.yml LFS cache 启用）
+
+- **类型**：修正
+- **依据**：D18 决策 + T06 owner 拍板
+- **内容**：`.github/actions/setup-bun/action.yml` 加 `actions/cache@v6` 步骤缓存 `.git/lfs/objects/`；cache key 用 `${{ runner.os }}-${{ hashFiles('.gitattributes') }}`；保留 `git lfs install --force` + `git lfs pull`
+- **流量实测**：T06 前 ~1 GB/次 → T06 后 ~7 MB/次（节省 ~99%）
+- **影响范围**：ci.yml 7 个 engine test job + heavy-tests.yml 1 个 job
+- **错误修正（owner 反馈 2026-08-21）**：T06 一开始误创建 `narrative/ci-infra.md`（横向档案不该有 narrative 绑定）——已撤回。**§4.10 D14 物理绑定纪律明确**：narrative/ 层**只绑物理文件**（如 05-process.md ↔ narrative/05-process.md），**横向档案不需要 narrative 绑定**——横向档案本身就是聚合层，"绑定对象"是主题而不是单文件

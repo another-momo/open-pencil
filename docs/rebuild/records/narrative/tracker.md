@@ -117,3 +117,11 @@
 - **依据**：D15 三件套物理拆分纪律 + T06 task 落地
 - **内容**：在 [tracker.md §2 任务表](../../tracker.md) T05 行后新增 T06 行（CI 基础设施 · LFS cache 启用 · 状态"🔄 进行中"）
 - **影响**：[tracker.md §2 任务表](../../tracker.md) 现含 T00-T06 共 7 行 + 三列路径，CI `existsSync` 检查三件套物理文件存在
+
+## 修正-N · tracker.md §2 任务表 T06 行状态更新（T06 收尾完成）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-21
+- **依据**：T06 commit `0ac548e6` 落地 + T07 收尾
+- **内容**：在 [tracker.md §2 任务表](../../tracker.md) T06 行状态从「🔄 进行中」→「✅ 完成（setup-bun action.yml 加 actions/cache@v6）」
+- **影响**：[tracker.md §2 任务表](../../tracker.md) 现含 T00-T06 共 7 行，全部状态对齐

@@ -59,7 +59,7 @@ function resolveBase(): string {
   try {
     mergeHead = git(['rev-parse', '-q', '--verify', 'MERGE_HEAD'])
   } catch {
-    // no in-progress merge — rev-parse exits 1
+    mergeHead = '' // no in-progress merge — rev-parse exits 1
   }
   const base = mergeHead || git(['merge-base', 'HEAD', 'upstream/master'])
   if (!base) {

@@ -76,5 +76,5 @@ T09 是 owner 要求「核实 review 发现的所有问题、并逐一分析优�
 ## 6. 综合判定
 
 - ✅ **一轮 14/18 通过；唯一 ❌ 与 3 个 ⚠️ 的可修复部分（N1/N2/N4/N5）已全部修复并复测通过；N3 以验收口径修订闭环**
-- ⏳ **待 push 后补登**：ci.yml rebuild-discipline job 远端首跑（验收 ③）与远端 CI 全绿（验收 ⑨）——push 后由主 agent 以 `gh run` 实测并追加到本文件
+- ✅ **远端 CI 补登（2026-08-21，push 后实测）**：commit `75f2759f` → run `32447539784` **conclusion=success，12/12 job 全绿**，含新 `Rebuild discipline` job 首跑成功（`gh run view 32447539784 --json conclusion,jobs`）——验收 ③⑨ 达成，T09 机制接线在远端真实生效
 - subagent A 附注：全程只读，未修改仓库任何文件（探针脚本写在系统临时目录）

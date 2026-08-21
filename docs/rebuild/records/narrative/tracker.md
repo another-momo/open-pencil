@@ -162,3 +162,10 @@
   4. §3.1 计数修正：「14 份 narrative 档案」→ 实测 13（6 叙事 + README + tracker + 4 spike + 1 proposal）
   5. 注记：上一修正条目（T08 整改）内「T07 commit `0ac548e6`」系张冠李戴，正确为 `5698019a`（ROT-17）
 - **影响**：任务表真源与镜像（tasks/_index.md §2）恢复一致
+
+## 修正-N · tracker.md T09 行状态收尾（T09 完成）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-21
+- **依据**：T09 全部验收达成——远端 CI run 32447539784 12/12 success（含新 Rebuild discipline job 首跑），subagent A 核验 N1-N5 闭环
+- **内容**：任务表 T09 行状态 🔄 → ✅ 完成（附 CI 与核验证据指针）；tasks/_index.md 镜像行同步

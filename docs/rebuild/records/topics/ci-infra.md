@@ -131,3 +131,11 @@
   4. 用 `oven-sh/setup-bun@v2` 直装（四脚本只用 node 内建，免 bun install）
 - **连带**：pre-commit 改为每次 commit 跑 check:zones（此前只按 docs 改动跑三个 doc check，zone 违规可从任意上游文件改动引入——T06 的 setup-bun 改动即漏网实例）；本机 `bun run hooks:install` 已执行（2026-08-21，`git config core.hooksPath` = tools/hooks 实测）
 - **历史影响评估**：T06（0ac548e6）改 setup-bun/action.yml 未登记补丁——在 T06 commit 与 7d013794 HEAD 上 `zones.json | grep -c "setup-bun"` = 0（subagent A 复核），由 T09 P31 补登；tools/hooks/ 两文件（3e982668/79cda9f5 引入）未入 ownedRoots，T09 补
+
+## CI-7 · run 32447539784（T09 commit 75f2759f）
+
+- **类型**：核验
+- **时间**：2026-08-21
+- **方法**：`gh run view 32447539784 --json conclusion,jobs`
+- **结论**：**全绿 12/12**——含新 `Rebuild discipline` job 首跑成功（check:zones + check:docs + check/bindings.ts + check/tasks.ts 四检查首次在远端真实执行，CI-6 接线的生效证据）
+- **备注**：job 数 11 → 12（+Rebuild discipline）

@@ -84,14 +84,14 @@
 | E 组 4 项记录登记 | ✅ 4/4 | 无 |
 | F 组 2 项备料 | ✅ 2/2 | 无 |
 | 本地 check 全绿 | zones/docs/bindings/tasks 四绿（实测输出见上） | 无 |
-| 远端 CI 绿（含新 job） | 待 push 后实测 | 假设项，见 T09-verify |
+| 远端 CI 绿（含新 job） | ✅ run 32447539784 12/12 success（2026-08-21 实测） | 无 |
 
 ## 3. 完成度自评
 
-- 完全落地 36 条（100%，本地口径）
+- 完全落地 36 条（100%）
 - 部分落地 0 条
 - 完全未做 0 条
-- 待 push 补登 1 项：远端 CI 实测（含新 rebuild-discipline job 首跑）
+- 远端 CI 实测（2026-08-21）：commit `75f2759f` → run `32447539784` 12/12 全绿，含新 Rebuild discipline job 首跑成功
 
 ## 4. 自评要点
 

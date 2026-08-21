@@ -40,7 +40,7 @@
 | T06 | CI 基础设施 | LFS cache 启用（每次 push 节省 ~99% 上游 LFS 流量）| ✅ 完成（setup-bun action.yml 加 actions/cache@v6） | ✅ | [T06-plan](tasks/T06-plan.md) | [T06-self-check](tasks/T06-self-check.md) | [T06-verify](tasks/T06-verify.md) |
 | T07 | 文档治理 | 修正 [05-process.md §4.10](05-process.md) 应用错误（横向档案 narrative 绑定撤回）+ 高频腐烂防御 | ✅ 完成（核验由 T09 回填：subagent A 12 通过 + 1 警告，见 [T07-verify.md](tasks/T07-verify.md)） | ✅ | [T07-plan](tasks/T07-plan.md) | [T07-self-check](tasks/T07-self-check.md) | [T07-verify](tasks/T07-verify.md) |
 | T08 | 文档治理 | tracker.md 任务表删 PR 列（owner 提议） | ✅ 完成（CI 11/11 全绿 + subagent A 12/12 通过，commit 7d013794） | ✅ | [T08-plan](tasks/T08-plan.md) | [T08-self-check](tasks/T08-self-check.md) | [T08-verify](tasks/T08-verify.md) |
-| T09 | 文档治理+CI 基建 | review 发现核实与修复（CI 接线 + 占位检测 + 腐烂修正 + T06/T07 核验回填） | [T09-plan.md §3](tasks/T09-plan.md) 九条验收 | 🔄 | [T09-plan](tasks/T09-plan.md) | [T09-self-check](tasks/T09-self-check.md) | [T09-verify](tasks/T09-verify.md) |
+| T09 | 文档治理+CI 基建 | review 发现核实与修复（CI 接线 + 占位检测 + 腐烂修正 + T06/T07 核验回填） | ✅ 完成（CI 12/12 全绿含新 Rebuild discipline job，run 32447539784 + subagent A 核验 N1-N5 闭环） | ✅ | [T09-plan](tasks/T09-plan.md) | [T09-self-check](tasks/T09-self-check.md) | [T09-verify](tasks/T09-verify.md) |
 | — | （Phase 1 开工后逐行登记） | — | — | — | — | — | — |
 
 ## 3. 记录索引

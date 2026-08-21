@@ -102,3 +102,21 @@
   - task 档案边界清晰：plan.md / self-check.md / verify.md 三个物理文件职责分明
   - 下次新增 task（T05+）必须按三件套物理拆分流程，缺一不可
 - **task 文档**：[tasks/T04-plan.md](../../tasks/T04-plan.md) / [T04-self-check.md](../../tasks/T04-self-check.md) / [T04-verify.md](../../tasks/T04-verify.md)
+
+## 修正-N · 05-process.md v6（T05 整改：§2 文档体系树状图重写 + 外部 proposal 内化）
+
+- **类型**：修正（按对象：05-process.md）
+- **时间**：2026-08-21
+- **依据**：T05 owner 触发（owner 指出 §2 文档体系树状图全部过期，要求系统性 review 00-05 文档）
+- **腐烂点 1（高）**：外部建议文档 `docs/rebuild-docs-governance-proposal.md` 在仓库根外（`D:\Desktop\AgentLearn/.../docs/`），T01-plan.md / docs-governance.md 多处引用——外部依赖 + 无版本控制 + 路径不可追溯
+  - **处置**：复制到 [`docs/rebuild/proposals/governance-v1.md`](../../proposals/governance-v1.md) + 加头部元信息（状态/时间/作者/来源/身份/采纳映射）；更新所有引用路径 4 处（T01-plan.md ×2 + docs-governance.md ×2）
+- **腐烂点 2（高）**：[§2 文档体系](../../05-process.md) 树状图还是 D12 之前的旧结构——没有 `tasks/` 子目录、没有 `records/{narrative,topics}/` 两层结构、records/ 平铺横向档案
+  - **处置**：§2 树状图重写——补全 `proposals/` + `tasks/` + `records/{narrative,topics}/` + `narrative/{tasks,proposals}/`；真相分层补充 task 三件套层；proposals 集合独立说明
+- **腐烂点 3（低，已撤销）**：原担心 00 / 04 状态字段停留在 2026-08-18——经查 narrative/00-why-rebuild.md + narrative/04-porting-discipline.md 确认两个文件均无新增腐烂/修正条目，状态字段维持原值合规（§4 第 2 条"修改才需刷新"，未修改可保持）。**撤销**。
+- **腐烂点 4（中）**：D9「dsh 集成形态」状态 `open（待 owner 拍板）` 与 [03-phase-1-runtime.md §0](../03-phase-1-runtime.md) v3 已按"Y 路线弃 + X vs pi 待 spike 后"撰写**不一致**
+  - **处置**：主 agent **不自行拍板 D9**——追加 [D16 候选](../topics/docs-governance.md)（详见该条目），请 owner 决定如何对齐
+- **影响**：
+  - 外部 proposal 不再依赖仓库根外路径
+  - §2 文档体系树状图与 D14（records 两层结构）+ D15（task 三件套）+ proposals 集合 一致
+  - D16 候选登记后保持诚实——D9 vs 03 不一致问题等 owner 决定，主 agent 不擅自决断
+- **task 文档**：[tasks/T05-plan.md](../../tasks/T05-plan.md) / [T05-self-check.md](../../tasks/T05-self-check.md) / [T05-verify.md](../../tasks/T05-verify.md)

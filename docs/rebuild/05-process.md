@@ -26,32 +26,59 @@
 
 ```
 docs/rebuild/
-├── README.md                    # 索引 + 治理兜底规则
-├── 00-why-rebuild.md            # 背景、实测资产、大改清单（叙事）
-├── 01-target-state.md           # 目标态、能力地图、不加清单（决策）
-├── 02-phase-0.md                # Phase 0 定义与验收（决策）
-├── 03-phase-1-runtime.md        # runtime spike 硬门（决策/调研）
-├── 04-porting-discipline.md     # 移植纪律（决策）
-├── 05-process.md                # 本文（过程定义，优先级最高）
-├── tracker.md                   # 【活文档·精简】阶段门 + 任务表 + 记录索引
-├── records/                     # 按对象分的变更/核验/腐烂记录（append-only）
-│   ├── _index.md                # 子文档索引 + 编号规则
-│   ├── agent-runtime.md         # agent 后端 / runtime 相关
-│   ├── brand-config.md          # brand config / type / profile
-│   ├── chat-ui.md               # ChatPanel / ChatInput / 聊天界面
-│   ├── i18n.md                  # i18n 缝 / locale
-│   ├── tools-marketing.md       # 营销工具
-│   ├── tools-image-gen.md       # 生图管线
-│   ├── upstream-merge.md        # upstream 合并记录
-│   ├── ci-infra.md              # CI / workflows / zone registry
-│   ├── spikes.md                # spike 文档的核验与修正
-│   ├── docs-governance.md       # 文档体系本身的修改
-│   └── ...                      # 随 Phase 推进新增
-├── spikes/                      # spike 报告（Phase 1 起，一事一报）
-└── archive/                     # 过期文档坟墓（归档不删除，文件名加日期）
+├── README.md                       # 索引 + 治理兜底规则
+├── 00-why-rebuild.md               # 背景、实测资产、大改清单（叙事）
+├── 01-target-state.md              # 目标态、能力地图、不加清单（决策）
+├── 02-phase-0.md                   # Phase 0 定义与验收（决策）
+├── 03-phase-1-runtime.md           # runtime spike 硬门（决策/调研）
+├── 04-porting-discipline.md        # 移植纪律（决策）
+├── 05-process.md                   # 本文（过程定义，优先级最高）
+├── tracker.md                      # 【活文档·精简】阶段门 + 任务表（plan/self-check/verify 三列路径）+ 记录索引
+├── proposals/                      # 外部建议集合（append-only，不修改原条目）
+│   └── governance-v1.md            # D10-D15 落地的源头建议
+├── tasks/                          # task 维度档案——三件套物理拆分（D15 决策）
+│   ├── _index.md                   # 任务表（镜像 tracker §2）
+│   ├── T00-{plan,self-check,verify}.md
+│   ├── T01-{plan,self-check,verify}.md
+│   ├── T02-{plan,self-check,verify}.md
+│   ├── T03-{plan,self-check,verify}.md
+│   └── T04-{plan,self-check,verify}.md
+├── records/                        # 变更/核验/腐烂记录（append-only）—— 两层结构（D14 D15）
+│   ├── _index.md                   # 子文档索引（两层列表）
+│   ├── narrative/                  # 物理绑定层（与文件 1:1，§4.10 D14）
+│   │   ├── 00-why-rebuild.md
+│   │   ├── 01-target-state.md
+│   │   ├── 02-phase-0.md
+│   │   ├── 03-phase-1-runtime.md
+│   │   ├── 04-porting-discipline.md
+│   │   ├── 05-process.md
+│   │   ├── README.md
+│   │   ├── tracker.md
+│   │   ├── tasks/
+│   │   ├── proposals/
+│   │   └── spikes/<file>.zh.md
+│   └── topics/                     # 主题聚合层（横向档案，10 文件，D15 重组）
+│       ├── agent-runtime.md
+│       ├── brand-config.md
+│       ├── chat-ui.md
+│       ├── ci-infra.md
+│       ├── docs-governance.md
+│       ├── i18n.md
+│       ├── spikes.md
+│       ├── tools-image-gen.md
+│       ├── tools-marketing.md
+│       └── upstream-merge.md
+├── spikes/                         # spike 报告（Phase 1 起，一事一报）
+└── archive/                        # 过期文档坟墓（归档不删除，文件名加日期）
 ```
 
-**真相分层**：路径归属 → zone registry（代码，CI 校验，Phase 0 产出）；状态与决策 → `tracker.md` 索引 + `records/*` 子文档（按对象分）；叙事与理由 → 00-04。三层冲突时：registry > records 子文档 > tracker 索引 > 叙事文档。
+**真相分层**：路径归属 → zone registry（代码，CI 校验，Phase 0 产出）；状态与决策 → `tracker.md` 任务表 + `records/narrative/<file>.md`（物理绑定层）+ `records/topics/<topic>.md`（主题聚合层）；叙事与理由 → 00-04；task 三件套 → `tasks/T<NN>-{plan,self-check,verify}.md`。**三层冲突时**：registry > records 子文档 > tracker 索引 > 叙事文档。
+
+**task 三件套（[§4.11 D15](05-process.md)）**：每个 task 由三个独立物理文件承载——`tasks/T<NN>-plan.md` / `tasks/T<NN>-self-check.md` / `tasks/T<NN>-verify.md`，任务表填三列路径，CI 用 `existsSync` 检查三文件存在。
+
+**records 两层结构（[§4.10 D14](05-process.md)）**：`records/narrative/` 物理绑定层（与文件 1:1）+ `records/topics/` 主题聚合层（跨文件横向档案）——两并存，主题聚合层不可替代物理绑定层。完整列表见 [`records/_index.md`](records/_index.md)。
+
+**proposals 集合**：外部建议文档——append-only，不修改原条目；采纳映射登记在 [`records/topics/docs-governance.md` 的 D 决策条目](records/topics/docs-governance.md)。
 
 **关于 tracker.md 拆分**：原 tracker.md 集阶段门 / 决策日志 / 任务表 / WIP 审判 / 核验日志 / 腐烂记录六类信息于一身，膨胀至 106 行后查找困难。新结构：tracker.md 只保留索引 + 阶段门 + 任务表 + 记录索引三块（≤50 行）；详细记录按对象归 `records/` 子文档，子文档 append-only。
 

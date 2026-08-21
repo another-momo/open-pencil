@@ -93,3 +93,11 @@
   - 删除原 11 行"全部子文档索引"重复项（指向 `_index.md` 即可）
   - 加上对 `records/_index.md` 的指针作为权威列表
 - **影响**：[tracker.md §3](../../tracker.md) 现反映 D14/D15 两层结构，与 [05-process.md §4.10 + §4.11](05-process.md) 同步
+
+## 修正-N · tracker.md §2 任务表加 T05 行（T05 收尾）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-21
+- **依据**：T05 owner 提问（00-05 系统性 review）+ D15 三件套物理拆分纪律
+- **内容**：在 [tracker.md §2 任务表](../../tracker.md) T04 行后新增 T05 行（plan / self-check / verify 三列路径 + 状态"🔄 进行中"）
+- **影响**：[tracker.md §2 任务表](../../tracker.md) 现含 T00-T05 共 6 行 + 三列路径，CI `existsSync` 检查三件套物理文件存在

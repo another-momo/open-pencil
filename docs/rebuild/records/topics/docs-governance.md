@@ -22,7 +22,7 @@
 - **时间**：2026-08-20 18:00
 - **拍板**：owner + 主 agent 讨论
 - **内容**：采纳 4 节方案——①叙事文档 plan-correction 直接改原文，变更历史归 records/；②每个叙事文档前 15 行加 HTML 纪律提示块；③tracker.md 按对象拆分为 records/ 子文档；④统一头部元信息格式（状态/时间 HH:MM/核验人/身份/基线）；⑤写 check-docs.ts 格式校验脚本（3 条稳定规则先挂 CI，逐步加严）；⑥交叉引用禁裸 § 编号
-- **依据**：Phase 0 完成后 review 暴露的四类问题（计划修正无定义、纪律不可见、tracker 会膨胀、交叉引用脆弱）。方案文件：`docs/rebuild-docs-governance-proposal.md`
+- **依据**：Phase 0 完成后 review 暴露的四类问题（计划修正无定义、纪律不可见、tracker 会膨胀、交叉引用脆弱）。方案文件：[`docs/rebuild/proposals/governance-v1.md`](../../proposals/governance-v1.md)
 - **本轮整改范围**：[05-process.md](05-process.md) 补 7/8/9 三条规则 + gate review 第 4 步；00/01/02/03/04 全部加纪律块 + 统一头部；[02-phase-0.md §0](02-phase-0.md) 删除（迁移至本文档「修正-2」）；[03-phase-1-runtime.md](03-phase-1-runtime.md) 附录 A 删除（迁移至 agent-runtime.md 修正-2）；tracker.md 拆分为索引 + records/*；新增 check-docs.ts
 
 ---
@@ -33,7 +33,7 @@
 
 - **类型**：修正（按对象：02-phase-0.md）
 - **时间**：2026-08-20 18:30
-- **依据**：本轮整改 D10 决策（计划修正规则见 docs/rebuild-docs-governance-proposal.md §2.1）
+- **依据**：本轮整改 D10 决策（计划修正规则见 [`docs/rebuild/proposals/governance-v1.md`](../../proposals/governance-v1.md) §2.1）
 - **原文位置**：02-phase-0.md §0「执行期修正」（8 条）
 - **迁移去向**：本文件「02-phase-0.md 执行期修正明细」章节（保持原貌供审计）
 - **影响**：02-phase-0.md §0 删除，正文（§1-§6）已同步体现新版本；02 头部加纪律块 + 统一 HH:MM 时间
@@ -316,3 +316,19 @@
   6. **主 agent 自律**：完成度数字实时期更新（不允许"实际已 100%、自检停在 70%"）；核验-N 不允许占位「待 owner 触发」——主 agent 在自检完成后主动派 general-purpose subagent 独立核验。
 - **执行**：[tasks/T04-plan.md §2 任务清单](../tasks/T04-plan.md) 13 项 + check-tasks.ts 重写 + 5 文件叙事修订 + 历史 4 文档迁移 + 任务表两表同步
 - **依据**：owner 触发（"任务表就是一个索引，对应的 task plan 文档、自检文档、核验文档都是独立文档，相对路径地址都需要填进表里，CI 机制对着表格查这些产出物是否存在"）
+
+## D16 · dsh 集成形态 vs 03-phase-1-runtime.md 决策状态不一致（候选 · 待 owner 拍板）
+
+- **类型**：决策（候选 · 待 owner 拍板，主 agent 不自行决断）
+- **时间**：2026-08-21
+- **触发**：T05 owner 提问"review 00-05 文档腐烂"时，主 agent 识别出 D9「dsh 集成形态」状态 `open（待 owner 拍板）` 与 [03-phase-1-runtime.md §0](../03-phase-1-runtime.md) v3 已按"Y 路线弃 + X vs pi 待 spike 后"撰写**不一致**
+- **现状**：
+  - D9 状态：`open（待 owner 拍板）`——三候选（a 编辑器入壳 / b 无头 runtime / c pi 直接驱动）都还在桌上
+  - 03 §0 内容：明确"Y 路线（无头 runtime）已不构成有效候选"——把三选项减为双选项（X / pi）
+  - 矛盾点：03 已经按"Y 弃"撰写，但 D9 没正式拍板"Y 弃"；如果 owner 之后拍板"Y 保留"，03 全文要回退
+- **主 agent 立场**：**不自行拍板 D9**。本决策候选登记让 owner 决定如何对齐：
+  - **选项 A**：03 退回三路线（D9 a/b/c 都保留），03 §0 删除"Y 已不构成有效候选"声明
+  - **选项 B**：D9 改为已拍板"Y 路线弃 + X vs pi 待 spike 后定"，03 §0 现状维持
+  - **选项 C**：D9 维持 open，03 §0 加显式声明"Y 弃系 owner 讨论态度，未正式拍板；D9 决策悬而未决"
+- **执行**：本次 T05 只登记不一致、不解决决策本身
+- **依据**：T05 owner 触发（T05 任务清单第 4 项腐烂点：D9 vs 03 不一致）

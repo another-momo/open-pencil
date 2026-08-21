@@ -34,6 +34,7 @@
 | [T02](../tasks/T02-plan.md) | 文档治理 | 文档纪律二次检查（[05-process.md §5](../05-process.md) 迁移 + check-tasks 增强） | ✅ 已完成（CI 11/11 全绿） | [T02-plan](../tasks/T02-plan.md) | [T02-self-check](../tasks/T02-self-check.md) | [T02-verify](../tasks/T02-verify.md) |
 | [T03](../tasks/T03-plan.md) | 文档治理 | [05-process.md §4.10](../05-process.md) 文件↔record 一一对应纪律补漏（D14 决策落地） | ✅ 已完成（CI 11/11 全绿 + subagent A 18/18 通过） | [T03-plan](../tasks/T03-plan.md) | [T03-self-check](../tasks/T03-self-check.md) | [T03-verify](../tasks/T03-verify.md) |
 | [T04](../tasks/T04-plan.md) | 文档治理 | task 纪律 CI 强化（D15 三件套物理拆分 + 任务表路径检查） | ✅ 已完成（CI 11/11 全绿 + subagent A 21/21 通过） | [T04-plan](../tasks/T04-plan.md) | [T04-self-check](../tasks/T04-self-check.md) | [T04-verify](../tasks/T04-verify.md) |
+| [T05](../tasks/T05-plan.md) | 文档治理 | 00-05 系统性腐烂 review（外部 proposal 内化 + 05 §2 树状图重写 + D16 候选登记） | 🔄 进行中 | [T05-plan](../tasks/T05-plan.md) | [T05-self-check](../tasks/T05-self-check.md) | [T05-verify](../tasks/T05-verify.md) |
 | (后续 task 按顺序登记) | — | — | — | — | — | — |
 
 ## 3. 三件套结构（强制）

@@ -19,7 +19,7 @@
 
 ### 1.1 目标
 
-依据 `docs/rebuild-docs-governance-proposal.md`（owner 提交），对 `docs/rebuild/` 范围文档体系做一次性整改，**消除 Phase 0 完成后暴露的四类问题**：
+依据 [`docs/rebuild/proposals/governance-v1.md`](../proposals/governance-v1.md)（owner 提交），对 `docs/rebuild/` 范围文档体系做一次性整改，**消除 Phase 0 完成后暴露的四类问题**：
 - 计划修正无定义（02 §0 腐烂源）
 - 纪律不可见（agent 写文档时看不到纪律）
 - tracker 会膨胀（106 行混合 6 类信息）
@@ -40,7 +40,7 @@
 
 ### 1.4 关联文档
 
-- 方案：[docs/rebuild-docs-governance-proposal.md](../../rebuild-docs-governance-proposal.md)
+- 方案：[docs/rebuild/proposals/governance-v1.md](../proposals/governance-v1.md)
 - 现状基线：2026-08-20 18:00（tracker.md 106 行）
 - 决策登记：`records/topics/docs-governance.md` D10 / D11 / D12 / 修正-N
 

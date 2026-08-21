@@ -156,3 +156,19 @@
 - **理由**：经 spike 05 讨论收敛——(1) B/C 差别本质是「Vercel 胶水 vs 自写胶水」，service 层两案都自写，成本差仅 150-300 行胶水便利；(2) 版本耦合硬事实：harness-pi@1.0.76 锁 pi `^0.80.10`（0.x caret 锁 minor）+ pi-ai `0.74.2` 精确锁，而核查与 spike 证据全在 0.84.2，升级闸门交给 Vercel 发布节奏（R-pi-1 加重版）；(3) 能力天花板：D2a 通道 A 降级阀（prompt 纯文本）与 B1b 审批回合（六事件无 approval 往返）受阻，extensionFactories 逃生舱未实测；(4) backend 可换期权对我们非刚需——知道要选 pi
 - **搁置而非否决**：spike 05 建档保留全部核查结论；packages/harness 包保留在仓（T10「保 harness 裁 ACP」决策不变——跟随上游、不占我们的 runtime 路径）；若 T11 spike 实测暴露直用 SDK 的意外成本，可回摆重议
 - **supersede 注记**：修正-4 中「DeepSeek 占位降级验证该留」的论证语境是 spike 02 旧口径（通道 A 主线）；D2 drift 修正后（spike 01/02 已改），降级验证降为通道 A 时间盒备选探测，本决策维持该定性
+
+## SP-7 · T11 S-pi spike 离线面实测结果（直用 pi SDK，0.84.2）
+
+- **类型**：证据（核验）——subagent 独立核验通过（T11-verify.md，F1-F4 已就地修正）
+- **时间**：2026-08-21
+- **范围**：S-pi-1/S-pi-3 离线面全过（8/8 + 16/16 断言，`spikes/s-pi/` 两测试，`npm run test:offline` 退出码 0）；S-pi-2 离线前置完成；S-pi-4 映射表完成；活模型面阻塞（环境无 ANTHROPIC/DEEPSEEK/OPENAI key，printenv 实测）
+- **关键实测结论**：
+  1. **离线驱动注入点**：`ModelRuntime.registerNativeProvider(provider)` + pi-ai 官方 `createAssistantMessageEventStream()` 编排脚本化事件流（同 pi 自家 test-harness 的 createFauxStreamFn 模式）——无需 API key 即可驱动完整 agent loop（createAgentSession 公开面），后续单测/CI 可复用该机制
+  2. **库形态装配**：`createAgentSession({ model, modelRuntime, sessionManager, customTools, tools })` 全字段实测可用；`defineTool` + `customTools` 直挂自定义工具，agent loop 真实执行（tool_execution_* 事件成对）；`tools` 为 allowlist 语义（空数组 = 全禁含 customTools，报错 "Tool X not found"）
+  3. **增量落盘（S-pi-3 核心）**：`prompt()` 返回后、`dispose()` 前 session JSONL 已含全部条目——上游 harness「只有进程退出才持久化 / destroy 删状态」（SP-6/spike 05 §1）的坑在直用 SDK 路线**天然不存在**，无需额外 stop 时机设计（边界：同步微任务推流场景实测；流式中途崩溃属活模型残留项）
+  4. **树形分叉实测可用**：`SessionManager.branch(entryId)` 从中间节点长出第二分支、跨重启完整保留、`getTree()` 可见——spike 05 §3 认定的 harness 抽象天花板能力，直用 SDK 在 0.84.2 真实可用（D21 已拍板可放弃该能力，此处仅证实其存在性）
+  5. **DeepSeek 纯文本**：pi-ai catalog deepseek-v4-flash/pro 均 `input:["text"]`——D2 通道 B 主线下原生兼容；pi 另有 settings 级 `blockImages` 降级（image→占位文本），可作 D2a 参照
+  6. **S-pi-4 映射可行性**：AgentSessionEvent → UIMessageChunk 映射表建立（参照上游 mapPart/mapEvent 两段产线，直用 SDK 跳过第一段）；auto_retry_start 等未实测事件已明示，略去事件清单留实施 task 补评估
+  7. **依赖双拷贝**：显式声明 pi-ai/typebox 同版本后 npm 未完全折叠（顶层+嵌套两份物理拷贝，逐字节相同）——仅跨拷贝 instanceof 有害，本 spike 未触发；实施 task 若遇跨包类型断言问题优先排查此处
+- **对 D9 的意义**：pi 库形态路线的最大未知量（离线可驱动性、事件流完备性、session 持久化时机、树分叉真实性）全部落地为【事实】；剩余未知量集中在活模型面（DeepSeek 通道 B 消费续跑、视觉通道 A 探测），等 owner 补 key
+- **关联**：T11 三件套（plan/self-check/verify）；commit e58a6ea9（spike/s-pi）

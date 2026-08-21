@@ -42,7 +42,7 @@
 | T08 | 文档治理 | tracker.md 任务表删 PR 列（owner 提议） | ✅ 完成（CI 11/11 全绿 + subagent A 12/12 通过，commit 7d013794） | ✅ | [T08-plan](tasks/T08-plan.md) | [T08-self-check](tasks/T08-self-check.md) | [T08-verify](tasks/T08-verify.md) |
 | T09 | 文档治理+CI 基建 | review 发现核实与修复（CI 接线 + 占位检测 + 腐烂修正 + T06/T07 核验回填） | ✅ 完成（CI 12/12 全绿含新 Rebuild discipline job，run 32447539784 + subagent A 核验 N1-N5 闭环） | ✅ | [T09-plan](tasks/T09-plan.md) | [T09-self-check](tasks/T09-self-check.md) | [T09-verify](tasks/T09-verify.md) |
 | T10 | upstream 合并+Phase 1 启动 | upstream/master@5201404f 合并（79 commits/864 文件漂移）+ D20 登记 + spike 任务登记 | [T10-plan.md §3](tasks/T10-plan.md) 七条验收 | ✅ 完成（远端 CI run 32458703514 12/12；rebuild/v2 ff → 1749b877） | [T10-plan](tasks/T10-plan.md) | [T10-self-check](tasks/T10-self-check.md) | [T10-verify](tasks/T10-verify.md) |
-| T11 | Phase 1 runtime | S-pi spike（pi sdk 库形态四项验证，[spikes/02-pi-sdk-runtime.zh.md §6](spikes/02-pi-sdk-runtime.zh.md)） | [T11-plan.md §3](tasks/T11-plan.md) | ⬜ 可开工（T10 已闭环） | [T11-plan](tasks/T11-plan.md) | — | — |
+| T11 | Phase 1 runtime | S-pi spike（pi sdk 库形态四项验证，[spikes/02-pi-sdk-runtime.zh.md §6](spikes/02-pi-sdk-runtime.zh.md)） | [T11-plan.md §3](tasks/T11-plan.md) | 🔶 离线面全过（subagent 核验讫，commit e58a6ea9）；活模型面阻塞待 owner 补 key | [T11-plan](tasks/T11-plan.md) | [T11-self-check](tasks/T11-self-check.md) | [T11-verify](tasks/T11-verify.md) |
 | T12 | Phase 1 runtime | S-X spike（dsh-X 六项验证含硬 gate，[spikes/04-dsh-x-design.zh.md §7.1](spikes/04-dsh-x-design.zh.md)） | [T12-plan.md §3](tasks/T12-plan.md) | ⬜ 未开工（待 T11 后按需触发） | [T12-plan](tasks/T12-plan.md) | — | — |
 | — | （后续 task 按顺序登记） | — | — | — | — | — | — |
 

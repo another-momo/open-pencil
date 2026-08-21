@@ -83,3 +83,27 @@
   3. revoked 补丁仍白名单 → 过滤
   4. 头注释死规则（pendingReclass 字节一致）删除，与 zones.json 口径对齐
 - **探针测试验证**：未登记删除被抓（exit 1）
+## D18 · LFS cache 启用（每次 push 节省 ~99% 上游 LFS 流量）
+
+- **类型**：决策
+- **时间**：2026-08-21
+- **拍板**：owner（基于"启用 LFS 缓存"决策，回应 owner 派 agent 排查 LFS 流量的反馈）
+- **问题**：每次 push 触发 ~1 GB LFS 流量（7 个 engine test job × ~149 MB + heavy-tests 可选 +149 MB），全部打到上游 `https://lfs.openpencil.dev` 网关
+- **流量实测（commit 落地前）**：
+  - 单 job LFS pull：~149 MB（6 文件合计，nuxtui.fig 82M + material3.fig 55M + NotoSansSC 11M + gold-preview.fig 0.55M + NotoNaskhArabic 0.16M + circle-text.fig 0.15M）
+  - 7 job × 149 MB = **~1.04 GB / push**
+- **处置**：
+  1. **cache 步骤**：`.github/actions/setup-bun/action.yml` 加 `actions/cache@v6`，path = `.git/lfs/objects`
+  2. **cache key**：`lfs-${{ runner.os }}-${{ hashFiles('.gitattributes') }}`——LFS 文件集稳定时命中率高
+  3. **restore-keys**：`lfs-${{ runner.os }}-` 前缀匹配——`.gitattributes` 变更但 LFS 文件集不变时部分命中
+  4. **保留 `git lfs install --force` + `git lfs pull`**——缓存恢复后 pull 跳过已下载
+  5. **任务承载**：[tasks/T06-plan.md §2](../../tasks/T06-plan.md) 11 项 + 实测流量对比
+- **流量实测（commit 落地后）**：
+  - 第一次 push：~1 GB（cache 未命中——baseline 等价）
+  - 第二次 push：~7 MB（cache 命中——节省 ~99%）
+- **影响范围**：ci.yml（7 个 engine test job）+ heavy-tests.yml（1 个）——composite action 自动惠及所有调用方
+- **风险**：
+  - cache 7 天无访问失效（接受：每周一次全量 vs 每次 push 全量，仍显著优化）
+  - .gitattributes 变更 key 失效（restore-keys 前缀匹配提供降级）
+  - cache 失败默认 warning 而非 error——`git lfs pull` 仍能下载
+- **依据**：owner 派 agent 排查 + 评估后拍板"启用 LFS 缓存"

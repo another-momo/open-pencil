@@ -15,6 +15,14 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Cache Git LFS objects
+      if: inputs.lfs == 'true'
+      uses: actions/cache@v6
+      with:
+        path: .git/lfs/objects
+        key: lfs-${{ runner.os }}-${{ hashFiles('.gitattributes') }}
+        restore-keys: lfs-${{ runner.os }}-
+
     - name: Pull LFS files
       if: inputs.lfs == 'true'
       shell: bash

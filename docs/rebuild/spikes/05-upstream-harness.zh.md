@@ -75,9 +75,9 @@
 
 【推断】**红利**：换 runtime（Claude Code/Codex/新玩家）只需新写 adapter，session 管理/持久化/传输/UI 不动；adapter 可来自生态（规范公开），且上游持续改进 harness 我们有合并红利（T10 已选择保留该包）。
 
-【推断】**天花板**（同一抽象的反面）：接口取各家 runtime 最小公约数——prompt 纯 string（上游 transport 只取末条 user 文本、图像附件直接丢弃，`transport.ts:90-95`）、事件六种、resume 不透明。**spike 02 认定的 pi 杀手锏——session 树形 JSONL + branch + `SessionManager.list/listAll`（D3 倾向一文件多 session、C5b session 列表 UI 依赖）——经 HarnessV1 接口摸不到**。
+【推断】**天花板**（同一抽象的反面）：接口取各家 runtime 最小公约数——prompt 纯 string（上游 transport 只取末条 user 文本、图像附件直接丢弃，`transport.ts:90-95`）、事件六种、resume 不透明。**被遮蔽的仅是 pi 的树形分叉能力**（`branch`/`branchWithSummary`/`createBranchedSession`/树遍历——需要构造指向中间节点的 resume state，blob 不透明故无法模拟）。注意区分：**一文件多 session 与 session 列表不受遮蔽影响**——sessionId 由调用方自定（上游用 `tab-${tabId}-${profileId}`），文件↔多 sessionId 的绑定与注册表是自有层（F0.5 pluginData / CLI 后端索引）的事，不依赖 `SessionManager.listAll`；受限的只是「单个 session 内部不能分叉」，即每条 session 退化为线性历史。
 
-【推断】**判据收敛**：D3 若确认用 pi 树形 session/branch → 直用 SDK；session 模型简单（一文件一线性历史）→ harness 抽象的维护红利实打实。此判据即修订后 S-pi-1 比较子项的核心实测目标。
+【推断】**判据收敛**：D3 的要害问题由此收敛为一个——**「回到上一轮分叉重问」这类树形交互是不是产品卖点**（一文件多 session 在两条路线下都成立，不构成区分项）。要分叉 → 直用 SDK；分叉只是层 2 锦上添花 → harness 抽象的维护红利实打实。此判据即修订后 S-pi-1 比较子项的核心实测目标。
 
 ## 4. 工具面真相：不是「只能 MCP」但注册面收窄
 

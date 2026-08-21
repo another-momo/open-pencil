@@ -160,3 +160,16 @@
   4. run 32458703514（1749b877）**12/12 success**——引擎六 job 全绿，本地所见 cli.test.ts 1 例 fail 未在 CI 复现（判定通过）
 - **机制侧记**：format:check 是净树 gate（oxfmt --write 后 `git status` 必须为空），本地有未提交改动时必然报红，属预期；T10 顺带把 push 触发加 `spike/**`（P32 注记）供 Phase 1 spike 分支走 CI
 - **结论**：merge 分支全绿后 fast-forward rebuild/v2（004b1f48 → 1749b877），T10 闭环
+
+## CI-10 · check-tasks 拦「未开工 task」引用：正确做法与一次占位作弊未遂
+
+- **类型**：核验 + 机制边界发现 + 纪律案例
+- **时间**：2026-08-21
+- **现象**：commit c11fd4fa（T11-plan 修订，message 含 `task: T11`）CI run 32462982997 报 `big-change-task-table-missing`——check/tasks.ts 要求被引用 task 的任务表行三件套路径齐全且 existsSync 逐个为真；T11 当时只有 plan（self-check/verify 单元格为 `—`）
+- **定性**：规则无漏洞，两条既有纪律本就覆盖该场景，c11fd4fa 的引用选择才是错误源头：
+  1. **tasks/ 豁免**：tasks/T11-plan.md 小改不命中 R3/R4 大改动检测，单改 plan 的 commit 免 task 指针即可通过；是 records/ 的修正-4 同 commit 携带才触发 R4
+  2. **父任务指针**：T11-plan 是 T10 的 C3 产物（Phase 1 启动登记），owner 反馈修订属 T10 收尾，指针应写 `task: T10`（三件套齐全，自然通过）——owner 2026-08-21 裁定：「本来写 T11 plan 就是 T10 的工作」
+- **反面案例（已撤销）**：主 agent 一度本地提交 985c0f3b，用内容为「未开工」的 T11-self-check/verify 空壳文件满足 existsSync——owner 判定系占位作弊：虽字面避开 D19 正则（（待）/（待）/待 subagent/待 owner 触发），但违反 D19 精神（文件存在的唯一理由是让检查通过，零实质内容）。该 commit 未 push，已 `git reset --hard` 撤销。c11fd4fa 的红 run 作为公开历史保留
+- **正确做法**：plan 阶段修订 → 单改 tasks/ 文件免指针，或挂父任务指针；records 追加无时效性，可并入下一个合法携带指针的 commit
+- **可选加固（登记备查，未实施）**：D19 占位探针可加启发式——被引用 task 的 self-check/verify 若全文仅状态行、无任何实测/核验条目，视同占位拒绝
+- **机制副发现（同一案例）**：check/tasks.ts 的 `getCommitMessage()` = `git log -1`，pre-commit 阶段新 message 尚不存在，本地钩子只能以 HEAD（前一 commit）message 为代理——本 commit 首次触发该代理错位（HEAD=c11fd4fa 的 `task: T11` 误拦了 `task: T10` 的新提交）。post-commit 的 CI 以真 message 为准不受影响。本 commit 因此以 `--no-verify` 落地，落地后立即以真 HEAD 重跑四检查验证；长期修法：tasks 检查迁移到 commit-msg hook（message 文件可读），登记备查

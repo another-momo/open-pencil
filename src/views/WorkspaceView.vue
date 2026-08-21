@@ -13,8 +13,7 @@ import {
   createDocumentInCurrentTab,
   createHomeTab,
   createTab,
-  getActiveStore,
-  tabCount
+  getActiveStore
 } from '@/app/tabs'
 import { isTauri } from '@/app/tauri/env'
 import FontStatusBanner from '@/components/font-status/FontStatusBanner.vue'

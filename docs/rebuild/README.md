@@ -35,16 +35,16 @@
 | 对象 | 文件 |
 |---|---|
 | 全部子文档索引 | [records/_index.md](records/_index.md) |
-| agent 后端 / runtime | [records/agent-runtime.md](records/agent-runtime.md) |
-| brand config / type / profile | [records/brand-config.md](records/brand-config.md) |
-| Chat UI | [records/chat-ui.md](records/chat-ui.md) |
-| i18n 缝 / locale | [records/i18n.md](records/i18n.md) |
-| 营销工具 | [records/tools-marketing.md](records/tools-marketing.md) |
-| 生图管线 | [records/tools-image-gen.md](records/tools-image-gen.md) |
-| upstream 合并 | [records/upstream-merge.md](records/upstream-merge.md) |
-| CI / zone registry / autocrlf | [records/ci-infra.md](records/ci-infra.md) |
-| spike 文档 | [records/spikes.md](records/spikes.md) |
-| 文档体系治理 | [records/docs-governance.md](records/docs-governance.md) |
+| agent 后端 / runtime | [records/topics/agent-runtime.md](records/topics/agent-runtime.md) |
+| brand config / type / profile | [records/topics/brand-config.md](records/topics/brand-config.md) |
+| Chat UI | [records/topics/chat-ui.md](records/topics/chat-ui.md) |
+| i18n 缝 / locale | [records/topics/i18n.md](records/topics/i18n.md) |
+| 营销工具 | [records/topics/tools-marketing.md](records/topics/tools-marketing.md) |
+| 生图管线 | [records/topics/tools-image-gen.md](records/topics/tools-image-gen.md) |
+| upstream 合并 | [records/topics/upstream-merge.md](records/topics/upstream-merge.md) |
+| CI / zone registry / autocrlf | [records/topics/ci-infra.md](records/topics/ci-infra.md) |
+| spike 文档 | [records/topics/spikes.md](records/topics/spikes.md) |
+| 文档体系治理 | [records/topics/docs-governance.md](records/topics/docs-governance.md) |
 
 ## 真相分层与冲突裁决
 

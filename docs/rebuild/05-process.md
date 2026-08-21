@@ -1,14 +1,15 @@
 <!--
   写作纪律（改本文前必读）：
-  - 本文是过程定义，优先级最高。修改本文需在 records/docs-governance.md 登记一条决策
+  - 本文是过程定义，优先级最高。修改本文需在 records/topics/docs-governance.md 登记一条决策
   - 修改本文后必须刷新头部的「状态/时间/核验人」三字段
   - 详细规则见 docs/rebuild/05-process.md §4
-  - 文件↔record 一一对应纪律见 [05-process.md §4.10](05-process.md)（owner 提出 "05 未提及" 问题后新增 D14 候选）
+  - 文件↔record 一一对应纪律见 §4.10（D14 决策）
+  - task 三件套物理拆分纪律见 §4.11（D15 决策，owner 提议"任务表填三列 + CI 查表对路径"）
 -->
 
 # 05 · 工作方式与文档纪律
 
-> **状态**：草稿（owner 提出"05 没提文件↔record 一一对应"问题，待 subagent 核验） | **时间**：2026-08-21 | **核验人**：主 agent 修订，待 owner + subagent 核验
+> **状态**：草稿（owner 两次提示后修订：§3.2 显式补一一对应 + [05-process.md §4.10](05-process.md) D14 + [05-process.md §4.11](05-process.md) D15 三件套物理拆分，待 owner + subagent 核验） | **时间**：2026-08-21 | **核验人**：主 agent 修订，待 owner + subagent 核验
 > **身份**：本文是迁移改造全过程的过程定义：怎么干活、怎么跟踪、文档怎么写怎么管。优先级最高——与其他文档冲突时，以本文的过程裁决为准；事实冲突时，以代码与核验记录为准。
 
 ## 1. 角色与决策权
@@ -66,9 +67,10 @@ docs/rebuild/
 2. zone check 全绿（已自动化）
 3. **文档格式校验全绿**（check-docs.ts，已自动化）
 4. **文件↔record 一一对应核验全绿**（check-bindings.ts，已自动化 + pre-commit 拦截）：物理文件修改 → `records/narrative/<file>.md` 同步更新；缺失/孤儿均拒绝合入。
-5. **subagent 文档核验**：对当前 phase 相关叙事文档中的所有可检查声明，逐条验证，结果记入 `records/` 对应对象子文档。核验不通过的阻塞 gate。
+5. **task 三件套齐全核验全绿**（check-tasks.ts，D15 重写：读任务表三列路径 + `existsSync` 检查三件套物理文件存在 + pre-commit 拦截）：commit 引用 `task: T<NN>` → `tasks/T<NN>-{plan,self-check,verify}.md` 三文件必须全部存在；任何缺失 → 拒绝合入。
+6. **subagent 文档核验**：对当前 phase 相关叙事文档中的所有可检查声明，逐条验证，结果记入 `records/` 对应对象子文档。核验不通过的阻塞 gate。
 
-> 第 4 步是 gate 的硬性前置条件——不跑核验就不能过 gate。subagent 核验 prompt 模板见附录 A。
+> 第 4 / 5 步是 gate 的硬性前置条件——不跑核验就不能过 gate。subagent 核验 prompt 模板见附录 A。
 
 ### 3.2 任务粒度与大改动纪律（D11）
 
@@ -80,11 +82,12 @@ docs/rebuild/
 
 **Task 维度 vs 文件维度的严格分离**：
 
-- **Task 维度**（`tasks/T<id>-<slug>.md`）：一个 task 一个文档。承载 task 计划 + 自检报告 + subagent 核验——这是 task 全生命周期的唯一权威。
+- **Task 维度**（`tasks/T<NN>-{plan,self-check,verify}.md` 三件套，D15 决策）：每个 task 由**三个独立物理文件**承载——`plan.md`（计划 + 任务清单 + 验收标准）/ `self-check.md`（主 agent 自检 + 完成度数字）/ `verify.md`（subagent 独立核验）。三件套对应任务表三列路径，CI 用 `existsSync` 逐个检查——零正则、零章节、零语义判定，三件套齐不齐一目了然。
 - **文件维度**（`records/narrative/<file>.md`）：**与物理文件一一对应**——每个被纳入治理的物理文件必须有自己的 `records/narrative/<file>.md`（文件名去后缀、连字符化）。承载腐烂/修正/核验——针对**物理文件**的变更历史，不放 task 相关的自检/核验。
-- **Tracker.md**（[tracker.md](tracker.md)）：仅保留索引（任务编号 + 块号 + 状态 + PR），具体内容指针到 `tasks/T<id>.md`。**不重复 task 计划内容**。
-- **错误示范 1**：把"task 自检-N"放进 `records/narrative/<file>.md` 会破坏文件维度档案的纯度——必须放 `tasks/T<id>.md`。
-- **错误示范 2**：跨多个物理文件只维护一个"主题聚合"record（如 `records/agent-runtime.md` 涵盖十几个文件）——主题聚合 record 是检索辅助，**不是替代物**；每个被治理文件必须有自己的 `records/narrative/<file>.md`。详细两层关系见 [05-process.md §4.10](05-process.md)。
+- **Tracker.md**（[tracker.md §2 任务表](tracker.md)）：**任务表的真源**——每行含 T 编号 + 块 + 内容 + 状态 + PR + **plan / self-check / verify 三列路径**。[tasks/_index.md §2 任务清单](tasks/_index.md) 作为辅助镜像同步。**不重复 task 计划内容**，仅作为三件套路径索引。
+- **错误示范 1**：把"task 自检-N"放进 `records/narrative/<file>.md` 会破坏文件维度档案的纯度——必须放 `tasks/T<NN>-self-check.md`。
+- **错误示范 2**：跨多个物理文件只维护一个"主题聚合"record（如 `records/topics/agent-runtime.md` 涵盖十几个文件）——主题聚合 record 是检索辅助，**不是替代物**；每个被治理文件必须有自己的 `records/narrative/<file>.md`。详细两层关系见 [05-process.md §4.10](05-process.md)。
+- **错误示范 3（D15 新增）**：把三件套装进单文档 `tasks/T<id>-<slug>.md` 然后用 `## 自检` / `## 核验` 章节正则识别——章节可以是占位（如「待 owner 触发」），CI 识别为通过但实际三件套不齐。**必须物理拆分 + 任务表路径列**。
 
 **大改动纪律（D11 决策）**：
 
@@ -109,7 +112,7 @@ docs/rebuild/
 
 ### 3.3 upstream 合并
 
-- 月合并（或漂移显著时提前），在专用分支操作；合并后**当场**刷新 zone registry 与补丁清单，`records/upstream-merge.md` 记一条合并记录。
+- 月合并（或漂移显著时提前），在专用分支操作；合并后**当场**刷新 zone registry 与补丁清单，`records/topics/upstream-merge.md` 记一条合并记录。
 - 合并后必须跑 check-docs.ts（CI 自动）+ 排 subagent 核验受影响文档。
 - Phase 0 出口含一次「合并演习」。
 
@@ -131,7 +134,7 @@ docs/rebuild/
    - 旧方案如果值得保留（如否决的理由将来可能被重新评估），在 records 子文档中用一条记录保留，不回填到叙事文档。
 8. **纪律提示块**：每个叙事文档（00-04）的前 15 行必须包含纪律提示块。格式为 HTML 注释（源码可见，渲染不可见）。HTML 注释 vs blockquote：blockquote 给读者看（增加阅读噪音），HTML 注释给写的人看（agent 编辑文件时一定能看到前几行的注释）。本文档自身也需要纪律提示块。
 9. **交叉引用格式**：文档间引用必须使用 `文件名.md §N 标题` 格式。禁止使用无文件名的纯 § 编号引用。例：写 `02-phase-0.md §5 验收标准`，不写 `02 §5`。
-10. **文件↔record 一一对应纪律（owner 触发 · D14 候选）**：
+10. **文件↔record 一一对应纪律（owner 触发 · D14 决策）**：
     - **核心约束**：每个被纳入文档治理范围的物理文件（含 00-04 / 05 / README / tracker / spikes / records 各文件）必须拥有自己的 `records/narrative/<file>.md`——文件名脱去 `.md` 后缀、连字符化（如 `00-why-rebuild.md` ↔ `records/narrative/00-why-rebuild.md`）。**一一对应**，不允许多文件共享一个 record，也不允许 record 单独存在没有对应文件。
     - **两层关系**：`records/<对象>.md`（如 `agent-runtime.md`、`ci-infra.md`）是**主题聚合层**，按主题横向检索；`records/narrative/<file>.md` 是**物理绑定层**，纵向记录单个文件的腐烂/修正/核验。两者并存，主题聚合层为检索辅助，**不可替代**物理绑定层。
     - **修改触发**：物理文件被改（任意 commit 改其内容）→ 同 commit 内必须更新对应 `records/narrative/<file>.md`（哪怕只追加一条「无变化」记录）。不允许"有修改、无 record"。
@@ -139,10 +142,17 @@ docs/rebuild/
     - **CI 拦截**：`tools/zone-registry/src/check/bindings.ts` 检测到叙事层文件被改但未更新 `records/narrative/<file>.md` → 拒绝 commit（pre-commit）+ 拒绝 push（CI）。`docs/rebuild/05-process.md §3.1` gate review 第 4 步（subagent 文档核验）将"record 与物理文件一一对应"列为必查项。
     - **常见误区**：以为 `records/<对象>.md` 里写了某文件就算绑定了——错。`records/<对象>.md` 是主题聚类（覆盖多文件），**不构成**与单文件的绑定关系，必须有独立的 `records/narrative/<file>.md`。
     - **暂不绑定**：纯转瞬文件（CI 临时产物、构建产物、缓存）不属于治理范围，不要求一一对应。
+11. **task 三件套物理拆分纪律（owner 触发 · D15 决策）**：
+    - **核心约束**：每个 task 由**三个独立物理文件**承载——`tasks/T<NN>-plan.md` / `tasks/T<NN>-self-check.md` / `tasks/T<NN>-verify.md`（D15 决策）。**禁止**把三件套装回单文档 `tasks/T<id>-<slug>.md` 然后用章节正则识别——章节可以是占位（如「待 owner 触发」），CI 识别为通过但实际三件套不齐。
+    - **任务表路径列**：[tracker.md §2 任务表](../tracker.md) 与 [tasks/_index.md §2 任务清单](../tasks/_index.md) 各自维护一份任务表，每行含 T 编号 + plan 路径 + self-check 路径 + verify 路径 + 状态 + PR。两表互为指针、真源是 tracker.md。
+    - **CI 拦截**：`tools/zone-registry/src/check/tasks.ts` 检测大改动命中 + commit 含 `task: T<NN>` → 读任务表 → 检查 `existsSync(tasks/T<NN>-plan.md)` / `existsSync(tasks/T<NN>-self-check.md)` / `existsSync(tasks/T<NN>-verify.md)`。**任何一个缺失 → 拒绝 commit**。零正则、零章节、零语义判定。
+    - **主 agent 自律**：完成度数字必须**实时期更新**（不允许"实际已 100%、自检停在 70%"的情况）；核验-N 不允许占位「待 owner 触发」——主 agent 在自检完成后**主动派 general-purpose subagent 独立核验**，不依赖 owner 触发。这是 D11「做而不报」纪律的机器可检查载体。
+    - **错误示范**：在 `tasks/T<NN>-self-check.md` 写「核验-N 待 owner 触发」作为占位 → 即使三件套文件存在，CI `existsSync` 通过但纪律失效。**核验必须实做**——派单后由 subagent 产出实测报告填入 `tasks/T<NN>-verify.md`。
+    - **暂不强制**：Phase 0 期间的 T00 历史回填（owner 触发回填任务）允许 `verify.md` 内容短、引用历史 owner 验收——但物理文件必须存在。
 
 ## 5. 首轮执行记录（本纪律的第一次应用）
 
-**已迁移至 [tasks/T00-docset-v1-2026-08-18.md](tasks/T00-docset-v1-2026-08-18.md)**——按 [05-process.md §3.2 task 维度规则](05-process.md)，历史执行记录归 task 档案，不入过程定义文档本身。本节仅作引用占位。
+**已迁移至 [tasks/T00-plan.md](tasks/T00-plan.md) / [tasks/T00-self-check.md](tasks/T00-self-check.md) / [tasks/T00-verify.md](tasks/T00-verify.md)**——按 [05-process.md §3.2 task 维度规则 + §4.11 D15 三件套物理拆分纪律](05-process.md)，历史执行记录归 task 档案三件套，不入过程定义文档本身。本节仅作引用占位。
 
 ## 附录 A · subagent 文档核验 prompt 模板
 
@@ -188,54 +198,42 @@ docs/rebuild/
 
 **目标**：避免主 agent「号称完成未对照方案」类问题。流程强制主 agent 在大改动任务的全周期内产出可审计的中间产物。
 
-### B.1 开工前：task 计划登记（落在 `tasks/T<id>-<slug>.md`）
+### B.1 开工前：task 计划登记（落在 `tasks/T<NN>-plan.md` + 任务表三列）
 
-- **创建独立 task 文档**：`tasks/T<id>-<slug>.md`（如 `tasks/T01-governance-2026-08-20.md`）
-- task 文档必须包含：任务概述 / 任务清单（多 step）/ 验收标准 / 参考方案文档 / 完成时间窗
-- **同时**在 [tracker.md §2 任务表](tracker.md) 新增一行（**仅一行**）：T 编号 + 块号 + 状态 + `[BIG]` 标记 + 任务计划指针（`tasks/T<id>.md`）
-- **CI 拦截**（commit 阶段）：`tools/zone-registry/src/check-tasks.ts` 检测到大改动 → 检查 commit message 含 `task: T<id>` / `[BIG]` 引用 + `tasks/T<id>.md` 在本次 commit 里被创建或更新
+- **创建 plan.md**：`tasks/T<NN>-plan.md`（如 `tasks/T04-plan.md`）
+- plan.md 必须包含：任务概述 / 任务清单（多 step）/ 验收标准 / 参考方案文档 / 完成时间窗
+- **同时**在 [tracker.md §2 任务表](tracker.md) 新增一行（**仅一行**）：T 编号 + 块号 + 内容 + 验收 + 状态 + PR + **plan / self-check / verify 三列路径**（D15 决策）
+- **同步** [tasks/_index.md §2 任务清单](tasks/_index.md) 镜像任务表
+- **CI 拦截**（commit 阶段）：`tools/zone-registry/src/check/tasks.ts` 检测到大改动 → 检查 commit message 含 `task: T<NN>` 引用 + `existsSync(tasks/T<NN>-plan.md)` 必须为 true
 
-### B.2 完工时：自检报告（**追加到同一 `tasks/T<id>.md` 末尾**）
+### B.2 完工时：自检报告（落在 `tasks/T<NN>-self-check.md`）
 
-```markdown
-## 自检 · 2026-08-20 19:30
+- **创建 self-check.md**：`tasks/T<NN>-self-check.md`（如 `tasks/T04-self-check.md`）
+- self-check.md 必须包含：任务清单对照 / 承诺 vs 落地对照表 / 完成度自评（**实时期更新**——不允许"实际已 100%、自检停在 70%"的情况）/ 自评要点 / 决策影响
+- **同时**更新 [tracker.md §2 任务表](tracker.md) + [tasks/_index.md §2 任务清单](tasks/_index.md) 的 self-check 列路径
+- **CI 拦截**：commit 时 `existsSync(tasks/T<NN>-self-check.md)` 必须为 true；否则拒绝合入
 
-**主 agent 任务清单**（对照原方案）：
-- [x] 子任务 1（【事实】已做）
-- [x] 子任务 2（【决策】做了 X 选择）
-- [ ] 子任务 3（【假设】待 subagent 核验）
+### B.3 自检后：subagent 核验（落在 `tasks/T<NN>-verify.md`，主 agent **主动派单**）
 
-**承诺 vs 落地对照**：
-
-| 原方案承诺 | 实际落地 | 偏差 | 决策登记 |
-|---|---|---|---|
-| §2.1 计划修正规则 | ✅ 已做 | 无 | — |
-| §3.1 check-docs 6 条 | ⚠️ 仅 5 条 | R6 暂缓 | D12（语义判定不适合 CI）|
-| §4 存量整改 | ✅ 9 文件覆盖 | 无 | — |
-
-**完成度自评**：
-- 完全落地 X 条（Y%）
-- 部分落地 Z 条（W%）
-- 完全未做 V 条（U%）
-```
-
-### B.3 自检后：subagent 核验（**追加到同一 `tasks/T<id>.md` 末尾**）
-
-派出只读 subagent 独立核验，prompt 模板见附录 A。subagent 输出结果记入 `tasks/T<id>.md`「核验-N」章节。**核验不通过 → 重做自检 → 再核验**。
+- **创建 verify.md**：`tasks/T<NN>-verify.md`（如 `tasks/T04-verify.md`）
+- **主 agent 主动派 general-purpose subagent 独立核验**——**不依赖 owner 触发**。这是 D11「做而不报」纪律的机器可检查载体。
+- verify.md 必须包含：核验背景（核验人/时间/范围/依据）/ 逐条核验表（每条含证据命令 + 实测值）/ 总评 / 综合判定 / 失败项详情（如有）
+- **同时**更新 [tracker.md §2 任务表](tracker.md) + [tasks/_index.md §2 任务清单](tasks/_index.md) 的 verify 列路径
+- **CI 拦截**：commit 时 `existsSync(tasks/T<NN>-verify.md)` 必须为 true；否则拒绝合入
 
 ### B.4 决策偏差登记
 
-自检中发现与原方案的偏差（如「R6 暂缓」「spike R5 豁免」等），必须登记为新的 D 决策（`records/docs-governance.md`），不允许"做而不报"。
+自检中发现与原方案的偏差（如「R6 暂缓」「spike R5 豁免」等），必须登记为新的 D 决策（`records/topics/docs-governance.md`），不允许"做而不报"。
 
 ### B.5 三件套缺一不可的强制点
 
 | 检查点 | 触发 | 落点 | CI / 流程 |
 |---|---|---|---|
-| task 计划 | 大改动开工前 | `tasks/T<id>.md` 创建 | `check-tasks.ts` 自动拦截 commit |
-| 自检报告 | 主 agent 完工时 | `tasks/T<id>.md` 自检章节 | 主 agent 自律（D11） |
-| subagent 核验 | 自检完成后 | `tasks/T<id>.md` 核验章节 | gate review 第 4 步硬性前置 |
+| task 计划 | 大改动开工前 | `tasks/T<NN>-plan.md` 创建 + 任务表 plan 列填路径 | `check-tasks.ts` 自动拦截 commit（`existsSync` plan） |
+| 自检报告 | 主 agent 完工时 | `tasks/T<NN>-self-check.md` 创建 + 完成度实时期更新 + 任务表 self-check 列填路径 | `check-tasks.ts` 自动拦截 commit（`existsSync` self-check） |
+| subagent 核验 | 自检完成后 | `tasks/T<NN>-verify.md` 创建（主 agent 主动派单）+ 任务表 verify 列填路径 | `check-tasks.ts` 自动拦截 commit（`existsSync` verify） |
 
-**核心约束**：三件套**全部落在 `tasks/T<id>.md` 单个文档**——不允许分散在 records/ 子文档或 tracker.md。task 维度（task 文档）和文件维度（records 文档）严格分离。
+**核心约束**（D15）：三件套**三个独立物理文件**——不允许单文档 `T<id>-<slug>.md` + 章节正则形式。**禁止占位**：「核验-N 待 owner 触发」「完成度暂未刷新」等占位章节即使文件存在也不通过纪律——主 agent 必须实做。
 
 ### B.6 例外机制
 

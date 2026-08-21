@@ -35,3 +35,11 @@
 - **结论**：[README.md](../../README.md) v2 反映 records/ 子文档结构；本次整改补 README 重组
 
 ---
+
+## 修正-N · README.md 引用路径迁移（topics/ 重组）
+
+- **类型**：修正（按对象：README.md）
+- **时间**：2026-08-21
+- **依据**：本轮整改 D15 + owner 提议（横向档案独立为 records/topics/）
+- **内容**：[README.md](../../README.md) 内部对横向档案（agent-runtime / brand-config / chat-ui / i18n / tools-marketing / tools-image-gen / upstream-merge / ci-infra / spikes / docs-governance）的引用路径从 `records/<topic>.md` 更新为 `records/topics/<topic>.md`
+- **影响**：[README.md](../../README.md) 现引用 `records/topics/` 路径，与 [_index.md §3 主题聚合层列表](_index.md) 一致

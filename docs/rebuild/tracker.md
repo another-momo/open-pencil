@@ -25,15 +25,16 @@
 | Phase 4 增强补齐 | [01-target-state.md §4](01-target-state.md) 层 2 逐块进 | ⬜ | — | — |
 | parity 切换 | [01-target-state.md §7](01-target-state.md)，owner 决定 | ⬜ | — | — |
 
-## 2. 任务表（能力块 = 1 PR + 验收测试 + 本表一行）
+## 2. 任务表（能力块 = 1 PR + 验收测试 + 本表一行 + 三件套路径列 D15）
 
-| T 编号 | 块 | 内容 | 验收 | 状态 | PR | 任务计划 |
-|---|---|---|---|---|---|---|
-| T00 | 文档治理 | 文档集首轮整改（R1-R4 核查轮）| ✅ 完成（历史回填） | ✅ | — | [T00](tasks/T00-docset-v1-2026-08-18.md) |
-| T01 | 文档治理 | 文档体系整改（plan-correction / tracker拆分 / check-docs / binding / tasks）| ✅ 完成（待 owner 验收） | ✅ | [T01](tasks/T01-governance-2026-08-20.md) |
-| T02 | 文档治理 | 文档纪律二次检查（[05-process.md §5](05-process.md) 迁移 + check-tasks 增强）| ✅ 完成（CI 11/11 全绿，核验-N 后置） | ✅ | [T02](tasks/T02-doc-discipline-check-2026-08-20.md) |
-| T03 | 文档治理 | [05-process.md §4.10](05-process.md) 文件↔record 一一对应纪律补漏（D14 决策落地）| 🔄 进行中 | — | [T03](tasks/T03-process-binding-clause-2026-08-21.md) |
-| — | （Phase 1 开工后逐行登记） | — | — | — | — | — |
+| T 编号 | 块 | 内容 | 验收 | 状态 | PR | plan | self-check | verify |
+|---|---|---|---|---|---|---|---|---|
+| T00 | 文档治理 | 文档集首轮整改（R1-R4 核查轮）| ✅ 完成（历史回填） | ✅ | — | [T00](tasks/T00-plan.md) | [T00](tasks/T00-self-check.md) | [T00](tasks/T00-verify.md) |
+| T01 | 文档治理 | 文档体系整改（plan-correction / tracker拆分 / check-docs / binding / tasks）| ✅ 完成（待 owner 验收） | ✅ | [T01](tasks/T01-plan.md) | [T01](tasks/T01-plan.md) | [T01](tasks/T01-self-check.md) | [T01](tasks/T01-verify.md) |
+| T02 | 文档治理 | 文档纪律二次检查（[05-process.md §5](05-process.md) 迁移 + check-tasks 增强）| ✅ 完成（CI 11/11 全绿） | ✅ | [T02](tasks/T02-plan.md) | [T02](tasks/T02-plan.md) | [T02](tasks/T02-self-check.md) | [T02](tasks/T02-verify.md) |
+| T03 | 文档治理 | [05-process.md §4.10](05-process.md) 文件↔record 一一对应纪律补漏（D14 决策落地）| ✅ 完成（CI 11/11 全绿 + subagent A 18/18 通过） | ✅ | [T03](tasks/T03-plan.md) | [T03](tasks/T03-plan.md) | [T03](tasks/T03-self-check.md) | [T03](tasks/T03-verify.md) |
+| T04 | 文档治理 | task 纪律 CI 强化（D15 三件套物理拆分 + 任务表路径检查）| 🔄 进行中 | — | [T04](tasks/T04-plan.md) | [T04](tasks/T04-plan.md) | [T04](tasks/T04-self-check.md) | [T04](tasks/T04-verify.md) |
+| — | （Phase 1 开工后逐行登记） | — | — | — | — | — | — | — |
 
 ## 3. 记录索引
 
@@ -41,14 +42,14 @@
 
 | 对象 | 文件 |
 |---|---|
-| agent 后端 / runtime | `records/agent-runtime.md` |
-| brand config / type / profile | `records/brand-config.md` |
-| Chat UI | `records/chat-ui.md` |
-| i18n 缝 / locale | `records/i18n.md` |
-| 营销工具 | `records/tools-marketing.md` |
-| 生图管线 | `records/tools-image-gen.md` |
-| upstream 合并 | `records/upstream-merge.md` |
-| CI / zone registry / autocrlf | `records/ci-infra.md` |
-| spike 文档 | `records/spikes.md` |
-| 文档体系治理 | `records/docs-governance.md` |
+| agent 后端 / runtime | `records/topics/agent-runtime.md` |
+| brand config / type / profile | `records/topics/brand-config.md` |
+| Chat UI | `records/topics/chat-ui.md` |
+| i18n 缝 / locale | `records/topics/i18n.md` |
+| 营销工具 | `records/topics/tools-marketing.md` |
+| 生图管线 | `records/topics/tools-image-gen.md` |
+| upstream 合并 | `records/topics/upstream-merge.md` |
+| CI / zone registry / autocrlf | `records/topics/ci-infra.md` |
+| spike 文档 | `records/topics/spikes.md` |
+| 文档体系治理 | `records/topics/docs-governance.md` |
 | 全部子文档索引 | `records/_index.md` |

@@ -12,7 +12,7 @@
 > **状态**：已执行 + 已核验 | **时间**：2026-08-19 16:30 完成；本轮整改 2026-08-20 18:30
 > **核验人**：subagent A（gate review 机械审计）+ 主 agent + subagent C/D（执行期 4 项核验 R3/R4/P0-1~P0-10）
 > **身份**：**本文是 Phase 0 执行依据**；01-target-state.md 是「做哪些加法」的决策依据；03-phase-1-runtime.md 与 spikes/*.md 是 case study 与技术调研，身份是辅助参考信息，不直接驱动 Phase gate。
-> **基线**：commit 序列 `f4efaff7..68f67484` → 合并演习 `44205546` → `ae23db01`，后续文档提交 `cbc3fe4f`、`4a17fc77`。执行期实测修正已迁移至 `records/docs-governance.md` 修正-2 条目；合并演习细节见 `records/upstream-merge.md` MERGE-1。
+> **基线**：commit 序列 `f4efaff7..68f67484` → 合并演习 `44205546` → `ae23db01`，后续文档提交 `cbc3fe4f`、`4a17fc77`。执行期实测修正已迁移至 `records/topics/docs-governance.md` 修正-2 条目；合并演习细节见 `records/topics/upstream-merge.md` MERGE-1。
 
 Phase 0 不加任何产品功能，验收通过前不得进入 Phase 1。
 
@@ -34,7 +34,7 @@ Phase 0 不加任何产品功能，验收通过前不得进入 Phase 1。
 
 **EditorView.vue 是切断点集中地**（实测单文件 5+ 处：collab import、`exposeCollaborationActions`、CollabPanel、SafariBanner、useCollab provide、demo）——逐个编号登记，不许打包成「1 处」。
 
-**配置连带面**（R3 实测）：`package.json` 的 workspaces（-packages/docs、-tools/docs）与 scripts（删 tauri/wdio/docs 系，check 链摘除、加 check:zones）与依赖（裁 6 个 @wdio/* + @tauri-apps/cli + expect-webdriverio + vite-plugin-pwa + workbox-window + 未用的 yjs 系 4 个 + trystero；**8 个 @tauri-apps/* runtime 依赖保留**，vite build 需可解析）；`tsconfig.json` 删 `#docs-config/*` paths；knip.json、steiger.config.ts、oxlint.json 中对被删目录的 ignore 条目**保留未清**（无害，零补丁纪律，见 [records/upstream-merge.md 执行期遗留](records/upstream-merge.md)）。
+**配置连带面**（R3 实测）：`package.json` 的 workspaces（-packages/docs、-tools/docs）与 scripts（删 tauri/wdio/docs 系，check 链摘除、加 check:zones）与依赖（裁 6 个 @wdio/* + @tauri-apps/cli + expect-webdriverio + vite-plugin-pwa + workbox-window + 未用的 yjs 系 4 个 + trystero；**8 个 @tauri-apps/* runtime 依赖保留**，vite build 需可解析）；`tsconfig.json` 删 `#docs-config/*` paths；knip.json、steiger.config.ts、oxlint.json 中对被删目录的 ignore 条目**保留未清**（无害，零补丁纪律，见 [records/topics/upstream-merge.md 执行期遗留](records/topics/upstream-merge.md)）。
 
 **删除标准**：目标态不存在、且建设过程也不需要。不符合两条的不删，见 [§3 机制建设](#3-机制建设phase-0-的核心)。
 
@@ -65,7 +65,7 @@ Phase 0 不加任何产品功能，验收通过前不得进入 Phase 1。
 ### 3.4 两条缝合缝（已落地）
 
 - **工具注册缝**：已落地为补丁 P22——`registry.ts` 加 import + spread 两行，owned 工具落 `packages/core/src/tools/fork/`（当前空数组占位）。上游 `component-catalog.ts` 的 `registerComponentCatalog` 是同构先例。
-- **i18n 缝**：已落地于 `src/app/i18n/fork/`——fork 自建 createI18n 实例绑共享 locale atom，自带 zh-CN 懒加载包，`packages/vue` 零修改。合并演习发现上游 #557 自建了同构的 `src/app/i18n/notifications/`，方向被上游验证；避让命名见 `records/docs-governance.md` 修正-2 第 4 条。验证：`tests/engine/rebuild/i18n-seam.test.ts` 2/2 绿。（教训记录：初版文档虚构了 `mergeLocaleMessage` API，R3 证伪后按上游实际用的 `@nanostores/i18n` 重新设计。）
+- **i18n 缝**：已落地于 `src/app/i18n/fork/`——fork 自建 createI18n 实例绑共享 locale atom，自带 zh-CN 懒加载包，`packages/vue` 零修改。合并演习发现上游 #557 自建了同构的 `src/app/i18n/notifications/`，方向被上游验证；避让命名见 `records/topics/docs-governance.md` 修正-2 第 4 条。验证：`tests/engine/rebuild/i18n-seam.test.ts` 2/2 绿。（教训记录：初版文档虚构了 `mergeLocaleMessage` API，R3 证伪后按上游实际用的 `@nanostores/i18n` 重新设计。）
 
 ### 3.5 基础设施纪律
 
@@ -76,17 +76,17 @@ Phase 0 不加任何产品功能，验收通过前不得进入 Phase 1。
 
 ## 4. 前置：旧分支 WIP 审判（已结案）
 
-✅ 已结案（2026-08-19，Agent W）：WIP 已随旧分支 `3f925191` 提交，14/14 文件为 lint/类型等价清理，零行为变更，零需移植。详见 `records/upstream-merge.md` 审判条目。
+✅ 已结案（2026-08-19，Agent W）：WIP 已随旧分支 `3f925191` 提交，14/14 文件为 lint/类型等价清理，零行为变更，零需移植。详见 `records/topics/upstream-merge.md` 审判条目。
 
 ## 5. 验收标准（逐条可执行）—— 2026-08-19 实测结果
 
 1. ✅ diff 只有删除 + owned 新文件 + 登记补丁（zone check：`24 modified (all registered), 15 added (owned), 951 deleted`）。
 2. ✅ follow 区纯净检查通过（`bun tools/zone-registry/src/check.ts`，CI 已接线 `check:zones`）。
-3. ⚠️→✅ CI 已全绿（2026-08-19，run 32248474442，11/11 job；5 轮修复史见 `records/ci-infra.md` CI-1~CI-5）；本机：build:packages ✅、tsgo ✅、vue-tsc ×2 ✅、i18n check ✅、定点单测（含可疑回归文件隔离重跑 + 合并后 460 用例）0 fail。全量单测本机有环境性失败（纯净基线同源），按纪律交 CI。
+3. ⚠️→✅ CI 已全绿（2026-08-19，run 32248474442，11/11 job；5 轮修复史见 `records/topics/ci-infra.md` CI-1~CI-5）；本机：build:packages ✅、tsgo ✅、vue-tsc ×2 ✅、i18n check ✅、定点单测（含可疑回归文件隔离重跑 + 合并后 460 用例）0 fail。全量单测本机有环境性失败（纯净基线同源），按纪律交 CI。
 4. ✅ 冒烟：preview 启动 + 画矩形全链路（图层树/属性面板/中文 UI/零 console 报错）；dev server 启动正常。中文 .fig 打开验证依赖 fixture 字体已就位的单测通过（fonts 相关测试隔离全绿）。
-5. ✅ 合并演习：upstream/master `15bd0ba1→0332b062`（8 commits，含 AI SDK 7）已合入，冲突处理与修正见 `records/upstream-merge.md` MERGE-1。
-6. ✅ 旧分支 `feature/agent-backend` 未动（WIP 已随 3f925191 终结，见 `records/upstream-merge.md` 审判条目）。
-7. ✅ **文档核验**：Phase 0 相关叙事文档（00/02 + 本文件）的所有可检查声明，经 subagent A 轮机械审计全绿——结果记入 [records/docs-governance.md §P0-8](records/docs-governance.md)。
+5. ✅ 合并演习：upstream/master `15bd0ba1→0332b062`（8 commits，含 AI SDK 7）已合入，冲突处理与修正见 `records/topics/upstream-merge.md` MERGE-1。
+6. ✅ 旧分支 `feature/agent-backend` 未动（WIP 已随 3f925191 终结，见 `records/topics/upstream-merge.md` 审判条目）。
+7. ✅ **文档核验**：Phase 0 相关叙事文档（00/02 + 本文件）的所有可检查声明，经 subagent A 轮机械审计全绿——结果记入 [records/topics/docs-governance.md §P0-8](records/topics/docs-governance.md)。
 
 ## 6. 不属于 Phase 0 的（护栏）
 

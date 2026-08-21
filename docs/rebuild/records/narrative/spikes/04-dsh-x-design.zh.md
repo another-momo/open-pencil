@@ -10,7 +10,7 @@
 
 > **状态**：已建立 | **时间**：2026-08-20 19:30 | **核验人**：主 agent
 > **物理绑定**：[spikes/04-dsh-x-design.zh.md](../../../spikes/04-dsh-x-design.zh.md)（一一对应）
-> **身份**：本档案持有针对 spike 04 的核验记录。runtime 选型决策归 `records/agent-runtime.md`。
+> **身份**：本档案持有针对 spike 04 的核验记录。runtime 选型决策归 `records/topics/agent-runtime.md`。
 
 ---
 
@@ -19,7 +19,7 @@
 ## SP-4 · dsh-X 路线专项设计
 
 - **类型**：核验
-- **派生自**：`records/agent-runtime.md` SP-4
+- **派生自**：`records/topics/agent-runtime.md` SP-4
 - **状态**：成立（v4，314 行）
 - **关键结论**：X 路线核心论证 = shell.overlay 切 session **不卸载**（无 `only` 参数）；自写 ChatPanel 三因素论证（session 持久化 > 控制自由度 > 复用 UX 控制权）；M1-M5 五 commit 里程碑；6 项 S-X spike 验证清单
 

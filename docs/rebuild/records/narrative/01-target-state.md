@@ -10,36 +10,36 @@
 
 > **状态**：已建立 | **时间**：2026-08-20 19:30 | **核验人**：主 agent
 > **物理绑定**：[01-target-state.md](../../01-target-state.md)（一一对应）
-> **身份**：本档案只持有针对 01-target-state.md 的腐烂记录与核验记录。runtime选型相关决策归 `records/agent-runtime.md` D9。
+> **身份**：本档案只持有针对 01-target-state.md 的腐烂记录与核验记录。runtime选型相关决策归 `records/topics/agent-runtime.md` D9。
 
 ---
 
-## 腐烂类（派生自 records/docs-governance.md ROT-1~4）
+## 腐烂类（派生自 records/topics/docs-governance.md ROT-1~4）
 
 ## ROT-1 · 01 v1 能力地图按价值分层
 
-- **派生自**：`records/docs-governance.md` ROT-1
+- **派生自**：`records/topics/docs-governance.md` ROT-1
 - **错误**：能力地图按价值分层，闭环只列 C 块
 - **实况**：缺支撑底座 F0，闭环跑不起来
 - **处置**：v2 已重构
 
 ## ROT-2 · 01 v1 C1 含「素材图理解（hash 缓存）」
 
-- **派生自**：`records/docs-governance.md` ROT-2
+- **派生自**：`records/topics/docs-governance.md` ROT-2
 - **错误**：C1 含「素材图理解（hash 缓存）」
 - **实况**：R2 实测全仓无代码，phantom
 - **处置**：v2 移入不加清单 + D8
 
 ## ROT-3 · 01 v1 validate 列为「后续移植/已废弃旧物」
 
-- **派生自**：`records/docs-governance.md` ROT-3
+- **派生自**：`records/topics/docs-governance.md` ROT-3
 - **错误**：validate 列为「后续移植/已废弃旧物」
 - **实况**：R2 实测无此工具注册
 - **处置**：v2 改 C3c 新建
 
 ## ROT-4 · 01 v1 生图历史列为「后续独立加法」
 
-- **派生自**：`records/docs-governance.md` ROT-4
+- **派生自**：`records/topics/docs-governance.md` ROT-4
 - **错误**：生图历史列为「后续独立加法」
 - **实况**：R2 实测已内置于 generate_image
 - **处置**：v2 已修正

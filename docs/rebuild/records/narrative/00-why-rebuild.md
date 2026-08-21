@@ -10,16 +10,16 @@
 
 > **状态**：已建立 | **时间**：2026-08-20 19:30 | **核验人**：主 agent（整改后建立）
 > **物理绑定**：[00-why-rebuild.md](../../00-why-rebuild.md)（一一对应）
-> **身份**：本档案只持有针对 00-why-rebuild.md 的腐烂记录与核验记录。跨文档的治理记录归 `records/docs-governance.md`。
+> **身份**：本档案只持有针对 00-why-rebuild.md 的腐烂记录与核验记录。跨文档的治理记录归 `records/topics/docs-governance.md`。
 
 ---
 
-## 腐烂类（从 records/docs-governance.md ROT-10/11 派生）
+## 腐烂类（从 records/topics/docs-governance.md ROT-10/11 派生）
 
 ## ROT-10 · 00 v1 缝「+79/+62、~140 纯追加」
 
 - **类型**：腐烂
-- **派生自**：`records/docs-governance.md` ROT-10
+- **派生自**：`records/topics/docs-governance.md` ROT-10
 - **原文档**：[00-why-rebuild.md](../../00-why-rebuild.md) v1
 - **错误**：缝「+79/+62、~140 纯追加」
 - **实况**：R1：+75/−4、+61/−1，136 行新增
@@ -28,7 +28,7 @@
 ## ROT-11 · 00 v1 分叉「72 落后」
 
 - **类型**：腐烂
-- **派生自**：`records/docs-governance.md` ROT-11
+- **派生自**：`records/topics/docs-governance.md` ROT-11
 - **原文档**：[00-why-rebuild.md](../../00-why-rebuild.md) v1
 - **错误**：分叉「72 落后」
 - **实况**：R1：73（含合并口径）
@@ -40,7 +40,7 @@
 
 ## V1-V3 · 首次核查（指向 00）
 
-- **V1**（2026-08-18 14:00）：分叉规模。详见 [records/docs-governance.md V1 段](../docs-governance.md)
+- **V1**（2026-08-18 14:00）：分叉规模。详见 [records/topics/docs-governance.md V1 段](../docs-governance.md)
 - **V3**（2026-08-18 14:00）：旧文档腐烂。5 处实锤，见 [00-why-rebuild.md §5](../../00-why-rebuild.md)
 
 ---

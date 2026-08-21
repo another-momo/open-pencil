@@ -10,15 +10,15 @@
 
 > **状态**：已建立 | **时间**：2026-08-20 19:30 | **核验人**：主 agent
 > **物理绑定**：[03-phase-1-runtime.md](../../03-phase-1-runtime.md)（一一对应）
-> **身份**：本档案持有针对 03-phase-1-runtime.md 的腐烂/修正/核验记录。**runtime 选型决策（D7/D9/SP-1~4）全量归 `records/agent-runtime.md`**——本档案留指针。
+> **身份**：本档案持有针对 03-phase-1-runtime.md 的腐烂/修正/核验记录。**runtime 选型决策（D7/D9/SP-1~4）全量归 `records/topics/agent-runtime.md`**——本档案留指针。
 
 ---
 
-## 腐烂类（派生自 records/docs-governance.md ROT-9）
+## 腐烂类（派生自 records/topics/docs-governance.md ROT-9）
 
 ## ROT-9 · 03 v1 pi sdk「有 AI SDK harness 适配器」作基线事实
 
-- **派生自**：`records/docs-governance.md` ROT-9
+- **派生自**：`records/topics/docs-governance.md` ROT-9
 - **错误**：pi sdk「有 AI SDK harness 适配器」作基线事实
 - **实况**：R4：本地无包无法证实
 - **处置**：v2 降级【假设】；后续 SP-2 推翻（earendil-works/pi 本地有完整源码）
@@ -30,14 +30,14 @@
 ## 修正-3 · 03-phase-1-runtime.md v3 附录 A 迁移
 
 - **类型**：修正（按对象：03-phase-1-runtime.md）
-- **派生自**：`records/docs-governance.md` 修正-3
+- **派生自**：`records/topics/docs-governance.md` 修正-3
 - **原文位置**：[03-phase-1-runtime.md](../../03-phase-1-runtime.md)「附录 A：v3 相对 v2 的修订记录」
-- **迁移去向**：`records/agent-runtime.md` 修正-2 条目
+- **迁移去向**：`records/topics/agent-runtime.md` 修正-2 条目
 - **影响**：03 附录 A 删除；03 头部加纪律块 + 统一 HH:MM
 
 ## 修正-2 · 03-phase-1-runtime.md v3 重写
 
-- **派生自**：`records/agent-runtime.md` 修正-2
+- **派生自**：`records/topics/agent-runtime.md` 修正-2
 - **内容**：范围缩减、X 路线深化、pi 路线深化、决策框架简化、身份声明更新、前置验证条目
 
 ---

@@ -11,7 +11,7 @@
 
 > **状态**：已核验（v3）| **时间**：2026-08-20 17:00 重写（承接 02-04 五份 spike）
 > **核验人**：主 agent（基于 spike 01-04 全部源码级核查记录）
-> **身份**：case study / 技术调研（辅助参考信息）；**决策依据在 01-target-state.md §7 与 `records/agent-runtime.md` D9**。03 不直接驱动 Phase gate。
+> **身份**：case study / 技术调研（辅助参考信息）；**决策依据在 01-target-state.md §7 与 `records/topics/agent-runtime.md` D9**。03 不直接驱动 Phase gate。
 > **硬门**：runtime 未定，对话层一行代码不写。
 
 ---
@@ -63,7 +63,7 @@ open-pencil marketing 工作台作为**一个 dsh bundle** 发布：用户装 ds
 | 7600 port 是 open-pencil 自己的 | `AUTOMATION_HTTP_PORT = 7600` 在 `open-pencil/packages/core/src/constants.ts:347`；dsh 全仓零命中 | [spikes/04-dsh-x-design.zh.md §C2](spikes/04-dsh-x-design.zh.md) 实证 |
 | 视觉回路多模态 | dsh host tool 调用 → pi-ai 适配器 → 与旧 `media-rewriter.ts` 同构的"图转合成 user 消息"路径 | spikes/02-pi-sdk-runtime.zh.md §P3 + `参考项目/weshop-dsh-plugin/src/integrations/pi.ts:18` |
 | 系统提示注入 | marketing 选择项可走 `ctx.inject(['systemPrompt'], (promptCtx) => { promptCtx.systemPrompt.section(...) })`——不是只能经 message body | `参考项目/deepseek-harness/packages/bundle/web-app/src/index.ts:141-149` |
-| 工作量 | spike 4.5 人日 + Phase 2 实现 11 人日 ≈ **15.5 人日** | [spikes/04-dsh-x-design.zh.md §5](spikes/04-dsh-x-design.zh.md) + [records/agent-runtime.md 修正-2](records/agent-runtime.md) |
+| 工作量 | spike 4.5 人日 + Phase 2 实现 11 人日 ≈ **15.5 人日** | [spikes/04-dsh-x-design.zh.md §5](spikes/04-dsh-x-design.zh.md) + [records/topics/agent-runtime.md 修正-2](records/topics/agent-runtime.md) |
 
 ### 2.3 风险（X 专属）
 

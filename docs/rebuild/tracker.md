@@ -29,11 +29,11 @@
 
 | T 编号 | 块 | 内容 | 验收 | 状态 | PR | plan | self-check | verify |
 |---|---|---|---|---|---|---|---|---|
-| T00 | 文档治理 | 文档集首轮整改（R1-R4 核查轮）| ✅ 完成（历史回填） | ✅ | — | [T00](tasks/T00-plan.md) | [T00](tasks/T00-self-check.md) | [T00](tasks/T00-verify.md) |
-| T01 | 文档治理 | 文档体系整改（plan-correction / tracker拆分 / check-docs / binding / tasks）| ✅ 完成（待 owner 验收） | ✅ | [T01](tasks/T01-plan.md) | [T01](tasks/T01-plan.md) | [T01](tasks/T01-self-check.md) | [T01](tasks/T01-verify.md) |
-| T02 | 文档治理 | 文档纪律二次检查（[05-process.md §5](05-process.md) 迁移 + check-tasks 增强）| ✅ 完成（CI 11/11 全绿） | ✅ | [T02](tasks/T02-plan.md) | [T02](tasks/T02-plan.md) | [T02](tasks/T02-self-check.md) | [T02](tasks/T02-verify.md) |
-| T03 | 文档治理 | [05-process.md §4.10](05-process.md) 文件↔record 一一对应纪律补漏（D14 决策落地）| ✅ 完成（CI 11/11 全绿 + subagent A 18/18 通过） | ✅ | [T03](tasks/T03-plan.md) | [T03](tasks/T03-plan.md) | [T03](tasks/T03-self-check.md) | [T03](tasks/T03-verify.md) |
-| T04 | 文档治理 | task 纪律 CI 强化（D15 三件套物理拆分 + 任务表路径检查）| 🔄 进行中 | — | [T04](tasks/T04-plan.md) | [T04](tasks/T04-plan.md) | [T04](tasks/T04-self-check.md) | [T04](tasks/T04-verify.md) |
+| T00 | 文档治理 | 文档集首轮整改（R1-R4 核查轮）| ✅ 完成（历史回填） | ✅ | — | [T00-plan](tasks/T00-plan.md) | [T00-self-check](tasks/T00-self-check.md) | [T00-verify](tasks/T00-verify.md) |
+| T01 | 文档治理 | 文档体系整改（plan-correction / tracker拆分 / check-docs / binding / tasks）| ✅ 完成（待 owner 验收） | ✅ | — | [T01-plan](tasks/T01-plan.md) | [T01-self-check](tasks/T01-self-check.md) | [T01-verify](tasks/T01-verify.md) |
+| T02 | 文档治理 | 文档纪律二次检查（[05-process.md §5](05-process.md) 迁移 + check-tasks 增强）| ✅ 完成（CI 11/11 全绿） | ✅ | — | [T02-plan](tasks/T02-plan.md) | [T02-self-check](tasks/T02-self-check.md) | [T02-verify](tasks/T02-verify.md) |
+| T03 | 文档治理 | [05-process.md §4.10](05-process.md) 文件↔record 一一对应纪律补漏（D14 决策落地）| ✅ 完成（CI 11/11 全绿 + subagent A 18/18 通过） | ✅ | — | [T03-plan](tasks/T03-plan.md) | [T03-self-check](tasks/T03-self-check.md) | [T03-verify](tasks/T03-verify.md) |
+| T04 | 文档治理 | task 纪律 CI 强化（D15 三件套物理拆分 + 任务表路径检查）| ✅ 完成（CI 11/11 全绿 + subagent A 18/18 + 3 追加通过） | ✅ | — | [T04-plan](tasks/T04-plan.md) | [T04-self-check](tasks/T04-self-check.md) | [T04-verify](tasks/T04-verify.md) |
 | — | （Phase 1 开工后逐行登记） | — | — | — | — | — | — | — |
 
 ## 3. 记录索引

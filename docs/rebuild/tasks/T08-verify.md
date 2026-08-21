@@ -10,7 +10,7 @@
 # tasks/T08-verify.md · T08 subagent 核验报告
 
 > **T 编号**：T08（文档治理 · tracker.md 任务表删 PR 列）
-> **核验时间**：2026-08-21（commit + push + CI 全绿后由主 agent 立即派单）
+> **核验时间**：2026-08-21（commit `2a48827f` 落地 + CI `32441201362` 全绿后由主 agent 立即派单）
 
 ## 1. 核验背景
 
@@ -25,28 +25,38 @@ T08 是 owner 反馈"tracker.md 任务表 PR 列总是错位"的承载 task。�
 
 | # | 声明 | 结果 | 证据命令 | 实测值 |
 |---|---|---|---|---|
-| 1 | tracker.md §2 任务表为 8 列（无 PR 列） | （待 subagent 验证） | `awk '/^## 2\./,/^## 3\./' docs/rebuild/tracker.md \| head -10` | 期望 = 8 列 |
-| 2 | tracker.md §2 标题不含"1 PR" | （待） | `grep -n "^## 2\." docs/rebuild/tracker.md` | 期望不含"1 PR" |
-| 3 | tracker.md §2 含 T07 行（状态 🔄 进行中） | （待） | `grep "T07\|🔄" docs/rebuild/tracker.md` | 期望 = T07 行含"🔄 进行中" |
-| 4 | tasks/_index.md §2 含 T07 行 | （待） | `grep "T07" docs/rebuild/tasks/_index.md` | 期望 ≥ 1 |
-| 5 | tasks/_index.md §2 含 T08 行 | （待） | `grep "T08" docs/rebuild/tasks/_index.md` | 期望 ≥ 1 |
-| 6 | narrative/tracker.md 含本次修订登记 | （待） | `grep "T08\|PR 列" docs/rebuild/records/narrative/tracker.md` | 期望 ≥ 1 |
-| 7 | T08 三件套存在 | （待） | `ls docs/rebuild/tasks/T08-*.md \| wc -l` | 期望 = 3 |
-| 8 | check-tasks 对 T08 commit 实跑 | （待） | `bun tools/zone-registry/src/check/tasks.ts --base <commit>^` | 期望含 "task T08" |
-| 9 | commit 存在 | （待） | `git log --oneline -3 \| grep "T08"` | 期望 ≥ 1 |
-| 10 | CI run 通过 | （待） | `gh run list --repo=another-momo/open-pencil --limit=1 --json conclusion` | 期望 = success |
+| 1 | tracker.md §2 任务表为 8 列（无 PR 列） | ✅ | `awk '/^## 2\./,/^## 3\./' docs/rebuild/tracker.md` | 8 列：`T 编号 \| 块 \| 内容 \| 验收 \| 状态 \| plan \| self-check \| verify` |
+| 2 | tracker.md §2 标题不含"1 PR" | ✅ | `grep -n "^## 2\." docs/rebuild/tracker.md` | L28：`## 2. 任务表（每个 task 一行 + 三件套路径列 D15）` |
+| 3 | tracker.md §2 含 T07 行（状态 🔄 进行中） | ✅ | `grep "T07" docs/rebuild/tracker.md` | L41：`\| T07 \| ... \| 🔄 进行中（T08 收尾后同步）` |
+| 4 | tasks/_index.md §2 含 T07 行 | ✅ | `grep "T07" docs/rebuild/tasks/_index.md` | 1 处命中 |
+| 5 | tasks/_index.md §2 含 T08 行 | ✅ | `grep "T08" docs/rebuild/tasks/_index.md` | 1 处命中 |
+| 6 | narrative/tracker.md 含本次修订登记 | ✅ | `grep -E "T08\|PR 列" docs/rebuild/records/narrative/tracker.md` | 2 处「修正-N」段命中 |
+| 7 | T08 三件套存在 | ✅ | `ls docs/rebuild/tasks/T08-*.md \| wc -l` | 3（T08-plan.md / T08-self-check.md / T08-verify.md） |
+| 8 | commit `2a48827f` 存在 | ✅ | `git log --oneline -1` | `2a48827f task: T08 tracker.md 任务表删 PR 列...` |
+| 9 | CI run `32441201362` 通过 | ✅ | `gh run view 32441201362 --repo=another-momo/open-pencil --json conclusion` | `{"conclusion":"success"}` |
+| 10 | §1 阶段门表"验收签字"列保留 | ✅ | `grep -E "验收签字" docs/rebuild/tracker.md` | 1 处命中（5 列表头含验收签字） |
+| 11 | 全仓库无任何 PR 列错位（带注解） | ✅ | `grep -rn "\| PR \|" docs/rebuild/` | 1 处命中（`docs/rebuild/proposals/governance-v1.md:161`，append-only 历史提案文件，T08 范围外） |
+| 12 | check-tasks 对 T08 commit 实跑 | ✅ | `bun tools/zone-registry/src/check/tasks.ts --base HEAD~1` | `task T08 三件套齐全`，exit=0 |
 
-## 3. 总评（待 subagent 填）
+## 3. 总评
 
-- 通过：（待 subagent 填）
-- 失败：（待 subagent 填）
-- 无法验证：（待 subagent 填）
+- 通过：12 条
+- 失败：0 条
+- 无法验证：0 条
 
-## 4. 综合判定（待 subagent 填）
+## 4. 综合判定
 
-- ✅ T08 全部交付物通过核验
-- ❌ T08 部分交付物不通过，需要修正：[清单]
+- ✅ **T08 全部交付物通过核验**（12/12 通过，0 失败）
+- ✅ commit `2a48827f` 落地 + CI `32441201362` 11/11 全绿 + subagent A 独立核验 12/12 通过
 
 ## 5. 补充（核验后）
 
-（待 subagent A 实际核验后由主 agent 追加实测值与结论）
+### 5.1 核验 #11 命中 1 行的来源解释
+
+`docs/rebuild/proposals/governance-v1.md:161` 表格头 `| 块 | 内容 | 验收 | 状态 | PR | 记录 |` 仍含 PR 列——该文件 frontmatter 第 3 行明确 `本文是外部建议（proposal）— append-only，仅追加条目；不接受删除原条目`，PR 列保留作为采纳决策前的方案原文快照。**T08 范围明确为 tracker.md 任务表，不涉及 proposals/ 目录**——append-only 约束使其必然命中。
+
+### 5.2 主 agent 立即修正（核验后）
+
+- T08-verify.md 占位 → 用 subagent A 12 项实测值替换（不允许"verify.md 是占位模板"，D15 §4.11 主 agent 自律条款）
+- tracker.md §2 T08 行状态：`🔄 进行中` → `✅ 完成（CI 11/11 全绿 + subagent A 12/12 通过）`
+- tasks/_index.md §2 T08 行状态同步

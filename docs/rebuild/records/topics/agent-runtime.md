@@ -145,3 +145,14 @@
 - **起因**：owner 质疑 T11 S-pi-2「再切 DeepSeek 验证占位降级静默不报错」疑似从 dsh-y 路线污染
 - **核验**（subagent 只读评估，2026-08-21）：**非污染**——该句逐字出自真源 spikes/02 §6（02-pi-sdk-runtime.zh.md:631）；机制本体在共享 pi-ai 层（`transform-messages.ts:35-57` 静默降级 vs dsh `llm-deepseek/serialize.ts:63-66` 显式抛 UNSUPPORTED_CONTENT，spikes/02 P3.2 明牌此为两路线行为分叉点）；open-pencil 默认 DeepSeek 系 text-only 模型，C4a 图片在 DeepSeek 路径必然降级（02:211），故降级路径运行时表现是 pi 路线层 1 验收的正当证据。owner 直觉部分成立之处：「静默不报错」已是源码级【事实】，spike 的边际价值在运行时未知量（端到端不炸 + 任务可续，02:631）与离线前置（§9-1 catalog input 字段）
 - **处置**：T11-plan 六处修订——S-pi-2 表述改为验证运行时未知量 + §9-1 离线前置、P1 补 R-pi-8 Windows npm install 必测、包名声明补 npm view 核验命令与日期、§1.1 风险/回退倒置修正、S-pi-4 补 150-200 行锚点；T12-plan 顺带评估无污染
+
+## D21 · harness 路线暂时搁置，S-pi 按直用 pi SDK 形态执行
+
+- **类型**：决策
+- **时间**：2026-08-21
+- **拍板**：owner
+- **状态**：已拍板
+- **内容**：D9 子问题「直用 pi SDK vs 复用 harness 抽象」（spike 05 §5 选项 A/B/C）——**暂时搁置 harness 路线，S-pi（T11）按直用 pi SDK 形态直接执行**。树形分叉能力损失 owner 明确可接受
+- **理由**：经 spike 05 讨论收敛——(1) B/C 差别本质是「Vercel 胶水 vs 自写胶水」，service 层两案都自写，成本差仅 150-300 行胶水便利；(2) 版本耦合硬事实：harness-pi@1.0.76 锁 pi `^0.80.10`（0.x caret 锁 minor）+ pi-ai `0.74.2` 精确锁，而核查与 spike 证据全在 0.84.2，升级闸门交给 Vercel 发布节奏（R-pi-1 加重版）；(3) 能力天花板：D2a 通道 A 降级阀（prompt 纯文本）与 B1b 审批回合（六事件无 approval 往返）受阻，extensionFactories 逃生舱未实测；(4) backend 可换期权对我们非刚需——知道要选 pi
+- **搁置而非否决**：spike 05 建档保留全部核查结论；packages/harness 包保留在仓（T10「保 harness 裁 ACP」决策不变——跟随上游、不占我们的 runtime 路径）；若 T11 spike 实测暴露直用 SDK 的意外成本，可回摆重议
+- **supersede 注记**：修正-4 中「DeepSeek 占位降级验证该留」的论证语境是 spike 02 旧口径（通道 A 主线）；D2 drift 修正后（spike 01/02 已改），降级验证降为通道 A 时间盒备选探测，本决策维持该定性

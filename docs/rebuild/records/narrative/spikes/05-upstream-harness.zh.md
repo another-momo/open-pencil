@@ -31,3 +31,10 @@
 - **时间**：2026-08-21
 - **依据**：owner 指正「一文件一线性历史」讲法易误解——harness 路线下一文件仍可对多个线性 session（sessionId 自有层登记），受限的只是单 session 内部不能树形分叉
 - **内容**：§3 天花板段重写——明确区分「被遮蔽的仅是树形分叉（branch 系，无法模拟）」与「一文件多 session/session 列表不受遮蔽（自有注册表替代 SessionManager.listAll）」；判据段同步改为「D3 要害收敛为：树形分叉交互是不是产品卖点」
+
+## 修正-2 · 头部状态行加 D21 路线状态
+
+- **类型**：修正（按对象：spikes/05-upstream-harness.zh.md）
+- **时间**：2026-08-21
+- **依据**：owner 拍板 D21（harness 路线暂时搁置，S-pi 直用 pi SDK，[agent-runtime.md D21](../../topics/agent-runtime.md)）
+- **内容**：头部状态行追加路线状态（搁置但档案有效，§5 选项比较与 §6 走读参照继续供 T11 使用）

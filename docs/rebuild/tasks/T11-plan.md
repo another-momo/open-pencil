@@ -20,18 +20,18 @@
 
 ### 1.1 背景与目标
 
-D9 当前推荐 c（pi 直接驱动，库形态）。本 task 按 [spikes/02-pi-sdk-runtime.zh.md §6](../spikes/02-pi-sdk-runtime.zh.md) 的 S-pi 验证清单（4-5 人日）实证该路线。**spike 走通后即可供 owner 定 D9 = pi**。
+D9 当前推荐 c（pi 直接驱动，库形态）。本 task 按 [spikes/02-pi-sdk-runtime.zh.md §6](../spikes/02-pi-sdk-runtime.zh.md)（D2 修正后口径）+ [spikes/05-upstream-harness.zh.md §6](../spikes/05-upstream-harness.zh.md) 的 S-pi 验证清单实证该路线，总预算约 3.5-4.5 人日。**spike 走通后即可供 owner 定 D9 = pi**。D21（2026-08-21，owner 拍板）：harness 路线暂时搁置，S-pi 按**直用 pi SDK** 形态执行；上游 harness 实现仅作走读参照（spike 05）。
 
-排序理由（2026-08-21 主 agent 建议、owner 拍板双 spike 并行）：两条 spike 等成本（4.5 vs 4-5 人日），但 S-pi 具备早期退出价值——pi 全量落地 ≈20 人日（X 路线 37-38）且 D9 记录推 1，S-pi 全过则 S-X 可能整体省掉；S-pi-1 纯库验证零编辑器环境依赖；其最大风险点是 S-pi-2 多模态端点接受度，失败则 C4a 走占位降级回退、不阻塞选型（[spikes/02 §6 风险段](../spikes/02-pi-sdk-runtime.zh.md)）。
+排序理由（2026-08-21 主 agent 建议、owner 拍板双 spike 并行）：两条 spike 等成本（4.5 vs 3.5-4.5 人日），但 S-pi 具备早期退出价值——pi 全量落地 ≈20 人日（X 路线 37-38）且 D9 记录推 1，S-pi 全过则 S-X 可能整体省掉；S-pi-1 纯库验证零编辑器环境依赖；原「最大风险点 S-pi-2 多模态」论断已随 D2 修正撤销（通道 B 主线下主模型 text-only 原生兼容）。
 
 ### 1.2 范围（S-pi 四项验证，按序）
 
-| # | 验证项 | 预算 | 通过标准（照抄 spike 02 §6） |
+| # | 验证项 | 预算 | 通过标准 |
 |---|---|---|---|
-| S-pi-1 | 库形态最小集成：Node 后端 import `@earendil-works/pi-coding-agent`（0.84.2），注册 echo 工具，in-memory session，事件流 | 1-1.5d | 库形态集成过 + 工具 execute 在我们进程内执行过 + 事件流正确 |
-| S-pi-2 | 多模态端到端：look 工具返回 ImageContent，视觉模型收到并描述图像；再切 deepseek-chat 复跑同 prompt——占位降级机制本身已由 pi-ai `transform-messages.ts:35-57` 源码证实（spikes/02 P3.2），本项验证的是**运行时未知量**：降级路径端到端不炸、任务可续 | 1-1.5d | 模型回复含图像描述（非占位）；DeepSeek 路径收到占位字符串、不报错、能继续完成任务；前置：离线查 `models.generated.ts` DeepSeek 条目 input 字段作为预期判定依据（spikes/02 §9-1） |
-| S-pi-3 | session 持久化 + F0.5：create → dispose → open 跨重启上下文恢复 | 0.5-1d | 跨重启 session 上下文完整恢复 |
-| S-pi-4 | 流式适配端到端：agent-core event 流 → UIMessage v1 chunk → SSE endpoint → 前端旧 Chat 类消费（适配器规模锚点：最小 150-200 行 TS，spikes/02 §6） | 0.5-1d | 前端一字不变能消费新 runtime 流（除适配器） |
+| S-pi-1 | 库形态最小集成（直用 SDK）：Node 后端 import `@earendil-works/pi-coding-agent`（0.84.2），defineTool/customTools 注册 echo 工具，in-memory session，事件流订阅 | 1-1.5d | 库形态集成过 + 工具 execute 在我们进程内执行过 + 事件流正确 |
+| S-pi-2 | **主线（look 通道 B pi 侧）**：自定义工具返回纯文本/结构化 tool-result（模拟 look 的场景摘要文本），agent 正确消费并续跑——DeepSeek text-only 原生兼容、无降级路径（与 S-pi-1 同构，增量为真实返回结构端到端一次）；**备选探测（通道 A，时间盒，需视觉模型 key，不阻塞选型）**：ImageContent 工具 + 视觉 route 验证 image_url dataURL 接受度 + deepseek-chat 占位降级运行时形态（机制已由 `transform-messages.ts:35-57` 源码证实，只验端到端不炸、任务可续）；前置：离线查 `models.generated.ts` DeepSeek 条目 input 字段（spikes/02 §9-1） | 0.5d | 主线：文本 tool-result 被正确消费、任务续跑；A 探测：模型回复含图像描述（非占位）+ DeepSeek 路径不报错可续 |
+| S-pi-3 | session 持久化 + F0.5：直用 `SessionManager` create → dispose → open 跨重启上下文恢复；吸收上游 harness 教训（destroy 删状态、stop 才持久化——spikes/05 §1），显式设计 stop 时机 | 0.5-1d | 跨重启 session 上下文完整恢复 |
+| S-pi-4 | 流式适配增量：agent event 流 → UIMessage v1 chunk（**参照上游产线实现走读**：`packages/harness/src/backends/pi.ts:62-89` mapPart + `src/app/ai/harness/transport.ts:28-62` mapEvent，合计约 120 行）→ SSE endpoint → 前端旧 Chat 类消费 | 0.5-1d | 前端一字不变能消费新 runtime 流（除适配器） |
 
 ### 1.3 实施约束
 
@@ -47,9 +47,9 @@ D9 当前推荐 c（pi 直接驱动，库形态）。本 task 按 [spikes/02-pi-
 
 - [ ] P1 脚手架：spikes/s-pi/ + 自含 package.json + 安装固定版本（含 spikes/02 R-pi-8 钦定必测：Windows npm install 实测 photon-node WAS / 是否需 `--ignore-scripts`）
 - [ ] P2 S-pi-1 离线面 + 活模型面（echo → prompt → tool call → 事件流）
-- [ ] P3 S-pi-2 多模态（视觉模型 + DeepSeek 占位降级双路径）
-- [ ] P4 S-pi-3 持久化跨重启恢复
-- [ ] P5 S-pi-4 流式适配 + 旧 Chat 类消费验证
+- [ ] P3 S-pi-2 通道 B 主线（文本 tool-result 消费续跑）+ 通道 A 时间盒探测（有视觉 key 才做）
+- [ ] P4 S-pi-3 持久化跨重启恢复（含 stop 时机设计）
+- [ ] P5 S-pi-4 流式适配（走读上游 mapPart/mapEvent + SSE 段 + 旧 Chat 类消费验证）
 - [ ] P6 self-check + subagent 核验 + verify 回填
 - [ ] P7 记录登记（agent-runtime.md spike 结果条目）+ 任务表状态更新
 
@@ -62,8 +62,8 @@ D9 当前推荐 c（pi 直接驱动，库形态）。本 task 按 [spikes/02-pi-
 
 ## 4. 关联文档
 
-- 验证清单真源：[spikes/02-pi-sdk-runtime.zh.md §6](../spikes/02-pi-sdk-runtime.zh.md)
-- 决策背景：[records/topics/agent-runtime.md D9 / D20](../records/topics/agent-runtime.md)
+- 验证清单真源：[spikes/02-pi-sdk-runtime.zh.md §6](../spikes/02-pi-sdk-runtime.zh.md)（D2 修正版）+ [spikes/05-upstream-harness.zh.md](../spikes/05-upstream-harness.zh.md)（上游 harness 走读参照，§6 调整清单）
+- 决策背景：[records/topics/agent-runtime.md D9 / D20 / D21](../records/topics/agent-runtime.md)（D21：harness 路线搁置，直用 pi SDK）
 - 对照 task：[T12-plan.md](T12-plan.md)（S-X spike）
 
 ## 5. 身份

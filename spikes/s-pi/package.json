@@ -1,0 +1,17 @@
+{
+  "name": "s-pi-spike",
+  "private": true,
+  "type": "module",
+  "description": "T11 S-pi spike: pi sdk library-form verification (spikes/02 §6 D2-fixed + spikes/05 §6). Self-contained, NOT in root workspaces.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test:offline": "node offline-echo.mjs && node offline-session-persistence.mjs"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.84.2",
+    "@earendil-works/pi-ai": "0.84.2",
+    "typebox": "1.3.7"
+  }
+}

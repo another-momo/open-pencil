@@ -11,6 +11,7 @@
 
 > 状态：源码阅读完成（2026-08-19）| 回答 03 §2 的 Q0-Q3 中可由源码定论的部分，并为 D7/D9 提供选型依据。
 > 状态：**v2 修正**（2026-08-20，基于 spikes/03-weshop-case-deep-dive 实证）。v1 把 weshop 描述为「镶 dsh Chat 在旁边」、把 X 路线流式成本估为 0——**两处均错**，本次更新。
+> D2 修正（2026-08-21）：本文 §5「D2 倾向砍」建议与 owner 已拍板的 D2（通道 B 为默认，records/topics/brand-config.md D2/D2a）冲突，该段已按拍板结果重写。
 > 配套：spikes/02-pi-sdk-runtime（pi 路线修正评估）/ spikes/03-weshop-case-deep-dive（X 路线实证）。
 > 陈述纪律：**【事实】**（附 文件:行号 证据）/ **【推断】**（由证据推出的结论）/ **【假设】**（未验证）。
 > 证据路径约定：`dsh/` = 参考项目/deepseek-harness（0.1.0-rc.7），`pi/` = 参考项目/pi，`old/` = open-pencil 旧分支 feature/agent-backend。
@@ -292,7 +293,7 @@ S1-S3 即 03 文档「新 runtime 内核出生」的前半；总预算 4-5 人�
 **连带需要拍板：**
 - D7 收口：runtime = dsh（经 Y 路线）；pi sdk 不再作为 Phase 1 候选（依据：Y1-Y7 实录 vs pi sdk 全【假设】）。
 - D3（session 模型）前置依赖：Y5 的 resume 语义支持「一文件一个 session」与「多 session」两种，但 spike S1 按「一文件一个」验证最简单——建议 D3 先按一文件一个拍板。
-- D2（vision 通道 B）：Y4 证明 pi-ai 路径内置「图随 user 消息」语义，单通道即可覆盖 C4a；通道 B（独立视觉模型）可推迟到层 2 再议——建议 D2 倾向「砍」。
+- D2（vision 通道 B）：**已由 owner 拍板（2026-08-20，records/topics/brand-config.md D2/D2a）：通道 B 为默认**——look 截图不进主 agent 上下文（成本优势 + 可换视觉模型），A 直送为备选降级路径（主 agent 需看图或视觉模型质量不足时启用）。Y4 证明 pi-ai 路径内置「图随 user 消息」语义属实，但它只说明通道 A 实现成本低，不构成砍 B 的依据。
 
 ---
 

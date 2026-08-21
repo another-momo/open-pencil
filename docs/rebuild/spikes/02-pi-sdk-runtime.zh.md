@@ -9,7 +9,7 @@
 
 # Spike 02 · pi sdk 作为 agent runtime 的可行性源码核查
 
-> 状态：源码阅读完成（2026-08-20）| 修正 03 §2/§3 的「pi sdk 本地不可查 → 降级【假设】」——本地有完整源码（earendil-works/pi monorepo，v0.84.2），所有 pi 相关项从【假设】升格为【事实】或【推断】。
+> 状态：源码阅读完成（2026-08-20）| 修正 03 §2/§3 的「pi sdk 本地不可查 → 降级【假设】」——本地有完整源码（earendil-works/pi monorepo，v0.84.2），所有 pi 相关项从【假设】升格为【事实】或【推断】。| D2 修正（2026-08-21）：本文 §0 建议 / P3.2 / R-pi-3 / §6 S-pi-2 与预算段 / §9 前置依赖原按「通道 A 单通道即可、B 倾向砍」撰写——与 owner 已拍板的 D2（通道 B 为默认，records/topics/brand-config.md D2/D2a）冲突，相关段落已按拍板结果重写。
 > 陈述纪律：**【事实】**（附 文件:行号 证据）/ **【推断】**（由证据推出）/ **【假设】**（未验证）。
 > 证据路径约定：`pi/` = 参考项目/pi，证据行号引用该仓内路径。
 > 比对目标：`dsh/` = 参考项目/deepseek-harness（已在 spike 01 录入）。
@@ -32,7 +32,7 @@
 - pi **没有 dsh 那样的「compaction seam 全可替换」**（Y 的 Y5）——它把 compaction 做成 extension event `session_before_compact`，可 cancel 或提供自定义 summary（compaction.md:280-310），语义同样可注入，但接口形态不同。媒体省略策略的注入点应是 **`session_before_compact` 钩子改写 `compaction.summary` 文本** 或 **`context` event 钩子过滤 toolResult 消息**（extensions.md:657-668），不是 dsh 那种「直接注册一个新的 Service」。**F0.6/C4a 等价，但代码形态不一样**。
 - pi 文档明牌 **No MCP / No sub-agents / No permission popups / No plan mode / No built-in to-dos / No background bash**（README.md:496-510）——B1b 的工具审批需要自写 extension（用 `tool_call` event 返回 `{block: true}`，extensions.md:778-799），不阻塞但**和 dsh 的 `ctx.approval.request` 形态不一样**，需要学习曲线。
 
-**建议**：D7 收口为 **pi 直接驱动**；按 spike 计划 §6 跑最小 spike（S-pi-1 ~ S-pi-4）确认两件事——(a) `createAgentSession` + 自定义工具 + `ExtensionAPI` 钩子真能在我们 Node 后端跑起来；(b) 多模态在 DeepSeek 系 chat-completions 上的真实接受度（pi 与 dsh 共用同一个 pi-ai 适配层，spike 01 §Y4 的"占位降级"结论在 pi 上同样成立）。
+**建议**：D7 收口为 **pi 直接驱动**；按 spike 计划 §6 跑最小 spike（S-pi-1 ~ S-pi-4）确认两件事——(a) `createAgentSession` + 自定义工具 + `ExtensionAPI` 钩子真能在我们 Node 后端跑起来；(b) look 通道 B 的 pi 侧暴露面——按 D2（owner 已拍板：B 为默认，look 截图不进主 agent 上下文），主对话 text-only，pi 只需消费文本 tool-result、DeepSeek 系原生兼容；通道 A（图随消息，DeepSeek 路径走占位降级——机制见 P3.2，pi 与 dsh 共用 pi-ai 适配层，spike 01 §Y4 结论在 pi 上同样成立）降为备选路径的时间盒探测，不作选型依据。
 
 ---
 
@@ -194,7 +194,7 @@ await session.prompt("What files are in the current directory?");
 
 【事实】**DeepSeek chat-completions 适配器未在已知 API 列表中**——types.ts:17-29 `KnownApi`：`openai-completions`、`mistral-conversations`、`openai-responses`、`azure-openai-responses`、`openai-codex-responses`、`anthropic-messages`、`bedrock-converse-stream`、`google-generative-ai`、`google-vertex`、`pi-messages`。DeepSeek 在 pi 中走的是 **openai-completions API**（DeepSeek 的 chat-completions endpoint 与 OpenAI 协议兼容）—— 这正是 dsh spike 01 §Y4 录的 llm-deepseek 显式拒绝图片 但 `llm-pi-ai` 通过 DeepSeek 配置的 openai-completions 路由**默认不拒图**——DeepSeek 模型的 `input: ["text", "image"]` 声明与否决定**是否走图路径**。
 
-【推断】**DeepSeek 官方 chat 模型（deepseek-chat、deepseek-reasoner）都是 text-only input**（catalog 由 pi-ai 模型数据生成器推断，scripts/generate-models.ts）。因此 DeepSeek 走 chat-completions + 文本模型 + tool-result 内含图片 → `transform-messages.ts:35-57` 的占位降级 → 模型收到 "(tool image omitted: ...)" 占位字符串、**没有图片数据**，但**也不报错**。**这等价于 dsh 的 `llm-deepseek/src/serialize.ts:63-66` 抛 UNSUPPORTED_CONTENT 的更温和版本**——pi 选择静默降级，dsh 选择显式抛错。我们前端可以选择：**接受占位降级（图片在 DeepSeek 路径下被模型忽略）** 或 **配置一条视觉模型 route**（自定义 OpenAI 兼容视觉端点）走显式 image_url 路径。
+【推断】**DeepSeek 官方 chat 模型（deepseek-chat、deepseek-reasoner）都是 text-only input**（catalog 由 pi-ai 模型数据生成器推断，scripts/generate-models.ts）。因此 DeepSeek 走 chat-completions + 文本模型 + tool-result 内含图片 → `transform-messages.ts:35-57` 的占位降级 → 模型收到 "(tool image omitted: ...)" 占位字符串、**没有图片数据**，但**也不报错**。**这等价于 dsh 的 `llm-deepseek/src/serialize.ts:63-66` 抛 UNSUPPORTED_CONTENT 的更温和版本**——pi 选择静默降级，dsh 选择显式抛错。按 D2 拍板（2026-08-20）：默认走**通道 B**——look 截图不进主 agent 消息，由独立视觉模型侧信道处理（视觉 route 见本节下文），主对话 text-only、DeepSeek 系原生兼容；占位降级仅在**通道 A**（图随 user/toolResult 消息直送）叠加非视觉模型时发生——A 是备选降级路径（D2a）。
 
 【事实】**视觉模型 route 配置机制**与 dsh 一致——通过 `~/.pi/agent/models.json` 添加自定义 model（README.md:143）。同时 extension 可在运行时通过 `pi.registerProvider()` 注入（extensions.md:200-216，async factory 模式）。`ModelRuntime` 接受 `authPath: "/custom/agent/auth.json`、`modelsPath: "/custom/agent/models.json`（sdk.md:467-479）——**F0.3② 生图凭证和视觉模型凭证都可走同一机制**，与 dsh Y6 等价。
 
@@ -208,9 +208,9 @@ await session.prompt("What files are in the current directory?");
 【事实】**降级 fallback**（已实测成立，spike 01 §Y4）：**非视觉模型** 收到 `(tool image omitted: model does not support images)` 占位字符串（transform-messages.ts:13），**整个 tool-result 仍正常返回给模型**——只是没有图像内容。这是语义无损降级的实现。
 
 【推断】**Q1 的答案是**：
-- **C4a（look 图片到模型）**：在 DeepSeek 系模型上**必然走占位降级**——这与 spike 01 §Y4 的结论一致；
-- **多通道视觉（可选层 2 D2）**：注册一条 OpenAI 兼容视觉 route（如某个 GPT-4o 网关或内部视觉模型），look 图片就能以 image_url dataURL 形态发到该模型。**配置驱动 0 代码**。
-- **spike 必须实测**：(a) DeepSeek 实际模型声明的 `input` 是否含 `image`（catalog 由 generate-models.ts 生成，需看 generated/models.generated.ts 944 行的具体条目）；(b) 自定义 OpenAI 兼容视觉端点对 chat-completions `image_url` dataURL 的真实接受度。
+- **C4a（look 图片到模型）**：主线为**通道 B**（D2 已拍板默认）——look 截图不进主 agent 上下文，由独立视觉模型侧信道处理，主模型（DeepSeek 系 text-only）只收文本结果，**不存在降级问题**；通道 A（直送图进上下文）为备选，A 形态下在 DeepSeek 系模型上必然走占位降级——这与 spike 01 §Y4 的结论一致；
+- **通道 B 视觉侧信道**：注册一条 OpenAI 兼容视觉 route（如某个 GPT-4o 网关或内部视觉模型），look 图片以 image_url dataURL 形态发到该模型——**配置驱动 0 代码**（D2a 注记：与 A 同 provider 同 RPC 路径，差异仅在图字段是否进 message）。
+- **spike 实测项**：(a) DeepSeek 实际模型声明的 `input` 是否含 `image`（catalog 由 generate-models.ts 生成，需看 generated/models.generated.ts 944 行的具体条目）——离线可查，作为通道 A 探测的预期判定依据；(b) 通道 A 备选探测：自定义 OpenAI 兼容视觉端点对 chat-completions `image_url` dataURL 的真实接受度（时间盒，不阻塞选型）。
 
 ---
 
@@ -515,7 +515,7 @@ pi.on("tool_call", async (event, ctx) => {
 |---|---|---|---|---|
 | **R-pi-1** | **pi 周更可能 break SDK 集成**（CHANGELOG 显示每周 5-15 commits） | 高 | F0.1 编译断 / 事件字段变化 | 锁版本（`@earendil-works/pi-coding-agent@0.84.2` 精确）+ 升级 smoke 清单（建仓即写）：hello-session、hello-tool、hello-image 三个端到端脚本 |
 | **R-pi-2** | **Mario Zechner 单一个体主导**（bus factor = 1，README.md:96 暗示） | 中 | 项目长期方向变化、维护停滞 | 锁定版本 + 内部维护一份 ~30-50 行 SDK 包装层，万一停止维护可继续使用冻结版本（与 dsh 的 fork 不同——dsh 是 fork 必需代码，pi 是 wrapper 易替代） |
-| **R-pi-3** | **多模态在 DeepSeek 系 chat-completions 上** 不接受 image_url dataURL（spike 01 §Y4 第③点同样风险） | 中 | C4a 降级为文本描述 | pi-ai 路径已通（openai-completions.ts:1304-1315）；spike S-pi-2 验证 2 个端点（DS 官方 + 1 个 OpenAI 兼容视觉）；非非视觉模型走 `transform-messages.ts:35-57` 占位降级（不报错） |
+| **R-pi-3** | **通道 A（备选路径）多模态在 DeepSeek 系 chat-completions 上** 不接受 image_url dataURL（spike 01 §Y4 第③点同样风险） | 低（仅影响备选通道 A；主线通道 B 主模型 text-only 原生兼容，不经主 agent 模型传图） | 通道 B 即「look 图片不直达主模型」的产品化默认（D2）；A 叠加非视觉模型时走占位降级 | pi-ai 路径已通（openai-completions.ts:1304-1315）；spike S-pi-2 时间盒探测 2 个端点（DS 官方 + 1 个 OpenAI 兼容视觉）；非视觉模型走 `transform-messages.ts:35-57` 占位降级（不报错） |
 | **R-pi-4** | **工具审批没有 dsh 那样的 `ctx.approval.request` 一等 seam** | 中 | B1b 工作量增加；需自写 ask/response 协议 | `tool_call` event 钩子 + `ctx.ui.confirm()` + 桥协议扩展（库形态）或 RPC extension_ui 子协议透传（RPC 形态）—— 不阻塞层 1，B1b 属层 2 |
 | **R-pi-5** | **compaction 不是可整体替换的 Service**（与 dsh `ctx.compaction` 不同） | 低 | 媒体省略策略需走 `context` event 钩子而非注册新 backend | `context` event 钩子（extensions.md:657-668）语义等价 dsh `llm/stream` 拦截方案（spike 01 §Y5 推断）；不阻塞 C4a |
 | **R-pi-6** | **自定义 prompt 注入比 dsh 略复杂**（structured options API 而非字符串拼接） | 低 | F0.6 工作量多 0.5 人日 | 在 extension 内 `event.systemPrompt + "
@@ -590,9 +590,11 @@ await session.prompt("Call echo with text 'hello world'");
 
 **过 = 库形态集成过 + 工具 execute 在我们进程内执行过 + 事件流正确。**
 
-### S-pi-2（多模态端到端，1-1.5d）
+### S-pi-2（look 通道 B pi 侧 + 通道 A 备选探测，0.5d）
 
-注册一个返回 ImageContent 的工具，验证 chat-completions 模型接受 image_url dataURL：
+**主线（通道 B，D2 默认）**：look 对 agent 的暴露面是纯文本/结构化 tool-result——截图由独立视觉侧信道处理，主对话 text-only。pi 侧只需验证「自定义工具返回结构化文本 → agent 正确消费并续跑」，与 S-pi-1 的 customTools 验证同构，增量是 look 的真实返回结构（场景摘要文本）端到端跑通一次。DeepSeek 系原生兼容，**无降级路径**。
+
+**备选探测（通道 A，时间盒；需视觉模型 key，结果不阻塞选型）**：注册一个返回 ImageContent 的工具，验证 chat-completions 模型接受 image_url dataURL：
 
 ```typescript
 const lookTool = defineTool({
@@ -626,9 +628,9 @@ const lookTool = defineTool({
 await session.prompt("Use look to generate a hero image, then describe it");
 ```
 
-**过 = 模型回复中包含对图像的描述（不是 (tool image omitted)）。**
+**过（通道 A 探测）= 模型回复中包含对图像的描述（不是 (tool image omitted)）。**通道 B 主线的通过标准并入 S-pi-1（工具文本结果被正确消费）。
 
-**再过 DeepSeek 路径**：把模型切到 deepseek-chat，跑同样 prompt → 确认模型收到 `(tool image omitted: model does not support images)` 占位字符串、**不报错**、能继续完成任务（占位降级生效）。
+**再过 DeepSeek 路径（同属通道 A 探测）**：把模型切到 deepseek-chat，跑同样 prompt → 确认模型收到 `(tool image omitted: model does not support images)` 占位字符串、**不报错**、能继续完成任务。占位降级机制本身已由 `transform-messages.ts:35-57` 源码证实（P3.2），这里验的是运行时未知量：降级后端到端不炸、任务可续。
 
 ### S-pi-3（session 持久化 + F0.5，0.5-1d）
 
@@ -659,7 +661,7 @@ await s2.prompt("What's my favorite color?");  // 应回 blue
 
 ---
 
-**总预算：4-5 人日**，与 spike 01 §4 估 dsh Y 路线 S1-S3 同量级。**最大风险点是 S-pi-2（多模态）**——S-pi-2 失败则 C4a 走占位降级，不阻塞选型但层 1 验收受影响（look 图片到模型在 DeepSeek 上失效）。
+**总预算：约 3.5-4.5 人日**（S-pi-2 按 D2 收窄为通道 B pi 侧 + 时间盒 A 探测），与 spike 01 §4 估 dsh Y 路线 S1-S3 同量级。**原「最大风险点 S-pi-2 多模态」不再成立**：通道 B 主线下主模型 text-only 原生兼容；通道 A 仅为备选探测，其失败不影响选型、也不影响层 1 验收（C4a 主线不走 A）。
 
 ---
 
@@ -704,7 +706,7 @@ await s2.prompt("What's my favorite color?");  // 应回 blue
 
 **前置依赖**：
 - **D3（session 模型）**：pi 支持一文件多 session（tree JSONL，branches），也支持一文件一 session——**两种都 0 代码**。建议 D3 倾向一文件多 session（按 leaf 走），未来 C5b session 列表 UI 直接用 SessionManager.list/listAll（sdk.md:786-789）。
-- **D2（vision 通道 B）**：pi 路径内置多模态（spike P3.3），**单通道即可覆盖 C4a**；通道 B（独立视觉模型）可推迟到层 2——D2 倾向砍。
+- **D2（vision 通道 B）**：**已由 owner 拍板（2026-08-20，records/topics/brand-config.md D2/D2a）：B 为默认**——look 截图不进主 agent 上下文（成本优势 + 可换视觉模型），A 直送为备选降级路径（主 agent 需看图或视觉模型质量不足时启用）。P3.3 证明 pi 路径内置多模态、A 实现成本低属实，但不构成砍 B 的依据；本文此前「单通道即可覆盖 C4a、B 倾向砍」的建议作废。
 
 **连带拍板**：
 - 把 pi-agent-core + pi-ai + pi-coding-agent 加入 package.json 依赖（lockfile 锁 0.84.2）。

@@ -36,3 +36,10 @@
 - **状态**：**已被 SP-3 推翻**——后续 weshop 案例证明 X 路线真实形态不是「镶 dsh Chat」而是「自带 ChatPanel 复用 SessionFace」
 
 ---
+
+## 修正-N · §5 D2 建议按拍板结果重写（D2 drift 修正）
+
+- **类型**：修正（按对象：spikes/01-dsh-integration-routes.zh.md）
+- **时间**：2026-08-21
+- **依据**：owner 指出 T11-plan 的 DeepSeek 降级验证疑似路线污染（2026-08-21），溯源发现本文 §5 与 spikes/02 §9 的「通道 B 倾向砍」建议与 owner 2026-08-20 已拍板的 D2（通道 B 为默认，[brand-config.md D2/D2a](../../topics/brand-config.md)）冲突——spike 文档建议早于/低于决策登记，按冲突裁决以拍板为准
+- **内容**：§5 D2 bullet 重写为「已拍板 B 默认」口径（Y4 事实保留——A 实现成本低不构成砍 B 的依据）；头部状态行加 D2 修正注记

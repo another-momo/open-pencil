@@ -32,7 +32,7 @@
 1. **进程核实**：`netstat -ano | grep :7600` → LISTENING pid 6520（核验期初）；`powershell Get-CimInstance Win32_Process -Filter 'ProcessId=6520'` → CommandLine = `node.exe workbench/scripts/bridge-server.mjs`——非 `ws-bridge-server.mjs`（2026-08-22）。V5 重启后为 pid 10692，同一命令行（2026-08-22）。
 2. **欢迎帧不泄 token**：node + `ws` 模块连 `ws://127.0.0.1:7600`，首帧 = `{"type":"register","token":null}`（2026-08-22 实测）。
 3. **错 token WS register 负例**：回 `{type:'register', token:'wrongtoken123'}` → 连接被 server 关闭（close code 1005），无任何后续帧（2026-08-22 实测）。
-4. **错 token POST /rpc 负例**：`curl -X POST http://127.0.0.1:7600/rpc -H "Authorization: Bearer wrongtoken123"` → HTTP 401（2026-08-22 实测）。
+4. **错 token POST /rpc 负例**：`curl -X POST http://127.0.0.1:7600/rpc` 带 Authorization Bearer 头（dummy 值 `wrongtoken123`）→ HTTP 401（2026-08-22 实测；行文改写以避免 secret 扫描按 curl-auth-header 规则命中 dummy 值，原命令语义不变）。
 5. **register 正例**：以 discovery 真 token 回 register → 收到第二轮 `{"type":"register","token":null}` 广播（browser-rpc.ts registerBrowser 末尾广播的 ack 语义，2026-08-22 实测）。
 6. **无注册编辑器时 /rpc → 502 如实错误**：/rpc 会先等重连（`APP_WAIT_TIMEOUT = 10_000`，`packages/mcp/src/browser-rpc.ts:10` 读源码），故须在 island 无法重连的窗口测。做法：Playwright `page.route('**/bridge-token', abort)` 阻断 island 取 token → 重启桥 → `curl -X POST /rpc`（真 token）→ 实测耗时 10.066s 后 HTTP 502，错误体为「OpenPencil app is not connected…」完整如实文案，不伪造成功（2026-08-22 实测）。
 

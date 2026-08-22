@@ -163,6 +163,9 @@ export function mountVueApp(el, { ck, editor, bootMs, fontBytes }) {
 
 			const status = vueRef("连接中");
 			const ckStatus = vueRef("未启动");
+			// 收起只切 display 保留 canvas DOM：v-if 重建会丢 surface；展开时
+			// useCanvas 的 ResizeObserver 会按新尺寸重配 surface。
+			const collapsed = vueRef(false);
 			let probeCanvasEl = null;
 			let ws = null;
 			let reconnectTimer = null;
@@ -273,8 +276,8 @@ export function mountVueApp(el, { ck, editor, bootMs, fontBytes }) {
 				h("div", {
 					"data-openpencil-vue": "root",
 					style: {
-						width: "min(1040px, calc(100vw - 32px))",
-						height: "min(720px, calc(100vh - 32px))",
+						width: collapsed.value ? "auto" : "min(1040px, calc(100vw - 32px))",
+						height: collapsed.value ? "auto" : "min(720px, calc(100vh - 32px))",
 						display: "flex", flexDirection: "column",
 						fontFamily: "sans-serif", fontSize: "13px",
 					},
@@ -296,15 +299,23 @@ export function mountVueApp(el, { ck, editor, bootMs, fontBytes }) {
 							h("span", { "data-openpencil-vue": "ck-status" }, `CanvasKit ${ckStatus.value}`),
 						]),
 						h("button", {
+							"data-openpencil-vue": "collapse",
+							style: { fontSize: "12px" },
+							onClick: () => { collapsed.value = !collapsed.value; },
+						}, collapsed.value ? "展开" : "收起"),
+						h("button", {
 							"data-openpencil-vue": "reconnect",
-							style: { marginLeft: "auto", fontSize: "12px" },
+							style: { marginLeft: collapsed.value ? "8px" : "auto", fontSize: "12px" },
 							onClick: connect,
 						}, "重连"),
 					]),
 					h("div", {
 						"data-openpencil-vue": "editor-area",
 						ref: (el) => { editorAreaEl = el; },
-						style: { position: "relative", flex: "1 1 auto", minHeight: "0", background: "#f8fafc" },
+						style: {
+							position: "relative", flex: "1 1 auto", minHeight: "0",
+							background: "#f8fafc", display: collapsed.value ? "none" : "block",
+						},
 					}, [
 						h("canvas", {
 							"data-openpencil-vue": "editor-canvas",

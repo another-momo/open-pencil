@@ -248,3 +248,11 @@
 - **依据**：T15 E1（CanvasKit wasm 孤岛初始化探针，最大风险 R1）一次执行通过——wasm 经插件自注册 webServer prefix 路由伺服（200 / 7,159,342B / application-wasm），readPixels 像素校验 true，initMs 485，console 0/0（commit 1749aebe，CI run 32571734912 绿）；E2（编辑器外壳入孤岛）达成并超额——真实引擎链（@open-pencil/core + @open-pencil/vue）在孤岛内渲染 demo scene，点选（topmost 命中）/拖拽移动（含 Figma 语义自动 reparent）/悬停/HMR 热替换（6.03MB 编辑器包、reactMounts 1→2、无整页刷新、暖启 125ms）全部实测通过，console 0/0；构建期五项发现（yoga TLA shim、node builtin 双层 stub、css-tree ESM 重定向、tsdown alias 顶层键、vue 四份拷贝收敛）详见 [T15-self-check §2.1](../../tasks/T15-self-check.md)
 - **内容**：任务表 T15 行状态 🔄 开工 → 🔄 进行中（E1/E2 通过：wasm 路由 + 编辑器渲染/选中/拖拽实证）；tasks/_index.md 镜像行同步
 - **task 文档**：[tasks/T15-plan.md](../../tasks/T15-plan.md)
+
+## 修正-N · tracker.md T15 行闭环 ✅（M2 编辑器入孤岛达成）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-22
+- **依据**：T15 验收全达——E1 CanvasKit wasm 孤岛探针通过（commit 1749aebe，路由 200/7,159,342B、像素回读 true）；E2 真实编辑器（core+vue 引擎链）入岛渲染/选中/拖拽/HMR 全实证（commit 063ecc07；CI 红两轮——file: 依赖需 workspace 预装预建 a9bf3672、YAML 标量 `file: ` 笔误 cd04cf62——修复后 run 32575625410 绿）；E3 会话往返切换 island 无重挂、状态保持、dispose/接受全局项成文（commit 77b1c86c，run 32575883252 绿）；E4 冷启动全链路冒烟通过（选中 + 拖拽精确位移，console 0/0，commit 2cc790de）；subagent 独立核验 V1-V8 全过「可以提交」（含 wasm sha256 双端一致、路径穿越四变体 404、exact pin 复核、HEAD CI run 32576137352 13/13 job 绿），[T15-verify](../../tasks/T15-verify.md) 由核验方就地重写
+- **内容**：任务表 T15 行状态 🔄 → ✅ 完成；tasks/_index.md 镜像行同步
+- **task 文档**：[tasks/T15-plan.md](../../tasks/T15-plan.md)

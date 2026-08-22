@@ -34,7 +34,8 @@
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('lib',{recursive:true,force:true})\"",
     "build": "node scripts/copy-assets.mjs && npm run clean && tsdown",
-    "dev": "node scripts/copy-assets.mjs && tsdown --watch"
+    "dev": "node scripts/copy-assets.mjs && tsdown --watch",
+    "bridge": "node scripts/bridge-server.mjs"
   },
   "dependencies": {
     "@open-pencil/core": "file:../packages/core",

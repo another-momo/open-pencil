@@ -1,0 +1,5 @@
+# X4 preset 首启安装证据（2026-08-22 复现采集；绝对路径按 D17 脱敏为 <DSH_HOME>）
+# 采集方式：删除沙箱 dsh-home/.agent-presets/openpencil-design 后重启 dsh web，插件 installBundledPreset 首启复制
+[openpencil-spike] preset install: {"installed":true,"presetDirectory":"<DSH_HOME>/.agent-presets/openpencil-design"}
+# 二次启动（preset 已存在时）日志：
+[openpencil-spike] preset install: {"installed":false,"reason":"already present","presetDirectory":"<DSH_HOME>/.agent-presets/openpencil-design"}

@@ -1,0 +1,79 @@
+{
+  "item": "X5 hard gate: shell.overlay session switch does NOT unmount island",
+  "date": "2026-08-22",
+  "baseUrl": "http://127.0.0.1:3080",
+  "sessions": {
+    "a": "session-43162960-aabb-4a22-851f-b0f4d79e4777",
+    "b": "session-da6aae8f-650a-447a-a28d-4ff80592044b"
+  },
+  "switchLog": [
+    {
+      "step": "start",
+      "title": "spike-design-3 — DeepSeek Harness",
+      "reactMounts": 1,
+      "vueMounts": 1,
+      "vueUid": 0,
+      "sameNode": true,
+      "hostCount": 1,
+      "vueRootCount": 1,
+      "islandErrors": 0
+    },
+    {
+      "step": "switch#1 -> spike-x5-a",
+      "title": "spike-x5-a — DeepSeek Harness",
+      "reactMounts": 1,
+      "vueMounts": 1,
+      "vueUid": 0,
+      "sameNode": true,
+      "hostCount": 1,
+      "vueRootCount": 1,
+      "islandErrors": 0
+    },
+    {
+      "step": "switch#2 -> spike-x5-b",
+      "title": "spike-x5-b — DeepSeek Harness",
+      "reactMounts": 1,
+      "vueMounts": 1,
+      "vueUid": 0,
+      "sameNode": true,
+      "hostCount": 1,
+      "vueRootCount": 1,
+      "islandErrors": 0
+    },
+    {
+      "step": "switch#3 -> spike-x5-a",
+      "title": "spike-x5-a — DeepSeek Harness",
+      "reactMounts": 1,
+      "vueMounts": 1,
+      "vueUid": 0,
+      "sameNode": true,
+      "hostCount": 1,
+      "vueRootCount": 1,
+      "islandErrors": 0
+    },
+    {
+      "step": "switch#4 -> spike-x5-b",
+      "title": "spike-x5-b — DeepSeek Harness",
+      "reactMounts": 1,
+      "vueMounts": 1,
+      "vueUid": 0,
+      "sameNode": true,
+      "hostCount": 1,
+      "vueRootCount": 1,
+      "islandErrors": 0
+    },
+    {
+      "step": "switch#5 -> spike-x5-a",
+      "title": "spike-x5-a — DeepSeek Harness",
+      "reactMounts": 1,
+      "vueMounts": 1,
+      "vueUid": 0,
+      "sameNode": true,
+      "hostCount": 1,
+      "vueRootCount": 1,
+      "islandErrors": 0
+    }
+  ],
+  "consoleErrors": [],
+  "verdict": "PASS"
+}

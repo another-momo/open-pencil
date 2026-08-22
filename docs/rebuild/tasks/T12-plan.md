@@ -47,14 +47,14 @@ dsh-X 路线（编辑器作 dsh bundle 挂上 shell.overlay）按 [spikes/04-dsh
 
 ## 2. 任务清单
 
-- [ ] X0 dsh host 环境 + 版本 pin 记录
-- [ ] X1 shell.overlay 双框架 island
-- [ ] X2 7600 WS RPC 稳定性（1h）
-- [ ] X3 openpencil_apply_design 端到端
-- [ ] X4 preset install
-- [ ] X5 **硬 gate：切 session 不卸载**
-- [ ] X6 systemPrompt.section 注入
-- [ ] X7 self-check + subagent 核验 + 记录登记
+- [x] X0 dsh host 环境 + 版本 pin 记录
+- [x] X1 shell.overlay 双框架 island
+- [x] X2 7600 WS RPC 稳定性（1h）
+- [x] X3 openpencil_apply_design 端到端
+- [x] X4 preset install
+- [x] X5 **硬 gate：切 session 不卸载**（gate 通过）
+- [x] X6 systemPrompt.section 注入（装配面）
+- [x] X7 self-check + subagent 核验 + 记录登记
 
 ## 3. 验收标准
 

@@ -1,0 +1,18 @@
+{
+  "verdict": "PASS",
+  "startedAt": "2026-08-22T03:51:27.929Z",
+  "durationMinPlanned": 60,
+  "connects": 1,
+  "disconnects": 0,
+  "pingsSent": 1792,
+  "pongsOk": 1792,
+  "pongTimeouts": 0,
+  "finishedAt": "2026-08-22T04:51:28.495Z",
+  "finishReason": "duration reached",
+  "durationMinActual": 60.009433333333334,
+  "rtt": {
+    "p50": 1,
+    "p95": 1,
+    "max": 6
+  }
+}

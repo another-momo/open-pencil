@@ -1,0 +1,126 @@
+{
+  "item": "X3 openpencil_apply_design end-to-end, diff < 50ms",
+  "date": "2026-08-22",
+  "bridge": "ws://127.0.0.1:7601",
+  "scenarios": {
+    "A": {
+      "nodes": 8,
+      "iterations": 20,
+      "diffMs": [
+        0.167,
+        0.068,
+        0.064,
+        0.05,
+        0.028,
+        0.022,
+        0.025,
+        0.025,
+        0.033,
+        0.024,
+        0.023,
+        0.023,
+        0.023,
+        0.025,
+        0.028,
+        0.027,
+        0.021,
+        0.022,
+        0.022,
+        0.023
+      ],
+      "bridgeMs": [
+        16,
+        4,
+        3,
+        3,
+        3,
+        2,
+        2,
+        3,
+        3,
+        3,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        1,
+        2,
+        2
+      ]
+    },
+    "B": {
+      "first": {
+        "applied": 1,
+        "diffMs": 0.0216999999999814,
+        "changedNodes": [
+          "node-3"
+        ]
+      },
+      "second": {
+        "applied": 1,
+        "diffMs": 0.022800000000017917,
+        "changedNodes": [
+          "node-4"
+        ]
+      }
+    },
+    "C": "见 results",
+    "D": {
+      "nodes": 1000,
+      "diffMs": [
+        8.447,
+        0.535,
+        0.494,
+        0.445,
+        0.39
+      ]
+    }
+  },
+  "results": [
+    {
+      "name": "A: 全部 20 轮 diffMs < 50ms",
+      "ok": true,
+      "detail": "min=0.021 p50=0.025 p95=0.167 max=0.167"
+    },
+    {
+      "name": "A: 全部 20 轮桥往返 bridgeMs < 50ms",
+      "ok": true,
+      "detail": "max=16"
+    },
+    {
+      "name": "B: 第一次 patch changedNodes == [node-3]",
+      "ok": true,
+      "detail": "[\"node-3\"]"
+    },
+    {
+      "name": "B: 第二次 patch changedNodes 只含 node-4（node-3 的改动已沉淀、不误报）",
+      "ok": true,
+      "detail": "[\"node-4\"]"
+    },
+    {
+      "name": "C: 坏路径被拒绝",
+      "ok": true,
+      "detail": "apply_design: path misses at ghost: nodes.ghost.props.fill"
+    },
+    {
+      "name": "C: 不支持 op 被拒绝",
+      "ok": true,
+      "detail": "apply_design: unsupported op: delete"
+    },
+    {
+      "name": "D: changedNodes 命中 10 个目标节点",
+      "ok": true,
+      "detail": "got 10"
+    },
+    {
+      "name": "D: 1000 节点下全部 diffMs < 50ms",
+      "ok": true,
+      "detail": "min=0.390 max=8.447"
+    }
+  ],
+  "failures": 0,
+  "verdict": "PASS"
+}

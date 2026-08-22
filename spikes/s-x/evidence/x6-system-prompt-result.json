@@ -1,0 +1,56 @@
+{
+  "item": "X6 systemPrompt.section marketing injection takes effect at assembly",
+  "date": "2026-08-22",
+  "mechanism": "ctx.systemPrompt.section({ text: () => fn() }) — function re-evaluated per assemble(); openpencil_set_marketing_type flips the store",
+  "coverage": "assembly-level (real cordis + real dsh-system-prompt + real plugin apply); model-reply face blocked on API keys",
+  "promptLengths": [
+    48,
+    264,
+    264,
+    48
+  ],
+  "results": [
+    {
+      "name": "1. 初始装配不含 marketing section（type 未选择 → 空文本 → 整节丢弃）",
+      "ok": true,
+      "detail": "prompt 48 chars"
+    },
+    {
+      "name": "2. openpencil_set_marketing_type 工具已注册",
+      "ok": true,
+      "detail": "openpencil_set_marketing_type,openpencil_apply_design,openpencil_bridge_ping"
+    },
+    {
+      "name": "3. openpencil_apply_design 工具已注册",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "4. 切 type=poster 后装配含 poster",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "5. 切换后 prompt 变长（section 真实进入装配）",
+      "ok": true,
+      "detail": "48 -> 264"
+    },
+    {
+      "name": "6. 再切 type=banner 后装配含 banner 且不含 poster",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "7. 清空 type 后 marketing section 再次整节丢弃",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8. 同一 section 注册在三次装配产生三种渲染（函数逐次求值）",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "failures": 0,
+  "verdict": "PASS"
+}

@@ -1,0 +1,11 @@
+# spike 沙箱产物，不入库
+node_modules/
+host-sandbox/
+plugin/node_modules/
+plugin/lib/
+x2-server.log
+x2-soak.log
+.playwright-mcp/
+
+# 证据日志是交付物（根 .gitignore 的 *.log 全局规则在此反排除）
+!evidence/*.log

@@ -99,7 +99,15 @@ function checkModified(zones: Zones, modified: string[]): string[] {
   )
   const owned = new Set([...zones.ownedFiles, ...zones.stubs])
   return modified
-    .filter((file) => !patchedFiles.has(file) && !owned.has(file))
+    .filter(
+      (file) =>
+        !patchedFiles.has(file) &&
+        !owned.has(file) &&
+        // Merge-base is MERGE_HEAD during any in-progress merge, including merges
+        // of our own branches (spike/*, merge/*) — files under ownedRoots are ours
+        // (never upstream), so conflict-resolution edits there are not patches.
+        !zones.ownedRoots.some((r) => file.startsWith(r))
+    )
     .map(
       (file) => `MODIFIED but not registered: ${file} (register a patch in zones.json or revert)`
     )

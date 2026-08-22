@@ -1,0 +1,19 @@
+{
+  "name": "s-x-spike",
+  "private": true,
+  "type": "module",
+  "description": "T12 S-X spike: dsh-X route verification (spikes/04 §7.1 six items). Self-contained, NOT in root workspaces.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "x2:server": "node ws-bridge-server.mjs",
+    "x2:soak": "node ws-bridge-soak.mjs"
+  },
+  "dependencies": {
+    "ws": "8.18.3"
+  },
+  "devDependencies": {
+    "playwright": "^1.55.0"
+  }
+}

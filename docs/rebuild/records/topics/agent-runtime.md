@@ -157,6 +157,20 @@
 - **搁置而非否决**：spike 05 建档保留全部核查结论；packages/harness 包保留在仓（T10「保 harness 裁 ACP」决策不变——跟随上游、不占我们的 runtime 路径）；若 T11 spike 实测暴露直用 SDK 的意外成本，可回摆重议
 - **supersede 注记**：修正-4 中「DeepSeek 占位降级验证该留」的论证语境是 spike 02 旧口径（通道 A 主线）；D2 drift 修正后（spike 01/02 已改），降级验证降为通道 A 时间盒备选探测，本决策维持该定性
 
+## SP-8 · S-X spike 六项验证离线面全绿（dsh-X 路线机制成立，T12）
+
+- **类型**：证据（核验）
+- **时间**：2026-08-22
+- **核验命令**：`node spikes/s-x/x3-apply-design.mjs`、`node spikes/s-x/x5-gate-test.mjs`、`node spikes/s-x/x6-system-prompt-probe.mjs`（spike/s-x 分支，spikes/s-x/evidence/ 下 JSON+截图）；Playwright MCP 页面内 evaluate（X1）
+- **关键结论**：
+  1. **X5 硬 gate 通过**：shell.overlay island 在 5 次真实 session 切换（document.title 交替为证）后 React 宿主与 Vue 实例零重建（reactMounts=1/vueMounts=1/vueUid 不变/domNode 引用同一），切换后岛仍可交互——spike 04 §8 的源码断言（renderSlot 无 only 参数）获运行时实证，dsh-X 路线无需退回 split slot
+  2. **双框架 island 可行**：React 宿主 portal + 内嵌 Vue 3 应用经 dsh client-modules 加载，console 0 错 0 警告；**Windows 坑位**：rolldown 向上查找 tsconfig 命中仓库根 `jsx:preserve` 会保留生 JSX（weshop 无此问题是因父目录无 tsconfig），修法是插件目录本地 tsconfig 置 react-jsx；tsdown 0.22.14 的 `jsx` 配置键被静默忽略
+  3. **7600 WS 桥 1h 0 断连**：1792 ping / 0 超时 / 0 断连 / RTT p95=1ms（后段与 npm 大安装并行仍稳定）
+  4. **apply_design 端到端 <50ms 量级富余**：8 节点 diffMs p50≈0.025ms；1000 节点 10 patch max≈8.4ms（幂等重跑数值微漂、量级稳定）；错误路径（坏 path/坏 op）显式 error 帧
+  5. **preset 机制通**：首启自动安装（installed:true）、`session.create {agentPreset:"openpencil-design"}` 被 agent 面接受、UI 模式选择器显示「OpenPencil 设计模式」
+  6. **systemPrompt 动态注入装配面生效**：section text 函数逐次装配重新求值（真 cordis + 真 dsh-system-prompt 实证），工具翻转 store 后下一次装配文本即变（48→264 字符）
+- **阻塞面（未伪造，已上报 owner）**：X3「模型自主调工具」与 X6「模型回复体现变化」需 LLM key；dsh 的 DeepSeek 模型同样 text-only（与 pi-ai 目录一致），离线面无法覆盖
+- **对 D9 的意义**：dsh-X 路线机制风险最大的一项（X5 卸载风险）已排除；S-X 与 S-pi（SP-7）离线面均全绿，D9 拍板所需的可离线证据已齐，余下对比项都需 API key
 ## D22 · D9 拍板：dsh 插件路线（a）先行，pi SDK 产品版后置
 
 - **类型**：决策

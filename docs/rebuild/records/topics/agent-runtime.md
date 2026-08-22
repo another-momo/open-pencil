@@ -156,3 +156,16 @@
 - **理由**：经 spike 05 讨论收敛——(1) B/C 差别本质是「Vercel 胶水 vs 自写胶水」，service 层两案都自写，成本差仅 150-300 行胶水便利；(2) 版本耦合硬事实：harness-pi@1.0.76 锁 pi `^0.80.10`（0.x caret 锁 minor）+ pi-ai `0.74.2` 精确锁，而核查与 spike 证据全在 0.84.2，升级闸门交给 Vercel 发布节奏（R-pi-1 加重版）；(3) 能力天花板：D2a 通道 A 降级阀（prompt 纯文本）与 B1b 审批回合（六事件无 approval 往返）受阻，extensionFactories 逃生舱未实测；(4) backend 可换期权对我们非刚需——知道要选 pi
 - **搁置而非否决**：spike 05 建档保留全部核查结论；packages/harness 包保留在仓（T10「保 harness 裁 ACP」决策不变——跟随上游、不占我们的 runtime 路径）；若 T11 spike 实测暴露直用 SDK 的意外成本，可回摆重议
 - **supersede 注记**：修正-4 中「DeepSeek 占位降级验证该留」的论证语境是 spike 02 旧口径（通道 A 主线）；D2 drift 修正后（spike 01/02 已改），降级验证降为通道 A 时间盒备选探测，本决策维持该定性
+
+## D22 · D9 拍板：dsh 插件路线（a）先行，pi SDK 产品版后置
+
+- **类型**：决策
+- **时间**：2026-08-22
+- **拍板**：owner（会话原话：「先推进dsh插件路线，以后有余力的时候再做一个基于pi sdk路线的产品版本」）
+- **状态**：已拍板（D9 从 open 闭环）
+- **内容**：
+  1. **D9 = a（编辑器入壳 / dsh 插件路线，即 dsh-X）作为当前主线**——open-pencil marketing 工作台作 dsh bundle 发布（spikes/04 §2.1 形态），Phase 1-X 实施启动
+  2. **c（pi SDK 直驱）后置为独立产品版本**——S-pi 离线证据（SP-7）与上游 harness 在产参照（SP-6）归档保留，pi 产品版启动时直接可用；S-pi 模型面验证随 pi 产品版后置，不在当前主线补跑
+  3. **S-X 模型面（X3 模型调工具 / X6 模型回复响应）仍需补**——它在主路上，阻塞解除条件 = owner 补 API key（DeepSeek 即可，spike 量级成本几毛钱）
+- **依据**：S-pi（SP-7）与 S-X（SP-8）离线面均全绿、X5 硬 gate 通过、双路线模型面同卡一个 key；owner 按产品形态意图拍板（dsh 买整套 agent 宿主生态：工具/权限/技能/subagent/preset）
+- **注记**：D9 原「当前推荐：c 推 1」为 spike 前口径；owner 拍板与推荐不一致时以拍板为准（本条目即拍板结果）

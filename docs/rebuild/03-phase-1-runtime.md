@@ -184,6 +184,21 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 
 （原口径「待 owner 拍板 D9 后启动 S-X 或 S-pi」已被 D20 取代——spike 先行产证据，D9 后拍。验证清单：spikes/04-dsh-x-design.zh.md §7.1 六项 / spikes/02-pi-sdk-runtime.zh.md §6 四项，各 4.5 人日。）
 
+### 5.4 dsh 版本钉扎与双周升级窗口（T13，D22 拍板后生效）
+
+**【事实】版本现状**（核验日期 2026-08-22）：
+
+- 主线基准版本：`@deepseek-ai/dsh@0.1.1-rc.1`——S-X spike 全部证据（SP-8）在此版本产出（sandbox 安装实录：`node -e "console.log(require('./host-sandbox/node_modules/@deepseek-ai/dsh/package.json').version)"`，cwd = spikes/s-x；注意 host-sandbox 被 gitignore，需在 spike 环境执行）
+- npm 已指向下一版：`npm view @deepseek-ai/dsh dist-tags` → latest/next 均为 `0.1.1-rc.2`（2026-08-22 实测）——**钉扎即落后 latest 一个 rc**，preview 颠簸是常态不是例外
+- 发布节奏：`npm view @deepseek-ai/dsh time` → 2026-08-10..21 共 10 个 rc 发布，其中 rc.1 与 rc.2 同日（08-21）相隔 6 小时
+
+**纪律**：
+
+1. **钉扎**：开发与 CI 一律使用 `0.1.1-rc.1` 精确版本（依赖声明不用 `^`/`~`，不用 dist-tag）。T14 插件骨架的 devDependency 与安装文档均以此为准
+2. **升级窗口**：每两周一个评估窗口（首个窗口 = 2026-09-05 所在周）。窗口内看 changelog/commit 差，决定升或不升；不升则记录原因
+3. **升级 = 独立 commit**：必须重跑 S-X 证据脚本（`node spikes/s-x/x3-apply-design.mjs`、`x5-gate-test.mjs`、`x6-system-prompt-probe.mjs`）+ 7600 soak smoke，新证据随 commit 落盘（spikes/s-x/evidence/ 注明版本）
+4. **例外**：非窗口期仅安全修复可破格升级，需 owner 拍板并记 records
+
 ---
 
 ## 6. 文档关系索引

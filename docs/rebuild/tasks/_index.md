@@ -42,6 +42,7 @@
 | [T10](../tasks/T10-plan.md) | upstream 合并+Phase 1 启动 | upstream/master@5201404f 合并 + D20 登记 + spike 任务登记 | ✅ 已完成（远端 CI run 32458703514 12/12） | [T10-plan](../tasks/T10-plan.md) | [T10-self-check](../tasks/T10-self-check.md) | [T10-verify](../tasks/T10-verify.md) |
 | [T11](../tasks/T11-plan.md) | Phase 1 runtime | S-pi spike（pi sdk 库形态四项验证） | 🔶 离线面全过（subagent 核验讫）；活模型面阻塞待 owner 补 key | [T11-plan](../tasks/T11-plan.md) | [T11-self-check](../tasks/T11-self-check.md) | [T11-verify](../tasks/T11-verify.md) |
 | [T12](../tasks/T12-plan.md) | Phase 1 runtime | S-X spike（dsh-X 六项验证含硬 gate） | ✅ 已完成（CI run 32560998564 12/12；X5 硬 gate 通过；模型面阻塞已上报） | [T12-plan](../tasks/T12-plan.md) | [T12-self-check](../tasks/T12-self-check.md) | [T12-verify](../tasks/T12-verify.md) |
+| [T13](../tasks/T13-plan.md) | Phase 1-X 收口 | 双 spike 合并回归 + dsh 版本钉扎纪律 + S-X 模型面补跑 | 🔶 合并回归+版本纪律完成（CI run 32563228158 全绿）；模型面补跑阻塞待 owner 补 key | [T13-plan](../tasks/T13-plan.md) | [T13-self-check](../tasks/T13-self-check.md) | [T13-verify](../tasks/T13-verify.md) |
 | (后续 task 按顺序登记) | — | — | — | — | — | — |
 
 ## 3. 三件套结构（强制）

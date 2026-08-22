@@ -203,3 +203,10 @@
 - **时间**：2026-08-22
 - **依据**：T12 全部验收达成——远端 CI run 32560998564 12/12 success（HEAD dab1ba8c，spike/s-x）；S-X 六项离线面全绿（X5 硬 gate 通过：5 次真实 session 切换 island 零重建，evidence/x5-gate-result.json）；subagent 独立核验「可以提交」（F1-F4 已修）；X3/X6 模型面按「阻塞即上报」列自检 §3
 - **内容**：任务表 T12 行状态 🔄 → ✅ 完成（附 CI 与 gate 证据指针）；tasks/_index.md 镜像行同步
+## 修正-N · tracker.md T13 行登记即闭环 🔶（T13 收工）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-22
+- **依据**：T13 收口达成——双 spike 合并回归（merge commits 694f4a29 / 918b048c，CI run 32563228158 全绿含 Rebuild discipline，根修 D22 commit 所致 run 32562039785 红）；dsh 版本钉扎 + 双周升级窗口成文（[03-phase-1-runtime.md §5.4](../../03-phase-1-runtime.md)）；zone-checker ownedRoots 豁免随 694f4a29 入库；subagent 独立核验「可以提交」（F1 rc 数字 8→10、F2 复选框、F3 命令路径，均已就地修正）；S-X 模型面补跑按「阻塞即上报」列自检 §3（待 owner 补 DeepSeek key）
+- **内容**：任务表新增 T13 行，状态 🔶「合并回归+版本纪律完成；模型面补跑阻塞待 owner 补 key」，三件套列齐；tasks/_index.md 镜像行同步
+- **task 文档**：[tasks/T13-plan.md](../../tasks/T13-plan.md)

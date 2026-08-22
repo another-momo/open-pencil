@@ -11,9 +11,7 @@
     "workbench/"
   ],
   "ownedFiles": [],
-  "stubs": [
-    "src/app/collab/use.ts"
-  ],
+  "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
     "src/app/ai/chat/",
     "src/app/ai/providers/",

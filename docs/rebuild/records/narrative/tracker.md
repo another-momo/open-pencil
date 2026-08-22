@@ -232,3 +232,11 @@
 - **时间**：2026-08-22
 - **依据**：T14 闭环 commit 7643ca39 的 CI run 32568952869 因 format:check（zones.json 经 node 重写后 stubs 数组未按 oxfmt 内联）红——修复 commit 7722d445（oxfmt 归一化）后 run 32569154626 全绿（含新 workbench-build job 首跑绿）
 - **内容**：T14 行状态补 CI run 32569154626 证据；tasks/_index.md 镜像行与 T14-self-check §2.5 同步回填
+
+## 修正-N · tracker.md T15 行登记（owner 推进 M2 编辑器入孤岛）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-22
+- **依据**：owner 拍板「推进」，T14 收口完成后进 T15（M2 编辑器入孤岛，全路线最大风险项，估 5-6 人日）；E1 风险探针先行（CanvasKit wasm 能否在 island 初始化），其前置未知「wasm 资产服务」已在注册期以源码实证定案——webServer prefix 路由方案（serveBundle 白名单 / webServer.register API / frontend-static inject 先例三处源码实证，详见 [T15-self-check §2.1](../../tasks/T15-self-check.md)）
+- **内容**：任务表新增 T15 行，状态 🔄 开工，三件套列一次登记齐（self-check/verify 为如实进行中态，非占位：self-check §2 已含注册期 recon 实测，verify §1 为收口核验项预定、明确声明不含已通过结论）；tasks/_index.md 镜像行同步
+- **task 文档**：[tasks/T15-plan.md](../../tasks/T15-plan.md)

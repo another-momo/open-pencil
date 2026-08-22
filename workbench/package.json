@@ -1,0 +1,46 @@
+{
+  "name": "openpencil-marketing",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenPencil marketing workbench as a dsh bundle: shell.overlay island (React host + Vue app), 7600 WS bridge tools, openpencil-design agent preset",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/",
+    "presets/",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ],
+      "platform": "web"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  },
+  "dependencies": {
+    "vue": "3.5.18",
+    "ws": "8.18.3"
+  },
+  "devDependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tsdown": "0.22.14"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  // 本文件必须存在且 jsx 必须为 react-jsx：rolldown 从每个源文件向上查找最近的
+  // tsconfig.json；若没有本文件，会命中仓库根的 "jsx": "preserve"，导致构建产物
+  // 残留生 JSX、浏览器端模块注册失败（T12/X1 实证，2026-08-22）。tsdown 0.22.14
+  // 自身的 jsx 配置键被静默忽略，不能依赖。
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src"]
+}

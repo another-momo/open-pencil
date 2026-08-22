@@ -217,3 +217,11 @@
 - **时间**：2026-08-22
 - **依据**：owner 拍板下一阶段路线图（会话原话「开始」「推进」），T13 收口完成后进 T14 插件骨架产品化（MS-X1）
 - **内容**：任务表新增 T14 行，状态 🔄 开工，plan 列链接 [T14-plan.md](../../tasks/T14-plan.md)，self-check/verify 列待闭环回填；tasks/_index.md 镜像行同步
+
+## 修正-N · tracker.md T14 行闭环 ✅（T14 收工，MS-X1 达成）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-22
+- **依据**：T14 验收全达——workbench/ 骨架落地（npm ci + build 绿、X1 回归三检过）；沙盒装机冒烟（island 起、7600 桥在线 2ms、console 0 错、RPC preset 接受、宿主 serve 产物与工作区逐字节一致——subagent 实证）；**HMR 决策点 4 证伪为 A 级**（dsh web 对 client module 产物做模块级热替换，mounts 1→2→3 两轮复现、window 存活非整页刷新）；CI 加 workbench-build job（P35）；subagent 独立核验 12/12「可以提交」（F1/F2 证据精度已就地修正）
+- **内容**：任务表 T14 行状态 🔄 → ✅ 完成，self-check/verify 列回填；tasks/_index.md 镜像行同步
+- **task 文档**：[tasks/T14-plan.md](../../tasks/T14-plan.md)

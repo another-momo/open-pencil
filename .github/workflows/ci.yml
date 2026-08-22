@@ -130,6 +130,33 @@ jobs:
           bun tools/zone-registry/src/check/bindings.ts --base "$BASE"
           bun tools/zone-registry/src/check/tasks.ts --base "$BASE"
 
+  # T14 (P35): workbench/ is a standalone-toolchain dsh bundle (not in bun
+  # workspaces) — build it with its own npm lockfile and guard the X1
+  # regression (raw JSX in client bundle breaks dsh module registration).
+  workbench-build:
+    name: Workbench bundle build
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build workbench bundle
+        run: npm ci --no-audit --no-fund && npm run build
+        working-directory: workbench
+
+      - name: X1 regression guard (no raw JSX in client bundle)
+        shell: bash
+        run: |
+          grep -q "jsx-runtime" workbench/lib/client.js
+          ! grep -q "createPortal)(<" workbench/lib/client.js
+          head -c 200 workbench/lib/client.js | grep -q "__ModuleLoader__.load"
+
   storybook:
     name: Component workshop
     timeout-minutes: 10

@@ -234,6 +234,12 @@
       "file": "knip.json",
       "reason": "remove packages/acp + packages/demos from ignoreWorkspaces (never existed; upstream dead config, flagged by knip --include unlisted,unresolved after T10 merge). T10 附带",
       "disposition": "permanent"
+    },
+    {
+      "id": "P35",
+      "file": ".github/workflows/ci.yml",
+      "reason": "add workbench-build job (T14): standalone npm build of workbench/ dsh bundle + X1 raw-JSX regression guard",
+      "disposition": "permanent"
     }
   ],
   "deletedPaths": [

@@ -49,12 +49,12 @@ D22 拍板 dsh-X 主线、T13 收口完成后，把 T12 spike 插件（`spikes/s
 
 ## 2. 任务清单
 
-- [ ] W1 zones.json 登记 `workbench/` ownedRoot
-- [ ] W2 骨架落地
-- [ ] W3 沙盒装机冒烟（island + preset）
-- [ ] W4 HMR 证伪 + 开发回路成文
-- [ ] W5 self-check + subagent 核验 + 登记
-- [ ] W6（可选）CI 加 workbench build 步骤
+- [x] W1 zones.json 登记 `workbench/` ownedRoot
+- [x] W2 骨架落地
+- [x] W3 沙盒装机冒烟（island + preset）
+- [x] W4 HMR 证伪 + 开发回路成文
+- [x] W5 self-check + subagent 核验 + 登记
+- [x] W6（可选）CI 加 workbench build 步骤
 
 ## 3. 验收标准
 

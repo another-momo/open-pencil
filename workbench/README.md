@@ -61,4 +61,5 @@ workbench/
 - T14 装机冒烟 + HMR 探针截图：`evidence/t14-island-smoke.png`、`evidence/t14-hmr-probe.png`
 - T15/E1 CanvasKit 探针：`evidence/t15-e1-canvaskit-island.png`
 - T15/E2 编辑器入岛（demo scene 渲染 + 点选/拖拽/hover 交互）：`evidence/t15-e2-editor-island.png`、`evidence/t15-e2-editor-island-interact.png`
+- T15/E3 会话切换存活（往返切换无重挂、选中态保持、切换后可交互）：`evidence/t15-e3-session-switch.png`
 - 机制实证（X1/X4/X5/X6）：`spikes/s-x/evidence/`（T12）

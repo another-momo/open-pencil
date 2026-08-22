@@ -9,7 +9,7 @@
 # tasks/T15-self-check.md · T15 自检
 
 > **T 编号**：T15（M2 编辑器入孤岛）
-> **状态**：🔄 进行中（E1 未开始；注册期 recon 已完成，见 §2）
+> **状态**：🔄 进行中（E1/E2/E3 通过，见 §2；E4 收口未开始）
 
 ## 1. 完成度矩阵
 
@@ -17,10 +17,10 @@
 |---|---|---|
 | E1 CanvasKit wasm 初始化探针 | ✅ 通过（2026-08-22） | §2.2 实测值 + [evidence/t15-e1-canvaskit-island.png](../../../workbench/evidence/t15-e1-canvaskit-island.png) |
 | E2 编辑器外壳入孤岛 | ✅ 通过（2026-08-22） | §2.1 实测值 + evidence/t15-e2-editor-island{,-interact}.png |
-| E3 生命周期/状态对齐 | 🔄 部分证据已有（HMR 带编辑器热替换 + 会话切换存活），dispose 语义与接受项成文未完 | §2.1 第 4 条 |
+| E3 生命周期/状态对齐 | ✅ 通过（2026-08-22） | §2.5 会话往返实测 + dispose/接受全局项成文 + [evidence/t15-e3-session-switch.png](../../../workbench/evidence/t15-e3-session-switch.png) |
 | E4 冒烟 + 三件套收口 | ⬜ 未开始 | — |
 
-## 2. 实测记录（按时间倒序，最新在上）
+## 2. 实测记录（§2.1-§2.4 为注册期→E2 阶段、编号冻结以保持外链有效；E3 起按追加序续号）
 
 ### 2.1 2026-08-22 E2 通过：真实编辑器（core+vue 引擎链）在 island 渲染、可选中、可拖动
 
@@ -87,3 +87,15 @@ E1 的唯一前置未知「dsh 宿主能不能供 wasm 资产」已在注册期�
 
 - 无 `old/` 目录——spike 04 文中 "old/src" 即指本仓当前 `src/`（Vue 3 编辑器 UI）+ `packages/*` 引擎层（2026-08-22 `ls` 实测）
 - `packages/core` 以 `./canvaskit` export 暴露 canvaskit 模块（`packages/core/package.json` exports 字段，2026-08-22 实测）
+
+### 2.5 2026-08-22 E3 通过：会话切换 island 存活实测 + dispose/HMR 语义与接受全局项成文
+
+**结论：会话往返切换 island 不卸载、编辑器状态不丢、切换后交互完全可用（实测）；HMR/卸载 dispose 链路代码级成文。**
+
+1. **会话切换实测**（Playwright 真实点击，2026-08-22，宿主 127.0.0.1:3080）：spike-alpha-1 → spike-alpha-2 → spike-alpha-1 往返。切换前后 `window.__openpencilIsland` 实测：reactMounts 1、vueMounts 1（无重挂），editor.ready true 且 bootMs 447（初启值，非重启），选中态跨切换保持（切前选中的 0:3 仍在）。每条腿各做真实鼠标交互：画布中央点击选中 0:4、角落点击清空选中——切换后编辑器完全可交互。island errors 0。机制即 X5 已证的 shell.overlay additive（会话切换不卸载 overlay 槽位）。截图：evidence/t15-e3-session-switch.png
+2. **接受全局项清单**（island 挂载编辑器期间触碰的全局面，逐项列出并给出处）：
+   - `window`：keydown / keyup / blur / mouseup(capture)（`packages/vue/src/canvas/useCanvasInput.ts:407-433`，经 vueuse `useEventListener` 注册在组件 effect scope，卸载自动移除）。已知语义：宿主页面任意位置按键会经过编辑器的 modifier 跟踪——孤岛是宿主页内 overlay，可接受
+   - canvas 元素级：dblclick / mousedown / mousemove / mouseup / mouseleave（元素级监听，无泄漏面）
+   - 桥心跳：`setInterval` 5s + WebSocket（`workbench/src/client/editor-boot.js` mountVueApp，`onUnmounted` 清理）
+   - 不在本岛链路的全局触碰（列出以示盘点过）：`navigator.clipboard` 仅文本编辑态（clipboard.ts）；`navigator.userAgent`（shortcut.ts）与 `localStorage`（i18n/locale.ts）——commands/i18n 均未 import 进岛
+3. **dispose/HMR 语义**（代码链 + E2 实测）：HMR 热替换 → dsh 重挂 client module → React 岛 effect cleanup `app?.unmount()`（`workbench/src/client/index.jsx`）→ vue effect scope 级联清理：vueuse 全局/元素监听自动移除；useCanvasInput 的 editor 事件订阅 `onScopeDispose(stopToolListener)` 注销（useCanvasInput.ts:437-439）；画布 surface 链 `onScopeDispose` → `cancelResize()` + `surface.destroy()`（renderLoop.pause + renderer.destroy + glContext.delete，`packages/vue/src/canvas/surface/lifecycle.ts:128-133,176`）。**有意存活项**：canvaskit wasm 单例 + 字体缓存（E2 实测暖重挂 bootMs 125ms vs 冷启 447ms）；E1 探针 surface（红矩形留证，editor-boot.js 注释固化）；`window.__openpencilIsland` 状态对象（reactMounts 计数即 HMR 证据）。core editor 本体无 dispose API，弃置由 GC 回收（唯一定时器是 `packages/core/src/editor/nudge.ts` 的实例级 setTimeout，随对象不可达失效）。E2 已实测 HMR 一轮 reactMounts 1→2、无整页刷新、console 0/0，未见监听器泄漏症状（§2.1 第 4 条）

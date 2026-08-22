@@ -225,3 +225,10 @@
 - **依据**：T14 验收全达——workbench/ 骨架落地（npm ci + build 绿、X1 回归三检过）；沙盒装机冒烟（island 起、7600 桥在线 2ms、console 0 错、RPC preset 接受、宿主 serve 产物与工作区逐字节一致——subagent 实证）；**HMR 决策点 4 证伪为 A 级**（dsh web 对 client module 产物做模块级热替换，mounts 1→2→3 两轮复现、window 存活非整页刷新）；CI 加 workbench-build job（P35）；subagent 独立核验 12/12「可以提交」（F1/F2 证据精度已就地修正）
 - **内容**：任务表 T14 行状态 🔄 → ✅ 完成，self-check/verify 列回填；tasks/_index.md 镜像行同步
 - **task 文档**：[tasks/T14-plan.md](../../tasks/T14-plan.md)
+
+## 修正-N · tracker.md T14 行 CI 证据回填
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-22
+- **依据**：T14 闭环 commit 7643ca39 的 CI run 32568952869 因 format:check（zones.json 经 node 重写后 stubs 数组未按 oxfmt 内联）红——修复 commit 7722d445（oxfmt 归一化）后 run 32569154626 全绿（含新 workbench-build job 首跑绿）
+- **内容**：T14 行状态补 CI run 32569154626 证据；tasks/_index.md 镜像行与 T14-self-check §2.5 同步回填

@@ -68,7 +68,7 @@
 
 ### 2.5 W6 · CI 接线
 
-【事实】`.github/workflows/ci.yml` 新增 `workbench-build` job：checkout → setup-node 22 → `npm ci && npm run build`（working-directory: workbench）→ X1 回归守护（jsx-runtime 存在 + 无生 JSX + ModuleLoader banner）。zones.json 登记 P35（ci.yml 为既有 patch 文件，新增 patch 行）。本 job 的远端首跑证据随闭环 commit 的 CI run 回填核验。
+【事实】`.github/workflows/ci.yml` 新增 `workbench-build` job：checkout → setup-node 22 → `npm ci && npm run build`（working-directory: workbench）→ X1 回归守护（jsx-runtime 存在 + 无生 JSX + ModuleLoader banner）。zones.json 登记 P35（ci.yml 为既有 patch 文件，新增 patch 行）。远端证据：闭环 commit 7643ca39 的 run 32568952869 因 zones.json 格式（oxfmt 内联数组）红、本 job 与 Rebuild discipline 均绿；修复 commit 7722d445 的 run 32569154626 全绿（2026-08-22）。
 
 ## 3. 阻塞与遗留（如实）
 

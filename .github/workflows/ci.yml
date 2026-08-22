@@ -133,14 +133,24 @@ jobs:
   # T14 (P35): workbench/ is a standalone-toolchain dsh bundle (not in bun
   # workspaces) — build it with its own npm lockfile and guard the X1
   # regression (raw JSX in client bundle breaks dsh module registration).
+  # T15 (E2): the client bundle now inlines @open-pencil/core + @open-pencil/vue
+  # via file: deps whose dist/ is NOT committed, and whose bare imports
+  # (unifont, yoga-layout alias, …) resolve upward into the bun-installed
+  # workspace tree — so the workspace must be installed + built first
+  # (CI run 32575086061 failed on `Cannot find module 'unifont'` without it).
   workbench-build:
     name: Workbench bundle build
-    timeout-minutes: 10
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Build workspace packages (core/vue dist for file: deps)
+        run: bun run build:packages
 
       - uses: actions/setup-node@v4
         with:

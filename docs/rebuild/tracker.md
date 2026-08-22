@@ -46,7 +46,7 @@
 | T12 | Phase 1 runtime | S-X spike（dsh-X 六项验证含硬 gate，[spikes/04-dsh-x-design.zh.md §7.1](spikes/04-dsh-x-design.zh.md)） | [T12-plan.md §3](tasks/T12-plan.md) | ✅ 已完成（CI run 32560998564 12/12；X5 硬 gate 通过；模型面阻塞已上报） | [T12-plan](tasks/T12-plan.md) | [T12-self-check](tasks/T12-self-check.md) | [T12-verify](tasks/T12-verify.md) |
 | T13 | Phase 1-X 收口 | D22 拍板后收口：双 spike 合并回归 + dsh 版本钉扎纪律（[03 §5.4](03-phase-1-runtime.md)）+ S-X 模型面补跑 | [T13-plan.md §3](tasks/T13-plan.md) | 🔶 合并回归+版本纪律完成（CI run 32563228158 全绿）；模型面补跑阻塞待 owner 补 key | [T13-plan](tasks/T13-plan.md) | [T13-self-check](tasks/T13-self-check.md) | [T13-verify](tasks/T13-verify.md) |
 | T14 | Phase 1-X 实施 | 插件骨架产品化（MS-X1：`workbench/` bundle 骨架 + 版本钉扎 + dev 回路 + HMR 决策点证伪） | [T14-plan.md §3](tasks/T14-plan.md) | ✅ 已完成（装机冒烟 + HMR A 级证伪 + CI job；远端 CI run 32569154626 全绿） | [T14-plan](tasks/T14-plan.md) | [T14-self-check](tasks/T14-self-check.md) | [T14-verify](tasks/T14-verify.md) |
-| T15 | Phase 1-X 实施 | M2 编辑器入孤岛（E1 CanvasKit wasm 探针 → E2 编辑器外壳 → E3 生命周期 → E4 冒烟收口） | [T15-plan.md §3](tasks/T15-plan.md) | 🔄 开工（E1 风险探针先行；wasm 资产服务方案已源码定案，见 [T15-self-check §2.1](tasks/T15-self-check.md)） | [T15-plan](tasks/T15-plan.md) | [T15-self-check](tasks/T15-self-check.md) | [T15-verify](tasks/T15-verify.md) |
+| T15 | Phase 1-X 实施 | M2 编辑器入孤岛（E1 CanvasKit wasm 探针 → E2 编辑器外壳 → E3 生命周期 → E4 冒烟收口） | [T15-plan.md §3](tasks/T15-plan.md) | 🔄 进行中（E1/E2 通过：wasm 路由 + 编辑器渲染/选中/拖拽实证，见 [T15-self-check §2.1/§2.2](tasks/T15-self-check.md)） | [T15-plan](tasks/T15-plan.md) | [T15-self-check](tasks/T15-self-check.md) | [T15-verify](tasks/T15-verify.md) |
 | — | （后续 task 按顺序登记） | — | — | — | — | — | — |
 
 ## 3. 记录索引

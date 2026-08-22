@@ -32,12 +32,15 @@
     }
   },
   "scripts": {
-    "build": "node scripts/copy-assets.mjs && tsdown",
+    "clean": "node -e \"require('fs').rmSync('lib',{recursive:true,force:true})\"",
+    "build": "node scripts/copy-assets.mjs && npm run clean && tsdown",
     "dev": "node scripts/copy-assets.mjs && tsdown --watch"
   },
   "dependencies": {
+    "@open-pencil/core": "file:../packages/core",
+    "@open-pencil/vue": "file:../packages/vue",
     "canvaskit-wasm": "0.41.1",
-    "vue": "3.5.18",
+    "vue": "3.5.41",
     "ws": "8.18.3"
   },
   "devDependencies": {

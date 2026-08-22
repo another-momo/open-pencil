@@ -41,12 +41,17 @@ npm run dev   # tsdown --watch，改动重建 ~300ms
 
 ```
 workbench/
-  package.json            # dsh.bundle.patch + dsh.client.inject 声明
+  package.json            # dsh.bundle.patch + dsh.client.inject 声明；@open-pencil/core|vue 经 file: 链接本仓引擎
   cordis.patch.yml        # bundle 注册行
   tsconfig.json           # jsx: react-jsx（必须存在，防 rolldown 上溯命中仓库根 preserve——T12/X1 教训）
-  tsdown.config.mjs       # 双产物：lib/index.js（node/host）+ lib/client.js（browser，__ModuleLoader__ 包壳）
-  src/index.js            # host 侧：preset 安装 + systemPrompt 动态 section + 三个工具
-  src/client/index.jsx    # client 侧：shell.overlay island（工作台壳 + 桥状态探针）
+  tsdown.config.mjs       # 双产物 + E2 四件套：单例 alias（vue/@vue/*/canvaskit-wasm 钉本包 esm 构建）、
+                          #   yoga TLA shim 重定向、node 内建双层桩、css-tree→csstree.esm.js 重定向
+  scripts/copy-assets.mjs # build/dev 前置：canvaskit.wasm + Inter-Regular.ttf → assets/（包自包含）
+  src/index.js            # host 侧：preset 安装 + systemPrompt section + 三工具 + assets prefix 路由（webServer 服务）
+  src/client/index.jsx    # client 入口（薄）：React island + await yogaReady 后动态 import editor-boot
+  src/client/editor-boot.js  # 编辑器启动 + Vue 岛挂载（core 全链，惰性求值——勿从入口静态导入）
+  src/client/yoga-shim.js # yoga-layout TLA shim（Proxy 默认导出 + yogaReady 门闩）
+  src/client/shared.js    # 入口/editor-boot 共享态（__openpencilIsland 仪表）
   presets/openpencil-design/
   evidence/               # 任务证据（随库，不进 npm 发布 files）
 ```
@@ -54,4 +59,6 @@ workbench/
 ## 证据
 
 - T14 装机冒烟 + HMR 探针截图：`evidence/t14-island-smoke.png`、`evidence/t14-hmr-probe.png`
+- T15/E1 CanvasKit 探针：`evidence/t15-e1-canvaskit-island.png`
+- T15/E2 编辑器入岛（demo scene 渲染 + 点选/拖拽/hover 交互）：`evidence/t15-e2-editor-island.png`、`evidence/t15-e2-editor-island-interact.png`
 - 机制实证（X1/X4/X5/X6）：`spikes/s-x/evidence/`（T12）

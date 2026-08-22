@@ -40,7 +40,7 @@
 | [T08](../tasks/T08-plan.md) | 文档治理 | tracker.md 任务表删 PR 列（owner 提议） | ✅ 已完成（CI 11/11 全绿 + subagent A 12/12 通过） | [T08-plan](../tasks/T08-plan.md) | [T08-self-check](../tasks/T08-self-check.md) | [T08-verify](../tasks/T08-verify.md) |
 | [T09](../tasks/T09-plan.md) | 文档治理+CI 基建 | review 发现核实与修复（CI 接线 + 占位检测 + 腐烂修正 + T06/T07 核验回填） | ✅ 已完成（CI 12/12 全绿含新 job + subagent A 核验 N1-N5 闭环） | [T09-plan](../tasks/T09-plan.md) | [T09-self-check](../tasks/T09-self-check.md) | [T09-verify](../tasks/T09-verify.md) |
 | [T10](../tasks/T10-plan.md) | upstream 合并+Phase 1 启动 | upstream/master@5201404f 合并 + D20 登记 + spike 任务登记 | ✅ 已完成（远端 CI run 32458703514 12/12） | [T10-plan](../tasks/T10-plan.md) | [T10-self-check](../tasks/T10-self-check.md) | [T10-verify](../tasks/T10-verify.md) |
-| [T11](../tasks/T11-plan.md) | Phase 1 runtime | S-pi spike（pi sdk 库形态四项验证） | ⬜ 可开工（T10 已闭环） | [T11-plan](../tasks/T11-plan.md) | — | — |
+| [T11](../tasks/T11-plan.md) | Phase 1 runtime | S-pi spike（pi sdk 库形态四项验证） | 🔶 离线面全过（subagent 核验讫）；活模型面阻塞待 owner 补 key | [T11-plan](../tasks/T11-plan.md) | [T11-self-check](../tasks/T11-self-check.md) | [T11-verify](../tasks/T11-verify.md) |
 | [T12](../tasks/T12-plan.md) | Phase 1 runtime | S-X spike（dsh-X 六项验证含硬 gate） | ✅ 已完成（CI run 32560998564 12/12；X5 硬 gate 通过；模型面阻塞已上报） | [T12-plan](../tasks/T12-plan.md) | [T12-self-check](../tasks/T12-self-check.md) | [T12-verify](../tasks/T12-verify.md) |
 | (后续 task 按顺序登记) | — | — | — | — | — | — |
 

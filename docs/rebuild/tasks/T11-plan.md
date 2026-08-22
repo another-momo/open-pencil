@@ -13,8 +13,8 @@
 > **分支**：`spike/s-pi`（自 T10 合并后的 rebuild/v2 拉出）
 > **三件套**：
 > - 计划：[T11-plan.md](T11-plan.md)（本文件）
-> - 自检：[T11-self-check.md](T11-self-check.md)（开工后填）
-> - 核验：[T11-verify.md](T11-verify.md)（核验时填）
+> - 自检：[T11-self-check.md](T11-self-check.md)（离线面已填，活模型面阻塞清单见 §3）
+> - 核验：[T11-verify.md](T11-verify.md)（离线面 subagent 核验完成，F1-F4 已就地修正）
 
 ## 1. 任务概述
 
@@ -45,12 +45,12 @@ D9 当前推荐 c（pi 直接驱动，库形态）。本 task 按 [spikes/02-pi-
 
 ## 2. 任务清单
 
-- [ ] P1 脚手架：spikes/s-pi/ + 自含 package.json + 安装固定版本（含 spikes/02 R-pi-8 钦定必测：Windows npm install 实测 photon-node WAS / 是否需 `--ignore-scripts`）
-- [ ] P2 S-pi-1 离线面 + 活模型面（echo → prompt → tool call → 事件流）
-- [ ] P3 S-pi-2 通道 B 主线（文本 tool-result 消费续跑）+ 通道 A 时间盒探测（有视觉 key 才做）
-- [ ] P4 S-pi-3 持久化跨重启恢复（含 stop 时机设计）
-- [ ] P5 S-pi-4 流式适配（走读上游 mapPart/mapEvent + SSE 段 + 旧 Chat 类消费验证）
-- [ ] P6 self-check + subagent 核验 + verify 回填
+- [x] P1 脚手架：spikes/s-pi/ + 自含 package.json + 安装固定版本（R-pi-8 实测过：34s/140 包/零脚本错误，photon-node 无 WAS 问题）
+- [x] P2 S-pi-1 离线面（faux provider 注入，8/8 断言）；活模型面阻塞待 key
+- [ ] P3 S-pi-2 通道 B 主线（文本 tool-result 消费续跑）+ 通道 A 时间盒探测（有视觉 key 才做）——均阻塞待 key；离线前置（DeepSeek input 字段核查）已完成
+- [x] P4 S-pi-3 持久化跨重启恢复（16/16 断言；增量落盘证实——上游 stop/destroy 坑天然不存在；branch 分叉实测可用）
+- [x] P5 S-pi-4 流式适配离线面（上游 mapPart/mapEvent 走读 + 事件映射表）；SSE 段 + 旧 Chat 类联调随实施 task
+- [x] P6 self-check + subagent 核验（离线面，F1-F4 已修正）+ verify 回填
 - [ ] P7 记录登记（agent-runtime.md spike 结果条目）+ 任务表状态更新
 
 ## 3. 验收标准

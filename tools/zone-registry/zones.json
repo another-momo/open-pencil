@@ -7,10 +7,13 @@
     "src/app/i18n/fork/",
     "packages/core/src/tools/fork/",
     "tests/engine/rebuild/",
-    "spikes/"
+    "spikes/",
+    "workbench/"
   ],
   "ownedFiles": [],
-  "stubs": ["src/app/collab/use.ts"],
+  "stubs": [
+    "src/app/collab/use.ts"
+  ],
   "pendingReclass": [
     "src/app/ai/chat/",
     "src/app/ai/providers/",

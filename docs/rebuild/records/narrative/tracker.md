@@ -264,3 +264,11 @@
 - **依据**：owner 拍板「继续推进」，T15（M2 编辑器入孤岛）收口完成后进 T16（7600 桥真链路 + token 链，估 2-3 人日）——把 S-X spike 桩换成 F0.2 真桥：dsh 工具经鉴权副客户端 → 桥中继 → island 活编辑器真实执行；token 链（discovery → host 插件 → island 同源取）为 [03 §72](../../03-phase-1-runtime.md) 开放项，本任务定案。注册期 recon 已源码实证三角色协议（server.ts/auth.ts/ws-client.ts）与现状桩面（[T16-self-check §2.1](../../tasks/T16-self-check.md)）
 - **内容**：任务表新增 T16 行，状态 🔄 开工，三件套列一次登记齐（self-check §2.1 已含注册期 recon 实测，verify §1 为收口核验项预定、明确声明不含已通过结论）；tasks/_index.md 镜像行同步
 - **task 文档**：[tasks/T16-plan.md](../../tasks/T16-plan.md)
+
+## 修正-N · tracker.md T16 行闭环 ✅（7600 桥真链路 + token 链达成）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-22
+- **依据**：T16 验收全达——B1 探针 8/8 拍板 standalone 复用 packages/mcp（commit cf17d037；真桥 7600 起服、discovery 落默认路径、错 token 401）；B2 island 真实桥客户端（token 同源路由下发、register ack 语义实证、最小命令面读写、负例如实）；B3 host 工具真链路（callBridge 重写为 discovery+Bearer+POST /rpc、apply_design 补丁翻译、离线缝 + bridge-call 宿主内双驱动）；B4 subagent 独立核验 V1-V8 全过「可以提交」（含桥重启自愈重注册两轮实测、token 零硬编码 grep、逐节点树一致性对照，[T16-verify](../../tasks/T16-verify.md) 由核验方就地重写）；远端 CI HEAD run 32579903008 全绿。LLM 端到端一环仍阻塞在 owner 补 key（T13 §3），已如实标注为任务外边界
+- **内容**：任务表 T16 行状态 🔄 → ✅ 完成；tasks/_index.md 镜像行同步
+- **task 文档**：[tasks/T16-plan.md](../../tasks/T16-plan.md)

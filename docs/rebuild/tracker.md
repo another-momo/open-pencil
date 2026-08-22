@@ -47,6 +47,7 @@
 | T13 | Phase 1-X 收口 | D22 拍板后收口：双 spike 合并回归 + dsh 版本钉扎纪律（[03 §5.4](03-phase-1-runtime.md)）+ S-X 模型面补跑 | [T13-plan.md §3](tasks/T13-plan.md) | 🔶 合并回归+版本纪律完成（CI run 32563228158 全绿）；模型面补跑阻塞待 owner 补 key | [T13-plan](tasks/T13-plan.md) | [T13-self-check](tasks/T13-self-check.md) | [T13-verify](tasks/T13-verify.md) |
 | T14 | Phase 1-X 实施 | 插件骨架产品化（MS-X1：`workbench/` bundle 骨架 + 版本钉扎 + dev 回路 + HMR 决策点证伪） | [T14-plan.md §3](tasks/T14-plan.md) | ✅ 已完成（装机冒烟 + HMR A 级证伪 + CI job；远端 CI run 32569154626 全绿） | [T14-plan](tasks/T14-plan.md) | [T14-self-check](tasks/T14-self-check.md) | [T14-verify](tasks/T14-verify.md) |
 | T15 | Phase 1-X 实施 | M2 编辑器入孤岛（E1 CanvasKit wasm 探针 → E2 编辑器外壳 → E3 生命周期 → E4 冒烟收口） | [T15-plan.md §3](tasks/T15-plan.md) | ✅ 已完成（E1-E4 全过 + subagent 核验 V1-V8「可以提交」；远端 CI HEAD run 32576137352 全绿） | [T15-plan](tasks/T15-plan.md) | [T15-self-check](tasks/T15-self-check.md) | [T15-verify](tasks/T15-verify.md) |
+| T16 | Phase 1-X 实施 | 7600 桥真链路 + token 链（M3+M4 链路半：真桥起服 → island 桥客户端 → host 工具端到端） | [T16-plan.md §3](tasks/T16-plan.md) | 🔄 开工（B1 桥 server 形态探针先行；协议/鉴权/现状桩已源码实证，见 [T16-self-check §2.1](tasks/T16-self-check.md)） | [T16-plan](tasks/T16-plan.md) | [T16-self-check](tasks/T16-self-check.md) | [T16-verify](tasks/T16-verify.md) |
 | — | （后续 task 按顺序登记） | — | — | — | — | — | — |
 
 ## 3. 记录索引

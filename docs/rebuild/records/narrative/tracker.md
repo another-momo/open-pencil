@@ -256,3 +256,11 @@
 - **依据**：T15 验收全达——E1 CanvasKit wasm 孤岛探针通过（commit 1749aebe，路由 200/7,159,342B、像素回读 true）；E2 真实编辑器（core+vue 引擎链）入岛渲染/选中/拖拽/HMR 全实证（commit 063ecc07；CI 红两轮——file: 依赖需 workspace 预装预建 a9bf3672、YAML 标量 `file: ` 笔误 cd04cf62——修复后 run 32575625410 绿）；E3 会话往返切换 island 无重挂、状态保持、dispose/接受全局项成文（commit 77b1c86c，run 32575883252 绿）；E4 冷启动全链路冒烟通过（选中 + 拖拽精确位移，console 0/0，commit 2cc790de）；subagent 独立核验 V1-V8 全过「可以提交」（含 wasm sha256 双端一致、路径穿越四变体 404、exact pin 复核、HEAD CI run 32576137352 13/13 job 绿），[T15-verify](../../tasks/T15-verify.md) 由核验方就地重写
 - **内容**：任务表 T15 行状态 🔄 → ✅ 完成；tasks/_index.md 镜像行同步
 - **task 文档**：[tasks/T15-plan.md](../../tasks/T15-plan.md)
+
+## 修正-N · tracker.md T16 行登记（T15 收口后推进 7600 桥真链路）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-22
+- **依据**：owner 拍板「继续推进」，T15（M2 编辑器入孤岛）收口完成后进 T16（7600 桥真链路 + token 链，估 2-3 人日）——把 S-X spike 桩换成 F0.2 真桥：dsh 工具经鉴权副客户端 → 桥中继 → island 活编辑器真实执行；token 链（discovery → host 插件 → island 同源取）为 [03 §72](../../03-phase-1-runtime.md) 开放项，本任务定案。注册期 recon 已源码实证三角色协议（server.ts/auth.ts/ws-client.ts）与现状桩面（[T16-self-check §2.1](../../tasks/T16-self-check.md)）
+- **内容**：任务表新增 T16 行，状态 🔄 开工，三件套列一次登记齐（self-check §2.1 已含注册期 recon 实测，verify §1 为收口核验项预定、明确声明不含已通过结论）；tasks/_index.md 镜像行同步
+- **task 文档**：[tasks/T16-plan.md](../../tasks/T16-plan.md)

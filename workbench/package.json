@@ -12,6 +12,7 @@
   },
   "files": [
     "lib/",
+    "assets/",
     "presets/",
     "cordis.patch.yml",
     "README.md"
@@ -31,10 +32,11 @@
     }
   },
   "scripts": {
-    "build": "tsdown",
-    "dev": "tsdown --watch"
+    "build": "node scripts/copy-assets.mjs && tsdown",
+    "dev": "node scripts/copy-assets.mjs && tsdown --watch"
   },
   "dependencies": {
+    "canvaskit-wasm": "0.41.1",
     "vue": "3.5.18",
     "ws": "8.18.3"
   },

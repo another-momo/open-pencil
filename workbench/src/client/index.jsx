@@ -5,36 +5,100 @@
  * session 切换不卸载）；React 组件内 createPortal 到 body，div 上挂载独立 Vue 3 app。
  *
  * 骨架期的真实功能：工作台壳（docked 面板）+ 7600 桥连通性状态（浏览器↔编辑器进程
- * WS ping，拓扑 B↔C 链路）。整幅 overlay 布局（画布+ChatPanel）随 T15 编辑器入岛落地。
+ * WS ping，拓扑 B↔C 链路）+ CanvasKit wasm 初始化探针（T15/E1：wasm 经宿主资产路由
+ * 加载，MakeCanvasSurface 画红矩形并 readPixels 回读校验——全路线最大风险项的第一刀）。
  *
- * 挂载仪表：window.__openpencilIsland 记录 React/Vue 挂载次数、Vue uid、DOM 节点引用——
- * 开发回路（HMR 证伪）与「切 session 不卸载」回归判定用。
+ * 挂载仪表：window.__openpencilIsland 记录 React/Vue 挂载次数、Vue uid、DOM 节点引用、
+ * CanvasKit 探针实测值——开发回路（HMR 证伪）、「切 session 不卸载」回归判定与
+ * T15/E1 验收取证共用。
  *
  * 模块契约（weshop 实证）：export inject + apply(ctx) → dispose。
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { createApp, h, onUnmounted, ref as vueRef } from "vue";
+import { createApp, h, onMounted, onUnmounted, ref as vueRef } from "vue";
+import CanvasKitInit from "canvaskit-wasm";
 
 export const inject = ["slots", "sessions"];
 
 const BRIDGE_URL = "ws://127.0.0.1:7600";
+const ASSETS_BASE = "/plugins/openpencil-marketing/assets/";
 
 function islandState() {
 	if (!window.__openpencilIsland) {
-		window.__openpencilIsland = { reactMounts: 0, vueMounts: 0, vueUid: null, domNode: null, errors: [] };
+		window.__openpencilIsland = { reactMounts: 0, vueMounts: 0, vueUid: null, domNode: null, canvaskit: null, errors: [] };
 	}
 	return window.__openpencilIsland;
 }
 
-/** Vue app：工作台壳 + 7600 桥状态探针（5s 心跳，断线可手动重连） */
+/**
+ * T15/E1 探针：CanvasKit 在 island 内初始化 + 实画 + 像素回读。
+ * locateFile 指向宿主侧资产路由（对齐 packages/core/src/canvaskit.ts 的 locateFile 机制）；
+ * 结果写入 window.__openpencilIsland.canvaskit 供自动化取证。
+ */
+async function runCanvasKitProbe(canvasEl, ckStatus) {
+	const state = islandState();
+	const record = { status: "init", runs: (state.canvaskit?.runs ?? 0) + 1 };
+	state.canvaskit = record;
+	ckStatus.value = "初始化中";
+	const t0 = performance.now();
+	try {
+		const head = await fetch(ASSETS_BASE + "canvaskit.wasm", { method: "HEAD" });
+		record.wasmHttpStatus = head.status;
+		record.wasmBytes = Number(head.headers.get("content-length") ?? 0);
+
+		const ck = await CanvasKitInit({ locateFile: (file) => ASSETS_BASE + file });
+		record.initMs = Math.round(performance.now() - t0);
+
+		const surface = ck.MakeCanvasSurface(canvasEl);
+		if (!surface) throw new Error("MakeCanvasSurface returned null");
+		const canvas = surface.getCanvas();
+		canvas.clear(ck.Color4f(0, 0, 0, 0));
+		const paint = new ck.Paint();
+		paint.setColor(ck.Color4f(1, 0, 0, 1));
+		canvas.drawRect(ck.LTRBRect(8, 8, 88, 88), paint);
+		surface.flush();
+
+		const image = surface.makeImageSnapshot();
+		const pixels = image.readPixels(0, 0, {
+			width: 96,
+			height: 96,
+			colorType: ck.ColorType.RGBA_8888,
+			alphaType: ck.AlphaType.Unpremul,
+			colorSpace: ck.ColorSpace.SRGB,
+		});
+		if (!pixels) throw new Error("readPixels returned null");
+		const at = (x, y) => Array.from(pixels.slice((y * 96 + x) * 4, (y * 96 + x) * 4 + 4));
+		record.insidePixel = at(48, 48);
+		record.outsidePixel = at(2, 2);
+		record.pixelCheck =
+			record.insidePixel.join() === "255,0,0,255" && record.outsidePixel.join() === "0,0,0,0";
+		image.delete();
+		paint.delete();
+		// surface 不 delete：红矩形要留在画布上作截图证据；island 存活期一份（X5 不卸载）。
+
+		record.status = record.pixelCheck ? "ok" : "error";
+		if (!record.pixelCheck) record.error = "pixel readback mismatch";
+		ckStatus.value = record.pixelCheck ? `在线 · ${record.initMs}ms` : "像素校验失败";
+	} catch (err) {
+		record.status = "error";
+		record.error = String(err?.message ?? err);
+		record.initMs = Math.round(performance.now() - t0);
+		state.errors.push("canvaskit: " + record.error);
+		ckStatus.value = "初始化失败";
+	}
+}
+
+/** Vue app：工作台壳 + 7600 桥状态探针（5s 心跳，断线可手动重连）+ CanvasKit 探针（E1） */
 function mountVueApp(el) {
 	const state = islandState();
 	const app = createApp({
 		setup() {
 			const status = vueRef("连接中");
 			const rtt = vueRef(null);
+			const ckStatus = vueRef("未启动");
+			let canvasEl = null;
 			let ws = null;
 			let timer = null;
 
@@ -68,6 +132,9 @@ function mountVueApp(el) {
 			};
 
 			connect();
+			onMounted(() => {
+				if (canvasEl) runCanvasKitProbe(canvasEl, ckStatus);
+			});
 			onUnmounted(() => { clearInterval(timer); try { ws?.close(); } catch { /* 忽略 */ } });
 
 			return () =>
@@ -91,6 +158,25 @@ function mountVueApp(el) {
 							style: { marginLeft: "auto", fontSize: "12px" },
 							onClick: connect,
 						}, "重连"),
+					]),
+					h("div", { style: { padding: "0 12px 10px", borderTop: "1px solid #f3f4f6" } }, [
+						h("div", { style: { padding: "10px 0 6px", display: "flex", alignItems: "center", gap: "8px" } }, [
+							h("span", {
+								"data-openpencil-vue": "ck-dot",
+								style: {
+									width: "8px", height: "8px", borderRadius: "50%",
+									background: ckStatus.value.startsWith("在线") ? "#22c55e" : ckStatus.value === "初始化中" ? "#f59e0b" : ckStatus.value === "未启动" ? "#9ca3af" : "#ef4444",
+								},
+							}),
+							h("span", { "data-openpencil-vue": "ck-status" }, `CanvasKit ${ckStatus.value}`),
+						]),
+						h("canvas", {
+							"data-openpencil-vue": "ck-canvas",
+							ref: (el) => { canvasEl = el; },
+							width: 96,
+							height: 96,
+							style: { border: "1px dashed #d1d5db", borderRadius: "4px" },
+						}),
 					]),
 				]);
 		},

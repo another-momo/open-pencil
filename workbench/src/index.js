@@ -6,6 +6,10 @@
  *  2. systemPrompt 动态 section：marketing 选择项每次装配重新求值（T12/X6 实证机制）
  *  3. 工具注册：openpencil_apply_design（7600 WS 桥改画布）/ openpencil_set_marketing_type /
  *     openpencil_bridge_ping（连通性诊断）
+ *  4. 静态资产路由（T15/E1）：宿主 serveBundle 只供 client.js 白名单（dsh-client-modules
+ *     源码实证），canvaskit.wasm 等资产由本插件经 webServer 服务注册 prefix 路由供出——
+ *     `/plugins/openpencil-marketing/assets/*` → 包内 assets/（webServer.register
+ *     最长前缀优先，压过 dsh-client-modules 的 /plugins/ 前缀；dsh-host-webserver 源码实证）。
  *
  * 注册形态（weshop 实证）：ctx.tools.register，无 MCP 进程、无 JSON-RPC 子进程桥。
  */
@@ -17,9 +21,59 @@ import { fileURLToPath } from "node:url";
 import WebSocket from "ws";
 
 export const name = "openpencil-marketing";
-export const inject = ["tools", "systemPrompt"];
+export const inject = ["tools", "systemPrompt", "webServer"];
 
 const BRIDGE_URL = process.env.OPENPENCIL_BRIDGE_URL || "ws://127.0.0.1:7600";
+
+// ---------------------------------------------------------------------------
+// 静态资产路由（T15/E1）：/plugins/openpencil-marketing/assets/* → <pkg>/assets/
+// ---------------------------------------------------------------------------
+
+const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const assetsDirectory = path.join(packageRoot, "assets");
+// 注意：webServer.match 要求 pathname === prefix 或 startsWith(prefix + "/")——
+// 注册带尾斜杠的 prefix 会拼成双斜杠永不命中（dsh-host-webserver 源码实证 2026-08-22）。
+const ASSETS_ROUTE_PREFIX = "/plugins/openpencil-marketing/assets";
+
+const ASSET_CONTENT_TYPES = {
+	".wasm": "application/wasm",
+	".js": "text/javascript; charset=utf-8",
+	".ttf": "font/ttf",
+	".otf": "font/otf",
+	".woff2": "font/woff2",
+	".png": "image/png",
+	".svg": "image/svg+xml",
+};
+
+function serveAsset(req, res) {
+	if (req.method !== "GET" && req.method !== "HEAD") {
+		res.writeHead(405);
+		res.end();
+		return;
+	}
+	const pathname = decodeURIComponent(new URL(req.url ?? "/", "http://x").pathname);
+	const rel = pathname.slice(ASSETS_ROUTE_PREFIX.length + 1); // +1 吃掉分隔斜杠
+	// 防目录逃逸：normalize 后必须仍落在 assetsDirectory 内
+	const filePath = path.normalize(path.join(assetsDirectory, rel));
+	if (!filePath.startsWith(assetsDirectory + path.sep)) {
+		res.writeHead(403);
+		res.end();
+		return;
+	}
+	fs.readFile(filePath, (err, body) => {
+		if (err) {
+			res.writeHead(404);
+			res.end();
+			return;
+		}
+		res.writeHead(200, {
+			"content-type": ASSET_CONTENT_TYPES[path.extname(filePath).toLowerCase()] ?? "application/octet-stream",
+			"content-length": body.length,
+			"cache-control": "no-cache",
+		});
+		res.end(body);
+	});
+}
 
 // ---------------------------------------------------------------------------
 // bundled preset：首次复制到 DSH_HOME/.agent-presets，已存在则不动（幂等）
@@ -107,6 +161,14 @@ const output = {
 export function apply(ctx) {
 	const presetInstall = installBundledPreset();
 	console.log("[openpencil-marketing] preset install:", JSON.stringify(presetInstall));
+
+	ctx.effect(() =>
+		ctx.webServer.register({
+			kind: "prefix",
+			path: ASSETS_ROUTE_PREFIX,
+			handler: serveAsset,
+		}),
+	);
 
 	ctx.effect(() =>
 		ctx.systemPrompt.section({

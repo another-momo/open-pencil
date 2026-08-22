@@ -149,7 +149,7 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Build workspace packages (core/vue dist for file: deps)
+      - name: Build workspace packages (core/vue dist for file deps)
         run: bun run build:packages
 
       - uses: actions/setup-node@v4

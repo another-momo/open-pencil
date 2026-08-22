@@ -4,8 +4,8 @@
  * 三件事：
  *  1. bundled preset 安装：openpencil-design 首次复制到 DSH_HOME/.agent-presets（已存在则不动）
  *  2. systemPrompt 动态 section：marketing 选择项每次装配重新求值（T12/X6 实证机制）
- *  3. 工具注册：openpencil_apply_design（7600 WS 桥改画布）/ openpencil_set_marketing_type /
- *     openpencil_bridge_ping（连通性诊断）
+ *  3. 工具注册（T16/B3 真链路）：openpencil_apply_design（经 7600 真桥改 island 活画布）/
+ *     openpencil_set_marketing_type / openpencil_bridge_ping（连通性诊断）
  *  4. 静态资产路由（T15/E1）：宿主 serveBundle 只供 client.js 白名单（dsh-client-modules
  *     源码实证），canvaskit.wasm 等资产由本插件经 webServer 服务注册 prefix 路由供出——
  *     `/plugins/openpencil-marketing/assets/*` → 包内 assets/（webServer.register
@@ -18,12 +18,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import WebSocket from "ws";
 
 export const name = "openpencil-marketing";
 export const inject = ["tools", "systemPrompt", "webServer"];
 
-const BRIDGE_URL = process.env.OPENPENCIL_BRIDGE_URL || "ws://127.0.0.1:7600";
 
 // ---------------------------------------------------------------------------
 // 静态资产路由（T15/E1）：/plugins/openpencil-marketing/assets/* → <pkg>/assets/
@@ -76,6 +74,84 @@ function serveAsset(req, res) {
 }
 
 // ---------------------------------------------------------------------------
+// bridge-token 路由（T16/B2）：island 浏览器侧读不了文件，token 经本路由同源下发。
+// 链路：packages/mcp server 写 discovery 文件（明文 token，文件头自带告警）→
+// 本插件 node 侧读 → island fetch 同源取。威胁模型不扩面：同用户本机进程本就
+// 可读 discovery 文件（T16-self-check §2.2 第 4 条）。
+// ---------------------------------------------------------------------------
+
+// 路径解析镜像 packages/mcp/src/transport/paths.ts（2026-08-22 读源码对齐）
+function bridgeDiscoveryPath() {
+	if (process.env.OPENPENCIL_MCP_DISCOVERY_PATH) return process.env.OPENPENCIL_MCP_DISCOVERY_PATH;
+	const home = os.homedir();
+	if (process.platform === "win32") {
+		return path.join(process.env.LOCALAPPDATA ?? path.join(home, "AppData", "Local"), "OpenPencil", "mcp.json");
+	}
+	if (process.platform === "darwin") {
+		return path.join(home, "Library", "Application Support", "OpenPencil", "mcp.json");
+	}
+	const runtime = process.env.XDG_RUNTIME_DIR;
+	return runtime ? path.join(runtime, "openpencil", "mcp.json") : path.join(home, ".openpencil", "mcp.json");
+}
+
+async function readBridgeDiscovery() {
+	const raw = await fs.promises.readFile(bridgeDiscoveryPath(), "utf-8");
+	const info = JSON.parse(raw);
+	if (!info || typeof info.httpPort !== "number") throw new Error("discovery file missing httpPort");
+	return info;
+}
+
+const BRIDGE_TOKEN_ROUTE = "/plugins/openpencil-marketing/bridge-token";
+
+async function serveBridgeToken(req, res) {
+	if (req.method !== "GET") {
+		res.writeHead(405);
+		res.end();
+		return;
+	}
+	try {
+		const info = await readBridgeDiscovery();
+		res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+		res.end(JSON.stringify({ port: info.httpPort, token: info.authToken ?? null }));
+	} catch (err) {
+		res.writeHead(503, { "content-type": "application/json; charset=utf-8" });
+		res.end(JSON.stringify({ error: "bridge discovery unreadable: " + String(err?.message ?? err) }));
+	}
+}
+
+/**
+ * bridge-call 诊断缝（T16/B3）：POST {command, args} → 在宿主进程内走与工具完全
+ * 相同的 callBridge 路径。存在理由：dsh 工具只能由 agent loop 触发（无 LLM key 时
+ * 无法端到端驱动），本路由提供宿主进程内的真实执行证据。威胁模型同 bridge-token
+ * 路由（同用户本机可读 discovery 明文 token，不扩面）。
+ */
+const BRIDGE_CALL_ROUTE = "/plugins/openpencil-marketing/bridge-call";
+
+async function serveBridgeCall(req, res) {
+	if (req.method !== "POST") {
+		res.writeHead(405);
+		res.end();
+		return;
+	}
+	let raw = "";
+	req.on("data", (c) => { raw += c; });
+	req.on("end", async () => {
+		try {
+			const body = JSON.parse(raw || "{}");
+			// apply_design 走工具 execute 本体（补丁翻译 + 逐条执行），其余命令裸桥调用
+			const result = body.command === "apply_design"
+				? await applyDesignExecute(body.args)
+				: await callBridge(String(body.command ?? ""), body.args);
+			res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+			res.end(JSON.stringify(result));
+		} catch (err) {
+			res.writeHead(502, { "content-type": "application/json; charset=utf-8" });
+			res.end(JSON.stringify({ ok: false, error: String(err?.message ?? err) }));
+		}
+	});
+}
+
+// ---------------------------------------------------------------------------
 // bundled preset：首次复制到 DSH_HOME/.agent-presets，已存在则不动（幂等）
 // ---------------------------------------------------------------------------
 
@@ -113,44 +189,43 @@ function marketingSectionText() {
 	].join(" ");
 }
 
-/** 单条 WS 连接惰性复用：工具每次执行开短连接（常驻连接 + token 鉴权链属 T16 范围）。 */
-export function callBridge(method, params, timeoutMs = 5000, bridgeUrl = BRIDGE_URL) {
-	return new Promise((resolve, reject) => {
-		const ws = new WebSocket(bridgeUrl);
-		const timer = setTimeout(() => {
-			ws.terminate();
-			reject(new Error(`bridge timeout after ${timeoutMs}ms`));
-		}, timeoutMs);
-		ws.on("open", () => {
-			ws.send(JSON.stringify({ id: 1, method, params }));
-		});
-		ws.on("message", (data) => {
-			clearTimeout(timer);
-			try {
-				const resp = JSON.parse(data.toString());
-				if (resp.error) reject(new Error(resp.error));
-				else resolve(resp.result);
-			} finally {
-				ws.close();
-			}
-		});
-		ws.on("error", (err) => {
-			clearTimeout(timer);
-			reject(new Error(`bridge connect failed: ${err.message}`));
-		});
+/**
+ * 真桥调用（T16/B3）：discovery 文件读 {httpPort, authToken} → POST /rpc（Bearer）。
+ * 协议/鉴权为 packages/mcp server 原生面（B1 探针 8/8 实证）；错误原样上抛，不伪造成功。
+ */
+export async function callBridge(command, args, timeoutMs = 5000) {
+	const info = await readBridgeDiscovery();
+	const resp = await fetch(`http://127.0.0.1:${info.httpPort}/rpc`, {
+		method: "POST",
+		headers: { "content-type": "application/json", authorization: `Bearer ${info.authToken}` },
+		body: JSON.stringify({ command, args }),
+		signal: AbortSignal.timeout(timeoutMs),
 	});
+	const text = await resp.text();
+	if (!resp.ok) throw new Error(`bridge /rpc HTTP ${resp.status}: ${text.slice(0, 300)}`);
+	return JSON.parse(text);
 }
 
 /**
  * openpencil_apply_design 的 execute 本体（导出为离线驱动器的测试缝）。
  * 宿主侧经 `execute: (args) => applyDesignExecute(args)` 一元委托注册——dsh 会以
  * (args, execCtx) 二元调 execute（dsh-tools lib 实证 `.execute(exec.arguments, exec)`），
- * 直接赋值会把 execCtx 误当 bridgeUrl，故必须保留一元包装。
+ * 直接赋值会把 execCtx 误当第二参，故必须保留一元包装。
+ * patches 翻译为 island 最小命令面的 setProps 序列（T16-plan §1.2-3），逐条真实执行。
  */
-export async function applyDesignExecute(args, bridgeUrl) {
+export async function applyDesignExecute(args) {
 	const t0 = Date.now();
-	const result = await callBridge("apply_design", { patches: args?.patches ?? [] }, 5000, bridgeUrl);
-	return { ok: true, bridgeMs: Date.now() - t0, result };
+	const patches = Array.isArray(args?.patches) ? args.patches : [];
+	const applied = [];
+	for (const p of patches) {
+		if (p?.op !== "set") throw new Error(`unsupported op: ${p?.op}（已应用 ${applied.length} 条）`);
+		const m = /^nodes\.([^.]+)\.props\.([^.]+)$/.exec(String(p?.path ?? ""));
+		if (!m) throw new Error(`bad path: ${p?.path}（仅支持 nodes.<id>.props.<key>；已应用 ${applied.length} 条）`);
+		const r = await callBridge("setProps", { nodeId: m[1], props: { [m[2]]: p.value } });
+		if (!r?.ok) throw new Error(`bridge: ${r?.error ?? "unknown"}（已应用 ${applied.length} 条）`);
+		applied.push({ nodeId: m[1], key: m[2], value: p.value });
+	}
+	return { ok: true, bridgeMs: Date.now() - t0, applied };
 }
 
 const output = {
@@ -167,6 +242,22 @@ export function apply(ctx) {
 			kind: "prefix",
 			path: ASSETS_ROUTE_PREFIX,
 			handler: serveAsset,
+		}),
+	);
+
+	ctx.effect(() =>
+		ctx.webServer.register({
+			kind: "exact",
+			path: BRIDGE_TOKEN_ROUTE,
+			handler: serveBridgeToken,
+		}),
+	);
+
+	ctx.effect(() =>
+		ctx.webServer.register({
+			kind: "exact",
+			path: BRIDGE_CALL_ROUTE,
+			handler: serveBridgeCall,
 		}),
 	);
 
@@ -198,7 +289,7 @@ export function apply(ctx) {
 	ctx.tools.register({
 		name: "openpencil_apply_design",
 		description:
-			"Apply a design patch to the OpenPencil canvas scene graph via the 7600 WS bridge. " +
+			"Apply a design patch to the live in-island OpenPencil editor via the 7600 bridge. " +
 			"params.patches: array of { op: 'set', path: string, value: any }.",
 		parameters: {
 			type: "object",
@@ -224,7 +315,7 @@ export function apply(ctx) {
 
 	ctx.tools.register({
 		name: "openpencil_bridge_ping",
-		description: "Ping the 7600 WS bridge to diagnose editor connectivity.",
+		description: "Ping the live editor through the 7600 bridge to diagnose connectivity.",
 		parameters: { type: "object", properties: {} },
 		output,
 		execute: async () => {

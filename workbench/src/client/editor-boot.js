@@ -13,7 +13,7 @@ import { getCanvasKit } from "@open-pencil/core/canvaskit";
 import { fontManager } from "@open-pencil/core/text";
 import { createEditor } from "@open-pencil/core/editor";
 import { provideEditor, useCanvas, useCanvasInput } from "@open-pencil/vue";
-import { ASSETS_BASE, BRIDGE_URL, islandState } from "./shared.js";
+import { ASSETS_BASE, islandState } from "./shared.js";
 
 // 编辑器画布容器元素：boot 期 getViewportSize 闭包读它（mount 前回退默认尺寸），
 // Vue ref 回调填充；surface onReady 时再 zoomToFit 校准一次。
@@ -22,6 +22,57 @@ const editorAreaSize = () => ({
 	width: editorAreaEl?.clientWidth || 920,
 	height: editorAreaEl?.clientHeight || 640,
 });
+
+// ---------------------------------------------------------------------------
+// 真桥客户端（T16/B2）：同源取 token → WS register → 最小命令面在活编辑器上执行。
+// 协议对齐 packages/mcp browser-rpc.ts（2026-08-22 读源码）：
+//   ← {type:'register', token:null}   连接欢迎提示（token 永不内含）
+//   → {type:'register', token}        我们的注册；成功后 server 广播第二轮提示（=ack）
+//   ← {type:'request', id, command, args}  → {type:'response', id, ok, result|error}
+// ---------------------------------------------------------------------------
+
+function nodeSummary(n) {
+	return n ? { id: n.id, type: n.type, name: n.name ?? null, x: n.x, y: n.y, width: n.width, height: n.height } : null;
+}
+
+/** 最小命令面（T16-plan §1.2-3）：直打 core editor API，不搬 figma-factory。 */
+async function executeBridgeCommand(editor, command, args) {
+	switch (command) {
+		case "ping":
+			return { pong: true, t: Date.now() };
+		case "getSelection":
+			return {
+				selectedIds: [...editor.state.selectedIds],
+				nodes: [...editor.state.selectedIds].map((id) => nodeSummary(editor.getNode(id))),
+			};
+		case "getDocumentTree": {
+			const depth = Math.min(Number(args?.depth ?? 4), 8);
+			const walk = (id, d) => {
+				const out = nodeSummary(editor.getNode(id));
+				if (out && d > 0) {
+					const kids = editor.getChildren(id) ?? [];
+					if (kids.length) out.children = kids.map((k) => walk(k.id, d - 1));
+				}
+				return out;
+			};
+			return { pages: (editor.getPages() ?? []).map((p) => walk(p.id, depth)) };
+		}
+		case "createShape": {
+			const { shapeType, x = 0, y = 0, width = 100, height = 100 } = args ?? {};
+			editor.createShape(String(shapeType), Number(x), Number(y), Number(width), Number(height));
+			return { selectedIds: [...editor.state.selectedIds] };
+		}
+		case "setProps": {
+			const { nodeId, props } = args ?? {};
+			if (!nodeId || !props || typeof props !== "object") throw new Error("setProps 需要 nodeId + props 对象");
+			if (!editor.getNode(nodeId)) throw new Error("node not found: " + nodeId);
+			editor.updateNode(nodeId, props);
+			return { node: nodeSummary(editor.getNode(nodeId)) };
+		}
+		default:
+			throw new Error("unknown command: " + command);
+	}
+}
 
 /** E2 启动序列：字体预填 → canvaskit 单例预热 → createEditor + demo scene。 */
 export async function bootEditor() {
@@ -111,39 +162,72 @@ export function mountVueApp(el, { ck, editor, bootMs, fontBytes }) {
 			provideEditor(editor);
 
 			const status = vueRef("连接中");
-			const rtt = vueRef(null);
 			const ckStatus = vueRef("未启动");
 			let probeCanvasEl = null;
 			let ws = null;
-			let timer = null;
+			let reconnectTimer = null;
+			let intentionalClose = false;
 
-			const beat = () => {
-				if (!ws || ws.readyState !== WebSocket.OPEN) return;
-				const t0 = performance.now();
-				const onMsg = (ev) => {
-					try {
-						const resp = JSON.parse(ev.data);
-						if (resp && resp.error === undefined) {
-							rtt.value = Math.round(performance.now() - t0);
-							status.value = "在线";
+			// 真桥客户端（T16/B2）：token 同源取，register ack = 第二轮 register 提示
+			const connect = async () => {
+				const state = islandState();
+				let port = 7600;
+				let token = null;
+				status.value = "连接中";
+				try {
+					const resp = await fetch("/plugins/openpencil-marketing/bridge-token");
+					if (!resp.ok) throw new Error("bridge-token HTTP " + resp.status);
+					const info = await resp.json();
+					port = info.port;
+					token = info.token;
+				} catch (err) {
+					status.value = "离线";
+					state.bridge = { registered: false, error: String(err?.message ?? err) };
+					scheduleReconnect();
+					return;
+				}
+				try { ws?.close(); } catch { /* 忽略 */ }
+				const sock = new WebSocket(`ws://127.0.0.1:${port}`);
+				ws = sock;
+				let registerSent = false;
+				sock.onmessage = async (ev) => {
+					let msg;
+					try { msg = JSON.parse(ev.data); } catch { return; }
+					if (msg.type === "register" && msg.token === null) {
+						if (!registerSent) {
+							registerSent = true;
+							sock.send(JSON.stringify({ type: "register", token }));
+						} else {
+							// 第二轮广播提示 = register 成功 ack（browser-rpc.ts registerBrowser 末尾 broadcast 实证）
+							status.value = "已注册";
+							state.bridge = { registered: true, registeredAt: Date.now() };
 						}
-					} catch { /* 非 ping 回包，忽略 */ }
-					ws?.removeEventListener("message", onMsg);
+						return;
+					}
+					if (msg.type !== "request" || !msg.id) return;
+					try {
+						const result = await executeBridgeCommand(editor, msg.command, msg.args);
+						if (sock.readyState === WebSocket.OPEN) {
+							sock.send(JSON.stringify({ type: "response", id: msg.id, ok: true, result }));
+						}
+					} catch (err) {
+						if (sock.readyState === WebSocket.OPEN) {
+							sock.send(JSON.stringify({ type: "response", id: msg.id, ok: false, error: String(err?.message ?? err) }));
+						}
+					}
 				};
-				ws.addEventListener("message", onMsg);
-				ws.send(JSON.stringify({ id: 1, method: "ping" }));
+				sock.onclose = () => {
+					if (intentionalClose) return;
+					status.value = "离线";
+					state.bridge = { registered: false };
+					scheduleReconnect();
+				};
+				sock.onerror = () => { status.value = "离线"; };
 			};
 
-			const connect = () => {
-				status.value = "连接中";
-				rtt.value = null;
-				try { ws?.close(); } catch { /* 忽略 */ }
-				ws = new WebSocket(BRIDGE_URL);
-				ws.onopen = () => { status.value = "在线"; beat(); };
-				ws.onclose = () => { status.value = "离线"; rtt.value = null; };
-				ws.onerror = () => { status.value = "离线"; };
-				clearInterval(timer);
-				timer = setInterval(beat, 5000);
+			const scheduleReconnect = () => {
+				clearTimeout(reconnectTimer);
+				reconnectTimer = setTimeout(() => { if (!intentionalClose) void connect(); }, 3000);
 			};
 
 			// E2 主画布：单 canvas 全层渲染（EditorCanvas 的双 canvas 分层是优化项，入岛从简）；
@@ -168,11 +252,15 @@ export function mountVueApp(el, { ck, editor, bootMs, fontBytes }) {
 				hitTestFrameTitle,
 			);
 
-			connect();
+			void connect();
 			onMounted(() => {
 				if (probeCanvasEl) runCanvasKitProbe(probeCanvasEl, ckStatus);
 			});
-			onUnmounted(() => { clearInterval(timer); try { ws?.close(); } catch { /* 忽略 */ } });
+			onUnmounted(() => {
+				intentionalClose = true;
+				clearTimeout(reconnectTimer);
+				try { ws?.close(); } catch { /* 忽略 */ }
+			});
 
 			const dot = (on, busy) => h("span", {
 				style: {
@@ -200,9 +288,8 @@ export function mountVueApp(el, { ck, editor, bootMs, fontBytes }) {
 					}, [
 						h("span", null, "OpenPencil 营销工作台"),
 						h("span", { style: { display: "inline-flex", alignItems: "center", gap: "6px", fontWeight: "400", color: "#4b5563" } }, [
-							dot(status.value === "在线", status.value === "连接中"),
-							h("span", { "data-openpencil-vue": "status" },
-								`编辑器桥 ${status.value}` + (rtt.value != null ? ` · ${rtt.value}ms` : "")),
+							dot(status.value === "已注册", status.value === "连接中"),
+							h("span", { "data-openpencil-vue": "status" }, `编辑器桥 ${status.value}`),
 						]),
 						h("span", { style: { display: "inline-flex", alignItems: "center", gap: "6px", fontWeight: "400", color: "#4b5563" } }, [
 							dot(ckStatus.value.startsWith("在线"), ckStatus.value === "初始化中"),

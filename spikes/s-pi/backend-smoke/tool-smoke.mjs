@@ -164,7 +164,7 @@ check(
   JSON.stringify(inputAvail?.input)
 )
 check('T1 无 tool-output-error', !outputError, JSON.stringify(outputError))
-const nodeId = outputAvail?.output?.nodeId
+const nodeId = outputAvail?.output?.id
 check(
   'T1 tool-output-available 含新节点 id',
   typeof nodeId === 'string',
@@ -245,7 +245,7 @@ try {
       `http://127.0.0.1:${recoveryPort}`
     )
     const reOut = t4b.chunks.find((c) => c.type === 'tool-output-available')
-    const reNodeId = reOut?.output?.nodeId
+    const reNodeId = reOut?.output?.id
     check(
       'T4 重启后工具仍可调（RECTANGLE 产出 nodeId）',
       typeof reNodeId === 'string',

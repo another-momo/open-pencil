@@ -9,6 +9,7 @@ import IconButton from '@/components/ui/IconButton.vue'
 import InputGroup from '@/components/ui/InputGroup.vue'
 import { useAIChat } from '@/app/ai/chat/use'
 import { designModelProfile, designModelProfiles } from '@/app/ai/models'
+import { piDesignAssignment } from '@/app/ai/pi-backend/assignment'
 import {
   createImagePreviewURL,
   revokeImagePreviewURL,
@@ -74,6 +75,11 @@ function removeImage(index: number) {
 }
 
 const isStreaming = computed(() => disabled || status === 'streaming' || status === 'submitted')
+// T21：pi 模式下模型由后端 catalog/指派决定，聊天输入只读展示当前指派
+const isPiBackend = import.meta.env.VITE_PI_BACKEND === '1'
+const piModelLabel = computed(
+  () => piDesignAssignment.value?.modelId ?? dialogs.value.piDesignModelDefault
+)
 const isAgentProvider = computed(() => providerID.value === 'harness:pi')
 const agentName = computed(() => 'Pi')
 const isCustomProvider = computed(
@@ -195,7 +201,15 @@ function handleSubmit(e: Event) {
 
           <template #model>
             <div class="flex min-w-0 items-center">
-              <template v-if="isAgentProvider">
+              <div
+                v-if="isPiBackend"
+                class="flex min-w-0 items-center gap-1 px-1.5 text-[10px] text-muted"
+                data-test-id="chat-pi-model-label"
+              >
+                <icon-lucide-bot class="size-3 shrink-0" />
+                <span class="truncate">{{ piModelLabel }}</span>
+              </div>
+              <template v-else-if="isAgentProvider">
                 <div class="flex min-w-0 items-center gap-1 px-1.5 text-[10px] text-muted">
                   <icon-lucide-bot class="size-3 shrink-0" />
                   <span class="truncate">{{ agentName }}</span>

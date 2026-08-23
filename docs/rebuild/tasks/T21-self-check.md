@@ -46,11 +46,28 @@ owner 拍板（2026-08-24）：①provider/凭据一步到位 pi 原生、不迁
 
 ## 2.2 实施事实
 
-（待实施期回填）
+（2026-08-24 实施期回填；所有声明均可在工作树读文件核验）
+
+1. **后端管理面** `src/app/ai/pi-backend/provider-admin.ts`（新增）：`createProviderAdmin({agentDir})` 持有 ModelRuntime 生命周期；种子 models.json 只写 openrouter/free 免费路由（`apiKey: '$OPENROUTER_API_KEY'` env 引用，非 key 本体）；凭据写路径 login 优先（scripted interaction `prompt: () => Promise.resolve(key)`）+ 自写 auth.json 兜底（`AuthJSONDoc` 命名类型、0600）+ 写后 `getAuth` 回验；`upsertProvider` 读-并-写 models.json 后 `resetRuntime()` 重建
+2. **服务端点** `server.ts`：GET /api/pi/catalog（脱敏白名单字段）、POST/DELETE /api/pi/credentials、POST /api/pi/providers；错误统一 400 `{error}`，文案不含 key；聊天体新增可选 `model?: ModelSpec`（providerId/modelId/thinkingLevel）
+3. **vite proxy** `vite-plugin.ts`：前缀 `/api/pi-chat` 扩为 `/api/pi`，管理端点与聊天同走后端，前端 fetch 零路径变更
+4. **工具面** `tools.ts` 重写：25 工具 = CORE_TOOLS 21 + extended 白名单 4（get_components/list_libraries/insert_library_component/create_shape）；`paramToTypeBox` 从 core ParamDef 生成 typebox schema；`maybeAppendStepWarning` 剩余 ≤5 步注 `_warning`（文案照抄旧 ai-adapter.ts）；execute 返回 `{content, details: 桥原始结果}`
+5. **system prompt** `service.ts`：`DefaultResourceLoader({systemPrompt: 读盘 system-prompt.md, noContextFiles: true, noSkills: true, noPromptTemplates: true})`——repo AGENTS.md 不再污染设计会话；模块级缓存
+6. **undo 环绕** `tool-handlers.ts`：`withAIUndo(store, name, fn)` = snapshotPage → fn → snapshotPage → pushUndoEntry(`AI: <name>`)；render 与 ALL_TOOLS mutates 路径全覆盖
+7. **前端** `client.ts`（catalog/凭据/provider fetch + 模块级 ref）、`assignment.ts`（pi design 指派 localStorage 新槽 `openpencil.pi.design-model`，useLocalStorage，无迁移）、`PiModelsPanel.vue`（目录/凭据状态灯/key 存清/自定义 provider 表单/design 指派）、`ModelsPanel.vue` pi 分支、`ChatInput.vue` pi 模型标签只读展示、`transport.ts` 请求体带 model spec、`attach.ts` 注入 getter
+8. **冒烟** `spikes/s-pi/backend-smoke/`：t21-admin-smoke.mjs（21 断言）、t21-settings-smoke.mjs（11 断言，浏览器 UI 全链）、t21-tools-smoke.mjs（9 断言，describe→render 有序）、t21-undo-smoke.mjs（5 断言，undo 栈 label + 撤销/重做回读）；全部本地绿（2026-08-24）
+9. **zone 注册**：P37 ModelsPanel.vue / P38 i18n en 源 / P39 tool-handlers.ts / P40 zh-cn dialogs.json；ownedFiles += PiModelsPanel.vue（check:zones 2026-08-24 绿）
+10. **CustomProviderInput.models 容错**：设置页一行一个 id 的输入形态为纯字符串数组，服务端归一化 `typeof raw === 'string' ? {id: raw} : raw`（冒烟①实测逼出的接口对齐修复）
 
 ## 2.3 与计划的偏差
 
-（待实施期回填）
+1. **pi 无 maxTurns 硬限**（pi-agent-core 全量 grep 零命中，2026-08-24）：旧 50 步硬停能力不再，step budget 退化为纯警告注入（剩余 ≤5 注 `_warning`）；模型不守警告时没有强制截断——接受为上游语义，后续如需硬停需 app 层自实现
+2. **create_shape 保留为第 25 个工具**：计划口径为「24 core 等价」，T20 hello-tool 已证明链路且不冲突，保留（T20 冒烟回归依赖它）
+3. **resourceLoader 行为变更**：`noContextFiles: true` 使 pi 不再读取 repo AGENTS.md——旧 ToolLoop 本就只用静态 prompt，此为对齐而非缩水，但 pi 原生默认行为被显式关闭
+4. **前端 model spec 不进 localStorage 旧三表**：pi design 指派用独立槽位（`openpencil.pi.design-model`），与 models/store.ts 的 profile/connection/assignment 完全平行；legacy 模式 UI 原样保留
+5. **undo 断言依赖 UndoManager TS-private 字段运行期可见**（`undo.undoStack`，t21-undo-smoke.mjs）——冒烟级用法，不进产品代码
+6. **check:secrets 本地不可跑**（gitleaks/go 均不在本机，2026-08-24 实测 ENOENT）：交远端 CI；key 卫生由冒烟内的脱敏断言本地兜底
+7. **test:tools 一处既有 Windows 路径分隔符失败**（tools/type-shapes/tests/files.test.ts:41，`/` vs `\`）：与 T21 无关（本任务未触 tools/type-shapes），Linux CI 绿
 
 ## 2.4 已知边界
 

@@ -11,7 +11,7 @@
     "workbench/",
     "src/app/ai/pi-backend/"
   ],
-  "ownedFiles": [],
+  "ownedFiles": ["src/components/settings/models/PiModelsPanel.vue"],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
     "src/app/ai/chat/",
@@ -244,6 +244,30 @@
       "id": "P36",
       "file": ".gitignore",
       "reason": "ignore .openpencil/ (T19 pi backend local session state)",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P37",
+      "file": "src/components/settings/models/ModelsPanel.vue",
+      "reason": "T21: VITE_PI_BACKEND=1 时改向渲染 PiModelsPanel（provider/凭据由 pi 后端管理）；旧 profile/assignment 路径保留给 legacy 模式",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P38",
+      "file": "packages/vue/src/i18n/messages/dialogs.ts",
+      "reason": "T21: PiModelsPanel 的 en 源文案键（pi* 前缀一组）；zh 翻译随附 locales/zh-cn/dialogs.json",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P39",
+      "file": "src/app/automation/bridge/tool-handlers.ts",
+      "reason": "T21: withAIUndo 环绕——桥 mutates 工具（render + ALL_TOOLS mutates 路径）产生 `AI: <name>` 撤销条目，对齐旧 ToolLoop src/app/ai/tools/index.ts:107-130 先例",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P40",
+      "file": "packages/vue/src/i18n/locales/zh-cn/dialogs.json",
+      "reason": "T21: PiModelsPanel 的 zh 翻译（pi* 键组，随 P38 en 源）",
       "disposition": "permanent"
     }
   ],

@@ -71,7 +71,9 @@ export function piBackendPlugin(): Plugin {
       return {
         server: {
           proxy: {
-            '/api/pi-chat': {
+            // T21：前缀从 /api/pi-chat 扩到 /api/pi（catalog/credentials/providers
+            // 管理端点同走后端；/api/pi-chat 含于前缀内，前端零改动）
+            '/api/pi': {
               target: `http://127.0.0.1:${port}`,
               changeOrigin: false
             }

@@ -6,8 +6,12 @@ import { ACP_AGENTS, AI_PROVIDERS } from '@open-pencil/core/constants'
 
 import { aiModelSettings, modelConnection, modelConnectionCredentialStatus } from '@/app/ai/models'
 import type { CredentialStatus } from '@/app/settings/credentials/types'
+import PiModelsPanel from '@/components/settings/models/PiModelsPanel.vue'
 import ProfileEditor from '@/components/settings/models/ProfileEditor.vue'
 import RoleAssignments from '@/components/settings/models/RoleAssignments.vue'
+
+// T21：pi 模式下 provider/凭据由后端管理（auth.json + models.json），设置页改向 PiModelsPanel
+const isPiBackend = import.meta.env.VITE_PI_BACKEND === '1'
 
 const { dialogs } = useI18n()
 const editing = ref(false)
@@ -79,15 +83,18 @@ watch(
 </script>
 
 <template>
-  <ProfileEditor
-    v-if="editing"
-    :key="editingProfileId ?? 'new'"
-    :profile-id="editingProfileId"
-    @done="closeEditor"
-    @deleted="closeEditor"
-  />
+  <PiModelsPanel v-if="isPiBackend" />
 
-  <div v-else class="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
+  <template v-else>
+    <ProfileEditor
+      v-if="editing"
+      :key="editingProfileId ?? 'new'"
+      :profile-id="editingProfileId"
+      @done="closeEditor"
+      @deleted="closeEditor"
+    />
+
+    <div v-else class="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
     <section>
       <div class="mb-2 flex items-center justify-between">
         <div>
@@ -165,5 +172,6 @@ watch(
       </div>
       <RoleAssignments />
     </section>
-  </div>
+    </div>
+  </template>
 </template>

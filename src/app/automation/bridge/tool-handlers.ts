@@ -10,6 +10,28 @@ import { useLibraryService } from '@/app/libraries'
 
 type FigmaFactory = (store: AutomationTarget['store'], pageId?: string) => FigmaAPI
 
+/**
+ * T21：桥执行的变更类操作补 undo 条目（对齐旧 ToolLoop 环绕 src/app/ai/tools/
+ * index.ts:107-130 语义：执行前快照、执行后推 `AI: <name>` 撤销条目）。
+ * 桥现在是 AI agent 的唯一执行路径（pi 后端经 7600 进来），undo 补齐后
+ * 用户可撤销 agent 变更。执行抛错时不产生条目。
+ */
+async function withAIUndo<T>(
+  store: AutomationTarget['store'],
+  toolName: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  const before = store.snapshotPage()
+  const result = await fn()
+  const after = store.snapshotPage()
+  store.pushUndoEntry({
+    label: `AI: ${toolName}`,
+    forward: () => store.restorePageFromSnapshot(after),
+    inverse: () => store.restorePageFromSnapshot(before)
+  })
+  return result
+}
+
 export function createAutomationToolHandler(makeFigma: FigmaFactory) {
   async function handleToolRender(
     target: AutomationTarget,
@@ -17,11 +39,13 @@ export function createAutomationToolHandler(makeFigma: FigmaFactory) {
   ): Promise<unknown> {
     const store = target.store
     const tree = toolArgs.tree as Parameters<typeof renderTreeNode>[1]
-    const result = await renderTreeNode(store.graph, tree, {
-      parentId: (toolArgs.parent_id as string | undefined) ?? target.pageId,
-      x: toolArgs.x as number | undefined,
-      y: toolArgs.y as number | undefined
-    })
+    const result = await withAIUndo(store, 'render', () =>
+      renderTreeNode(store.graph, tree, {
+        parentId: (toolArgs.parent_id as string | undefined) ?? target.pageId,
+        x: toolArgs.x as number | undefined,
+        y: toolArgs.y as number | undefined
+      })
+    )
     await ensureGraphFonts(store.graph, [result.id], store.renderer)
     computeAllLayouts(store.graph, target.pageId)
     store.requestRender()
@@ -48,7 +72,8 @@ export function createAutomationToolHandler(makeFigma: FigmaFactory) {
     libraryService.bindEditor(store)
     registerComponentCatalog(store.graph, libraryService)
     const figma = makeFigma(store, target.pageId)
-    const result = await def.execute(figma, toolArgs)
+    const execute = () => Promise.resolve(def.execute(figma, toolArgs))
+    const result = def.mutates ? await withAIUndo(store, toolName, execute) : await execute()
 
     if (def.mutates) {
       const pageNode = store.graph.getNode(figma.currentPageId)

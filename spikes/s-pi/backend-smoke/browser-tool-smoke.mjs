@@ -177,13 +177,14 @@ try {
   await page.waitForTimeout(1200)
   await page.screenshot({ path: join(root, '.openpencil', 't20-tool-card-done.png') })
 
-  // 展开卡片详情 → pre 里的 nodeId 与画布回读对账（A3 证据链闭环）
+  // 展开卡片详情 → pre 里的 id 与画布回读对账（A3 证据链闭环）
+  // T21：details 现在是桥原始结果 {id, name, type}（不再映射 nodeId）
   await toolCard.click()
   await page.waitForTimeout(400)
   const detailPre = assistant.locator('pre').last()
   const detailText = (await detailPre.textContent().catch(() => '')) ?? ''
-  const nodeIdMatch = detailText.match(/"nodeId"\s*:\s*"([^"]+)"/)
-  check('卡片详情含 nodeId', !!nodeIdMatch, detailText.slice(0, 200))
+  const nodeIdMatch = detailText.match(/"id"\s*:\s*"([^"]+)"/)
+  check('卡片详情含节点 id', !!nodeIdMatch, detailText.slice(0, 200))
   const uiNodeId = nodeIdMatch?.[1]
   await page.screenshot({ path: join(root, '.openpencil', 't20-tool-card-detail.png') })
 

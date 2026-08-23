@@ -14,6 +14,7 @@ import { IS_BROWSER } from '@open-pencil/core/constants'
 
 import '@/app/ai/chat/use'
 import { loadPiBackendSessionId } from '@/app/ai/chat/storage'
+import { getPiDesignModelSpec } from '@/app/ai/pi-backend/assignment'
 import { PiBackendChatTransport } from '@/app/ai/pi-backend/transport'
 
 export function attachPiBackendTransport(): void {
@@ -25,5 +26,6 @@ export function attachPiBackendTransport(): void {
   }
 
   const sessionId = loadPiBackendSessionId()
-  setChatTransport(() => new PiBackendChatTransport(sessionId))
+  // T21：design 模型指派（设置页 PiModelsPanel 维护）随每次发送传给后端
+  setChatTransport(() => new PiBackendChatTransport(sessionId, getPiDesignModelSpec))
 }

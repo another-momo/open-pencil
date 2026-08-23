@@ -11,6 +11,9 @@
 | `offline-session-persistence.mjs` | S-pi-3 离线面 | SessionManager 增量落盘 / 跨重启恢复 / list / branch 树形分叉（零网络） |
 | `live-chat.mjs` | S-pi-1 活模型面（T18 P2） | openrouter/free 真实流式对话（需 OPENROUTER_API_KEY，env 注入不落盘） |
 | `live-tool-result.mjs` | S-pi-2 主线活模型面（T18 P3） | 真实模型调自定义文本工具并消费返回续跑（同上 key 要求） |
+| `backend-smoke/smoke.mjs` | T19 P5a 后端冒烟 | 产品 dev server 的 /api/pi-chat：SSE 帧序列 + 中文无损 + 锚点连续性 + JSONL 落盘（需 dev server 带 VITE_PI_BACKEND=1 与 key） |
+| `backend-smoke/recovery-probe.mjs` | T19 P5a 重启恢复 | dev server 重启后对旧 sessionId 追问锚点，实证 SessionManager.open 恢复 |
+| `backend-smoke/browser-smoke.mjs` | T19 P5b 浏览器冒烟 | 真实 Chromium 端到端：AI 面板发消息、流式渲染、前后端 session 对账 |
 
 ## 运行
 

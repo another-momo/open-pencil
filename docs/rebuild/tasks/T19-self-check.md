@@ -61,18 +61,18 @@
 
 ### 2.4 2026-08-23 P5a 后端冒烟（活模型 openrouter/free，不经浏览器）
 
-证据脚本：`tests/engine/rebuild/pi-backend-smoke.mjs`（node 直跑，fetch 发 UTF-8 中文，断言 SSE 帧序列 + 中文无损 + 锚点连续性 + 落盘）。运行 `node tests/engine/rebuild/pi-backend-smoke.mjs` → **14/14 PASS**：
+证据脚本：`spikes/s-pi/backend-smoke/smoke.mjs`（node 直跑，fetch 发 UTF-8 中文，断言 SSE 帧序列 + 中文无损 + 锚点连续性 + 落盘）。运行 `node spikes/s-pi/backend-smoke/smoke.mjs` → **14/14 PASS**：
 
 - 帧序列：start 首帧、text-start 先于 delta、start/end 计数自洽、finish(stop) 收尾、`[DONE]` 在
 - 中文无损：发「请记住这个数字：7391…」回复含「记住」（对照：同 payload 经 Git Bash curl -d 发送则模型侧收到 mojibake——**curl/Windows 控制台编码问题，非本后端**；node fetch 无此问题）
 - 连续性：R2 追问命中锚点 7391（仅后端 SessionManager 历史可提供）
 - 落盘：`.openpencil/pi-sessions/*.jsonl` 非空且含两回合 user 消息；index.json 记录 sessionId；目录内无 key 明文文件名
 
-**重启恢复**（证据脚本 `tests/engine/rebuild/pi-backend-recovery-probe.mjs`）：kill 掉 vite 进程树后新起 dev server，对旧 sessionId 追问 → 回复「7391」，`RECOVERY-PASS`（2026-08-23）。证明 SessionManager.open 从 JSONL 恢复，session 不绑定进程生命周期
+**重启恢复**（证据脚本 `spikes/s-pi/backend-smoke/recovery-probe.mjs`）：kill 掉 vite 进程树后新起 dev server，对旧 sessionId 追问 → 回复「7391」，`RECOVERY-PASS`（2026-08-23）。证明 SessionManager.open 从 JSONL 恢复，session 不绑定进程生命周期
 
 ### 2.5 2026-08-23 P5b 浏览器冒烟（真实 Chromium + 活模型）
 
-证据脚本：`tests/engine/rebuild/pi-backend-browser-smoke.mjs`（@playwright/test chromium.launch，standalone 不经 test runner；本机 playwright 缓存版本错位，脚本自动探测 chromium_headless_shell 最高版本 executablePath，可用 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 覆盖）。运行 → **7/7 PASS**：
+证据脚本：`spikes/s-pi/backend-smoke/browser-smoke.mjs`（@playwright/test chromium.launch，standalone 不经 test runner；本机 playwright 缓存版本错位，脚本自动探测 chromium_headless_shell 最高版本 executablePath，可用 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 覆盖）。运行 → **7/7 PASS**：
 
 1. AI 面板直接出现聊天输入框（isConfigured 门控生效，无 provider 配置引导）
 2. sessionStorage 写入 pi sessionId
@@ -90,8 +90,14 @@
 
 - **「No model」标签**：聊天底栏模型选择器显示 No model（pi 后端不经 provider 配置面，选择器无感知）。功能无碍，T21 凭证/模型面统一时处理
 - **canvaskit-webgpu vendor 缺失告警**：dev server 启动时 `[copy-canvaskit-wasm] Missing source`（`packages/core/vendor/canvaskit-webgpu/` 为 gitignored 外部检出，本机与 CI 均无）；webgl 路径回退 `node_modules/canvaskit-wasm`，e2e 在 CI 同形态下全绿——**预先存在，与本任务无关**（2026-08-23 三次 dev server 日志一致）
-- **openrouter/free 为 meta 路由**：不同请求可能落到不同免费模型，回复质量波动（冒烟断言只用锚点数字，不依赖文风）
+- **openrouter/free 为 meta 路由**：不同请求可能落到不同免费模型，回复质量波动。冒烟 R1 断言已硬化为逐字复读探针（「汉字无损」echo + 零 U+FFFD 断言），不依赖模型文风——原「回复含记住」断言在核验员首跑时遇模型答非所问（"User Safety: safe"），重跑即过
 - **key 卫生**：`OPENROUTER_API_KEY` 经 `.openpencil/key-env`（gitignored，`git check-ignore -v` 命中 .gitignore:82）source 进 dev server 进程环境；models.json 写盘内容为 `$OPENROUTER_API_KEY` 引用非明文；全文不出现 key 值
+
+### 2.7 CI 事故链与工具链坑（2026-08-23 实录）
+
+1. 首推 `3dc84992` → CI Code quality 红于 **format:check**：`tools/zone-registry/zones.json` 被 oxfmt 改写。**根因：oxfmt 0.35.0 的 JSON 数组单行/多行规范化在 Windows 与 Linux 二进制间行为不一致**（subagent 核验员实证：同 lockfile 版本，Windows 对多行形态 --write 逐字节不变，Linux 改写回单行）——本地 format:check 对 JSON 文件可能假绿。修复：接受 CI 形态（单行化）amend 为 `07323180`。教训：手工编辑 zones.json 等 JSON 后，以 CI 为准或固定 oxfmt 单行数组风格
+2. 二推 `07323180` → format 翻绿，但 **lint:structure 红**：2 errors 均在 tests/engine/rebuild/ 冒烟脚本——`window.sessionStorage` 标识符命中 no-direct-storage-access（规则为语法级，evaluate 回调内也算）；`indexOf(...) !== -1` 命中 unicorn prefer-includes。**本地漏检原因：只跑了 scoped oxlint（src/app/ai/pi-backend/），没跑全量 `bun run lint`**（lint:structure 覆盖 tests/ 且无 type-aware）。修复：oxlint-disable-next-line（`open-pencil/规则名` 斜杠形式才生效，括号形式无效——两处都试过，实证）+ indexOf 结果先入变量再比较。amend 为 `a34adfcb`；本地全量 `bun run lint` + `format:check` 复核全绿后推送
+3. 两坑共同教训：**收口前本地必跑 CI 同构命令全量面**（`bun run lint` 全路径 + `bun run format:check` + tsgo + zone check），不得以 scoped 检查替代
 
 ## 3. 完成度自评
 
@@ -100,6 +106,6 @@
 - A3 前端零改动（Chat 类/ChatPanel/use/transports git diff 为零）：✅ §2.2
 - A4 live 冒烟（真实模型 + 浏览器渲染 + 截图）：✅ §2.5
 - A5 session 连续（跨请求锚点 + JSONL 落盘 + 重启恢复）：✅ §2.4
-- A6 无占位 / key 卫生 / CI：本地无占位（五文件全真实现）；key 卫生 §2.6；CI 随推送观察（静态面：typecheck + zone check 本地已绿）
+- A6 无占位 / key 卫生 / CI：本地无占位（五文件全真实现）；key 卫生 §2.6；CI 事故链见 §2.7（两次红灯均已就地修复），最终以推送态 CI 为准
 
-**剩余收口动作**：subagent 独立核验（T19-verify.md V1-V8）→ verify.md 判决 → tracker 更新。
+**剩余收口动作**：subagent 独立核验 V1-V7 已 PASS（V8 待推送态 CI 翻绿后翻转）→ verify.md 判决 → tracker 更新。

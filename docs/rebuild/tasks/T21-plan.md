@@ -36,7 +36,7 @@
 ### 1.4 现状起点（实证，2026-08-24）
 
 - 后端 service.ts:53-115：models.json 硬编码 OPENROUTER_FREE_MODELS 写入 `.openpencil/pi-agent/`，authPath 已指向同目录 auth.json（未实际使用），模型固定 openrouter/free，key 靠 `$OPENROUTER_API_KEY` env 引用
-- 工具面：后端仅 create_shape 一个 hello-tool（tools.ts）；旧 ToolLoop 等价集 = CORE_TOOLS 21 + 白名单 extended 3（get_components/list_libraries/insert_library_component），共 24（registry-core.ts:25-54 + 旧 tools/index.ts:98-104）
+- 工具面：后端仅 create_shape 一个 hello-tool（tools.ts）；旧 ToolLoop 等价集 = CORE_TOOLS 22 + 白名单 extended 3（get_components/list_libraries/insert_library_component），共 25（计数核验修正 2026-08-24）（registry-core.ts:25-54 + 旧 tools/index.ts:98-104）
 - system-prompt.md 为静态字符串（旧 transports.ts:78 `instructions: SYSTEM_PROMPT`，无动态注入）
 - 桥 handler（tool-handlers.ts:53-59）有 fonts/layout/render/flash，缺 undo；旧环绕 undo 先例在 src/app/ai/tools/index.ts:107-130（snapshotPage → pushUndoEntry `AI: <name>`）
 - ToolDef 用自定义 ParamDef 迷你 schema（core/tools/schema.ts:15-32），非 valibot per-tool；MCP 侧已有 paramToZod 转换先例（packages/mcp/src/tool/schema.ts）→ toolsToPi 只需仿写 paramToTypeBox
@@ -48,7 +48,7 @@
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
 | A1  | 后端 pi 原生 model/auth 落地：ModelRuntime + AuthStorage（.openpencil/pi-agent/），端点：GET catalog（provider+model+auth 状态，脱敏）、POST/DELETE credential（set/delete，**无 read-key 端点**）、provider upsert（自定义 baseURL/api/models） | curl 实证 + auth.json 落盘检查                |
 | A2  | 设置 UI 改向：provider 目录/凭据状态读写走后端；role 指派保留 app 层；UI 存 key → auth.json 落盘 → 聊天可用（全程无 env key）                                                                                                                    | 浏览器冒烟实证                                |
-| A3  | 全量 24 core tools 经 toolsToPi 接入 + 后端加载 system-prompt.md                                                                                                                                                                                 | API 冒烟：模型可调 render/describe 等真实工具 |
+| A3  | 全量 core tools（CORE_TOOLS 22 + 白名单 4 = 26）经 toolsToPi 接入 + 后端加载 system-prompt.md                                                                                                                                                                                 | API 冒烟：模型可调 render/describe 等真实工具 |
 | A4  | 环绕补齐：桥 mutates 产生 `AI: <name>` 撤销条目（undo 栈实证）+ 后端 step budget 近限注 `_warning`                                                                                                                                               | 冒烟断言 undo 栈；budget 单测/冒烟            |
 | A5  | chat 面零改动（ChatPanel/attach/transports 不动）；T19/T20 冒烟回归全绿                                                                                                                                                                          | git diff + 回归                               |
 | A6  | key 卫生（端点不回 key、日志不含 key、仓内无明文）+ 无占位 + CI 绿                                                                                                                                                                               | 扫描 + CI                                     |
@@ -89,11 +89,11 @@
 
 - OAuth 交互流（留接口）；模型 GET /models 探询（留口）；存量凭据迁移（明确不做）；多 mode/多 agent 编排（留口）；浏览器 ToolLoop 旧代码拆除（独立后续任务）；session↔file 绑定（T22）
 
-## 4. 冒烟设计（spikes/s-pi/backend-smoke/ 新增 t21-\*.mjs）
+## 4. 冒烟设计（spikes/s-pi/backend-smoke/t21/ 领域目录，实施期 steiger 归位）
 
 1. **catalog/凭据 API 冒烟**：空态 catalog → POST key → auth.json 落盘（0600 权限检查【Windows 上 ACL 行为待验】）→ catalog 显示 configured → DELETE 清除 → catalog 回到空态；断言任何响应体不含 key 本体
 2. **无 env key 全链冒烟**：后端进程**不注入** OPENROUTER_API_KEY，经 UI/API 存 key 后跑 T20 tool-smoke 全链（证明 env 依赖解除）
-3. **工具面冒烟**：prompt 要求「先 describe 画布再 render 一个卡片」——断言 describe/render 两个工具卡片按序完成（证明 24 工具在线且 system prompt 生效）
+3. **工具面冒烟**：prompt 要求「先 describe 画布再 render 一个卡片」——断言 describe/render 两个工具卡片按序完成（证明 26 工具在线且 system prompt 生效）
 4. **undo 冒烟**：API 建 shape 后查桥 `eval` 调 undo 栈深度/label（或浏览器侧断言撤销一步后节点消失）
 5. **回归**：T19 smoke.mjs + T20 tool-smoke/browser-tool-smoke 全绿
 

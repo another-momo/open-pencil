@@ -7,7 +7,7 @@
  * 节点经桥回读消失 → redoAction() 后节点恢复。
  *
  * 前置：vite dev server 已起。不需要模型 key（不经聊天回合，直打桥）。
- * 运行：node spikes/s-pi/backend-smoke/t21-undo-smoke.mjs [baseUrl]
+ * 运行：node spikes/s-pi/backend-smoke/t21/undo-smoke.mjs [baseUrl]
  * 退出码 0 = 全过。
  */
 

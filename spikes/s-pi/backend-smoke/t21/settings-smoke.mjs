@@ -8,7 +8,7 @@
  * key 卫生：脚本 env 读取、只经页面输入框传输，不打印；断言输出不含 key。
  *
  * 前置：vite dev server 已起（VITE_PI_BACKEND=1）。
- * 运行：node spikes/s-pi/backend-smoke/t21-settings-smoke.mjs [baseUrl]
+ * 运行：node spikes/s-pi/backend-smoke/t21/settings-smoke.mjs [baseUrl]
  * 退出码 0 = 全过。
  */
 

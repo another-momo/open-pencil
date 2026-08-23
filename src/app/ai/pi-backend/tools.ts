@@ -9,7 +9,7 @@
  *     浏览器编辑器（WorkspaceView mount 时自动连桥）→ core ALL_TOOLS 执行
  *  5. 返回 {ok, result} / {ok:false, error}，包装为 AgentToolResult
  *
- * T21：工具集从 hello-tool 单件扩为旧 ToolLoop 等价全集——CORE_TOOLS 21 +
+ * T21：工具集从 hello-tool 单件扩为旧 ToolLoop 等价全集——CORE_TOOLS 22 +
  * extended 白名单 4（get_components / list_libraries /
  * insert_library_component / create_shape；前三者与旧 src/app/ai/tools/
  * index.ts:98-104 白名单一致，create_shape 为 T20 hello-tool 保留）。

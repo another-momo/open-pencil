@@ -11,15 +11,12 @@ import { StorageSerializers, useLocalStorage } from '@vueuse/core'
 import { computed } from 'vue'
 
 import { piCatalog } from '@/app/ai/pi-backend/client'
-import type { PiModelSpec, PiThinkingLevel } from '@/app/ai/pi-backend/client'
+import type { PiModelSpec } from '@/app/ai/pi-backend/client'
 
 const STORAGE_KEY = 'openpencil.pi.design-model'
 
-export type PiDesignAssignment = {
-  providerId: string
-  modelId: string
-  thinkingLevel?: PiThinkingLevel
-}
+/** 与 PiModelSpec 同形（type-shapes 查重：此处只留别名，不重复声明对象形状） */
+export type PiDesignAssignment = PiModelSpec
 
 export const piDesignAssignment = useLocalStorage<PiDesignAssignment | null>(STORAGE_KEY, null, {
   serializer: StorageSerializers.object

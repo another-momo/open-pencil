@@ -12,7 +12,7 @@
  * key 卫生：脚本进程 env 读取（set -a; source .openpencil/key-env; set +a），
  * 只经请求体传输，绝不打印（断言输出只给布尔/长度）。
  *
- * 运行：node spikes/s-pi/backend-smoke/t21-admin-smoke.mjs
+ * 运行：node spikes/s-pi/backend-smoke/t21/admin-smoke.mjs
  * 退出码 0 = 全过。
  */
 
@@ -22,7 +22,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', '..')
+const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', '..', '..')
 const PORT = 7703
 const BASE = `http://127.0.0.1:${PORT}`
 const KEY = process.env.OPENROUTER_API_KEY ?? ''
@@ -60,7 +60,7 @@ console.log(`T21 管理面冒烟 → ${BASE}`)
 
 check('前置：OPENROUTER_API_KEY 在脚本环境（只用于请求体传输）', KEY.length > 0)
 if (KEY.length === 0) {
-  console.error('运行方式：set -a; source .openpencil/key-env; set +a; node t21-admin-smoke.mjs')
+  console.error('运行方式：set -a; source .openpencil/key-env; set +a; node t21/admin-smoke.mjs')
   process.exit(1)
 }
 

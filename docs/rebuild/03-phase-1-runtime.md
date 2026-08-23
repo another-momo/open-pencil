@@ -93,7 +93,7 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 | 多模态 | 与 dsh 共享 pi-ai；"图转合成 user 消息"路径同构（**DeepSeek 有占位降级——静默不报错**，需 spike 实测） | [spikes/02-pi-sdk-runtime.zh.md §P3](spikes/02-pi-sdk-runtime.zh.md) + `参考项目/pi/packages/ai/src/api/openai-completions.ts:1269-1337` + transform-messages.ts:35-57 |
 | 流式 RPC event | text_start/delta/end、toolcall_start/delta/end、tool_execution_*、compaction_*/auto_retry_*——与 UIMessage v1 字段**先天同构** | [spikes/02-pi-sdk-runtime.zh.md §Y2](spikes/02-pi-sdk-runtime.zh.md) + `参考项目/pi/packages/coding-agent/src/core/`（session 与 RPC 实现所在包，T09 修正路径标签） |
 | 工具审批 | 无内置——需自写 extension（`tool_call` event 返回 `{block: true}`） | spikes/02-pi-sdk-runtime.zh.md §Y7 + extensions.md:778-799 |
-| skills | 无内置子系统；通过 extension event 链实现 | spikes/02-pi-sdk-runtime.zh.md §P8 |
+| skills | **内置**：`~/.pi/agent/skills/<name>/SKILL.md` 等四路径文件系统发现 + `/skill:name` 展开（Agent Skills 开放标准），零新代码（02 §P8；pi README.md:354-367、docs/extensions.md:895-933，2026-08-23 复核）。本行原述「无内置子系统」为误述，2026-08-23 勘误 | spikes/02-pi-sdk-runtime.zh.md §P8 |
 | compaction | 可整体替换的 seam（`session_before_compact` event 钩子改写 summary） | `参考项目/pi/packages/.../compaction.md:280-310` |
 | 双 provider 路径 | pi-ai 的 declarative OpenAI 兼容网关路由（dsh 走同样路径） | spikes/02-pi-sdk-runtime.zh.md §P6 |
 | 工作量 | F0 + 层 1 ≈ **20 人日** | spikes/02-pi-sdk-runtime.zh.md §0 |

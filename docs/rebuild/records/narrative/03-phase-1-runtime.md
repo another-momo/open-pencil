@@ -101,3 +101,11 @@
 - **依据**：owner 拍板 D24（[records/topics/agent-runtime.md](../topics/agent-runtime.md)）——dsh-X 主线暂时搁置、pi SDK 路线升为主线；§5.4 的 dsh 版本钉扎纪律对象（dsh 主线）休眠
 - **内容**：§5.4 标题补注「D24 后随 dsh 主线休眠，重启时恢复」，正文纪律本身不改（休眠非废除）
 - **task 文档**：[tasks/T17-plan.md](../../tasks/T17-plan.md)（登记提交随 T17 收口后决策，无独立任务）
+
+## 修正-N · 03 §3.2 skills 行勘误（pi skills 为内置，原述「无内置」误）
+
+- **类型**：修正（按对象：03-phase-1-runtime.md）
+- **时间**：2026-08-23
+- **依据**：owner 提出「pi skill 支持可后期引入别人 extension」后的复核——pi README.md:354-367 与 docs/extensions.md 实证 skills 内置（文件系统发现 + /skill 展开，Agent Skills 标准）；02 §P8 早有同结论，03 §3.2 摘要行与之矛盾，按详细证据文档为准；D24 第 5 条同误，已加补注
+- **内容**：§3.2 skills 行就地勘误为「内置：四路径文件系统发现 + /skill:name 展开，零新代码」，标注勘误日期
+- **task 文档**：[tasks/T17-plan.md](../../tasks/T17-plan.md)（登记提交随 T17 收口后决策，无独立任务）

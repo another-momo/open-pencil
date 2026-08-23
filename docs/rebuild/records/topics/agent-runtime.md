@@ -227,3 +227,10 @@
 - **依据**：01 §8 工作量对比实测结论（X 比 pi 多 17-18 人日，差额集中在 SessionFace 桥 / 双框架运行时 / 白名单同步 / 孤岛化等前端与集成成本）；owner 判断 dsh 线整体工作量超预期
 
 ---
+
+## 补注 · D24 第 5 条勘误：skills 在 pi 为内置能力，不属「需自写 extension」
+
+- **类型**：补注（对 D24）
+- **时间**：2026-08-23
+- **内容**：D24 第 5 条「工具审批与 skills 无内置需自写 extension」中 **skills 半句有误**——pi 内置 Agent Skills 标准支持：`~/.pi/agent/skills/`、`~/.agents/skills/`、`.pi/skills/`、`.agents/skills/`（cwd 向父级逐层）文件系统发现 + `/skill:name` 展开 + 可经 pi package 分享（pi packages/coding-agent README.md:354-367、docs/extensions.md:895-933，2026-08-23 复核原文；spikes/02 §P8 早有同结论）。**工具审批**半句维持原判（自写 `tool_call` event + `ctx.ui.confirm()`，extensions.md:778-799）。owner 提出「skill 支持可后期引入别人的 extension」——实际更优：skills 无需 extension，第三方 SKILL.md（agentskills.io 开放标准，多工具通用）直接落目录即用
+- **同步修正**：03 §3.2 skills 行已就地勘误（原述「无内置子系统」误，与 02 §P8 矛盾，按详细证据文档为准）

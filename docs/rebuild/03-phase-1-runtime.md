@@ -50,7 +50,7 @@
 
 ### 2.1 一段话
 
-open-pencil marketing 工作台作为**一个 dsh bundle** 发布：用户装 dsh → `dsh plugin --profile web add openpencil-marketing` → 多一个 agent preset（openpencil-design）+ 一组工具 + 一个 React island。切到 openpencil-design preset 时，shell.overlay portal→body 弹出整块 Vue app（编辑画布 + 自写 ChatPanel + 工具面板），通过 SessionFace 与 dsh host 通信，通过 7600 WS 桥与编辑器进程通信——**所有交互发生在 dsh web 标签页里，不开第二个标签**。
+open-pencil marketing 工作台作为**一个 dsh bundle** 发布：用户装 dsh → `dsh plugin --profile web add openpencil-marketing` → 多一个 agent preset（openpencil-design）+ 一组工具 + 一个 React island。切到 openpencil-design preset 时，shell.overlay portal→body 弹出整块 Vue app（完整编辑器【画布 + 面板 chrome，D23 拍板取代原「编辑画布」措辞】 + 自写 ChatPanel + 工具面板），通过 SessionFace 与 dsh host 通信，通过 7600 WS 桥与编辑器进程通信——**所有交互发生在 dsh web 标签页里，不开第二个标签**。
 
 ### 2.2 关键约束与可观测证据
 

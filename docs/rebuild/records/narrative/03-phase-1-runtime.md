@@ -85,3 +85,11 @@
 - **依据**：owner 拍板 D22（dsh 插件路线主线）后 T13 收口——dsh preview 颠簸实证（2026-08-10..21 共 10 个 rc，rc.1/rc.2 同日，npm view time 2026-08-22）需制度化版本纪律
 - **内容**：新增 §5.4——主线钉扎 `@deepseek-ai/dsh@0.1.1-rc.1`（S-X 证据基准版本）；双周升级评估窗口（首窗 2026-09-05 所在周）；升级 = 独立 commit 且重跑 S-X 证据脚本（x3/x5/x6 + 7600 soak smoke）；安全修复例外需 owner 拍板记 records
 - **task 文档**：[tasks/T13-plan.md](../../tasks/T13-plan.md)
+
+## 修正-N · 03 §2.1 孤岛内容描述按 D23 修正（「编辑画布」→「完整编辑器」）
+
+- **类型**：修正（按对象：03-phase-1-runtime.md）
+- **时间**：2026-08-23
+- **依据**：owner 拍板 D23（[records/topics/agent-runtime.md](../topics/agent-runtime.md)）；§2.1 原描述「编辑画布 + 自写 ChatPanel + 工具面板」的「编辑画布」措辞与 owner 意图不符
+- **内容**：§2.1 孤岛内容就地修正为「完整编辑器【画布 + 面板 chrome，D23 拍板取代原『编辑画布』措辞】 + 自写 ChatPanel + 工具面板」
+- **task 文档**：[tasks/T17-plan.md](../../tasks/T17-plan.md)（登记提交随 T17 收口后决策，无独立任务）

@@ -15,7 +15,7 @@
 
 ## 1. 一句话定义
 
-**一个 localhost 形态的营销设计 AI 工作台**：用户在上游编辑器画布上，用「需求单 + 品牌配置（type/profile）」驱动 AI 完成营销物料设计；agent runtime 建在 pi sdk / dsh 上、可再替换；编辑器内核永久跟随上游。
+**一个 localhost 形态的营销设计 AI 工作台**：用户在上游编辑器画布上，用「需求单 + 品牌配置（type/profile）」驱动 AI 完成营销物料设计；agent runtime 建在 pi sdk / dsh 上、可再替换；编辑器内核永久跟随上游。**编辑器完整前端能力（画布 + 面板 chrome）在孤岛内全量保留**（[records/topics/agent-runtime.md D23](records/topics/agent-runtime.md)，2026-08-23 owner 拍板）——此前文档中孤岛内容仅写「编辑画布」系计划空白，已被 D23 取代。
 
 架构前提（已实测）：工具定义在 core、经 WebSocket 在编辑器内执行，agent 后端不碰 SceneGraph；对 AI SDK 的耦合仅两个 import（`tool`、`valibotSchema`）外加 core 的 `ai-adapter.ts`（移植时剥离）。
 

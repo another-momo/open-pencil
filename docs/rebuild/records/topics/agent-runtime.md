@@ -199,3 +199,15 @@
   3. **S-X 模型面（X3 模型调工具 / X6 模型回复响应）仍需补**——它在主路上，阻塞解除条件 = owner 补 API key（DeepSeek 即可，spike 量级成本几毛钱）
 - **依据**：S-pi（SP-7）与 S-X（SP-8）离线面均全绿、X5 硬 gate 通过、双路线模型面同卡一个 key；owner 按产品形态意图拍板（dsh 买整套 agent 宿主生态：工具/权限/技能/subagent/preset）
 - **注记**：D9 原「当前推荐：c 推 1」为 spike 前口径；owner 拍板与推荐不一致时以拍板为准（本条目即拍板结果）
+
+## D23 · overlay 孤岛内编辑器 = 完整编辑器（画布 + chrome），不是仅画布
+
+- **类型**：决策
+- **时间**：2026-08-23
+- **拍板**：owner（会话原话：「我从来没有想要丢掉这些能力」——针对「overlay 内为何只有编辑器底层」的质询）
+- **状态**：已拍板
+- **内容**：
+  1. **overlay 孤岛内的编辑器提供完整前端能力**——画布 + 编辑器 chrome（工具栏 / 图层面板 / 属性面板等 src/components 编辑器面板族，由 EditorWorkspace.vue 组装面），此前 03 §2.1「编辑画布 + 自写 ChatPanel + 工具面板」的「编辑画布」措辞被本决策取代
+  2. 01-target-state 层 0/层 1/层 2 未列编辑器 chrome 块系**计划空白**（T17 收口后 owner 质询暴露），不是「不做」决策；chrome 移植属主线范围，parity 切换前完成
+  3. 实施任务待登记，建议紧随 T18 之后立项。已知工作面（2026-08-23 源码实测）：EditorWorkspace.vue 依赖 @/app/tabs 标签页体系（activeTab/getActiveStore）、@/app/shell/layout-storage、menu/shortcut；WorkspaceView 层的 router / tauri / collab / mcp-runtime 接线在 dsh 形态下需剥离而非照搬；焦点/快捷键与 dsh 宿主页隔离（01 §8 代价 2 已预言「两套」）；孤岛布局需从面板尺寸扩至近全屏
+- **依据**：技术核验无根本障碍——chrome 全为 Vue 组件，与孤岛同框架；editor 实例已经 provideEditor 注入孤岛（workbench/src/client/editor-boot.js），EditorCanvas 接法（useCanvas+useCanvasInput）已在孤岛实证同源（T15）。成本集中在 tabs 体系适配、快捷键隔离、布局扩张三项

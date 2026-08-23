@@ -272,3 +272,11 @@
 - **依据**：T16 验收全达——B1 探针 8/8 拍板 standalone 复用 packages/mcp（commit cf17d037；真桥 7600 起服、discovery 落默认路径、错 token 401）；B2 island 真实桥客户端（token 同源路由下发、register ack 语义实证、最小命令面读写、负例如实）；B3 host 工具真链路（callBridge 重写为 discovery+Bearer+POST /rpc、apply_design 补丁翻译、离线缝 + bridge-call 宿主内双驱动）；B4 subagent 独立核验 V1-V8 全过「可以提交」（含桥重启自愈重注册两轮实测、token 零硬编码 grep、逐节点树一致性对照，[T16-verify](../../tasks/T16-verify.md) 由核验方就地重写）；远端 CI HEAD run 32579903008 全绿。LLM 端到端一环仍阻塞在 owner 补 key（T13 §3），已如实标注为任务外边界
 - **内容**：任务表 T16 行状态 🔄 → ✅ 完成；tasks/_index.md 镜像行同步
 - **task 文档**：[tasks/T16-plan.md](../../tasks/T16-plan.md)
+
+## 修正-N · tracker.md T13 行闭环 ✅（X3/X6 模型面阻塞解除并实测通过）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-23
+- **依据**：owner 已在 dsh web 设置页（127.0.0.1:3080 → 设置 → 模型 → 添加提供方 → openrouter）配好 OpenRouter key；模型切至 `openrouter/free` 后实测——基础回路 ping/pong 通过（18s、首 token 8.6s、20 tok/s，轨迹 Request #2）；X3（模型调 `openpencil_apply_design` 端到端）：显式指令下真实发起工具调用 `{"patches":[{"op":"set","path":"nodes.0:4.props.x","value":300}]}`，工具回包 `{bridgeMs:78, applied:[{nodeId:"0:4",key:"x",value:300}]}`，bridge-call 复核图中 0:4 x=300 属实（2026-08-23 两次实测）；X6（回复体现 type 变化）：模型调 `openpencil_set_marketing_type` 设 landing-page，回复逐条反映「之前未设定 → 现在 landing-page」。证据 workbench/evidence/t13-x3-x6-openrouter-live.png。如实记录的能力短板：自由叙述式指令下该免费模型只叙述计划不调用工具（首轮 X3 尝试），显式给参数后调用成功——链路本身（工具装配 → 桥 → 编辑器 → 回包解读）验证通过，自主调用积极性是免费模型档位属性。Options 面板实证请求走 `provider:"openrouter", model:"openrouter/free"`，工具清单含 openpencil_apply_design / openpencil_bridge_ping / openpencil_set_marketing_type（轨迹「System Prompt and Tools Updated」事件 Tools diff 页，2026-08-23）
+- **内容**：任务表 T13 行状态 🔶 → ✅ 完成（S-pi 模型面仍随 pi 产品版后置 D22）；tasks/_index.md 镜像行同步；T11/T12 行历史措辞保留未改（其模型面当时已上报，X3/X6 解除事项归 T13 行记录）
+- **task 文档**：[tasks/T13-plan.md](../../tasks/T13-plan.md)

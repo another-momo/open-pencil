@@ -162,6 +162,16 @@ try {
   // 助手文本收尾（限定 assistant 容器内的文本气泡，避开用户气泡里的 prompt 字样）
   const reply = assistant.locator('[data-test-id="chat-text-bubble"]').last()
   await reply.waitFor({ timeout: 120000 })
+  // 元素在 text-start 即挂载（内容尚空），须等首个 delta 到达再读——否则竞态空读
+  await page
+    .waitForFunction(
+      (el) => (el?.textContent ?? '').trim().length > 0,
+      await reply.elementHandle(),
+      {
+        timeout: 120000
+      }
+    )
+    .catch(() => null)
   const replyText = await reply.textContent()
   check('助手文本回复非空', (replyText ?? '').trim().length > 0, replyText?.slice(0, 60))
   await page.waitForTimeout(1200)

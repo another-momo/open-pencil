@@ -347,3 +347,11 @@
 - **依据**：T20（工具链路）P1-P5 全部执行完毕并实测通过——后端独立进程化（vite-plugin spawn bun 子进程 + server.proxy 转发 /api/pi-chat，三端口分属不同 PID 实证）；hello-tool 全链 API 冒烟 18/18（tool-input-available→tool-output-available 帧序 + 画布 get_node 回读一致 + 同会话记忆 + 7701 跨进程重启恢复，spikes/s-pi/backend-smoke/tool-smoke.mjs）；真实 Chromium 浏览器冒烟全绿（browser-tool-smoke.mjs，卡片 pending→完成 + nodeId↔画布对账 + 截图证据）；T19 文本回路回归 15/15（smoke.mjs）；前端零改动（git diff cb0ad22c..8e4cd3bd 全量仅 pi-backend/package.json/spikes/docs/zones.json）。结构性根因修复：pi 自动重试时 agent_end 带 willRetry=true，提前发 finish 会致前端 Chat 提前关流丢工具 chunk（卡片卡 pending），mapper 改为仅 willRetry=false 发 finish——实录于 [T20-self-check §2.3](../../tasks/T20-self-check.md)。独立 subagent 按 [T20-verify.md](../../tasks/T20-verify.md) V1-V8 逐项实测，结论「可以收口」，并顺手暴露一处冒烟脚本读取竞态（text-start 挂载即读），已修为 waitForFunction 等首个 delta 后复跑全绿。远端 CI rebuild/pi HEAD 8e4cd3bd run 32645061123 completed/success（gh api 2026-08-23）
 - **内容**：任务表 T20 行状态 🔄→✅ 已完成；tasks/\_index.md 镜像行同步；T20-verify.md 就地重写为收口判决（V1-V8 逐项 PASS 证据 + 总判决「可以收口」）
 - **task 文档**：[tasks/T20-plan.md](../../tasks/T20-plan.md)
+
+## 修正-N · tracker.md T21 行登记（pi 线 T20 收口后推进 provider/凭据 + 全量工具接线）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-24
+- **依据**：owner 两项拍板（2026-08-24）：①LLM provider 及凭据管理一步到位 pi 原生（ModelRuntime + AuthStorage/auth.json），不做存量迁移、不为多 agent 编排过度设计，产品功能参考 deepseek-harness；②undo + 全量 core tools + system prompt 配套接线同做。前置讨论（2026-08-23/24 会话）已决：环绕逻辑按层重摆不重写、工具凭据留前端、LLM 凭据 pi 原生（OAuth 留口）、role profile 保留 app 层、mode profile 留口不做。注册期 recon 十九项实证：pi CredentialStore/AuthStorage/RuntimeCredentials/ModelRuntime/login/logout API 面（pi-ai auth/types.d.ts、 coding-agent auth-storage.d.ts、runtime-credentials.d.ts、model-runtime.d.ts、sdk.d.ts）、pi 官方凭据解析顺序与 auth.json 0600（pi providers.md）、pi 无 subagent/Task 编排（SDK grep 零命中）、ToolDef 为 ParamDef 迷你 schema 且有 paramToZod 先例（core/tools/schema.ts:15-32、mcp/tool/schema.ts）、桥 handler 缺 undo 而旧环绕有先例（tool-handlers.ts:53-59 vs tools/index.ts:107-130）、AutomationTarget.store 即 EditorStore、system-prompt.md 静态（transports.ts:78）、旧 ToolLoop 等价工具集 24 个（registry-core.ts:25-54 + tools/index.ts:98-104）、step budget 旧机制（ai-adapter.ts:46-69,176-177）、设置 UI 面文件清单、deepseek-harness llm-pi-ai 产品模式（【外部参考】）——[T21-self-check §2.1](../../tasks/T21-self-check.md)
+- **内容**：任务表新增 T21 行，状态 🔄 进行中，三件套列一次登记齐（verify 为收口核验项预定、明确声明不含已通过结论）；tasks/\_index.md 镜像行同步
+- **task 文档**：[tasks/T21-plan.md](../../tasks/T21-plan.md)

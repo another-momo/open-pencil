@@ -1,104 +1,107 @@
 /**
- * T19 vite 中间件：POST /api/pi-chat → SSE（UIMessage stream v1 线格式：
- * `data: <json>\n\n` 帧序列 + `data: [DONE]\n\n` 收尾）。
+ * T20 vite 插件：pi 后端进程管理器（owner 拍板 2026-08-23：后端是独立进程）。
  *
- * 装配形态照抄 vite/automation.ts 的 openPencilAutomationPlugin（configureServer
- * + middlewares.use）；D4（独立 localhost serve 产品形态）不在本 task。
+ * 形态照抄 automation 桥（src/app/automation/bridge/vite-plugin.ts，2026-08-23
+ * 实证）：configureServer spawn `bun run src/app/ai/pi-backend/main.ts` 子进程，
+ * buildEnd 回收（kill + 超时 SIGKILL 兜底）；/api/pi-chat 经 config() hook 注入
+ * server.proxy 转发到后端端口——前端 transport 保持同源调用零改动。
  *
- * 请求体：{ sessionId: string, messages: UIMessage[] }（ai SDK Chat 默认全量
- * messages 上报；本 service 只取末条 user 文本，历史由后端 SessionManager 持有）。
+ * OPENROUTER_API_KEY 经 env 继承进入后端进程（vite 进程需已 source key-env）；
+ * 后端进程内 service 惰性装配，缺 key 在首个 prompt 处如实报错（不阻断 vite 启动）。
  */
 
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import { spawn } from 'node:child_process'
 
 import type { Plugin } from 'vite'
 
-import { createPiChatService } from './service'
+import { PI_BACKEND_DEFAULT_PORT } from './config'
 
-type PiChatRequestBody = {
-  sessionId?: string
-  messages?: Array<{
-    role: string
-    parts?: Array<{ type: string; text?: string }>
-  }>
-}
-
-function readBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = []
-    req.on('data', (chunk: Buffer) => chunks.push(chunk))
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
-    req.on('error', reject)
-  })
-}
-
-function lastUserText(body: PiChatRequestBody): string {
-  const lastUser = [...(body.messages ?? [])].reverse().find((m) => m.role === 'user')
-  return (lastUser?.parts ?? [])
-    .filter((p) => p.type === 'text' && typeof p.text === 'string')
-    .map((p) => p.text as string)
-    .join('\n')
-}
+const CHILD_EXIT_TIMEOUT_MS = 2_000
+const HEALTH_TIMEOUT_MS = 15_000
+const HEALTH_INTERVAL_MS = 150
 
 export function piBackendPlugin(): Plugin {
+  const port = Number(process.env.OPENPENCIL_PI_BACKEND_PORT ?? PI_BACKEND_DEFAULT_PORT)
+  let child: ReturnType<typeof spawn> | null = null
+
+  async function stopChild(): Promise<void> {
+    const running = child
+    child = null
+    if (running?.exitCode !== null) return
+    // 经函数读 exitCode：属性收窄会把 exitCode 定死在 null（type-aware lint 实证），
+    // 函数调用每次取实时值
+    const hasExited = () => running.exitCode !== null
+    running.kill()
+    // 轮询等优雅退出，超时 SIGKILL 兜底
+    const deadline = Date.now() + CHILD_EXIT_TIMEOUT_MS
+    while (!hasExited() && Date.now() < deadline) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 50)
+      })
+    }
+    if (!hasExited()) running.kill('SIGKILL')
+  }
+
+  async function waitForHealth(spawned: ReturnType<typeof spawn>): Promise<void> {
+    const deadline = Date.now() + HEALTH_TIMEOUT_MS
+    while (Date.now() < deadline) {
+      // 直接读子进程 exitCode 而非自维 flag（回调内赋值对 TS 收窄不可见，type-aware lint 实证）
+      if (spawned.exitCode !== null) return // 启动失败信息已由 stderr 透传，不再重复报错
+      try {
+        const res = await fetch(`http://127.0.0.1:${port}/health`)
+        if (res.ok) {
+          console.error(`[pi-backend] ready (http://127.0.0.1:${port})`)
+          return
+        }
+        // oxlint-disable-next-line open-pencil/no-silent-catch -- 轮询中的拒绝连接即「未就绪」，无需记录
+      } catch {
+        // 尚未就绪，继续等
+      }
+      await new Promise((resolve) => {
+        setTimeout(resolve, HEALTH_INTERVAL_MS)
+      })
+    }
+    console.warn(`[pi-backend] ${HEALTH_TIMEOUT_MS}ms 内未等到 /health 就绪（端口 ${port}）`)
+  }
+
   return {
     name: 'openpencil-pi-backend',
     apply: 'serve',
-    configureServer(server) {
-      const service = createPiChatService({ rootDir: server.config.root })
-
-      server.middlewares.use('/api/pi-chat', (req: IncomingMessage, res: ServerResponse) => {
-        void handlePiChatRequest(service, req, res)
+    config() {
+      return {
+        server: {
+          proxy: {
+            '/api/pi-chat': {
+              target: `http://127.0.0.1:${port}`,
+              changeOrigin: false
+            }
+          }
+        }
+      }
+    },
+    configureServer() {
+      const spawned = spawn('bun', ['run', 'src/app/ai/pi-backend/main.ts'], {
+        stdio: ['ignore', 'inherit', 'pipe'],
+        env: { ...process.env, OPENPENCIL_PI_BACKEND_PORT: String(port) }
       })
+      child = spawned
+
+      spawned.on('error', (err) => {
+        console.error(`[pi-backend] 无法 spawn 后端进程：${err.message}`)
+        if (child === spawned) child = null
+      })
+      spawned.stderr.on('data', (data: Buffer) => {
+        process.stderr.write(data)
+      })
+      spawned.on('exit', (code) => {
+        if (code && code !== 0) console.error(`[pi-backend] 后端进程退出，code=${code}`)
+        if (child === spawned) child = null
+      })
+
+      void waitForHealth(spawned)
+    },
+    async buildEnd() {
+      await stopChild()
     }
-  }
-}
-
-async function handlePiChatRequest(
-  service: ReturnType<typeof createPiChatService>,
-  req: IncomingMessage,
-  res: ServerResponse
-): Promise<void> {
-  if (req.method !== 'POST') {
-    res.writeHead(405).end('Method Not Allowed')
-    return
-  }
-
-  let body: PiChatRequestBody
-  try {
-    body = JSON.parse(await readBody(req)) as PiChatRequestBody
-  } catch {
-    res.writeHead(400).end('Bad Request: invalid JSON')
-    return
-  }
-
-  const sessionId = body.sessionId
-  const text = lastUserText(body)
-  if (!sessionId || !text.trim()) {
-    res.writeHead(400).end('Bad Request: sessionId and non-empty user text required')
-    return
-  }
-
-  res.writeHead(200, {
-    'content-type': 'text/event-stream',
-    'cache-control': 'no-cache',
-    connection: 'keep-alive',
-    'x-vercel-ai-ui-message-stream': 'v1'
-  })
-
-  const emit = (chunk: unknown) => {
-    res.write(`data: ${JSON.stringify(chunk)}\n\n`)
-  }
-
-  try {
-    await service.prompt(sessionId, text, emit)
-  } catch (error) {
-    emit({
-      type: 'error',
-      errorText: error instanceof Error ? error.message : String(error)
-    })
-  } finally {
-    res.write('data: [DONE]\n\n')
-    res.end()
   }
 }

@@ -34,7 +34,7 @@ T19 打通了文本回路（pi SDK 薄 service + UIMessage v1 SSE + 前端 Chat 
 2. **工具注册 = `customTools` + `noTools: 'builtin'`**——pi SDK 语义实证（`node_modules/@earendil-works/pi-coding-agent/dist/core/sdk.d.ts:28-47`，2026-08-23）：`'all'` 会连 custom 工具一起禁，`'builtin'` 只禁内建（read/bash/edit/write）而保留 custom——正是本任务要的「只挂我们的设计工具」
 3. **工具执行走 7600 桥 `/rpc`**——`POST http://127.0.0.1:7600/rpc`，Bearer 鉴权，body `{command:'tool', args:{name, args}}`（`packages/mcp/src/server.ts:157-170` 实证）；token 与端口经 discovery 文件获得（`readDiscoveryFile()`，`@open-pencil/mcp/discovery` 公开导出且 bun condition 直映射源码，`packages/mcp/package.json:31-36` 实证；文件含 `httpPort`+`authToken`，`packages/mcp/src/transport/discovery.ts:15-24` 实证）。编辑器侧浏览器在 WorkspaceView mount 时自动连桥（`src/views/WorkspaceView.vue:70` → `startMCPRuntime`，DEV 下自动，`src/app/automation/mcp/runtime.ts:163` 实证）
 4. **hello-tool = `create_shape`**（core `ALL_TOOLS` 既有工具，`packages/core/src/tools/create/basic.ts:5` 实证注册名），参数面 {type: FRAME/RECTANGLE/…, x, y, width, height, name?}；pi 侧 defineTool 同名注册，execute 只做参数透传 + 桥调用 + 结果包装
-5. **工具事件映射照上游先例 `providerExecuted: true`**（`src/app/ai/harness/transport.ts:44-57` 实证）：`toolcall_start` → `tool-input-start`，`toolcall_end` → `tool-input-available`（input 取 `toolCall.arguments`），`tool_execution_end` → `tool-output-available` / `tool-output-error`；`toolcall_delta` 不转发（end 给全量参数）；`tool_execution_start/update` 不产生 chunk。事件源实证：`AssistantMessageEvent` 的 `toolcall_*` 三组（`pi-agent-core/dist/proxy.d.ts:36-49`）+ session 级 `tool_execution_*` 三组（`pi-agent-core/dist/types.d.ts:396-412`）
+5. **工具事件映射照上游先例 `providerExecuted: true`（`src/app/ai/harness/transport.ts:44-57` 实证），且不发 `tool-input-start`**：`toolcall_end` → `tool-input-available`（input 取 `toolCall.arguments`，卡片自此即 pending 态），`tool_execution_end` → `tool-output-available` / `tool-output-error`；`toolcall_start/delta` 不转发；`tool_execution_start/update` 不产生 chunk。`finish` 只在 `agent_end` 且 `willRetry=false` 时发出（pi 自动重试序列中 agent_end 会中途出现，`agent-session.d.ts:40-44` 事件形状 + 本任务调试实录双重实证）。事件源：`AssistantMessageEvent` 的 `toolcall_*` 三组（`pi-ai/dist/types.d.ts:422-434`——注意 toolcall_start 不直接带 id/toolName）+ session 级 `tool_execution_*` 三组（`pi-agent-core/dist/types.d.ts:396-412`）
 6. **前端零改动**——`ChatMessage.vue:27-110` 已实证渲染 toolCallId  keyed parts（pending/done/error 三态 + 可展开详情），ai SDK Chat 类自动把 tool chunk 落成 `tool-*` part；`providerExecuted: true` 使前端不尝试客户端再执行
 7. **live 冒烟在本地做**（沿袭 T19 口径）：工具链冒烟需浏览器开着 app（编辑器连桥），Playwright 驱动真实 UI；CI 只跑静态面
 
@@ -50,7 +50,7 @@ T19 打通了文本回路（pi SDK 薄 service + UIMessage v1 SSE + 前端 Chat 
 | # | 验收项 | 通过标准 |
 |---|---|---|
 | A1 | 后端独立进程 | pi 后端以独立 bun 进程运行（dev 下由 vite 插件 spawn，或 `bun run dev:backend` 独立起）；`/api/pi-chat` 经 vite proxy 到达；后端自带 `/health`；vite 退出子进程随之回收 |
-| A2 | hello-tool 全链 | 一句「创建一个 frame」→ SSE 流出现 `tool-input-start`/`tool-input-available`（toolName=create_shape）→ `tool-output-available`（含新节点 id）→ 画布真实建出 frame（经 7600 `/rpc` `get_node` 回读 id 一致） |
+| A2 | hello-tool 全链 | 一句「创建一个 frame」→ SSE 流出现 `tool-input-available`（toolName=create_shape）→ `tool-output-available`（含新节点 id）→ 画布真实建出 frame（经 7600 `/rpc` `get_node` 回读 id 一致） |
 | A3 | 工具卡片可见 | 浏览器 ChatPanel 渲染工具调用卡片（pending→done 状态迁移），Playwright 截图证据 |
 | A4 | session 连续 + 重启恢复 | 同 session 二轮对话 AI 记得刚建的 frame；杀掉后端进程重启后同 sessionId 继续对话且工具仍可调（SessionManager.open 恢复 + customTools 重注册） |
 | A5 | 前端零改动 | `src/components/` 与 `src/app/ai/chat/` `git diff` 为零 |

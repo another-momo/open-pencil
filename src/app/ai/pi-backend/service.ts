@@ -8,8 +8,11 @@
  *  - SessionManager JSONL 持久化（.openpencil/pi-sessions/，gitignored）
  *    + index.json（sessionId → 文件路径）支持 dev server 重启后恢复
  *  - AgentSessionEvent → UIMessageChunk（mapping.ts）经 emit 直推 SSE
+ *  - T20：customTools 注册（tools.ts，hello-tool create_shape 经 7600 桥执行），
+ *    noTools: 'builtin' 禁内建保留自定义
  *
- * 仅运行于 Node（vite dev server 中间件）；只允许相对导入与 node/依赖包导入。
+ * 仅运行于独立后端进程（T20 起：main.ts 入口 / vite 插件 spawn 的子进程，
+ * 不经 vite esbuild 打包）；只允许相对导入与 node/依赖包导入。
  * key 卫生：OPENROUTER_API_KEY 只经 process.env 读取（models.json 里为
  * "$OPENROUTER_API_KEY" 引用），不打印、不落盘明文。
  */
@@ -27,6 +30,7 @@ import {
 import type { UIMessageChunk } from 'ai'
 
 import { createPiEventMapper } from './mapping'
+import { createOpenPencilTools } from './tools'
 
 export type PiChatService = {
   prompt(sessionId: string, text: string, emit: (chunk: UIMessageChunk) => void): Promise<void>
@@ -66,6 +70,8 @@ export function createPiChatService({ rootDir }: { rootDir: string }): PiChatSer
   const indexPath = join(sessionsDir, 'index.json')
 
   const sessions = new Map<string, SessionEntry>()
+  // T20：工具面无状态（discovery 每次执行时重读），全 session 共享一份
+  const customTools = createOpenPencilTools()
   let runtimePromise: Promise<{
     modelRuntime: ModelRuntime
     model: NonNullable<ReturnType<ModelRuntime['getModel']>>
@@ -118,7 +124,10 @@ export function createPiChatService({ rootDir }: { rootDir: string }): PiChatSer
       model,
       modelRuntime,
       sessionManager,
-      noTools: 'all'
+      // T20：'all' 会连 custom 工具一起禁；'builtin' 只禁内建（read/bash/edit/write）
+      // 保留我们的设计工具（sdk.d.ts 语义实证，见 T20-self-check §2.1-1）
+      noTools: 'builtin',
+      customTools
     })
 
     const file = sessionManager.getSessionFile()
@@ -152,7 +161,12 @@ export function createPiChatService({ rootDir }: { rootDir: string }): PiChatSer
     emit: (chunk: UIMessageChunk) => void
   ): Promise<void> {
     const mapper = createPiEventMapper(`pi-${randomUUID()}`)
+    const debug = process.env.PI_BACKEND_DEBUG === '1'
     const unsubscribe = entry.session.subscribe((event) => {
+      if (debug) {
+        const sub = event.type === 'message_update' ? `/${event.assistantMessageEvent.type}` : ''
+        console.error(`[pi-backend:event] ${event.type}${sub}`)
+      }
       for (const chunk of mapper(event)) emit(chunk)
     })
     try {

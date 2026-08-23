@@ -8,7 +8,7 @@
 # tasks/T19-self-check.md · T19 自检记录
 
 > **T 编号**：T19（Phase 1-pi 实施 · 后端换心：pi SDK 薄 service + UIMessage v1 SSE 契约 + 前端 Chat 类零改动）
-> **状态**：🔄 执行完毕待收口（P1-P5 全绿，待 subagent 独立核验）
+> **状态**：✅ 收口（2026-08-23，V1-V8 全过，远端 CI 全绿 run 32637559364）
 
 ## 1. 任务清单对照
 
@@ -108,4 +108,4 @@
 - A5 session 连续（跨请求锚点 + JSONL 落盘 + 重启恢复）：✅ §2.4
 - A6 无占位 / key 卫生 / CI：本地无占位（五文件全真实现）；key 卫生 §2.6；CI 事故链见 §2.7（两次红灯均已就地修复），最终以推送态 CI 为准
 
-**剩余收口动作**：subagent 独立核验 V1-V7 已 PASS（V8 待推送态 CI 翻绿后翻转）→ verify.md 判决 → tracker 更新。
+**收口状态**：subagent 独立核验 V1-V8 全过，判决「可以提交」（T19-verify.md §2）；远端 CI 全绿（run 32637559364，HEAD 2e6da5dd）。

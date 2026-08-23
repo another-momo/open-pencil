@@ -325,3 +325,10 @@
 - **依据**：T19（pi 后端换心）P1-P5 全部执行完毕并实测通过——后端冒烟 14/14（SSE 帧序列/中文 UTF-8/锚点连续性/JSONL 落盘，spikes/s-pi/backend-smoke/smoke.mjs）、dev server 重启恢复 RECOVERY-PASS（recovery-probe.mjs）、真实 Chromium 浏览器冒烟 7/7（browser-smoke.mjs，含截图证据与前后端 session 对账）；前端 Chat 类/ChatPanel.vue/use.ts/transports.ts git diff 为零（验收 A3 实证）；独立 subagent 按 [T19-verify.md §1](../../tasks/T19-verify.md) V1-V8 逐项实测，结论「可以提交」、未发现伪造迹象；远端 CI rebuild/pi HEAD 2e6da5dd run 32637559364 completed/success（gh api 2026-08-23）。执行期 CI 三连红（oxfmt Win/Linux JSON 规范化不一致 → format 假绿；本地 scoped lint 漏 tests/ 目录；FSD 文件摆放 → 冒烟脚本落位 spikes/s-pi/backend-smoke/）全部就地修复并实录于 [T19-self-check §2.7](../../tasks/T19-self-check.md)
 - **内容**：任务表 T19 行状态 🔄→✅ 已完成；tasks/_index.md 镜像行同步；T19-verify.md 就地重写为收口判决（§1 逐项 PASS 证据 + §2「可以提交」+ 三条非阻断观察处置记录）
 - **task 文档**：[tasks/T19-plan.md](../../tasks/T19-plan.md)
+## 修正-N · tracker.md T20 行登记（pi 线 T19 收口后推进工具链路）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-23
+- **依据**：owner「先做 T20」指令 + 两项拍板（pi 后端为唯一 agent 能力来源、后端为独立进程而非 vite 中间件）；T19 收口（文本回路全绿）后按 pi 线序列进 T20（工具链路）。注册期 recon 十项源码实证：pi `customTools`/`noTools:'builtin'` 语义（pi-coding-agent sdk.d.ts:28-47）、defineTool/AgentToolResult 签名、toolcall_*（AssistantMessageEvent）+ tool_execution_*（session 级 AgentEvent）双事件源、7600 桥 `/rpc` Bearer + discovery 文件 token 面（`@open-pencil/mcp/discovery` 公开导出）、编辑器 WorkspaceView mount 自动连桥、core `create_shape`/`get_node` 注册名、ChatMessage.vue 工具卡片三态渲染已就绪、上游 harness `providerExecuted:true` 映射先例、automation 桥 spawn 子进程模板、端口 7700 全仓零冲突——[T20-self-check §2.1](../../tasks/T20-self-check.md)
+- **内容**：任务表新增 T20 行，状态 🔄 进行中，三件套列一次登记齐（verify 为收口核验项预定、明确声明不含已通过结论）；tasks/_index.md 镜像行同步
+- **task 文档**：[tasks/T20-plan.md](../../tasks/T20-plan.md)

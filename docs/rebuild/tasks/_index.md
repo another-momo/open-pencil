@@ -49,6 +49,7 @@
 | [T17](../tasks/T17-plan.md) | Phase 1-X 实施 | ChatPanel 消费 SessionFace（M3 消息回路半） | ✅ 已完成（C1-C5 全过 + subagent 核验 V1-V8；CI run 32611136517 全绿） | [T17-plan](../tasks/T17-plan.md) | [T17-self-check](../tasks/T17-self-check.md) | [T17-verify](../tasks/T17-verify.md) |
 | [T18](../tasks/T18-plan.md) | Phase 1-pi 启动 | pi SDK 主线启动：分支 + 钉扎 + S-pi 模型面补跑 | ✅ 已完成（P1-P4 全过 + subagent 核验 V1-V8；CI run 32627633002 全绿） | [T18-plan](../tasks/T18-plan.md) | [T18-self-check](../tasks/T18-self-check.md) | [T18-verify](../tasks/T18-verify.md) |
 | [T19](../tasks/T19-plan.md) | Phase 1-pi 实施 | 后端换心：pi service + SSE 契约 + Chat 类零改动 | ✅ 已完成（V1-V8 全过 + CI 32637559364 全绿） | [T19-plan](../tasks/T19-plan.md) | [T19-self-check](../tasks/T19-self-check.md) | [T19-verify](../tasks/T19-verify.md) |
+| [T20](../tasks/T20-plan.md) | Phase 1-pi 实施 | 工具链路：后端独立进程化 + hello-tool 全链 + 工具事件映射 | 🔄 进行中 | [T20-plan](../tasks/T20-plan.md) | [T20-self-check](../tasks/T20-self-check.md) | [T20-verify](../tasks/T20-verify.md) |
 | (后续 task 按顺序登记) | — | — | — | — | — | — |
 
 ## 3. 三件套结构（强制）

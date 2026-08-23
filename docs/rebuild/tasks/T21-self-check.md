@@ -8,7 +8,7 @@
 # tasks/T21-self-check.md · T21 自查记录
 
 > **T 编号**：T21（Phase 1-pi 实施 · pi 原生 provider/凭据管理 + 全量 core tools + system prompt + 环绕补齐）
-> **状态**：🔄 进行中
+> **状态**：✅ 已收口（2026-08-24，V1-V7 核验通过 + CI 32656186119 全绿）
 
 ## 1. 立项依据
 

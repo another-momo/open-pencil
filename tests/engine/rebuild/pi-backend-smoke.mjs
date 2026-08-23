@@ -1,0 +1,128 @@
+/**
+ * T19 P5 后端冒烟（活模型 openrouter/free，不经浏览器）：
+ * 直接 POST /api/pi-chat 验证 SSE 帧序列、中文无损、跨请求 session 连续性、
+ * SessionManager JSONL 落盘。
+ *
+ * 前置：vite dev server 已起（VITE_PI_BACKEND=1 + OPENROUTER_API_KEY 注入进程）。
+ * 运行：node tests/engine/rebuild/pi-backend-smoke.mjs [baseUrl]
+ * 退出码 0 = 全过。key 卫生：脚本不接触 key 本体。
+ */
+
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+
+const base = process.argv[2] ?? 'http://localhost:1420'
+const root = process.cwd()
+const sessionId = `smoke-${Date.now()}`
+
+const failures = []
+function check(label, cond, detail) {
+  if (cond) console.log(`  PASS ${label}`)
+  else {
+    console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ''}`)
+    failures.push(label)
+  }
+}
+
+async function post(text) {
+  const res = await fetch(`${base}/api/pi-chat`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      sessionId,
+      messages: [{ role: 'user', parts: [{ type: 'text', text }] }]
+    })
+  })
+  if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`)
+  const raw = await res.text()
+  const chunks = []
+  let sawDone = false
+  for (const frame of raw.split('\n\n')) {
+    const line = frame.split('\n').find((l) => l.startsWith('data:'))
+    if (!line) continue
+    const data = line.slice(5).trimStart()
+    if (data === '[DONE]') {
+      sawDone = true
+      continue
+    }
+    chunks.push(JSON.parse(data))
+  }
+  return { chunks, sawDone }
+}
+
+const MARKER = '7391'
+
+console.log(`T19 pi-backend 冒烟 → ${base}  session=${sessionId}`)
+
+// 回合 1：中文逐字复读（断言锚定 echo，不依赖 meta 路由模型文风——
+// openrouter/free 对开放式任务偶发跑题，T19 核验实测首跑曾遇模型答非所问）
+const t1 = await post(
+  `请逐字重复「汉字无损」四个字作为确认，然后记住这个数字：${MARKER}（之后我会问）。`
+)
+const t1Types = t1.chunks.map((c) => c.type)
+const t1Text = t1.chunks
+  .filter((c) => c.type === 'text-delta')
+  .map((c) => c.delta)
+  .join('')
+
+check('R1 帧序列 start 为首帧', t1Types[0] === 'start', t1Types.join(','))
+const textStartIdx = t1Types.indexOf('text-start')
+const textDeltaIdx = t1Types.indexOf('text-delta')
+check('R1 text-start 先于首个 text-delta', textStartIdx !== -1 && textStartIdx < textDeltaIdx)
+check(
+  'R1 text-start/delta/end 计数自洽',
+  t1Types.filter((t) => t === 'text-start').length ===
+    t1Types.filter((t) => t === 'text-end').length,
+  t1Types.join(',')
+)
+check('R1 finish(stop) 收尾', t1.chunks.at(-1)?.type === 'finish', JSON.stringify(t1.chunks.at(-1)))
+check('R1 [DONE] 帧存在', t1.sawDone)
+check('R1 回复非空', t1Text.length > 0)
+check(
+  'R1 中文经后端+映射无损（逐字复读「汉字无损」）',
+  t1Text.includes('汉字无损'),
+  t1Text.slice(0, 60)
+)
+check('R1 回复零 U+FFFD 替换字符', !t1Text.includes('\uFFFD'))
+
+// 回合 2：跨请求连续性——上一轮的数字锚点只有后端 session 历史能提供
+const t2 = await post('我刚才让你记住的数字是什么？只回答数字本身。')
+const t2Text = t2.chunks
+  .filter((c) => c.type === 'text-delta')
+  .map((c) => c.delta)
+  .join('')
+check('R2 回复含锚点数字（session 历史生效）', t2Text.includes(MARKER), t2Text.slice(0, 80))
+check(
+  'R2 帧序列完整',
+  t2.chunks[0]?.type === 'start' && t2.chunks.at(-1)?.type === 'finish' && t2.sawDone
+)
+
+// 落盘：index.json 记录 + JSONL 文件存在且非空
+const sessionsDir = join(root, '.openpencil', 'pi-sessions')
+const indexPath = join(sessionsDir, 'index.json')
+check('index.json 存在', existsSync(indexPath))
+const index = existsSync(indexPath) ? JSON.parse(readFileSync(indexPath, 'utf8')) : {}
+const indexedFile = index[sessionId]?.file
+check('index 记录本 session', typeof indexedFile === 'string', Object.keys(index).join(','))
+check(
+  'JSONL 文件落盘且非空',
+  !!indexedFile && existsSync(indexedFile) && readFileSync(indexedFile, 'utf8').trim().length > 0,
+  indexedFile
+)
+if (indexedFile && existsSync(indexedFile)) {
+  const jsonl = readFileSync(indexedFile, 'utf8')
+  check(
+    'JSONL 含两回合 user 消息（锚点 + 追问）',
+    jsonl.includes(MARKER) && jsonl.includes('只回答数字本身')
+  )
+}
+check(
+  'pi-sessions 目录仅有 jsonl/index（无 key 明文文件名）',
+  readdirSync(sessionsDir).every((f) => f.endsWith('.jsonl') || f === 'index.json')
+)
+
+if (failures.length) {
+  console.error(`\nFAIL ${failures.length} 项：${failures.join(' / ')}`)
+  process.exit(1)
+}
+console.log('\nT19 后端冒烟全过')

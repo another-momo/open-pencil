@@ -77,3 +77,6 @@ scratch/
 
 # OpenCode
 .opencode/
+
+# T19 pi backend local state (session JSONL, models.json; never commit)
+.openpencil/

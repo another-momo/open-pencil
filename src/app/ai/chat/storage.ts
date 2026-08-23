@@ -1,6 +1,6 @@
 import { computed, ref, watch } from 'vue'
 
-import { IS_TAURI } from '@open-pencil/core/constants'
+import { IS_BROWSER, IS_TAURI } from '@open-pencil/core/constants'
 import { setPexelsAPIKey, setUnsplashAccessKey } from '@open-pencil/core/tools'
 
 import {
@@ -40,6 +40,9 @@ export const isHarnessProvider = computed(() => providerID.value === 'harness:pi
 export const isAgentProvider = computed(() => isHarnessProvider.value)
 
 export const isConfigured = computed(() => {
+  // T19：pi 后端经 vite 中间件持 key，浏览器侧无需 provider 配置
+  if (import.meta.env.VITE_PI_BACKEND === '1') return true
+
   if (isHarnessProvider.value) return IS_TAURI && apiKeyStatus.value === 'configured'
 
   if (apiKeyStatus.value !== 'configured') return false
@@ -127,6 +130,19 @@ export async function setRememberCredentials(remembered: boolean): Promise<void>
 }
 
 export { browserCredentialsRemembered }
+
+// T19：pi 后端 tab 级 sessionId（sessionStorage per-tab，刷新/HMR 复用）
+const PI_BACKEND_SESSION_ID_KEY = 'openpencil.pi-backend.session-id'
+
+export function loadPiBackendSessionId(): string {
+  if (!IS_BROWSER) return crypto.randomUUID()
+  let sessionId = window.sessionStorage.getItem(PI_BACKEND_SESSION_ID_KEY)
+  if (!sessionId) {
+    sessionId = crypto.randomUUID()
+    window.sessionStorage.setItem(PI_BACKEND_SESSION_ID_KEY, sessionId)
+  }
+  return sessionId
+}
 
 export function registerAIChatEffects(markTransportDirty: () => void) {
   watch(

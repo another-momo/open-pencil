@@ -8,6 +8,7 @@ import Components from 'unplugin-vue-components/vite'
 import { defineConfig } from 'vite'
 
 import packageJson from './package.json'
+import { piBackendPlugin } from './src/app/ai/pi-backend/vite-plugin'
 import { createOpenPencilAliases } from './vite/aliases'
 import { localAutomationToken, openPencilAutomationPlugin } from './vite/automation'
 import { copyCanvasKitAssetsPlugin } from './vite/canvaskit-assets'
@@ -31,6 +32,7 @@ export default defineConfig(async ({ command }) => ({
     Icons({ compiler: 'vue3' }),
     Components({ resolvers: [IconsResolver({ prefix: 'icon' })] }),
     openPencilAutomationPlugin(command, host),
+    ...(command === 'serve' ? [piBackendPlugin()] : []),
     vue()
   ],
   clearScreen: false,

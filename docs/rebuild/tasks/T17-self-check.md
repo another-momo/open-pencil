@@ -17,7 +17,7 @@
 | C1 绑定层 useCurrentSessionFace | ✅ 完成 | §2.2 |
 | C2 消息流渲染（nodes 全型 + partial + running） | ✅ 完成 | §2.3 |
 | C3 发送回路（prompt/steer/cancel/promptError） | ✅ 完成 | §2.4 |
-| C4 控制面（loadOlder/queue/pending 查明） | ⬜ 未开始 | — |
+| C4 控制面（loadOlder/queue/pending 查明） | ✅ 完成 | §2.5 |
 | C5 端到端冒烟 + 三件套收口 | ⬜ 未开始 | — |
 
 ## 2. 实测记录
@@ -41,6 +41,14 @@
 2. **cancel**：长回复流式中段点「停止」→ `face.cancel()` → running 消失，partial 冻结为 assistant 节点并渲染「已停止」标记（`node.interrupted` 驱动，2026-08-23 实测；截图 workbench/evidence/t17-c2c3-chatpanel-live.png）
 3. **promptError**：展示通路已接（composer 上方红条，`conv.promptError?.message`）；本次未触发真实 prompt 拒绝场景，未伪造负例——负例留给 V3 核验时构造（如实声明）
 4. **steer**：running 时发送走 'steer' 模式（代码路径 chat-panel.jsx send()）；本次未实测 steer 插入语义，如实声明——并入 V3 核验项
+
+### 2.5 2026-08-23 C4 控制面：pending.respond 挂点查明 + loadOlder/queue/pending 落地
+
+1. **pending.respond 挂点查明（阻塞项解除）**：respond 在**每个 PendingWait 实例上**（`dsh-client-runtime/lib/types/client/sessions/pending.d.ts:50` `respond(result: ClientResponse['result']): Promise<RpcReceipt>`），不在 ISession——03 §62 的"pending.respond"指此。`conv.pending: readonly PendingInteraction[]`（conversation.d.ts:388），kind ∈ {approval, question}（PendingPayloads，pending.d.ts:3-10；'plan-review' 只是列表态字符串/ question intent，非独立 kind）。result = RpcResult<unknown>（rpc.d.ts:244-248 `{ok,value}|{ok,error}`）；approval value={sessionId, approvalId, outcome:'allowed-once'|'rejected'}（apiproxy api/approvals.d.ts）；question value={sessionId, answer:{answers:[{id, selected[], custom?}]}}（api/questions.d.ts + dsh-user-questions types.d.ts:32-60）
+2. **question 真回路实测**：孤岛 ChatPanel 发指令让模型调 ask_user_question → 1s 内 pending 卡出现（问题 + 两选项渲染正确）→ 点「工具面板」→ respond 结算（pending 清零）→ 模型接续回复「已收到你的选择：**工具面板**。」（2026-08-23 Playwright 实测全链）
+3. **approval 通路**：与 question 同码路（PendingCard reply），payload 形状按 approvals.d.ts 装配；本次未触发真实审批场景，未伪造——负/正例留 V4（如实声明）
+4. **loadOlder**：hasMore 时渲染「加载更早消息」按钮（loadingOlder 禁用态）；当前所有会话 hasMore=false（spike 会话短，21 节点全在窗口内）——按钮正确缺席为如实负例，正例留 V4 构造长会话（如实声明）
+5. **queue**：`conv.queue` 渲染通路接入（placement/preview 逐条）；running 时我的发送走 steer 而非 queue，本次未观测到 queue 非空——如实声明，留 V4
 
 ### 2.1 2026-08-23 注册期 recon：SessionFace 获取与消费通路全链源码实证（dsh 0.1.1-rc.1 安装包 .d.ts + 编译产物）
 

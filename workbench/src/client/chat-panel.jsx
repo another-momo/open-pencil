@@ -190,6 +190,82 @@ function NodeView({ node }) {
 }
 
 // ---------------------------------------------------------------------------
+// 控制面（C4）：loadOlder / queue / pending.respond
+// pending.respond 挂点（T17-self-check §2.5 查明）：conv.pending[i] 是 PendingWait
+// 实例，respond(result: RpcResult) 在对象上（pending.d.ts:50），不在 ISession。
+// approval value = {sessionId, approvalId, outcome:'allowed-once'|'rejected'}；
+// question value = {sessionId, answer:{answers:[{id, selected[], custom?}]}}。
+// ---------------------------------------------------------------------------
+
+function PendingCard({ wait }) {
+	const [busy, setBusy] = useState(false);
+	const [custom, setCustom] = useState("");
+	const reply = async (value) => {
+		setBusy(true);
+		try {
+			await wait.respond({ ok: true, value });
+		} catch (err) {
+			// settled 后 respond 会同步抛（pending.d.ts 明示 fail-loud）——如实显示
+			setCustom("回应失败：" + String(err?.message ?? err));
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	if (wait.kind === "approval") {
+		const p = wait.payload ?? {};
+		return (
+			<div data-openpencil-chat-pending="approval" style={{ ...S.toolCard, borderColor: "#f59e0b" }}>
+				<div>审批请求 · <strong>{p.toolName ?? "未知工具"}</strong></div>
+				{p.reason && <div style={S.mono}>{p.reason}</div>}
+				<div style={{ marginTop: "4px", display: "flex", gap: "8px" }}>
+					<button disabled={busy} onClick={() => void reply({ sessionId: wait.sessionId, approvalId: p.approvalId, outcome: "allowed-once" })}>允许一次</button>
+					<button disabled={busy} onClick={() => void reply({ sessionId: wait.sessionId, approvalId: p.approvalId, outcome: "rejected" })}>拒绝</button>
+				</div>
+			</div>
+		);
+	}
+
+	// question（含 intent:'plan-review'——批准语义由 host 侧 approve 标签处理，UI 只需回 selected）
+	const questions = wait.payload?.questions ?? [];
+	return (
+		<div data-openpencil-chat-pending="question" style={{ ...S.toolCard, borderColor: "#3b82f6" }}>
+			{questions.map((q) => (
+				<div key={q.id} style={{ marginBottom: "6px" }}>
+					<div style={{ fontWeight: 600 }}>{q.header ? `[${q.header}] ` : ""}{q.question}</div>
+					{q.detail && <div style={{ ...S.mono, whiteSpace: "pre-wrap" }}>{q.detail}</div>}
+					<div style={{ marginTop: "4px", display: "flex", gap: "6px", flexWrap: "wrap" }}>
+						{(q.options ?? []).map((opt) => (
+							<button
+								key={opt.label}
+								disabled={busy}
+								onClick={() => void reply({ sessionId: wait.sessionId, answer: { answers: [{ id: q.id, selected: [opt.label] }] } })}
+							>
+								{opt.label}
+							</button>
+						))}
+					</div>
+				</div>
+			))}
+			<div style={{ display: "flex", gap: "6px" }}>
+				<input
+					style={{ flex: "1 1 auto", fontSize: "12px" }}
+					placeholder="自定义回答（或点上方选项）"
+					value={custom}
+					onChange={(e) => setCustom(e.target.value)}
+				/>
+				<button
+					disabled={busy || !custom.trim() || questions.length === 0}
+					onClick={() => void reply({ sessionId: wait.sessionId, answer: { answers: [{ id: questions[0]?.id, selected: [], custom: custom.trim() }] } })}
+				>
+					回答
+				</button>
+			</div>
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
 // ChatPanel 主体
 // ---------------------------------------------------------------------------
 
@@ -269,9 +345,26 @@ export function ChatPanel({ ctx }) {
 					<div style={S.errorRow}>会话打开失败：{String(conv.openError?.message ?? conv.openError)}</div>
 				)}
 				{face && conv?.hasMore && (
-					<div style={S.notice} data-openpencil-chat="has-more">（上方还有更早的消息）</div>
+					<div style={S.notice} data-openpencil-chat="has-more">
+						<button
+							data-openpencil-chat="load-older"
+							disabled={conv?.loadingOlder}
+							onClick={() => void face.loadOlder()}
+						>
+							{conv?.loadingOlder ? "加载中…" : "加载更早消息"}
+						</button>
+					</div>
 				)}
 				{(conv?.nodes ?? []).map((n) => <NodeView key={n.seq} node={n} />)}
+				{(conv?.queue ?? []).length > 0 && (
+					<div data-openpencil-chat="queue" style={{ ...S.notice, textAlign: "left" }}>
+						队列 {conv.queue.length} 条：
+						{conv.queue.map((q) => (
+							<div key={q.id}>[{q.placement}] {q.preview}</div>
+						))}
+					</div>
+				)}
+				{(conv?.pending ?? []).map((w) => <PendingCard key={w.key} wait={w} />)}
 				{partial && (
 					<div data-openpencil-chat="partial" style={{ opacity: 0.85 }}>
 						<AssistantBlocks blocks={partial.blocks} />

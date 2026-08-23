@@ -280,3 +280,12 @@
 - **依据**：owner 已在 dsh web 设置页（127.0.0.1:3080 → 设置 → 模型 → 添加提供方 → openrouter）配好 OpenRouter key；模型切至 `openrouter/free` 后实测——基础回路 ping/pong 通过（18s、首 token 8.6s、20 tok/s，轨迹 Request #2）；X3（模型调 `openpencil_apply_design` 端到端）：显式指令下真实发起工具调用 `{"patches":[{"op":"set","path":"nodes.0:4.props.x","value":300}]}`，工具回包 `{bridgeMs:78, applied:[{nodeId:"0:4",key:"x",value:300}]}`，bridge-call 复核图中 0:4 x=300 属实（2026-08-23 两次实测）；X6（回复体现 type 变化）：模型调 `openpencil_set_marketing_type` 设 landing-page，回复逐条反映「之前未设定 → 现在 landing-page」。证据 workbench/evidence/t13-x3-x6-openrouter-live.png。如实记录的能力短板：自由叙述式指令下该免费模型只叙述计划不调用工具（首轮 X3 尝试），显式给参数后调用成功——链路本身（工具装配 → 桥 → 编辑器 → 回包解读）验证通过，自主调用积极性是免费模型档位属性。Options 面板实证请求走 `provider:"openrouter", model:"openrouter/free"`，工具清单含 openpencil_apply_design / openpencil_bridge_ping / openpencil_set_marketing_type（轨迹「System Prompt and Tools Updated」事件 Tools diff 页，2026-08-23）
 - **内容**：任务表 T13 行状态 🔶 → ✅ 完成（S-pi 模型面仍随 pi 产品版后置 D22）；tasks/_index.md 镜像行同步；T11/T12 行历史措辞保留未改（其模型面当时已上报，X3/X6 解除事项归 T13 行记录）
 - **task 文档**：[tasks/T13-plan.md](../../tasks/T13-plan.md)
+
+## 修正-N · tracker.md T17 行登记（T13 模型面解除后推进 ChatPanel 消费 SessionFace）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-23
+- **依据**：owner 拍板「继续推进」，T13 模型面（X3/X6）解除后按路线图进 T17（M3 消息回路半，估 4-6 人日）——孤岛内自写 React ChatPanel 消费 dsh SessionFace，消息流/发送/控制面发生在孤岛内（[03 §53](../../03-phase-1-runtime.md) 终态形态）。注册期 recon 已源码实证全链通路：island 已 inject sessions（workbench/src/client/index.jsx:21）→ ctx.sessions.list.current → ctx.sessions.binding(id).session = SessionFace（ISession 动词面 + ObservableSnapshot<ConversationSnapshot>，dsh-client-runtime 0.1.1-rc.1 .d.ts 逐条引证），consumption 先例 dsh-client-ui-conversation/lib/client.js:10142（[T17-self-check §2.1](../../tasks/T17-self-check.md)）；live 前置：openrouter/free 已配且 X3/X6 通过
+- **内容**：任务表新增 T17 行，状态 🔄 开工，三件套列一次登记齐（self-check §2.1 已含注册期 recon 实测，verify §1 为收口核验项预定、明确声明不含已通过结论）；tasks/_index.md 镜像行同步
+- **task 文档**：[tasks/T17-plan.md](../../tasks/T17-plan.md)
+

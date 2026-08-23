@@ -48,6 +48,7 @@
 | T14 | Phase 1-X 实施 | 插件骨架产品化（MS-X1：`workbench/` bundle 骨架 + 版本钉扎 + dev 回路 + HMR 决策点证伪） | [T14-plan.md §3](tasks/T14-plan.md) | ✅ 已完成（装机冒烟 + HMR A 级证伪 + CI job；远端 CI run 32569154626 全绿） | [T14-plan](tasks/T14-plan.md) | [T14-self-check](tasks/T14-self-check.md) | [T14-verify](tasks/T14-verify.md) |
 | T15 | Phase 1-X 实施 | M2 编辑器入孤岛（E1 CanvasKit wasm 探针 → E2 编辑器外壳 → E3 生命周期 → E4 冒烟收口） | [T15-plan.md §3](tasks/T15-plan.md) | ✅ 已完成（E1-E4 全过 + subagent 核验 V1-V8「可以提交」；远端 CI HEAD run 32576137352 全绿） | [T15-plan](tasks/T15-plan.md) | [T15-self-check](tasks/T15-self-check.md) | [T15-verify](tasks/T15-verify.md) |
 | T16 | Phase 1-X 实施 | 7600 桥真链路 + token 链（M3+M4 链路半：真桥起服 → island 桥客户端 → host 工具端到端） | [T16-plan.md §3](tasks/T16-plan.md) | ✅ 已完成（B1-B4 全过 + subagent 核验 V1-V8「可以提交」；远端 CI HEAD run 32579903008 全绿） | [T16-plan](tasks/T16-plan.md) | [T16-self-check](tasks/T16-self-check.md) | [T16-verify](tasks/T16-verify.md) |
+| T17 | Phase 1-X 实施 | ChatPanel 消费 SessionFace（M3 消息回路半：绑定层 → 消息流渲染 → 发送回路 → 控制面 → 端到端冒烟） | [T17-plan.md §3](tasks/T17-plan.md) | 🔄 开工（注册期 recon 完成：SessionFace 获取/订阅/渲染/发送通路全链源码实证，[T17-self-check §2.1](tasks/T17-self-check.md)） | [T17-plan](tasks/T17-plan.md) | [T17-self-check](tasks/T17-self-check.md) | [T17-verify](tasks/T17-verify.md) |
 | — | （后续 task 按顺序登记） | — | — | — | — | — | — |
 
 ## 3. 记录索引

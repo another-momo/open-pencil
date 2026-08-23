@@ -311,3 +311,10 @@
 - **依据**：T18（pi SDK 主线启动）P1-P4 全部执行完毕——pi 钉扎纪律成文（03 §5.5）、S-pi-1 活模型 8/8 PASS、S-pi-2 主线活模型 7/7 PASS（openrouter/free 真实工具调用全链）、01 F0.2/F0.3/F0.4/F0.7 地面依据 post-merge 修正（[T18-self-check §2.2-2.5](../../tasks/T18-self-check.md)）；独立 subagent 按 [T18-verify.md §1](../../tasks/T18-verify.md) V1-V8 逐项实测（含改 prompt/改 MARKER 防伪造复跑），结论「可以提交」；远端 CI rebuild/pi run 32627633002 全绿（gh run list 2026-08-23）
 - **内容**：任务表 T18 行状态 🔄→✅；tasks/_index.md 镜像行同步
 - **task 文档**：[tasks/T18-plan.md](../../tasks/T18-plan.md)
+## 修正-N · tracker.md T19 行登记（pi 线 T18 收口后推进后端换心）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-23
+- **依据**：owner「继续」指令；T18 收口（pi 机制风险全绿）后按 pi 线序列进 T19（F0.1/F0.4 落地）。注册期 recon 全链源码实证：S-pi-4 事件映射表（T11-self-check §2.5）、Chat 装配选路点（transports.ts createTransport + browser-bridge.ts:64 override 注入窗）、vite 中间件模板（openPencilAutomationPlugin，vite.config.ts:33）、ai SDK 7.0.68 UIMessage 流工具链（readUIMessageStream/JsonToSseTransformStream 导出实证）——[T19-self-check §2.1](../../tasks/T19-self-check.md)
+- **内容**：任务表新增 T19 行，状态 🔄 开工，三件套列一次登记齐（verify §1 为收口核验项预定、明确声明不含已通过结论）；tasks/_index.md 镜像行同步
+- **task 文档**：[tasks/T19-plan.md](../../tasks/T19-plan.md)

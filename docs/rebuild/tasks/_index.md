@@ -48,6 +48,7 @@
 | [T16](../tasks/T16-plan.md) | Phase 1-X 实施 | 7600 桥真链路 + token 链（M3+M4 链路半） | ✅ 已完成（B1-B4 全过 + subagent 核验 V1-V8；CI run 32579903008 全绿） | [T16-plan](../tasks/T16-plan.md) | [T16-self-check](../tasks/T16-self-check.md) | [T16-verify](../tasks/T16-verify.md) |
 | [T17](../tasks/T17-plan.md) | Phase 1-X 实施 | ChatPanel 消费 SessionFace（M3 消息回路半） | ✅ 已完成（C1-C5 全过 + subagent 核验 V1-V8；CI run 32611136517 全绿） | [T17-plan](../tasks/T17-plan.md) | [T17-self-check](../tasks/T17-self-check.md) | [T17-verify](../tasks/T17-verify.md) |
 | [T18](../tasks/T18-plan.md) | Phase 1-pi 启动 | pi SDK 主线启动：分支 + 钉扎 + S-pi 模型面补跑 | ✅ 已完成（P1-P4 全过 + subagent 核验 V1-V8；CI run 32627633002 全绿） | [T18-plan](../tasks/T18-plan.md) | [T18-self-check](../tasks/T18-self-check.md) | [T18-verify](../tasks/T18-verify.md) |
+| [T19](../tasks/T19-plan.md) | Phase 1-pi 实施 | 后端换心：pi service + SSE 契约 + Chat 类零改动 | 🔄 开工（注册期 recon 完成） | [T19-plan](../tasks/T19-plan.md) | [T19-self-check](../tasks/T19-self-check.md) | [T19-verify](../tasks/T19-verify.md) |
 | (后续 task 按顺序登记) | — | — | — | — | — | — |
 
 ## 3. 三件套结构（强制）

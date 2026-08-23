@@ -50,6 +50,7 @@
 | T16 | Phase 1-X 实施 | 7600 桥真链路 + token 链（M3+M4 链路半：真桥起服 → island 桥客户端 → host 工具端到端） | [T16-plan.md §3](tasks/T16-plan.md) | ✅ 已完成（B1-B4 全过 + subagent 核验 V1-V8「可以提交」；远端 CI HEAD run 32579903008 全绿） | [T16-plan](tasks/T16-plan.md) | [T16-self-check](tasks/T16-self-check.md) | [T16-verify](tasks/T16-verify.md) |
 | T17 | Phase 1-X 实施 | ChatPanel 消费 SessionFace（M3 消息回路半：绑定层 → 消息流渲染 → 发送回路 → 控制面 → 端到端冒烟） | [T17-plan.md §3](tasks/T17-plan.md) | ✅ 已完成（C1-C5 全过 + subagent 独立核验 V1-V8「可以提交」；远端 CI HEAD run 32611136517 全绿） | [T17-plan](tasks/T17-plan.md) | [T17-self-check](tasks/T17-self-check.md) | [T17-verify](tasks/T17-verify.md) |
 | T18 | Phase 1-pi 启动 | pi SDK 主线启动（D24）：rebuild/pi 分支 + pi 版本钉扎纪律 + S-pi 活模型面补跑（openrouter/free）+ 01 F0 地面依据 post-merge 核查 | [T18-plan.md §3](tasks/T18-plan.md) | ✅ 已完成（P1-P4 全过：S-pi-1 活模型 8/8 + S-pi-2 主线 7/7 + 钉扎纪律 + F0 四行修正；subagent 独立核验 V1-V8「可以提交」含改参防伪造复跑；远端 CI rebuild/pi run 32627633002 全绿） | [T18-plan](tasks/T18-plan.md) | [T18-self-check](tasks/T18-self-check.md) | [T18-verify](tasks/T18-verify.md) |
+| T19 | Phase 1-pi 实施 | 后端换心（F0.1/F0.4）：pi SDK 薄 service + UIMessage v1 SSE 契约 + 前端 Chat 类零改动（文本回路） | [T19-plan.md §3](tasks/T19-plan.md) | 🔄 开工（注册期 recon 完成：S-pi-4 映射表/Chat 装配点/vite 插件模板/ai SDK 7 工具链全链实证，[T19-self-check §2.1](tasks/T19-self-check.md)） | [T19-plan](tasks/T19-plan.md) | [T19-self-check](tasks/T19-self-check.md) | [T19-verify](tasks/T19-verify.md) |
 | — | （后续 task 按顺序登记） | — | — | — | — | — | — |
 
 ## 3. 记录索引

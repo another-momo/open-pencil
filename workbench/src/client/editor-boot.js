@@ -276,7 +276,7 @@ export function mountVueApp(el, { ck, editor, bootMs, fontBytes }) {
 				h("div", {
 					"data-openpencil-vue": "root",
 					style: {
-						width: collapsed.value ? "auto" : "min(1040px, calc(100vw - 32px))",
+						width: collapsed.value ? "auto" : "min(1040px, calc(100vw - 32px - 396px))",
 						height: collapsed.value ? "auto" : "min(720px, calc(100vh - 32px))",
 						display: "flex", flexDirection: "column",
 						fontFamily: "sans-serif", fontSize: "13px",

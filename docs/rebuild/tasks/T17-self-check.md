@@ -14,13 +14,20 @@
 
 | 工作项 | 状态 | 证据 |
 |---|---|---|
-| C1 绑定层 useCurrentSessionFace | ⬜ 未开始 | — |
+| C1 绑定层 useCurrentSessionFace | ✅ 完成 | §2.2 |
 | C2 消息流渲染（nodes 全型 + partial + running） | ⬜ 未开始 | — |
 | C3 发送回路（prompt/steer/cancel/promptError） | ⬜ 未开始 | — |
 | C4 控制面（loadOlder/queue/pending 查明） | ⬜ 未开始 | — |
 | C5 端到端冒烟 + 三件套收口 | ⬜ 未开始 | — |
 
 ## 2. 实测记录
+
+### 2.2 2026-08-23 C1 绑定层：useCurrentSessionFace + useConversation 落地并实测
+
+1. **实现**：`workbench/src/client/chat-panel.jsx`——`useCurrentSessionFace(ctx)`（useSyncExternalStore 订 `ctx.sessions.list` 取 current → `ctx.sessions.binding(current)?.session`）+ `useConversation(face)`（subscribe 回调以 face 身份为依赖，current 切换时 React 自动退旧订新）；`workbench/src/client/index.jsx` portal 改 flex 行容器（左 Vue mount 点、右 ChatPanel），`apply(ctx)` 把 ctx 传入；Vue 面板宽度让位 396px（editor-boot.js root `calc(100vw - 32px - 396px)`）
+2. **绑定实证**：HMR 热换后 reload，ChatPanel header = `会话 session-8624f0f5-…`（spike-alpha-1，与 dsh 主 UI 当前会话一致），消息节点 17 条、末条 assistant seq=257（2026-08-23 Playwright `browser_evaluate` 读 `[data-openpencil-chat]` 实测）
+3. **切 session 重绑实证**：点 spike-alpha-2 → ChatPanel 跟随为 `session-fe6ced26-…`、5 节点、末条 user seq=8；切回 spike-alpha-1 → 回到 8624f0f5、17 节点——往返两轮状态一致，无残留（2026-08-23 Playwright 实测）；孤岛全程未重挂（X5 语义保持）
+4. **并发事实**：编辑器桥在 C1 全程保持「已注册」（ChatPanel 与 Vue 编辑器互不影响）
 
 ### 2.1 2026-08-23 注册期 recon：SessionFace 获取与消费通路全链源码实证（dsh 0.1.1-rc.1 安装包 .d.ts + 编译产物）
 

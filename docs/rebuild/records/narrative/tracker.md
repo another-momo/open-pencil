@@ -289,3 +289,11 @@
 - **内容**：任务表新增 T17 行，状态 🔄 开工，三件套列一次登记齐（self-check §2.1 已含注册期 recon 实测，verify §1 为收口核验项预定、明确声明不含已通过结论）；tasks/_index.md 镜像行同步
 - **task 文档**：[tasks/T17-plan.md](../../tasks/T17-plan.md)
 
+
+## 修正-N · tracker.md T17 行收口（C1-C5 全过 + 独立核验「可以提交」+ CI 绿）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-23
+- **依据**：T17（ChatPanel 消费 SessionFace，M3 消息回路半）C1-C5 全部执行完毕并实测通过（绑定层会话切换往返、11 型节点渲染直方图、流式 partial、cancel「已停止」、pending question 真回路、端到端冒烟 apply_design x=480 图状态复核，[T17-self-check §2.2-2.6](../../tasks/T17-self-check.md)）；独立 subagent 按 [T17-verify.md §1](../../tasks/T17-verify.md) V1-V8 逐项实测回填，结论「可以提交」（补测通过 self-check 声明的未测项 steer/queue 非空；promptError/approval/loadOlder 正例维持如实负例；发现三处文档级不精确已就地修正 self-check：compaction kind 名、RpcResult 引证行号 rpc.d.ts:189，另 PendingCard 多问题 ask 点选结算语义简化为已知非阻塞局限录入 verify §V4 备后续）；远端 CI HEAD（1ffc2f82）run 32611136517 completed/success（gh run view 2026-08-23）
+- **内容**：任务表 T17 行状态 🔄→✅ 已完成（C1-C5 全过 + subagent 独立核验 V1-V8「可以提交」；远端 CI HEAD run 32611136517 全绿）；tasks/_index.md 镜像行同步；T17-self-check.md 两处事实修正（不新增行，就地改）
+- **task 文档**：[tasks/T17-plan.md](../../tasks/T17-plan.md)

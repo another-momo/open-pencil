@@ -304,3 +304,10 @@
 - **依据**：owner 拍板 D24（dsh-X 搁置、pi SDK 升主线）+「开始推进」指令；分支口径经讨论确认（rebuild/pi 从 rebuild/v2 HEAD 起，spike/s-pi 已全量合入无需从其出发——git merge-base 实证）；注册期 recon 完成（pi 0.84.2 钉扎三重依据、openrouter 通路/key 复用点、01 F0 三行 post-merge 腐烂点，[T18-self-check §2.1](../../tasks/T18-self-check.md)）
 - **内容**：任务表新增 T18 行，状态 🔄 开工，三件套列一次登记齐（verify §1 为收口核验项预定、明确声明不含已通过结论）；tasks/_index.md 镜像行同步
 - **task 文档**：[tasks/T18-plan.md](../../tasks/T18-plan.md)
+## 修正-N · tracker.md T18 行收口（P1-P4 全过 + 独立核验「可以提交」+ CI 绿）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-23
+- **依据**：T18（pi SDK 主线启动）P1-P4 全部执行完毕——pi 钉扎纪律成文（03 §5.5）、S-pi-1 活模型 8/8 PASS、S-pi-2 主线活模型 7/7 PASS（openrouter/free 真实工具调用全链）、01 F0.2/F0.3/F0.4/F0.7 地面依据 post-merge 修正（[T18-self-check §2.2-2.5](../../tasks/T18-self-check.md)）；独立 subagent 按 [T18-verify.md §1](../../tasks/T18-verify.md) V1-V8 逐项实测（含改 prompt/改 MARKER 防伪造复跑），结论「可以提交」；远端 CI rebuild/pi run 32627633002 全绿（gh run list 2026-08-23）
+- **内容**：任务表 T18 行状态 🔄→✅；tasks/_index.md 镜像行同步
+- **task 文档**：[tasks/T18-plan.md](../../tasks/T18-plan.md)

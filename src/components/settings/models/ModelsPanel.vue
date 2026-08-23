@@ -95,83 +95,87 @@ watch(
     />
 
     <div v-else class="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
-    <section>
-      <div class="mb-2 flex items-center justify-between">
-        <div>
-          <h3 class="text-xs font-semibold text-surface">{{ dialogs.models }}</h3>
-          <p class="text-[10px] text-muted">{{ dialogs.modelsDescription }}</p>
+      <section>
+        <div class="mb-2 flex items-center justify-between">
+          <div>
+            <h3 class="text-xs font-semibold text-surface">{{ dialogs.models }}</h3>
+            <p class="text-[10px] text-muted">{{ dialogs.modelsDescription }}</p>
+          </div>
+          <button
+            type="button"
+            class="flex items-center gap-1 rounded bg-accent px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-accent/90"
+            data-test-id="settings-add-model"
+            @click="addModel"
+          >
+            <icon-lucide-plus class="size-3" />
+            {{ dialogs.addModel }}
+          </button>
         </div>
-        <button
-          type="button"
-          class="flex items-center gap-1 rounded bg-accent px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-accent/90"
-          data-test-id="settings-add-model"
-          @click="addModel"
-        >
-          <icon-lucide-plus class="size-3" />
-          {{ dialogs.addModel }}
-        </button>
-      </div>
 
-      <div class="flex flex-col gap-1.5" data-test-id="settings-model-list">
-        <button
-          v-for="profile in profiles"
-          :key="profile.id"
-          type="button"
-          class="group flex items-center gap-3 rounded border border-border bg-panel-field px-3 py-2 text-left hover:border-panel-focus hover:bg-panel-field-hover"
-          :data-model-id="profile.id"
-          @click="editModel(profile.id)"
-        >
-          <div class="flex size-8 shrink-0 items-center justify-center rounded bg-panel text-muted">
-            <icon-lucide-bot class="size-4" />
-          </div>
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-[11px] font-medium text-surface">{{ profile.name }}</p>
-            <p class="truncate text-[10px] text-muted">
-              {{ profile.providerName
-              }}<span v-if="profile.modelName"> · {{ profile.modelName }}</span>
-            </p>
-          </div>
-          <div class="flex shrink-0 items-center gap-1">
-            <span
-              class="mr-1 flex items-center gap-1 text-[9px] text-muted"
-              :data-state="
-                statusByConnection[profile.connectionId] === 'configured' ? 'configured' : 'missing'
-              "
+        <div class="flex flex-col gap-1.5" data-test-id="settings-model-list">
+          <button
+            v-for="profile in profiles"
+            :key="profile.id"
+            type="button"
+            class="group flex items-center gap-3 rounded border border-border bg-panel-field px-3 py-2 text-left hover:border-panel-focus hover:bg-panel-field-hover"
+            :data-model-id="profile.id"
+            @click="editModel(profile.id)"
+          >
+            <div
+              class="flex size-8 shrink-0 items-center justify-center rounded bg-panel text-muted"
             >
+              <icon-lucide-bot class="size-4" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-[11px] font-medium text-surface">{{ profile.name }}</p>
+              <p class="truncate text-[10px] text-muted">
+                {{ profile.providerName
+                }}<span v-if="profile.modelName"> · {{ profile.modelName }}</span>
+              </p>
+            </div>
+            <div class="flex shrink-0 items-center gap-1">
               <span
-                class="size-1.5 rounded-full bg-muted data-[state=configured]:bg-[var(--color-success)]"
+                class="mr-1 flex items-center gap-1 text-[9px] text-muted"
                 :data-state="
                   statusByConnection[profile.connectionId] === 'configured'
                     ? 'configured'
                     : 'missing'
                 "
-              />
-              {{ statusLabel(profile.connectionId, profile.providerID) }}
-            </span>
-            <span
-              v-for="capability in profile.capabilities"
-              :key="capability"
-              class="rounded bg-panel px-1.5 py-0.5 text-[9px] text-muted"
-            >
-              {{
-                capability === 'tools'
-                  ? dialogs.modelCapabilityToolsShort
-                  : dialogs.modelCapabilityVisionShort
-              }}
-            </span>
-          </div>
-          <icon-lucide-chevron-right class="size-3.5 shrink-0 text-muted" />
-        </button>
-      </div>
-    </section>
+              >
+                <span
+                  class="size-1.5 rounded-full bg-muted data-[state=configured]:bg-[var(--color-success)]"
+                  :data-state="
+                    statusByConnection[profile.connectionId] === 'configured'
+                      ? 'configured'
+                      : 'missing'
+                  "
+                />
+                {{ statusLabel(profile.connectionId, profile.providerID) }}
+              </span>
+              <span
+                v-for="capability in profile.capabilities"
+                :key="capability"
+                class="rounded bg-panel px-1.5 py-0.5 text-[9px] text-muted"
+              >
+                {{
+                  capability === 'tools'
+                    ? dialogs.modelCapabilityToolsShort
+                    : dialogs.modelCapabilityVisionShort
+                }}
+              </span>
+            </div>
+            <icon-lucide-chevron-right class="size-3.5 shrink-0 text-muted" />
+          </button>
+        </div>
+      </section>
 
-    <section class="mt-5 border-t border-border pt-4">
-      <div class="mb-3">
-        <h3 class="text-xs font-semibold text-surface">{{ dialogs.modelAssignments }}</h3>
-        <p class="text-[10px] text-muted">{{ dialogs.modelAssignmentsDescription }}</p>
-      </div>
-      <RoleAssignments />
-    </section>
+      <section class="mt-5 border-t border-border pt-4">
+        <div class="mb-3">
+          <h3 class="text-xs font-semibold text-surface">{{ dialogs.modelAssignments }}</h3>
+          <p class="text-[10px] text-muted">{{ dialogs.modelAssignmentsDescription }}</p>
+        </div>
+        <RoleAssignments />
+      </section>
     </div>
   </template>
 </template>

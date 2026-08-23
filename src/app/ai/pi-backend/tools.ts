@@ -159,10 +159,7 @@ function defineBridgeTool(def: ToolDef, budget: StepBudgetSource | undefined) {
     description: def.description,
     parameters: Type.Object(shape),
     async execute(_toolCallId, params): Promise<AgentToolResult<BridgeToolResult>> {
-      const result = maybeAppendStepWarning(
-        await callBridgeTool(def.name, { ...params }),
-        budget
-      )
+      const result = maybeAppendStepWarning(await callBridgeTool(def.name, { ...params }), budget)
       return {
         content: [{ type: 'text', text: JSON.stringify(result) }],
         details: result

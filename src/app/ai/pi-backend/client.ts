@@ -92,15 +92,8 @@ export async function setPiCredential(providerId: string, apiKey: string): Promi
 }
 
 export async function clearPiCredential(providerId: string): Promise<void> {
-  const response = await fetch(`${API_PREFIX}/credentials`, {
-    method: 'DELETE',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ providerId })
-  })
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { error?: string } | null
-    throw new Error(body?.error ?? `HTTP ${response.status}`)
-  }
+  const init = jsonBody({ providerId })
+  await requestJSON<{ ok: true }>('/credentials', { ...init, method: 'DELETE' })
   await refreshPiCatalog()
 }
 

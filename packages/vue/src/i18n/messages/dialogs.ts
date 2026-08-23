@@ -245,7 +245,8 @@ export const dialogMessageDefaults = {
   modelRoleVisionDescription: 'Screenshots and image references',
   modelRoleUseDesign: 'Same as Design',
   noModel: 'None',
-  piModelsDescription: 'Providers, credentials, and the design model are managed by the local pi backend.',
+  piModelsDescription:
+    'Providers, credentials, and the design model are managed by the local pi backend.',
   piCatalogRefresh: 'Refresh',
   piCatalogOffline: 'pi backend unreachable — start the dev server with VITE_PI_BACKEND=1.',
   piProviderModels: params('{count} models'),
@@ -260,7 +261,8 @@ export const dialogMessageDefaults = {
   piProviderModelIds: 'Model IDs (one per line)',
   piProviderSave: 'Save provider',
   piDesignModel: 'Design model',
-  piDesignModelDescription: 'Model used by the AI chat agent. Credentials come from the provider entry above.',
+  piDesignModelDescription:
+    'Model used by the AI chat agent. Credentials come from the provider entry above.',
   piDesignProvider: 'Provider',
   piDesignModelField: 'Model',
   piDesignModelSave: 'Save',

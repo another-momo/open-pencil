@@ -184,13 +184,16 @@ onMounted(() => void refreshPiCatalog())
             class="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-panel-field-hover"
             @click="toggleProvider(provider.id)"
           >
-            <div class="flex size-8 shrink-0 items-center justify-center rounded bg-panel text-muted">
+            <div
+              class="flex size-8 shrink-0 items-center justify-center rounded bg-panel text-muted"
+            >
               <icon-lucide-bot class="size-4" />
             </div>
             <div class="min-w-0 flex-1">
               <p class="truncate text-[11px] font-medium text-surface">{{ provider.name }}</p>
               <p class="truncate text-[10px] text-muted">
-                {{ provider.id }} · {{ dialogs.piProviderModels({ count: provider.models.length }) }}
+                {{ provider.id }} ·
+                {{ dialogs.piProviderModels({ count: provider.models.length }) }}
               </p>
             </div>
             <span

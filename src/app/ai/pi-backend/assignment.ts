@@ -7,8 +7,8 @@
  * （transport.ts → server.ts ModelSpec）。localStorage 独立 key，与旧设置互不影响。
  */
 
-import { computed } from 'vue'
 import { StorageSerializers, useLocalStorage } from '@vueuse/core'
+import { computed } from 'vue'
 
 import { piCatalog } from '@/app/ai/pi-backend/client'
 import type { PiModelSpec, PiThinkingLevel } from '@/app/ai/pi-backend/client'
@@ -21,11 +21,9 @@ export type PiDesignAssignment = {
   thinkingLevel?: PiThinkingLevel
 }
 
-export const piDesignAssignment = useLocalStorage<PiDesignAssignment | null>(
-  STORAGE_KEY,
-  null,
-  { serializer: StorageSerializers.object }
-)
+export const piDesignAssignment = useLocalStorage<PiDesignAssignment | null>(STORAGE_KEY, null, {
+  serializer: StorageSerializers.object
+})
 
 export function setPiDesignAssignment(assignment: PiDesignAssignment | null): void {
   piDesignAssignment.value = assignment

@@ -15,8 +15,8 @@
 | 工作项 | 状态 | 证据 |
 |---|---|---|
 | C1 绑定层 useCurrentSessionFace | ✅ 完成 | §2.2 |
-| C2 消息流渲染（nodes 全型 + partial + running） | ⬜ 未开始 | — |
-| C3 发送回路（prompt/steer/cancel/promptError） | ⬜ 未开始 | — |
+| C2 消息流渲染（nodes 全型 + partial + running） | ✅ 完成 | §2.3 |
+| C3 发送回路（prompt/steer/cancel/promptError） | ✅ 完成 | §2.4 |
 | C4 控制面（loadOlder/queue/pending 查明） | ⬜ 未开始 | — |
 | C5 端到端冒烟 + 三件套收口 | ⬜ 未开始 | — |
 
@@ -28,6 +28,19 @@
 2. **绑定实证**：HMR 热换后 reload，ChatPanel header = `会话 session-8624f0f5-…`（spike-alpha-1，与 dsh 主 UI 当前会话一致），消息节点 17 条、末条 assistant seq=257（2026-08-23 Playwright `browser_evaluate` 读 `[data-openpencil-chat]` 实测）
 3. **切 session 重绑实证**：点 spike-alpha-2 → ChatPanel 跟随为 `session-fe6ced26-…`、5 节点、末条 user seq=8；切回 spike-alpha-1 → 回到 8624f0f5、17 节点——往返两轮状态一致，无残留（2026-08-23 Playwright 实测）；孤岛全程未重挂（X5 语义保持）
 4. **并发事实**：编辑器桥在 C1 全程保持「已注册」（ChatPanel 与 Vue 编辑器互不影响）
+
+### 2.3 2026-08-23 C2 消息流渲染：ConversationNode 全型 + partial 流式
+
+1. **全型渲染器**：chat-panel.jsx `NodeView` 覆盖 nodes 联合全部 11 型（user/assistant/steering/context/model-retry/turn-error/turn-max-tokens/tool-result/command/compaction/unknown 兜底）；assistant 块内 text/reasoning（details 折叠 Think）/tool-call 卡/image/other 分行；ContentBlock 形状引 `dsh-llm/lib/types/types.d.ts:39-74`（2026-08-23 读 .d.ts）
+2. **直方图实证**（spike-alpha-1，17 节点）：`{user:5, context:3, turn-error:1, assistant:6, tool-result:2}`——与 C1 计数一致；turn-error（历史 MISSING_CREDENTIAL）如实红条渲染（2026-08-23 Playwright `querySelectorAll('[data-openpencil-chat-node]')` 统计）
+3. **partial 流式实证**：发长回复请求后 700ms 间隔采样——`running:true` 全程成立；partial 内容长度随时间增长 7 → 62 → 157 → 304 → 400 → 543 → 665 → 681（推理期 reasoning 块折叠显示 "Think"，正文期逐段增长，▍光标随动，2026-08-23 Playwright 采样两轮共 18 点）
+
+### 2.4 2026-08-23 C3 发送回路：prompt/cancel/promptError
+
+1. **发送**：ChatPanel 输入框 Enter → `face.prompt([{type:'text',text}], running?'steer':'queue')` → openrouter/free 完整三句回复渲染落地（2026-08-23 Playwright 实测；该轮模型响应快，未抓到 running 窗口，后一轮长回复补齐流式证据 §2.3-3）
+2. **cancel**：长回复流式中段点「停止」→ `face.cancel()` → running 消失，partial 冻结为 assistant 节点并渲染「已停止」标记（`node.interrupted` 驱动，2026-08-23 实测；截图 workbench/evidence/t17-c2c3-chatpanel-live.png）
+3. **promptError**：展示通路已接（composer 上方红条，`conv.promptError?.message`）；本次未触发真实 prompt 拒绝场景，未伪造负例——负例留给 V3 核验时构造（如实声明）
+4. **steer**：running 时发送走 'steer' 模式（代码路径 chat-panel.jsx send()）；本次未实测 steer 插入语义，如实声明——并入 V3 核验项
 
 ### 2.1 2026-08-23 注册期 recon：SessionFace 获取与消费通路全链源码实证（dsh 0.1.1-rc.1 安装包 .d.ts + 编译产物）
 

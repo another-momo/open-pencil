@@ -47,6 +47,7 @@
 | [T15](../tasks/T15-plan.md) | Phase 1-X 实施 | M2 编辑器入孤岛（E1 CanvasKit wasm 探针 → E2 外壳 → E3 生命周期 → E4 收口） | ✅ 已完成（E1-E4 全过 + subagent 核验 V1-V8；CI run 32576137352 全绿） | [T15-plan](../tasks/T15-plan.md) | [T15-self-check](../tasks/T15-self-check.md) | [T15-verify](../tasks/T15-verify.md) |
 | [T16](../tasks/T16-plan.md) | Phase 1-X 实施 | 7600 桥真链路 + token 链（M3+M4 链路半） | ✅ 已完成（B1-B4 全过 + subagent 核验 V1-V8；CI run 32579903008 全绿） | [T16-plan](../tasks/T16-plan.md) | [T16-self-check](../tasks/T16-self-check.md) | [T16-verify](../tasks/T16-verify.md) |
 | [T17](../tasks/T17-plan.md) | Phase 1-X 实施 | ChatPanel 消费 SessionFace（M3 消息回路半） | ✅ 已完成（C1-C5 全过 + subagent 核验 V1-V8；CI run 32611136517 全绿） | [T17-plan](../tasks/T17-plan.md) | [T17-self-check](../tasks/T17-self-check.md) | [T17-verify](../tasks/T17-verify.md) |
+| [T18](../tasks/T18-plan.md) | Phase 1-pi 启动 | pi SDK 主线启动：分支 + 钉扎 + S-pi 模型面补跑 | 🔄 开工（注册期 recon 完成） | [T18-plan](../tasks/T18-plan.md) | [T18-self-check](../tasks/T18-self-check.md) | [T18-verify](../tasks/T18-verify.md) |
 | (后续 task 按顺序登记) | — | — | — | — | — | — |
 
 ## 3. 三件套结构（强制）

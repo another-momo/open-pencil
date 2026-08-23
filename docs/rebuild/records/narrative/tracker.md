@@ -297,3 +297,10 @@
 - **依据**：T17（ChatPanel 消费 SessionFace，M3 消息回路半）C1-C5 全部执行完毕并实测通过（绑定层会话切换往返、11 型节点渲染直方图、流式 partial、cancel「已停止」、pending question 真回路、端到端冒烟 apply_design x=480 图状态复核，[T17-self-check §2.2-2.6](../../tasks/T17-self-check.md)）；独立 subagent 按 [T17-verify.md §1](../../tasks/T17-verify.md) V1-V8 逐项实测回填，结论「可以提交」（补测通过 self-check 声明的未测项 steer/queue 非空；promptError/approval/loadOlder 正例维持如实负例；发现三处文档级不精确已就地修正 self-check：compaction kind 名、RpcResult 引证行号 rpc.d.ts:189，另 PendingCard 多问题 ask 点选结算语义简化为已知非阻塞局限录入 verify §V4 备后续）；远端 CI HEAD（1ffc2f82）run 32611136517 completed/success（gh run view 2026-08-23）
 - **内容**：任务表 T17 行状态 🔄→✅ 已完成（C1-C5 全过 + subagent 独立核验 V1-V8「可以提交」；远端 CI HEAD run 32611136517 全绿）；tasks/_index.md 镜像行同步；T17-self-check.md 两处事实修正（不新增行，就地改）
 - **task 文档**：[tasks/T17-plan.md](../../tasks/T17-plan.md)
+## 修正-N · tracker.md T18 行登记（D24 拍板后 pi 线首个任务）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-23
+- **依据**：owner 拍板 D24（dsh-X 搁置、pi SDK 升主线）+「开始推进」指令；分支口径经讨论确认（rebuild/pi 从 rebuild/v2 HEAD 起，spike/s-pi 已全量合入无需从其出发——git merge-base 实证）；注册期 recon 完成（pi 0.84.2 钉扎三重依据、openrouter 通路/key 复用点、01 F0 三行 post-merge 腐烂点，[T18-self-check §2.1](../../tasks/T18-self-check.md)）
+- **内容**：任务表新增 T18 行，状态 🔄 开工，三件套列一次登记齐（verify §1 为收口核验项预定、明确声明不含已通过结论）；tasks/_index.md 镜像行同步
+- **task 文档**：[tasks/T18-plan.md](../../tasks/T18-plan.md)

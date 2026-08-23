@@ -49,6 +49,7 @@
 | T15 | Phase 1-X 实施 | M2 编辑器入孤岛（E1 CanvasKit wasm 探针 → E2 编辑器外壳 → E3 生命周期 → E4 冒烟收口） | [T15-plan.md §3](tasks/T15-plan.md) | ✅ 已完成（E1-E4 全过 + subagent 核验 V1-V8「可以提交」；远端 CI HEAD run 32576137352 全绿） | [T15-plan](tasks/T15-plan.md) | [T15-self-check](tasks/T15-self-check.md) | [T15-verify](tasks/T15-verify.md) |
 | T16 | Phase 1-X 实施 | 7600 桥真链路 + token 链（M3+M4 链路半：真桥起服 → island 桥客户端 → host 工具端到端） | [T16-plan.md §3](tasks/T16-plan.md) | ✅ 已完成（B1-B4 全过 + subagent 核验 V1-V8「可以提交」；远端 CI HEAD run 32579903008 全绿） | [T16-plan](tasks/T16-plan.md) | [T16-self-check](tasks/T16-self-check.md) | [T16-verify](tasks/T16-verify.md) |
 | T17 | Phase 1-X 实施 | ChatPanel 消费 SessionFace（M3 消息回路半：绑定层 → 消息流渲染 → 发送回路 → 控制面 → 端到端冒烟） | [T17-plan.md §3](tasks/T17-plan.md) | ✅ 已完成（C1-C5 全过 + subagent 独立核验 V1-V8「可以提交」；远端 CI HEAD run 32611136517 全绿） | [T17-plan](tasks/T17-plan.md) | [T17-self-check](tasks/T17-self-check.md) | [T17-verify](tasks/T17-verify.md) |
+| T18 | Phase 1-pi 启动 | pi SDK 主线启动（D24）：rebuild/pi 分支 + pi 版本钉扎纪律 + S-pi 活模型面补跑（openrouter/free）+ 01 F0 地面依据 post-merge 核查 | [T18-plan.md §3](tasks/T18-plan.md) | 🔄 开工（注册期 recon 完成：分支已建、pi 0.84.2 钉扎依据三重重合、openrouter 通路与 key 复用点实证、01 F0 三行腐烂点定位，[T18-self-check §2.1](tasks/T18-self-check.md)） | [T18-plan](tasks/T18-plan.md) | [T18-self-check](tasks/T18-self-check.md) | [T18-verify](tasks/T18-verify.md) |
 | — | （后续 task 按顺序登记） | — | — | — | — | — | — |
 
 ## 3. 记录索引

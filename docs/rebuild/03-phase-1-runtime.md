@@ -199,6 +199,21 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 3. **升级 = 独立 commit**：必须重跑 S-X 证据脚本（`node spikes/s-x/x3-apply-design.mjs`、`x5-gate-test.mjs`、`x6-system-prompt-probe.mjs`）+ 7600 soak smoke，新证据随 commit 落盘（spikes/s-x/evidence/ 注明版本）
 4. **例外**：非窗口期仅安全修复可破格升级，需 owner 拍板并记 records
 
+### 5.5 pi 版本钉扎与升级窗口（T18，D24 后 pi 主线生效）
+
+**【事实】版本现状**（核验日期 2026-08-23）：
+
+- 主线基准版本：`@earendil-works/pi-coding-agent@0.84.2`（+`@earendil-works/pi-ai@0.84.2`、`typebox@1.3.7` 同钉）——T11 S-pi 全部离线证据（SP-7）在此版本产出；`npm view @earendil-works/pi-coding-agent version` → `0.84.2`（2026-08-23 实测），**钉扎版即 npm 最新版**，零落后
+- 发布节奏：pi 周更（spikes/02 §3.4 R-pi-1），钉扎+升级 smoke 为既定纪律；D21 已排除经 harness-pi 间接依赖（其锁 pi ^0.80.10 与我们证据线冲突）
+- 锁定实证：`spikes/s-pi/package.json` 依赖三无 `^`/`~` 前缀（2026-08-23 读文件）
+
+**纪律**：
+
+1. **钉扎**：开发与 CI 一律使用 `0.84.2` 精确版本（依赖声明不用 `^`/`~`，不用 dist-tag）；pi-ai/typebox 必须与 pi-coding-agent 同版本族（SP-7 依赖双拷贝注记：跨拷贝 instanceof 有害）
+2. **升级窗口**：每两周一个评估窗口（首个窗口 = 2026-09-05 所在周，与 dsh 窗口同周期管理）。窗口内看 CHANGELOG/commit 差，决定升或不升；不升则记录原因
+3. **升级 = 独立 commit**：必须重跑 S-pi 全部证据脚本——`spikes/s-pi` 的 `npm run test:offline` + T18 新增的 live 脚本（live-chat.mjs / live-tool-result.mjs，需 OPENROUTER_API_KEY），新证据随 commit 落盘注明版本
+4. **例外**：非窗口期仅安全修复可破格升级，需 owner 拍板并记 records
+
 ---
 
 ## 6. 文档关系索引

@@ -26,12 +26,12 @@
 | 块 | 内容 | 地面依据（实测） | 处置 |
 |---|---|---|---|
 | F0.1 runtime 内核薄切 | session 持久化 + 流式输出 + extension 注入钩子 | 当前会话持久化为零（前端 `Chat` 纯内存，后端每请求新建 agent）——**从零新建** | 重建（Phase 1） |
-| F0.2 工具执行桥 | WS RPC 双向。**三进程**：vite dev server + agent 后端 + MCP 桥服务器（port 7600，discovery 文件 + token 注册/中继）；dev 下由两个 vite 插件分别拉起 | `src/app/automation/bridge/`（11 文件）、`packages/mcp/`、`agent-vite-plugin.ts` | 移植 + 复审 |
-| F0.3 凭证双链 | ①聊天 key 下发（`/v1/auth` provision，1h TTL）②**生图独立凭证**（key/baseURL/model 三键 + `setImageGenCredentials` 进程级注入 + 设置 UI）——无第二链 generate_image 必断（无 provider 注册，工具直接返回 error） | `agent-transport.ts:194-208`、`marketing/settings.ts:29,107-114`、`image-gen/providers.ts:83-99`、`ImageGenKeysSection.vue` | 移植并统一 |
-| F0.4 传输契约 + 最简 chat UI | 新 session 模型下的发送/渲染。**传输契约（runtime ↔ 后端 ↔ 前端）**与 **chat UI 组件**是两个独立块，分清楚：契约选型见 [§2-D9 runtime 选型](#27-dsh-集成形态); UI 不论走哪条路线都需要重做或自实现——Y/pi 路线下 Vue 自写，X 路线下 React 自写消费 dsh `SessionFace`。现状：全量 messages POST `/v1/chat`，UIMessage stream v1 SSE，自写 `parseUIMessageStream`。换 runtime 后契约重写 | `http-agent-transport.ts`、`ChatInput/ChatMessage.vue`、`src/components/ChatPanel.vue`（**在 components 根目录，不在 chat/**） | 重建 |
+| F0.2 工具执行桥 | WS RPC 双向。**三进程**：vite dev server + agent 后端 + MCP 桥服务器（port 7600，discovery 文件 + token 注册/中继）；dev 下由两个 vite 插件分别拉起 | post-merge 实况（2026-08-23 核验）：`src/app/automation/bridge/` 在仓（`ls` 实测 11 项）、`packages/mcp/` 在仓；`agent-vite-plugin.ts` 已随 T10 上游合并消失（`find src` 零命中）——dev 拉起面需按新基线重查 | 移植 + 复审 |
+| F0.3 凭证双链 | ①聊天 key 下发（`/v1/auth` provision，1h TTL）②**生图独立凭证**（key/baseURL/model 三键 + `setImageGenCredentials` 进程级注入 + 设置 UI）——无第二链 generate_image 必断（无 provider 注册，工具直接返回 error） | post-merge 实况（2026-08-23 核验）：原引证**全部消失**（`find/grep` 零命中：agent-transport.ts、marketing/settings.ts、image-gen/providers.ts、ImageGenKeysSection.vue、setImageGenCredentials、/v1/auth）——营销 agent 后端已随 T10 上游合并整体移除 | **重建**（原「移植并统一」失效：无码可移，双链语义在新基线重建） |
+| F0.4 传输契约 + 最简 chat UI | 新 session 模型下的发送/渲染。**传输契约（runtime ↔ 后端 ↔ 前端）**与 **chat UI 组件**是两个独立块，分清楚：契约选型见 [§2-D9 runtime 选型](#27-dsh-集成形态); UI 不论走哪条路线都需要重做或自实现——Y/pi 路线下 Vue 自写，X 路线下 React 自写消费 dsh `SessionFace`。换 runtime 后契约重写 | post-merge 实况（2026-08-23 核验）：`http-agent-transport.ts` 已消失（`find src` 零命中）；现存为 `src/app/ai/chat/transports.ts` 双路径——浏览器内 AI SDK ToolLoopAgent（`createToolLoopTransport`）+ harness sidecar（`harness:pi`，`storage.ts:39`；D21 搁置不占 runtime 路径）；`ChatInput/ChatMessage.vue` 在 `src/components/chat/`（`ls` 实证），`ChatPanel.vue` 在 components 根目录 | 重建 |
 | F0.5 session↔文件绑定 | pluginData 读写 sessionId（编辑器 app 层 owned 代码） | 参照 `restore.ts` 的 pluginData 机制 | 新建 |
 | F0.6 prompt 注入点 | runtime extension 钩子；两段式 prompt（base + marketing）+ overlay 的装配点 | `generated/prompts.ts:769` 组装注释、`brand-overlay.ts` | 重建 |
-| F0.7 prompts 构建链 | agent 依赖 `prompts/generated/` 预构建，**缺失即启动即崩**——脆依赖 | `scripts/inline-prompts.ts` | 消除（构建进 CI 或运行时直读 md） |
+| F0.7 prompts 构建链 | agent 依赖 `prompts/generated/` 预构建，**缺失即启动即崩**——脆依赖 | post-merge 实况（2026-08-23 核验）：`scripts/inline-prompts.ts` 与 `packages/agent`（prompts/generated 宿主）均已随 T10 消失（`find` 零命中）；现存系统提示为 `src/app/ai/chat/system-prompt.md` 运行时 `?raw` 直读（`transports.ts` import 实证）——**脆依赖实体已不在仓，消除目标上游已完成** | 已消除（T10 上游合并顺带完成） |
 
 **F0 验收（"hello-tool"）**：一句话 → AI 建一个 frame → 回复可见 → 重开文件 session 恢复。
 

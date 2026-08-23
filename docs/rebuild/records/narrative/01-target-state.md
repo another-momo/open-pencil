@@ -65,3 +65,10 @@
 - **依据**：owner 拍板 D23（[records/topics/agent-runtime.md](../topics/agent-runtime.md)）——针对「overlay 内为何只有编辑器底层」质询，明确「我从来没有想要丢掉这些能力」；01 层 0/层 1/层 2 未列编辑器 chrome 块系计划空白，非「不做」决策
 - **内容**：§1 一句话定义补一句：编辑器完整前端能力（画布 + 面板 chrome）在孤岛内全量保留（引 D23）；chrome 移植属主线范围，parity 切换前完成，实施任务待登记（建议紧随 T18 后）
 - **task 文档**：[tasks/T17-plan.md](../../tasks/T17-plan.md)（登记提交随 T17 收口后决策，无独立任务）
+## 修正-N · 01 §2 F0.2/F0.3/F0.4/F0.7 地面依据列 post-merge 实况修正（T18 P4）
+
+- **类型**：修正（按对象：01-target-state.md）
+- **时间**：2026-08-23
+- **依据**：T10 upstream 合并（79 commits/864 文件）后 F0 表地面依据列大面积腐烂——实测（ls/find/grep）：packages/agent、scripts/inline-prompts.ts、agent-vite-plugin.ts、http-agent-transport.ts、agent-transport.ts、marketing/settings.ts、image-gen/providers.ts、ImageGenKeysSection.vue、setImageGenCredentials、/v1/auth 全部消失；现存实况为 src/app/ai/chat/transports.ts 双路径（浏览器内 ToolLoopAgent + harness:pi sidecar）+ src/app/automation/bridge 11 项 + packages/mcp + src/components/chat/ChatInput|ChatMessage.vue + system-prompt.md 运行时 ?raw 直读
+- **内容**：F0.2/F0.3/F0.4/F0.7 四行地面依据列就地重写为 post-merge 实况（均附 2026-08-23 核验命令）；F0.3 处置由「移植并统一」改为「重建」（无码可移）；F0.7 处置改为「已消除」（脆依赖随 T10 移除）；其余行不动
+- **task 文档**：[tasks/T18-plan.md](../../tasks/T18-plan.md)

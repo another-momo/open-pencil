@@ -109,3 +109,11 @@
 - **依据**：owner 提出「pi skill 支持可后期引入别人 extension」后的复核——pi README.md:354-367 与 docs/extensions.md 实证 skills 内置（文件系统发现 + /skill 展开，Agent Skills 标准）；02 §P8 早有同结论，03 §3.2 摘要行与之矛盾，按详细证据文档为准；D24 第 5 条同误，已加补注
 - **内容**：§3.2 skills 行就地勘误为「内置：四路径文件系统发现 + /skill:name 展开，零新代码」，标注勘误日期
 - **task 文档**：[tasks/T17-plan.md](../../tasks/T17-plan.md)（登记提交随 T17 收口后决策，无独立任务）
+
+## 修正-N · 03 新增 §5.5 pi 版本钉扎与升级窗口（T18 P1）
+
+- **类型**：修正（按对象：03-phase-1-runtime.md）
+- **时间**：2026-08-23
+- **依据**：D24 pi 升主线后需要与 dsh 对称的版本纪律（pi 周更，R-pi-1）；照 §5.4 模板成文；pin 0.84.2 三重依据（T11 证据基线 / npm 最新实测 / spikes-s-pi package.json 已锁）
+- **内容**：新增 §5.5——pi 主线基准 0.84.2 精确钉扎（不用 ^/~ 与 dist-tag）、双周升级评估窗口（首窗 2026-09-05 所在周）、升级=独立 commit 且重跑 S-pi 全证据脚本（offline + T18 live）、安全修复例外需 owner 拍板
+- **task 文档**：[tasks/T18-plan.md](../../tasks/T18-plan.md)

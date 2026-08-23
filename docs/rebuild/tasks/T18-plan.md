@@ -30,7 +30,7 @@ S-pi 离线面证据（SP-7，T11 核验讫）已在仓 `spikes/s-pi/`：库形�
 1. **pi 钉 0.84.2**——三重依据重合：T11 全部离线证据基线（SP-7）、npm 最新版即 0.84.2（`npm view @earendil-works/pi-coding-agent version`，2026-08-23）、spikes/s-pi/package.json 已精确锁定。周更风险用升级窗口纪律管理（照 03 §5.4 dsh 模板）
 2. **活模型 = openrouter/free**——owner 已配置的 key（dsh 线 T13 X3/X6 实证同 key 可用）；pi-ai 内置 openrouter provider（baseUrl `https://openrouter.ai/api/v1`，`pi-ai/src/providers/openrouter.ts:11`，2026-08-23 读源码），`OPENROUTER_API_KEY` 为官方 env 约定（`pi-ai/src/env-api-keys.ts:94`）；`openrouter/free` 非内置目录模型，走 models.json 覆盖/自定义（`pi/packages/coding-agent/docs/models.md` §Overriding Built-in Providers，2026-08-23 读文档）
 3. **通道 A 视觉探测不在本任务**——spike 02 §6 定义为时间盒备选、不阻塞选型；需视觉模型 key 决策，留后续任务（如实声明）
-4. **01 F0 核查范围限三行**：F0.2（桥/后端）、F0.4（传输契约+chat UI）、F0.7（prompts 构建链）——T10 合并后实测发现 `packages/agent`、`http-agent-transport.ts`、`agent-vite-plugin.ts` 均已消失（2026-08-23 `ls`/`find` 实证），地面依据列腐烂，本任务修正；其余行不动
+4. **01 F0 核查范围四行**：F0.2（桥/后端）、F0.3（凭证双链）、F0.4（传输契约+chat UI）、F0.7（prompts 构建链）——注册时定三行，执行中实测发现 F0.3 引证（agent-transport.ts 等）也已全灭（2026-08-23 find/grep 零命中），按计划纪律就地扩 scope——T10 合并后实测发现 `packages/agent`、`http-agent-transport.ts`、`agent-vite-plugin.ts` 均已消失（2026-08-23 `ls`/`find` 实证），地面依据列腐烂，本任务修正；其余行不动
 5. **key 不进仓**——live 脚本从环境变量 `OPENROUTER_API_KEY` 读 key，缺失即显式报错退出；执行时从 dsh-home settings.yaml（owner 已配）临时注入环境变量，不打印、不提交
 
 ### 1.3 非目标（明确划掉）
@@ -48,7 +48,7 @@ S-pi 离线面证据（SP-7，T11 核验讫）已在仓 `spikes/s-pi/`：库形�
 | A2 | pi 钉扎纪律 | 03 新增钉扎小节（pin 0.84.2 + 升级窗口 + 升级流程），narrative 同步 |
 | A3 | S-pi-1 活模型 | `spikes/s-pi/live-chat.mjs` 真实跑通：openrouter/free 流式回复全文连贯、事件序列完整、退出码 0 |
 | A4 | S-pi-2 主线活模型 | `spikes/s-pi/live-tool-result.mjs` 真实跑通：真实模型调用自定义文本工具、工具在本进程执行、模型回复引用工具返回的标记串、退出码 0 |
-| A5 | 01 F0 修正 | F0.2/F0.4/F0.7 地面依据列反映 post-merge 实况，narrative 同步 |
+| A5 | 01 F0 修正 | F0.2/F0.3/F0.4/F0.7 地面依据列反映 post-merge 实况，narrative 同步 |
 | A6 | CI | 远端 CI 对 rebuild/pi HEAD 全绿 |
 
 ## 3. 执行面（P1-P4）
@@ -56,7 +56,7 @@ S-pi 离线面证据（SP-7，T11 核验讫）已在仓 `spikes/s-pi/`：库形�
 - **P1 分支+钉扎**：分支已建（注册时）；03 新增 §5.5「pi 版本钉扎与升级窗口」（pin 0.84.2；双周评估窗口首窗 2026-09-05 所在周；升级=独立 commit+重跑 `spikes/s-pi` 全部证据脚本含本任务新增 live 脚本）
 - **P2 S-pi-1 活模型**：`spikes/s-pi/live-chat.mjs`——ModelRuntime + openrouter/free → `session.prompt` → 订阅事件流验证 text delta 序列 → 完整回复落盘断言
 - **P3 S-pi-2 活模型**：`spikes/s-pi/live-tool-result.mjs`——`defineTool` 注册文本工具（返回含唯一标记串的场景摘要，模拟 look 通道 B 结构）→ 显式参数指令驱动模型调用 → 断言 tool_execution 成对事件 + 工具进程内执行日志 + 模型后续回复含标记串
-- **P4 01 F0 修正**：F0.2/F0.4/F0.7 三行地面依据列就地重写为 post-merge 实况（附 2026-08-23 核验命令），narrative 记录
+- **P4 01 F0 修正**：F0.2/F0.3/F0.4/F0.7 四行地面依据列就地重写为 post-merge 实况（附 2026-08-23 核验命令），narrative 记录
 
 总计 ~1-1.5 人日。
 

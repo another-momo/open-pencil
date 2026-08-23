@@ -9,6 +9,8 @@
 |---|---|---|
 | `offline-echo.mjs` | S-pi-1 离线面 | 库形态最小集成 + echo 自定义工具 + 事件流（faux provider 注入，零网络） |
 | `offline-session-persistence.mjs` | S-pi-3 离线面 | SessionManager 增量落盘 / 跨重启恢复 / list / branch 树形分叉（零网络） |
+| `live-chat.mjs` | S-pi-1 活模型面（T18 P2） | openrouter/free 真实流式对话（需 OPENROUTER_API_KEY，env 注入不落盘） |
+| `live-tool-result.mjs` | S-pi-2 主线活模型面（T18 P3） | 真实模型调自定义文本工具并消费返回续跑（同上 key 要求） |
 
 ## 运行
 

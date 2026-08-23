@@ -93,3 +93,11 @@
 - **依据**：owner 拍板 D23（[records/topics/agent-runtime.md](../topics/agent-runtime.md)）；§2.1 原描述「编辑画布 + 自写 ChatPanel + 工具面板」的「编辑画布」措辞与 owner 意图不符
 - **内容**：§2.1 孤岛内容就地修正为「完整编辑器【画布 + 面板 chrome，D23 拍板取代原『编辑画布』措辞】 + 自写 ChatPanel + 工具面板」
 - **task 文档**：[tasks/T17-plan.md](../../tasks/T17-plan.md)（登记提交随 T17 收口后决策，无独立任务）
+
+## 修正-N · 03 §5.4 标题注记 D24（dsh 版本钉扎纪律随主线休眠）
+
+- **类型**：修正（按对象：03-phase-1-runtime.md）
+- **时间**：2026-08-23
+- **依据**：owner 拍板 D24（[records/topics/agent-runtime.md](../topics/agent-runtime.md)）——dsh-X 主线暂时搁置、pi SDK 路线升为主线；§5.4 的 dsh 版本钉扎纪律对象（dsh 主线）休眠
+- **内容**：§5.4 标题补注「D24 后随 dsh 主线休眠，重启时恢复」，正文纪律本身不改（休眠非废除）
+- **task 文档**：[tasks/T17-plan.md](../../tasks/T17-plan.md)（登记提交随 T17 收口后决策，无独立任务）

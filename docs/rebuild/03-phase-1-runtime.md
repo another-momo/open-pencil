@@ -184,7 +184,7 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 
 （原口径「待 owner 拍板 D9 后启动 S-X 或 S-pi」已被 D20 取代——spike 先行产证据，D9 后拍。验证清单：spikes/04-dsh-x-design.zh.md §7.1 六项 / spikes/02-pi-sdk-runtime.zh.md §6 四项，各 4.5 人日。）
 
-### 5.4 dsh 版本钉扎与双周升级窗口（T13，D22 拍板后生效）
+### 5.4 dsh 版本钉扎与双周升级窗口（T13，D22 拍板后生效；D24 后随 dsh 主线休眠，重启时恢复）
 
 **【事实】版本现状**（核验日期 2026-08-22）：
 

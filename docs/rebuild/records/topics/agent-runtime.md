@@ -211,3 +211,19 @@
   2. 01-target-state 层 0/层 1/层 2 未列编辑器 chrome 块系**计划空白**（T17 收口后 owner 质询暴露），不是「不做」决策；chrome 移植属主线范围，parity 切换前完成
   3. 实施任务待登记，建议紧随 T18 之后立项。已知工作面（2026-08-23 源码实测）：EditorWorkspace.vue 依赖 @/app/tabs 标签页体系（activeTab/getActiveStore）、@/app/shell/layout-storage、menu/shortcut；WorkspaceView 层的 router / tauri / collab / mcp-runtime 接线在 dsh 形态下需剥离而非照搬；焦点/快捷键与 dsh 宿主页隔离（01 §8 代价 2 已预言「两套」）；孤岛布局需从面板尺寸扩至近全屏
 - **依据**：技术核验无根本障碍——chrome 全为 Vue 组件，与孤岛同框架；editor 实例已经 provideEditor 注入孤岛（workbench/src/client/editor-boot.js），EditorCanvas 接法（useCanvas+useCanvasInput）已在孤岛实证同源（T15）。成本集中在 tabs 体系适配、快捷键隔离、布局扩张三项
+
+## D24 · 主线切换：dsh-X 暂时搁置，pi SDK 路线升为主线（新分支从 rebuild/v2 HEAD 起）
+
+- **类型**：决策
+- **时间**：2026-08-23
+- **拍板**：owner（会话原话：「现在我想暂时搁置这条路线，用另外一个分支，从phase 0 开始走pi sdk路线」）
+- **状态**：已拍板（取代 D22 的「dsh 先行、pi 后置」排序；D9 双路线证据结论不变，仅主线切换）
+- **内容**：
+  1. **dsh-X 主线于 T17 收口态搁置归档，不删除**——workbench 孤岛 / ChatPanel / 7600 桥 / dsh 版本钉扎纪律（03 §5.4）随主线休眠，重启即续；归档态 CI 绿、三件套齐
+  2. **pi SDK 路线升为主线**：新分支从 rebuild/v2 HEAD 起（保留 T10 upstream 合并 79 commits/864 文件与全部 docs/rebuild 治理资产）；Phase 0 不重做（其验收在原 app 基线成立、结果已入库），重启的是 Phase 1 runtime 于 pi
+  3. **S-pi 离线证据直接启用**：SP-7 离线面全绿（T11 核验讫）与 harness 在产参照（SP-6）按 D22 第 2 条归档可用；S-pi 模型面（原阻塞待 key）随 pi 主线补跑——openrouter key 已就位（T13 于 dsh 面实证），pi-ai 走 declarative OpenAI 兼容网关（03 §3.2），可用性需冒烟实测
+  4. **pi 形态下前端口径**：保留现有 Vue app（WorkspaceView + 编辑器 chrome 全量不动——D23「编辑器完整能力保留」在 pi 线下自动满足，无孤岛化问题）；chat UI 按 F0.4 既定口径 Vue 自写重建（传输契约随 runtime 重写）；7600 桥概念沿用，实现按 pi extensions 重接
+  5. **已知新成本**（03 §3.2/3.4 既有结论，非新发现）：工具审批与 skills 无内置需自写 extension；pi 周更需 pin + 升级 smoke；无官方插件生态，产品形态回到自管 serve（D4 权重上升）；放弃 dsh 用户群触达这一 X 独占价值（03 §3.5）
+- **依据**：01 §8 工作量对比实测结论（X 比 pi 多 17-18 人日，差额集中在 SessionFace 桥 / 双框架运行时 / 白名单同步 / 孤岛化等前端与集成成本）；owner 判断 dsh 线整体工作量超预期
+
+---

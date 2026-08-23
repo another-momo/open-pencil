@@ -18,7 +18,7 @@
 | C2 消息流渲染（nodes 全型 + partial + running） | ✅ 完成 | §2.3 |
 | C3 发送回路（prompt/steer/cancel/promptError） | ✅ 完成 | §2.4 |
 | C4 控制面（loadOlder/queue/pending 查明） | ✅ 完成 | §2.5 |
-| C5 端到端冒烟 + 三件套收口 | ⬜ 未开始 | — |
+| C5 端到端冒烟 + 三件套收口 | 🔄 进行中 | §2.6（冒烟已过；subagent 核验与 CI 待收口） |
 
 ## 2. 实测记录
 
@@ -49,6 +49,13 @@
 3. **approval 通路**：与 question 同码路（PendingCard reply），payload 形状按 approvals.d.ts 装配；本次未触发真实审批场景，未伪造——负/正例留 V4（如实声明）
 4. **loadOlder**：hasMore 时渲染「加载更早消息」按钮（loadingOlder 禁用态）；当前所有会话 hasMore=false（spike 会话短，21 节点全在窗口内）——按钮正确缺席为如实负例，正例留 V4 构造长会话（如实声明）
 5. **queue**：`conv.queue` 渲染通路接入（placement/preview 逐条）；running 时我的发送走 steer 而非 queue，本次未观测到 queue 非空——如实声明，留 V4
+
+### 2.6 2026-08-23 C5 端到端冒烟：孤岛 ChatPanel → 模型调 apply_design → 画布改图
+
+1. **首轮（如实记录的模型失误）**：显式指令下模型发起调用但把 patches 传成空数组——工具如实回 `{ok:true, bridgeMs:0, applied:[]}`，模型自己诊断出 applied 为空并主动提出重试。链路零伪造：空补丁就是空结果（2026-08-23 Playwright 实测）
+2. **二轮落地**：纠正后模型逐字传参 `{"patches":[{"op":"set","path":"nodes.0:4.props.x","value":480}]}` → 工具回包 `{ok:true, bridgeMs:46, applied:[{nodeId:"0:4",key:"x",value:480}]}` → 模型回复如实复述——**全程发生在孤岛 ChatPanel 内**（2026-08-23 实测）
+3. **图状态复核**：bridge-call getDocumentTree → 0:4 x=480（与回包一致）；画布展开截图矩形移到 frame 右侧（证据 workbench/evidence/t17-c5-e2e-smoke.png 对话面 + t17-c5-e2e-canvas.png 画面）
+4. **M3 语义达成**：ChatPanel 消费 SessionFace（C1-C4）+ 7600 WS 接通（T16）——消息回路在孤岛内闭环，不再依赖 dsh 主 UI 对话列
 
 ### 2.1 2026-08-23 注册期 recon：SessionFace 获取与消费通路全链源码实证（dsh 0.1.1-rc.1 安装包 .d.ts + 编译产物）
 

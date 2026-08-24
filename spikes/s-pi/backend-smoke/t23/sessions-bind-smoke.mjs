@@ -148,11 +148,23 @@ function activeDocId() {
 function sessionTriggerState() {
   return page.evaluate(() => {
     const trigger = document.querySelector('[data-test-id="chat-session-trigger"]')
-    return {
-      label: trigger?.textContent?.trim() ?? null,
-      title: trigger?.getAttribute('title') ?? null
-    }
+    return { label: trigger?.textContent?.trim() ?? null }
   })
+}
+
+// 镜像 ChatPanel.sessionTimeLabel：后缀 UTC 时间戳 → 本地 MM-dd HH:mm
+// （触发器悬浮提示是 Tip 组件 role=tooltip 而非 title 属性——label 是唯一的
+//  DOM 常驻信号，精确 sessionId 归属用下拉勾选项交叉断言）
+function sessionTimeLabel(sessionId) {
+  const match = /-(\d{8})T(\d{6})Z$/.exec(sessionId)
+  if (!match) return sessionId
+  const [, day, time] = match
+  const date = new Date(
+    `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}T` +
+      `${time.slice(0, 2)}:${time.slice(2, 4)}:${time.slice(4, 6)}Z`
+  )
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 async function activateAiTab() {
@@ -259,11 +271,9 @@ try {
 
   const triggerAfterSend = await sessionTriggerState()
   check(
-    '① 触发器从 "Sessions" 变为时间标签，title=完整 sessionId',
-    triggerBefore.label === 'Sessions' &&
-      triggerAfterSend.title === first.sessionId &&
-      triggerAfterSend.label !== 'Sessions',
-    `${triggerBefore.label} → ${triggerAfterSend.label} / ${triggerAfterSend.title}`
+    '① 触发器从 "Sessions" 变为当前会话时间标签',
+    triggerBefore.label === 'Sessions' && triggerAfterSend.label === sessionTimeLabel(first.sessionId),
+    `${triggerBefore.label} → ${triggerAfterSend.label}（期望 ${sessionTimeLabel(first.sessionId)}）`
   )
 
   // ── ② 种子 OLD/MID → 刷新恢复 → MID 回填
@@ -291,9 +301,9 @@ try {
   check('② 旧会话（OLD）未混入回填', oldBled === 0)
   const triggerAfterRestore = await sessionTriggerState()
   check(
-    '② 回填后触发器 title = MID sessionId',
-    triggerAfterRestore.title === SID_MID,
-    triggerAfterRestore.title ?? '(null)'
+    '② 回填后触发器标签 = MID 会话时间',
+    triggerAfterRestore.label === sessionTimeLabel(SID_MID),
+    `${triggerAfterRestore.label}（期望 ${sessionTimeLabel(SID_MID)}）`
   )
 
   // ── ③ 下拉族谱清单
@@ -321,7 +331,11 @@ try {
     historyRequests.join(',')
   )
   const triggerAfterSwitch = await sessionTriggerState()
-  check('④ 切换后触发器 title = OLD', triggerAfterSwitch.title === SID_OLD, triggerAfterSwitch.title ?? '(null)')
+  check(
+    '④ 切换后触发器标签 = OLD 会话时间',
+    triggerAfterSwitch.label === sessionTimeLabel(SID_OLD),
+    `${triggerAfterSwitch.label}（期望 ${sessionTimeLabel(SID_OLD)}）`
+  )
   const continued = await sendChat('t23 bind smoke continue old')
   check(
     '④ 切换后发送沿用旧 sessionId（继续该会话）',

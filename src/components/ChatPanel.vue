@@ -44,6 +44,7 @@ import ChatMessage from '@/components/chat/ChatMessage.vue'
 import AppPlaceholder from '@/components/ui/AppPlaceholder.vue'
 import AppTextButton from '@/components/ui/AppTextButton.vue'
 import ProviderSetup from '@/components/chat/ProviderSetup.vue'
+import Tip from '@/components/ui/Tip.vue'
 import { menuItem, useMenuUI } from '@/components/ui/menu'
 import { useAIChat } from '@/app/ai/chat/use'
 import { toast } from '@/app/shell/ui'
@@ -351,17 +352,18 @@ function handleClearChat() {
         class="flex shrink-0 items-center border-b border-border px-3 py-1"
       >
         <DropdownMenuRoot @update:open="handleSessionMenuOpen">
-          <DropdownMenuTrigger as-child>
-            <AppTextButton
-              data-test-id="chat-session-trigger"
-              :title="currentSessionId ?? undefined"
-              :ui="{ base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover' }"
-            >
-              <icon-lucide-history class="size-3" />
-              {{ sessionTriggerLabel }}
-              <icon-lucide-chevron-down class="size-3" />
-            </AppTextButton>
-          </DropdownMenuTrigger>
+          <Tip :label="currentSessionId ?? undefined">
+            <DropdownMenuTrigger as-child>
+              <AppTextButton
+                data-test-id="chat-session-trigger"
+                :ui="{ base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover' }"
+              >
+                <icon-lucide-history class="size-3" />
+                {{ sessionTriggerLabel }}
+                <icon-lucide-chevron-down class="size-3" />
+              </AppTextButton>
+            </DropdownMenuTrigger>
+          </Tip>
           <DropdownMenuPortal>
             <DropdownMenuContent
               side="bottom"

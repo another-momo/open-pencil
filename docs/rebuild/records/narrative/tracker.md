@@ -435,3 +435,11 @@
 - **依据**：owner 指出 OPENROUTER_API_KEY 本机已有（`.openpencil/key-env`，存在性实证、值未读），T22 收口登记的「本机无 key 阻塞」过时。补跑五件全绿：t21/admin 21/21、t21/settings 11/11、t21/tools 9/9、T19 smoke.mjs 15/15、T20 tool-smoke 18/18（自开 keeper 页面挂 7600 桥执行端）。过程定位三起非产品问题并修复/登记：①admin 冒烟 FAIL 根因 = 固定端口 7703 被上一轮 EBUSY 孤儿后端占用（[T24-self-check §3.3-7](../../tasks/T24-self-check.md) 同根因的下游效应），请求打到旧进程致状态断言错位，杀孤儿后 21/21；②settings 冒烟「auth.json 落盘」断言竞态——活后端带 env key 时状态灯恒 configured，只等灯会抢在 save POST 在途时读盘，修为 waitForResponse 等回包（清理段同样加固）；③tools 冒烟遇 openrouter/free 模型方差新形态——模型在目标工具外多发畸形调用（pi-ai validation.js 对未注册 toolCall.name 抛 Tool not found / render 参数非法 JSON），重试预算扩为容忍 tool-output-error 后第三轮 9/9。冒烟改动两件（settings/tools）随本次提交。owner 复核后确认：CI 无 LLM 冒烟 job（2026-08-24 grep .github/workflows 实证 OPENROUTER/smoke/spikes 零命中；冒烟依赖活浏览器/活桥/活编辑器，属本机验证工具），不存在 CI 补跑面，亦无需登记仓库 secret——阻塞项完全消解
 - **内容**：任务表 T22 行尾阻塞注记改写为「本机补跑全绿 + CI 无此面」；[T22-self-check §3.1-20](../../tasks/T22-self-check.md)、[T24-self-check §3.3-6](../../tasks/T24-self-check.md) 同步消解标注
 - **task 文档**：[tasks/T22-plan.md](../../tasks/T22-plan.md)
+
+## 修正-N · tracker.md T25 行登记（浏览器旧路径清扫立项）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-24
+- **依据**：T24-plan D9 拆分项 + T24 收口后 Phase 1-pi 任务面唯一剩余。owner 2026-08-24 拍板三决策：D1 harness 路径切（含 packages/harness 整包，grep 实证消费者仅 src/app/ai/harness 两文件）、D2 旧设置面切（含 analyzeAttachedImages 贴图分析知情退化——旧 vision 直通唯一活消费者，C4a 通道 B 落地时后端形态恢复）、D3 VITE_PI_BACKEND 门退役 + dev 体验对齐 DSH 一条命令（vite.config.ts:35 实证后端已随 dev 无条件拉起，缺 server.open 自动开浏览器 + key-env 自助注入两块）。答疑先行：generate_image（仓内零代码，C3a 纯新建）与 look 通道 B（vision-runtime.ts/tools-vision.ts 零消费者死代码，C4a 后端重建）与切除面零耦合，均不返工
+- **内容**：任务表新增 T25 行，状态 🔄 立项；tasks/\_index.md 镜像行同步；三件套一次登记齐（plan D1-D4 决策 + C1-C6 验收 + 七步实施分解；self-check 9 条 recon 实证；verify V1-V6 预审表）
+- **task 文档**：[tasks/T25-plan.md](../../tasks/T25-plan.md)

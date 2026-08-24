@@ -454,3 +454,4 @@
 - **内容**：T25 行状态改 ✅ 已完成；tasks/\_index.md 镜像同步；self-check §3.1/§3.2/§3.3 回填（实施事实 11 条、偏差 5 条、边界 5 条）；verify 由独立 subagent 执行 V1-V6 全过「可以收口」（附赠发现 piCatalogOffline 过时文案一件，已顺手修复并复核 check:i18n）
 - **task 文档**：[tasks/T25-plan.md](../../tasks/T25-plan.md) / [tasks/T25-self-check.md](../../tasks/T25-self-check.md) / [tasks/T25-verify.md](../../tasks/T25-verify.md)
 - **顺修登记**：tools/type-shapes Windows 反斜杠归一（P50）；e2e spec Meta+j → ControlOrMeta+j（P49 同条）；T20 keeper 包装一次性使用即删
+- **远端 CI**：run 32735915321 format:check 红（zh-cn dialogs.json 尾随换行——python 写入与 oxfmt 规则差异）→ 37fb9f0b 收敛 → run 32736988169 全绿

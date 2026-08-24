@@ -20,7 +20,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import {
@@ -36,6 +36,15 @@ import { createPiEventMapper } from './mapping'
 import type { ModelSpec, ProviderAdmin } from './provider-admin'
 import { createOpenPencilTools } from './tools'
 
+export type PiSessionSummary = {
+  sessionId: string
+  /** 首条用户消息文本截断（列表展示用） */
+  title: string
+  messageCount: number
+  /** 会话文件 mtime（毫秒） */
+  updatedAtMs: number
+}
+
 export type PiChatService = {
   prompt(
     sessionId: string,
@@ -48,6 +57,8 @@ export type PiChatService = {
   resolveLatestSessionId(docKeyPrefix: string): string | null
   /** T22：读回指定会话历史（零副作用纯读，history.ts） */
   readHistory(sessionId: string): UIMessage[]
+  /** T23：族内全部会话摘要，按创建后缀倒序（最新在前）；零副作用纯读 */
+  listSessionFamily(docKeyPrefix: string): PiSessionSummary[]
 }
 
 type SessionEntry = {
@@ -215,5 +226,33 @@ export function createPiChatService({
     return readPiHistoryFile(file)
   }
 
-  return { prompt, resolveLatestSessionId, readHistory }
+  function summarizeSession(sessionId: string, file: string | undefined): PiSessionSummary {
+    if (!file || !existsSync(file)) {
+      return { sessionId, title: '', messageCount: 0, updatedAtMs: 0 }
+    }
+    const messages = readPiHistoryFile(file)
+    const firstUserText = messages
+      .find((message) => message.role === 'user')
+      ?.parts.find((part) => part.type === 'text')
+    return {
+      sessionId,
+      title: firstUserText?.text.slice(0, 40) ?? '',
+      messageCount: messages.length,
+      updatedAtMs: statSync(file).mtimeMs
+    }
+  }
+
+  function listSessionFamily(docKeyPrefix: string): PiSessionSummary[] {
+    // T23 E1：族 = index 键前缀扫描（同 resolveLatestSessionId），倒序 = 最新在前；
+    // 逐文件纯读派生摘要，不写 index 不开会话（T22 recon 15 读取陷阱沿用）
+    const prefix = `${docKeyPrefix}-`
+    const index = readIndex()
+    return Object.keys(index)
+      .filter((key) => key.startsWith(prefix))
+      .sort()
+      .reverse()
+      .map((sessionId) => summarizeSession(sessionId, index[sessionId]?.file))
+  }
+
+  return { prompt, resolveLatestSessionId, readHistory, listSessionFamily }
 }

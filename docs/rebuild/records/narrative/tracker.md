@@ -387,3 +387,11 @@
 - **依据**：T22 实施完成并全量验证通过。实施期两处实证修正落定——①铸造时机收窄为「仅发送时」：Chat 创建期铸造的 docId 会被 `applyImportedDocumentMetadata` 整体赋值冲掉（import.ts:50-60，浏览器实测复现）；②回填时序缺口修复：ChatPanel 常驻挂载导致 setup 的 ensureChat 先于 restore/导入落定跑完，空 Chat 缓存后回填永远错过——三件套修复（ChatPanel 订阅活动 store 的 graph:replaced 重跑 ensureChat；transports 空态重取含同 store else-if 分支；loadPiChatHistory 的 storeSessions 同前缀守卫防 clear 后复活族内旧会话）——[T22-self-check §3.1/§3.2](../../tasks/T22-self-check.md)。验收实测：引擎根节点 pluginData .fig 往返专项 20/20；后端冒烟 history 12/12（前缀解析族内最新、文本/工具折叠、reasoning 不回填、GET 只读）、target 6/6（document_id 注入/缺省/透传、不进 schema）；浏览器实测 A1（发送体 `doc-<sha1>-<ts>` + documentId）/A3（persistRecoveryNow→reload→恢复→DOM 回填种子消息）/A6（clear 后同前缀新后缀、零复活请求、旧会话归档）/A2（第二文档族谱隔离）全绿——MCP playwright 驱动的免 key 方案（route 拦截 /api/pi-chat 回灌固定 SSE + 合成 v3 JSONL 种真实后端），本机 playwright CDP 起不来的环境限制下 bind-smoke.mjs 按实证流程重写留 CI/他机复跑。subagent 独立核验 V1-V6 全过「可以收口」——[T22-verify](../../tasks/T22-verify.md)；远端 CI rebuild/pi run 32687026233 全绿。已登记阻塞：T19/T20/T21 LLM 冒烟待 owner 补 OPENROUTER_API_KEY 后补跑（不伪造通过）
 - **内容**：任务表 T22 行状态 🔄 方案定稿→✅ 已完成（含验收证据链与核验/CI 引用）；tasks/\_index.md 镜像行同步；T22-self-check 状态行 ✅ 已收口
 - **task 文档**：[tasks/T22-plan.md](../../tasks/T22-plan.md)
+
+## 修正-N · tracker.md T23 行登记（会话查看/切换 UI 立项）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-24
+- **依据**：T22 收口当日 owner 体验后提出直接诉求——「前端有做查看/切换 session 的功能嘛？这样我能直观的看到是不是绑定关系是对的、也能方便的切到另一 session 继续对话」，即废止 T22-plan §1.4「会话线程列表 UI 不做」约定。注册期 recon 六条实证：后端族谱事实源现成（index.json + resolveLatestSessionId/readHistory 先例，service.ts:86,202-216）；pi 读取陷阱沿用 T22 recon 15（读只能走 readPiHistoryFile）；前端切换挂钩现成（storeSessions WeakMap + chat.messages 可整体赋值 + ensureChat 缓存先行）；DropdownMenu 原语与硬编码标签先例（CanvasPaneHeader.vue:59-70、ChatPanel.vue:334-345）；i18n 门禁只管 locale 文件（check-locales.ts）——[T23-self-check §2](../../tasks/T23-self-check.md)
+- **内容**：任务表新增 T23 行，状态 🔄 立项；tasks/\_index.md 镜像行同步；三件套一次登记齐（plan E1-E5 决策 + B1-B6 验收）
+- **task 文档**：[tasks/T23-plan.md](../../tasks/T23-plan.md)

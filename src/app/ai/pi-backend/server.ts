@@ -205,6 +205,17 @@ export function createPiBackendServer({ rootDir }: { rootDir: string }): Server 
       sendJSON(res, 200, { sessionId, messages: service.readHistory(sessionId) })
       return
     }
+    // T23：会话族谱清单（E1）——docKey 前缀扫描族内全部会话摘要，最新在前；
+    // 只读。必须在 /api/pi/ 管理面前缀之前匹配
+    if (url.pathname === '/api/pi/sessions') {
+      if (req.method !== 'GET') {
+        res.writeHead(405).end('Method Not Allowed')
+        return
+      }
+      const docKey = url.searchParams.get('docKey')
+      sendJSON(res, 200, { sessions: docKey ? service.listSessionFamily(docKey) : [] })
+      return
+    }
     if (url.pathname.startsWith('/api/pi/')) {
       void handleAdminRequest(admin, req, res, url.pathname)
       return

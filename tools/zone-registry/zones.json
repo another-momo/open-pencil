@@ -11,12 +11,8 @@
     "workbench/",
     "src/app/ai/pi-backend/"
   ],
-  "ownedFiles": [
-    "src/components/settings/models/PiModelsPanel.vue"
-  ],
-  "stubs": [
-    "src/app/collab/use.ts"
-  ],
+  "ownedFiles": ["src/components/settings/models/PiModelsPanel.vue"],
+  "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
     "src/app/ai/chat/",
     "src/app/ai/providers/",

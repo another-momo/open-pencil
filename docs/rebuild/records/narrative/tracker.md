@@ -363,3 +363,11 @@
 - **依据**：T21（pi 原生 provider/凭据管理 + 全量 core tools + system prompt + 环绕补齐）P1-P5 全部执行完毕并实测通过——管理面冒烟 21/21（t21/admin-smoke.mjs：空态 catalog→POST key→auth.json pi 格式落盘→configured→自定义 provider upsert→DELETE 回空，逐步脱敏断言；后端进程显式剔除 env key 跑通真实聊天回合）；设置 UI 冒烟 11/11（t21/settings-smoke.mjs：PiModelsPanel 分支渲染、UI 存 key→auth.json→状态灯、design 指派→聊天输入框标签、清理复原）；工具面冒烟 9/9（t21/tools-smoke.mjs：describe→render 有序双工具卡片 + 桥真实执行产出节点 id）；undo 冒烟 5/5（t21/undo-smoke.mjs：栈顶 label `AI: create_shape` + 撤销节点消失 + 重做恢复）；T19 回归 15/15、T20 回归全绿（tool-smoke 18/18 + browser-tool-smoke 卡片对账）。实施期接口对齐修复：CustomProviderInput.models 兼容纯 id 字符串数组（设置页一行一个形态）。偏差实录于 [T21-self-check §2.3](../../tasks/T21-self-check.md)：pi 无 maxTurns 硬限（step budget 退化 warning-only）、resourceLoader noContextFiles 显式关闭 pi 默认 repo 上下文。独立 subagent 按 [T21-verify.md](../../tasks/T21-verify.md) V1-V7 核验：首轮「不可收口」——工具计数声明失真（21+4=25 → 实测 22+4=26）+ CI 红（format:check 5 文件、jscpd client.ts 克隆、steiger 文件名前缀、type-shapes 重复形状，后两者为首红掩盖下的次生红）；整改（计数口径全文档更正附核验命令、t21/ 领域目录归位、PiDesignAssignment 改别名、client.ts 去重）后复核 V1-V7 全 ✅「可以收口」。远端 CI rebuild/pi HEAD 7431f9f4 run 32656186119 completed/success（gh api 2026-08-24）
 - **内容**：任务表 T21 行状态 🔄→✅ 已完成；tasks/\_index.md 镜像行同步；T21-plan/T21-self-check 状态行翻 ✅ 已收口；T21-verify.md 经 subagent 两轮就地重写为最终核验记录（首轮 ❌ 打回项 + 复核翻转证据）
 - **task 文档**：[tasks/T21-plan.md](../../tasks/T21-plan.md)
+
+## 修正-N · tracker.md T22 行登记（session↔file 绑定立项）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-24
+- **依据**：T21 收口后按排队序列推进（attach.ts:10 注释与 T21-plan §5 均留口「session↔file 绑定归 T22」）。注册期 recon 十一条实证：tab.id 为运行期内存计数器（tabs/index.ts:47-50，刷新即失效）、持久身份原料（DocumentSourceIdentity handle/path、StorageDocumentBinding）无 document key 导出、旧 ToolLoop 历史仅 WeakMap 内存（transports.ts:117）、pi sessionId 浏览器 tab 级 sessionStorage UUID（chat/storage.ts:135-145）致切 tab 前后端视图发散、reconnectToStream 恒 null 无回填通道（transport.ts:41-43）、桥 resolveAutomationTarget 原生支持 document_id 而 pi 链路不注入（target.ts:81 vs tools.ts:72）、多窗口 latest-wins（browser-rpc.ts:217-241）、当日 in-app 浏览器冻结致 RPC 超时实测事故——[T22-self-check §2](../../tasks/T22-self-check.md)。方案六神决策：文档 key 派生（path/云 binding/scratch 三分）、sessionId 确定性 `doc-<sha1(key)>` 免映射表、GET history 历史回填、documentId 请求体注入桥、单窗口前提、session 清理不做——[T22-plan §1.2](../../tasks/T22-plan.md)
+- **内容**：任务表新增 T22 行，状态 🔄 立项（方案待 owner 过目），三件套列一次登记齐；tasks/\_index.md 镜像行同步
+- **task 文档**：[tasks/T22-plan.md](../../tasks/T22-plan.md)

@@ -118,6 +118,40 @@ describe('plugin data', () => {
     expect(parsedProxy?.getSharedPluginDataKeys('tokens')).toEqual(['accent'])
   })
 
+  // T22：根节点 sharedPluginData 的 .fig 文件级往返（既有套件只覆盖普通节点；
+  // 根走 library-metadata.ts 全量复制 + import.ts applyImportedDocumentMetadata
+  // 还原的专用路径）。写入方式与 app 侧 document-key.ts 一致（updateNode 直写
+  // pluginData 数组，同 setSharedPluginData 语义）。
+  test('roundtrips root node shared plugin data through fig export/import', async () => {
+    await initCodec()
+
+    const graph = new SceneGraph()
+    const root = expectDefined(graph.getNode(graph.rootId))
+    const docId = 't22-test-doc-uuid'
+    graph.updateNode(graph.rootId, {
+      pluginData: [
+        ...root.pluginData,
+        { pluginId: 'openpencil.ai', key: 'openpencil.ai/docId', value: docId }
+      ]
+    })
+
+    const bytes = await exportFigFile(graph)
+    const parsed = await parseFigFile(
+      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+    )
+
+    const parsedRoot = expectDefined(parsed.getNode(parsed.rootId))
+    expect(parsedRoot.pluginData).toContainEqual({
+      pluginId: 'openpencil.ai',
+      key: 'openpencil.ai/docId',
+      value: docId
+    })
+
+    const parsedAPI = new FigmaAPI(parsed)
+    const rootProxy = parsedAPI.getNodeById(parsed.rootId)
+    expect(rootProxy?.getSharedPluginData('openpencil.ai', 'docId')).toBe(docId)
+  })
+
   test('preserves plugin relaunch data from imported fig files', async () => {
     await initCodec()
     const bytes = new Uint8Array(await Bun.file('./tests/fixtures/material3.fig').arrayBuffer())

@@ -11,8 +11,12 @@
     "workbench/",
     "src/app/ai/pi-backend/"
   ],
-  "ownedFiles": ["src/components/settings/models/PiModelsPanel.vue"],
-  "stubs": ["src/app/collab/use.ts"],
+  "ownedFiles": [
+    "src/components/settings/models/PiModelsPanel.vue"
+  ],
+  "stubs": [
+    "src/app/collab/use.ts"
+  ],
   "pendingReclass": [
     "src/app/ai/chat/",
     "src/app/ai/providers/",
@@ -268,6 +272,18 @@
       "id": "P40",
       "file": "packages/vue/src/i18n/locales/zh-cn/dialogs.json",
       "reason": "T21: PiModelsPanel 的 zh 翻译（pi* 键组，随 P38 en 源）",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P41",
+      "file": "src/app/browser-bridge.ts",
+      "reason": "T22: setChatTransport 工厂签名加 store 参（pi 后端按 EditorStore 解析文档会话；无参工厂向后兼容）",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P42",
+      "file": "tests/engine/scene-graph/plugin-data.test.ts",
+      "reason": "T22: 根节点 sharedPluginData .fig 往返专项测试（既有套件只覆盖普通节点）",
       "disposition": "permanent"
     }
   ],

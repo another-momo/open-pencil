@@ -19,7 +19,9 @@ export interface OpenPencilTestHooks {
 
 export interface OpenPencilWindowAPI {
   getStore?: () => EditorStore
-  setChatTransport?: (factory: () => ChatTransport<UIMessage>) => void
+  // T22：工厂收到 Chat 所属 EditorStore（pi 后端按 store 解析文档会话）；
+  // 既有无参工厂（e2e mock）忽略该参，向后兼容
+  setChatTransport?: (factory: (store: EditorStore) => ChatTransport<UIMessage>) => void
   openFile?: (path: string) => Promise<void>
   test?: OpenPencilTestHooks
 }
@@ -62,7 +64,7 @@ export function exposeCollaborationActions(collab: CollabReturn) {
 }
 
 export function exposeChatTransportOverride(
-  setChatTransport: (factory: () => ChatTransport<UIMessage>) => void
+  setChatTransport: (factory: (store: EditorStore) => ChatTransport<UIMessage>) => void
 ) {
   windowAPI().setChatTransport = setChatTransport
 }

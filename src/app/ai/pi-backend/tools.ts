@@ -22,6 +22,11 @@
  * （文案照抄旧 ai-adapter.ts appendStepWarning）。pi 无 maxTurns 硬限
  * （agent-core 全量 grep 零命中，2026-08-24），硬停能力不再。
  *
+ * T22 工具目标注入（T22-plan D4）：service 把当次请求的 documentId 经
+ * ToolTargetSource 闭包传入，execute 时注入桥 args 外层 document_id——桥
+ * resolveAutomationTarget 原生支持（target.ts:81），桥代码零改动；不进
+ * 工具 schema（不对模型暴露实现细节，与 MCP 侧 schema 显式带参不同）。
+ *
  * 仅运行于独立后端进程（bun 直跑，workspace 包导入可用）；token 只经
  * discovery 文件读取（平台目录 0o700 / 文件 0o600），不打印、不落盘他处。
  */
@@ -47,11 +52,17 @@ export type StepBudgetSource = {
   current(): number
 }
 
+/** T22：当次请求的桥目标文档（service 每 prompt 更新的可变袋，工具闭包读取） */
+export type ToolTargetSource = {
+  documentId?: string
+}
+
 type BridgeToolResult = Record<string, unknown>
 
 async function callBridgeTool(
   toolName: string,
   toolArgs: Record<string, unknown>,
+  target?: ToolTargetSource,
   allowRetry = true
 ): Promise<BridgeToolResult> {
   const discovery = await readDiscoveryFile()
@@ -61,6 +72,11 @@ async function callBridgeTool(
     )
   }
 
+  // T22 D4：documentId 注入桥 args 外层 document_id（桥 resolveAutomationTarget
+  // 原生消费；缺省则落当前活动 tab，维持旧语义）
+  const documentId = target?.documentId
+  const args = documentId ? { ...toolArgs, document_id: documentId } : toolArgs
+
   let res: Response
   try {
     res = await fetch(`http://127.0.0.1:${discovery.httpPort}/rpc`, {
@@ -69,10 +85,10 @@ async function callBridgeTool(
         'content-type': 'application/json',
         ...(discovery.authToken ? { authorization: `Bearer ${discovery.authToken}` } : {})
       },
-      body: JSON.stringify({ command: 'tool', args: { name: toolName, args: toolArgs } })
+      body: JSON.stringify({ command: 'tool', args: { name: toolName, args } })
     })
   } catch (error) {
-    if (allowRetry) return callBridgeTool(toolName, toolArgs, false)
+    if (allowRetry) return callBridgeTool(toolName, toolArgs, target, false)
     throw new Error(
       `7600 桥连接失败（${error instanceof Error ? error.message : String(error)}）——确认 dev server 已启动`
     )
@@ -85,7 +101,7 @@ async function callBridgeTool(
   } | null
 
   if (res.status === 401) {
-    if (allowRetry) return callBridgeTool(toolName, toolArgs, false)
+    if (allowRetry) return callBridgeTool(toolName, toolArgs, target, false)
     throw new Error('7600 桥鉴权失败（401）——discovery token 与运行中实例不匹配，重启 dev server')
   }
   if (!res.ok || body?.ok !== true) {
@@ -148,7 +164,11 @@ function toolLabel(name: string): string {
     .join(' ')
 }
 
-function defineBridgeTool(def: ToolDef, budget: StepBudgetSource | undefined) {
+function defineBridgeTool(
+  def: ToolDef,
+  budget: StepBudgetSource | undefined,
+  target?: ToolTargetSource
+) {
   const shape: Record<string, TSchema> = {}
   for (const [key, param] of Object.entries(def.params)) {
     shape[key] = paramToTypeBox(param)
@@ -159,7 +179,10 @@ function defineBridgeTool(def: ToolDef, budget: StepBudgetSource | undefined) {
     description: def.description,
     parameters: Type.Object(shape),
     async execute(_toolCallId, params): Promise<AgentToolResult<BridgeToolResult>> {
-      const result = maybeAppendStepWarning(await callBridgeTool(def.name, { ...params }), budget)
+      const result = maybeAppendStepWarning(
+        await callBridgeTool(def.name, { ...params }, target),
+        budget
+      )
       return {
         content: [{ type: 'text', text: JSON.stringify(result) }],
         details: result
@@ -168,10 +191,10 @@ function defineBridgeTool(def: ToolDef, budget: StepBudgetSource | undefined) {
   })
 }
 
-export function createOpenPencilTools(budget?: StepBudgetSource) {
+export function createOpenPencilTools(budget?: StepBudgetSource, target?: ToolTargetSource) {
   const toolSet = [
     ...CORE_TOOLS,
     ...EXTENDED_TOOLS.filter((def) => (EXTENDED_WHITELIST as readonly string[]).includes(def.name))
   ]
-  return toolSet.map((def) => defineBridgeTool(def, budget))
+  return toolSet.map((def) => defineBridgeTool(def, budget, target))
 }

@@ -25,16 +25,30 @@ import {
   unsplashKeyStatus
 } from '@/app/ai/chat/storage'
 import { createChatSessionManager } from '@/app/ai/chat/transports'
+import { loadPiChatHistory, mintPiSessionId } from '@/app/ai/pi-backend/document-key'
 import { exposeChatTransportOverride } from '@/app/browser-bridge'
 import { getActiveEditorStore } from '@/app/editor/active-store'
 
 const activeTab = ref<'design' | 'code' | 'ai'>('design')
 
+// T22：pi 后端模式下接线「历史回填 + clear 铸新会话」钩子（T22-plan D2/D3）；
+// 非 pi 模式不挂（legacy 路径行为零变化）
+const piSessionHooks =
+  import.meta.env.VITE_PI_BACKEND === '1'
+    ? {
+        loadHistory: loadPiChatHistory,
+        onSessionReset: (store: ReturnType<typeof getActiveEditorStore>) => {
+          void mintPiSessionId(store)
+        }
+      }
+    : {}
+
 const chatSession = createChatSessionManager({
   isConfigured,
   isHarnessProvider,
   credentialsReady,
-  getActiveEditorStore
+  getActiveEditorStore,
+  ...piSessionHooks
 })
 
 registerAIChatEffects(chatSession.markTransportDirty)

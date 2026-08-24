@@ -11,9 +11,14 @@
  *    DELETE /api/pi/credentials、POST /api/pi/providers（自定义 provider）
  *    ——无任何回读 key 的端点
  *
- * 请求体：{ sessionId: string, messages: UIMessage[], model?: ModelSpec }
+ * 请求体：{ sessionId: string, messages: UIMessage[], model?: ModelSpec,
+ * documentId?: string }
  * （ai SDK Chat 默认全量 messages 上报；本 service 只取末条 user 文本，
- * 历史由后端 SessionManager 持有。model 为前端 design role 解析结果，T21）。
+ * 历史由后端 SessionManager 持有。model 为前端 design role 解析结果，T21。
+ * documentId 为桥目标注入，T22）。
+ *
+ * T22：GET /api/pi/history?docKey=<族谱前缀>（或 ?sessionId=<完整 id>）→
+ * { sessionId, messages }——会话族谱解析 + 历史回填（T22-plan D2/D3）。
  *
  * 仅运行于独立 bun/node 进程（main.ts 入口或 vite 插件 spawn 的子进程），
  * 不经 vite esbuild 打包——package 导入（@open-pencil/mcp/* 等 workspace 包）可用。
@@ -36,6 +41,7 @@ type PiChatRequestBody = {
     parts?: Array<{ type: string; text?: string }>
   }>
   model?: ModelSpec
+  documentId?: string
 }
 
 function readBody(req: IncomingMessage): Promise<string> {
@@ -92,7 +98,7 @@ async function handlePiChatRequest(
   }
 
   try {
-    await service.prompt(sessionId, text, emit, body.model)
+    await service.prompt(sessionId, text, emit, body.model, body.documentId)
   } catch (error) {
     emit({
       type: 'error',
@@ -180,6 +186,23 @@ export function createPiBackendServer({ rootDir }: { rootDir: string }): Server 
     }
     if (url.pathname === '/api/pi-chat') {
       void handlePiChatRequest(service, req, res)
+      return
+    }
+    // T22：历史回填（D3）——docKey 前缀解析族内最新会话，或 sessionId 精确读取；
+    // 必须在 /api/pi/ 管理面前缀之前匹配
+    if (url.pathname === '/api/pi/history') {
+      if (req.method !== 'GET') {
+        res.writeHead(405).end('Method Not Allowed')
+        return
+      }
+      const exact = url.searchParams.get('sessionId')
+      const docKey = url.searchParams.get('docKey')
+      const sessionId = exact ?? (docKey ? service.resolveLatestSessionId(docKey) : null)
+      if (!sessionId) {
+        sendJSON(res, 200, { sessionId: null, messages: [] })
+        return
+      }
+      sendJSON(res, 200, { sessionId, messages: service.readHistory(sessionId) })
       return
     }
     if (url.pathname.startsWith('/api/pi/')) {

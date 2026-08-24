@@ -6,15 +6,16 @@
  * 副作用顺序：本模块显式 import '@/app/ai/chat/use'，保证 window.openPencil
  * .setChatTransport 已暴露后再注册工厂。
  *
- * sessionId 每 tab 稳定：sessionStorage 存 UUID，刷新 / HMR 后复用同一后端
- * session（SessionManager JSONL 落盘恢复）。session↔文件绑定归 T22。
+ * T22：sessionId 不再按浏览器 tab 固定——工厂收到 Chat 所属 EditorStore，
+ * transport 每次发送经 getPiRequestContext 动态解析「文档会话族谱当前会话 +
+ * 当前活动 tab documentId」（document-key.ts，T22-plan D1/D2/D4）。
  */
 
 import { IS_BROWSER } from '@open-pencil/core/constants'
 
 import '@/app/ai/chat/use'
-import { loadPiBackendSessionId } from '@/app/ai/chat/storage'
 import { getPiDesignModelSpec } from '@/app/ai/pi-backend/assignment'
+import { getPiRequestContext } from '@/app/ai/pi-backend/document-key'
 import { PiBackendChatTransport } from '@/app/ai/pi-backend/transport'
 
 export function attachPiBackendTransport(): void {
@@ -25,7 +26,8 @@ export function attachPiBackendTransport(): void {
     throw new Error('pi-backend: window.openPencil.setChatTransport hook unavailable')
   }
 
-  const sessionId = loadPiBackendSessionId()
   // T21：design 模型指派（设置页 PiModelsPanel 维护）随每次发送传给后端
-  setChatTransport(() => new PiBackendChatTransport(sessionId, getPiDesignModelSpec))
+  setChatTransport(
+    (store) => new PiBackendChatTransport(() => getPiRequestContext(store), getPiDesignModelSpec)
+  )
 }

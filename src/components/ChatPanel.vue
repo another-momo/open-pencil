@@ -1,191 +1,229 @@
 <script setup lang="ts">
-import { ScrollAreaRoot, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from 'reka-ui'
-import { refAutoReset } from '@vueuse/core'
-import { computed, markRaw, nextTick, ref, watch } from 'vue'
+import {
+  ScrollAreaRoot,
+  ScrollAreaScrollbar,
+  ScrollAreaThumb,
+  ScrollAreaViewport,
+} from "reka-ui";
+import { refAutoReset } from "@vueuse/core";
+import { computed, markRaw, nextTick, ref, watch } from "vue";
 
-import { copyChatLog } from '@/app/ai/debug'
+import { copyChatLog } from "@/app/ai/debug";
 import {
   analyzeAttachedImages,
-  designMessageWithImageFindings
-} from '@/app/ai/attachment/image/analyze'
+  designMessageWithImageFindings,
+} from "@/app/ai/attachment/image/analyze";
 import {
   createImagePreviewURL,
   isImageAttachmentMediaType,
   prepareImageAttachment,
-  revokeImagePreviewURL
-} from '@/app/ai/attachment/image/prepare'
+  revokeImagePreviewURL,
+} from "@/app/ai/attachment/image/prepare";
 import {
   clearImageAttachmentPresentations,
-  setImageAttachmentPresentations
-} from '@/app/ai/attachment/image/presentation'
-import type { ImageAttachmentDraft } from '@/app/ai/attachment/image/types'
-import { clearToolLogEntries, didHitStepLimit } from '@/app/ai/tools'
-import { activeTab } from '@/app/tabs'
-import { getActiveEditorStore } from '@/app/editor/active-store'
-import ChatInput from '@/components/chat/ChatInput.vue'
-import ChatMessage from '@/components/chat/ChatMessage.vue'
-import AppPlaceholder from '@/components/ui/AppPlaceholder.vue'
-import AppTextButton from '@/components/ui/AppTextButton.vue'
-import ProviderSetup from '@/components/chat/ProviderSetup.vue'
-import { useAIChat } from '@/app/ai/chat/use'
-import { toast } from '@/app/shell/ui'
-import { useI18n } from '@open-pencil/vue'
+  setImageAttachmentPresentations,
+} from "@/app/ai/attachment/image/presentation";
+import type { ImageAttachmentDraft } from "@/app/ai/attachment/image/types";
+import { clearToolLogEntries, didHitStepLimit } from "@/app/ai/tools";
+import { activeTab } from "@/app/tabs";
+import { getActiveEditorStore } from "@/app/editor/active-store";
+import ChatInput from "@/components/chat/ChatInput.vue";
+import ChatMessage from "@/components/chat/ChatMessage.vue";
+import AppPlaceholder from "@/components/ui/AppPlaceholder.vue";
+import AppTextButton from "@/components/ui/AppTextButton.vue";
+import ProviderSetup from "@/components/chat/ProviderSetup.vue";
+import { useAIChat } from "@/app/ai/chat/use";
+import { toast } from "@/app/shell/ui";
+import { useI18n } from "@open-pencil/vue";
 
-import { useNotificationMessages } from '@/app/i18n/notifications'
+import { useNotificationMessages } from "@/app/i18n/notifications";
 
-import type { Chat } from '@ai-sdk/vue'
-import type { UIMessage } from 'ai'
-import type { JSONObject } from '@open-pencil/scene-graph/primitives'
+import type { Chat } from "@ai-sdk/vue";
+import type { UIMessage } from "ai";
+import type { JSONObject } from "@open-pencil/scene-graph/primitives";
 
-const IS_DEV = import.meta.env.DEV
+const IS_DEV = import.meta.env.DEV;
 
-const { isConfigured, ensureChat, resetChat, chatFailure, clearChatFailure } = useAIChat()
-const { dialogs } = useI18n()
-const notifications = useNotificationMessages()
+const { isConfigured, ensureChat, resetChat, chatFailure, clearChatFailure } =
+  useAIChat();
+const { dialogs } = useI18n();
+const notifications = useNotificationMessages();
 
-const chat = ref<Chat<UIMessage> | null>(null)
-const isPreparingImages = ref(false)
-let attachmentOperationVersion = 0
+const chat = ref<Chat<UIMessage> | null>(null);
+const isPreparingImages = ref(false);
+let attachmentOperationVersion = 0;
 
 void ensureChat()
   .then((c) => {
-    if (c) chat.value = markRaw(c)
-    return undefined
+    if (c) chat.value = markRaw(c);
+    return undefined;
   })
   .catch((error: unknown) => {
     toast.error(
       notifications.value.chatInitializationFailed({
-        error: error instanceof Error ? error.message : String(error)
-      })
-    )
-  })
-const messagesEnd = ref<HTMLDivElement>()
-const debugCopied = refAutoReset(false, 1500)
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    );
+  });
+const messagesEnd = ref<HTMLDivElement>();
+const debugCopied = refAutoReset(false, 1500);
 
-const messages = computed(() => chat.value?.messages ?? [])
+const messages = computed(() => chat.value?.messages ?? []);
 const failureMessage = computed(() => {
   switch (chatFailure.value?.reason) {
-    case 'insufficient-credit':
-      return dialogs.value.chatInsufficientCredit
-    case 'output-limit':
-      return dialogs.value.chatOutputLimit
-    case 'request-failed':
-      return dialogs.value.chatRequestFailed
+    case "insufficient-credit":
+      return dialogs.value.chatInsufficientCredit;
+    case "output-limit":
+      return dialogs.value.chatOutputLimit;
+    case "request-failed":
+      return dialogs.value.chatRequestFailed;
     default:
-      return null
+      return null;
   }
-})
-const status = computed(() => chat.value?.status ?? 'ready')
+});
+const status = computed(() => chat.value?.status ?? "ready");
 function isStreamingMessage(message: UIMessage, index: number): boolean {
   return (
-    message.role === 'assistant' &&
+    message.role === "assistant" &&
     index === messages.value.length - 1 &&
-    (status.value === 'submitted' || status.value === 'streaming')
-  )
+    (status.value === "submitted" || status.value === "streaming")
+  );
 }
 const isThinking = computed(() => {
-  const s = status.value
-  if (s !== 'submitted' && s !== 'streaming') return false
-  if (messages.value.length === 0) return true
-  const last = messages.value[messages.value.length - 1]
-  if (last.role !== 'assistant') return true
-  const parts = last.parts
-  if (parts.length === 0) return true
-  const lastPart = parts[parts.length - 1] as JSONObject
-  if (lastPart.type === 'step-start') return true
-  if ('toolCallId' in lastPart && lastPart.state === 'output-available') return true
-  if ('toolCallId' in lastPart && lastPart.state === 'output-error') return true
-  return s === 'submitted'
-})
+  const s = status.value;
+  if (s !== "submitted" && s !== "streaming") return false;
+  if (messages.value.length === 0) return true;
+  const last = messages.value[messages.value.length - 1];
+  if (last.role !== "assistant") return true;
+  const parts = last.parts;
+  if (parts.length === 0) return true;
+  const lastPart = parts[parts.length - 1] as JSONObject;
+  if (lastPart.type === "step-start") return true;
+  if ("toolCallId" in lastPart && lastPart.state === "output-available")
+    return true;
+  if ("toolCallId" in lastPart && lastPart.state === "output-error")
+    return true;
+  return s === "submitted";
+});
 
 const showContinue = computed(() => {
-  if (status.value !== 'ready') return false
-  if (messages.value.length === 0) return false
-  const last = messages.value[messages.value.length - 1]
-  return last.role === 'assistant' && didHitStepLimit()
-})
+  if (status.value !== "ready") return false;
+  if (messages.value.length === 0) return false;
+  const last = messages.value[messages.value.length - 1];
+  return last.role === "assistant" && didHitStepLimit();
+});
 
 function scrollToBottom() {
   nextTick(() => {
-    messagesEnd.value?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  })
+    messagesEnd.value?.scrollIntoView({ behavior: "smooth", block: "end" });
+  });
 }
 
-watch(messages, scrollToBottom, { deep: true })
+watch(messages, scrollToBottom, { deep: true });
 watch(
   () => chatFailure.value?.reason,
   (reason) => {
-    if (!reason) return
-    toast.error(failureMessage.value ?? dialogs.value.chatRequestFailed)
-  }
-)
+    if (!reason) return;
+    toast.error(failureMessage.value ?? dialogs.value.chatRequestFailed);
+  },
+);
 watch(
   () => activeTab.value?.id,
   async () => {
-    attachmentOperationVersion += 1
-    isPreparingImages.value = false
-    clearImageAttachmentPresentations()
-    const nextChat = await ensureChat()
-    chat.value = nextChat ? markRaw(nextChat) : null
-  }
-)
+    attachmentOperationVersion += 1;
+    isPreparingImages.value = false;
+    clearImageAttachmentPresentations();
+    const nextChat = await ensureChat();
+    chat.value = nextChat ? markRaw(nextChat) : null;
+  },
+);
+// T22：restore/打开文件在同 store 上 replaceGraph（tab id 不变，上面的 watcher
+// 不触发）——图替换后 docId 才就位，重跑 ensureChat 补上历史回填
+watch(
+  () => activeTab.value?.store,
+  (store, _prev, onCleanup) => {
+    if (!store) return;
+    const stop = store.onEditorEvent("graph:replaced", () => {
+      void ensureChat().then((nextChat) => {
+        if (nextChat) chat.value = markRaw(nextChat);
+        return undefined;
+      });
+    });
+    onCleanup(stop);
+  },
+  { immediate: true },
+);
 
 async function handleSubmit(text: string, images: ImageAttachmentDraft[] = []) {
-  if (status.value === 'streaming' || status.value === 'submitted' || isPreparingImages.value) {
-    for (const image of images) revokeImagePreviewURL(image.previewURL)
-    if (images.length > 0) toast.error(dialogs.value.chatRequestFailed)
-    return
+  if (
+    status.value === "streaming" ||
+    status.value === "submitted" ||
+    isPreparingImages.value
+  ) {
+    for (const image of images) revokeImagePreviewURL(image.previewURL);
+    if (images.length > 0) toast.error(dialogs.value.chatRequestFailed);
+    return;
   }
 
-  const operationVersion = ++attachmentOperationVersion
-  if (images.length > 0) isPreparingImages.value = true
-  clearChatFailure()
+  const operationVersion = ++attachmentOperationVersion;
+  if (images.length > 0) isPreparingImages.value = true;
+  clearChatFailure();
   try {
-    const currentChat = chat.value ?? (await ensureChat())
-    if (currentChat) chat.value = markRaw(currentChat)
+    const currentChat = chat.value ?? (await ensureChat());
+    if (currentChat) chat.value = markRaw(currentChat);
     if (!currentChat || operationVersion !== attachmentOperationVersion) {
-      for (const image of images) revokeImagePreviewURL(image.previewURL)
-      if (images.length > 0) toast.error(dialogs.value.chatRequestFailed)
-      return
+      for (const image of images) revokeImagePreviewURL(image.previewURL);
+      if (images.length > 0) toast.error(dialogs.value.chatRequestFailed);
+      return;
     }
 
     if (images.length === 0) {
-      await currentChat.sendMessage({ text })
-      return
+      await currentChat.sendMessage({ text });
+      return;
     }
 
-    const messageId = crypto.randomUUID()
+    const messageId = crypto.randomUUID();
     currentChat.messages = [
       ...currentChat.messages,
-      { id: messageId, role: 'user', parts: [{ type: 'text', text }] }
-    ]
+      { id: messageId, role: "user", parts: [{ type: "text", text }] },
+    ];
     setImageAttachmentPresentations(
       messageId,
       images.map((image) => ({
         id: crypto.randomUUID(),
         messageId,
         name: image.file.name,
-        mediaType: isImageAttachmentMediaType(image.file.type) ? image.file.type : 'image/png',
+        mediaType: isImageAttachmentMediaType(image.file.type)
+          ? image.file.type
+          : "image/png",
         originalWidth: 0,
         originalHeight: 0,
         previewWidth: 0,
         previewHeight: 0,
         previewURL: image.previewURL,
-        displayText: text
-      }))
-    )
+        displayText: text,
+      })),
+    );
 
     const preparedImages = await Promise.all(
-      images.map((image) => prepareImageAttachment(image.file))
+      images.map((image) => prepareImageAttachment(image.file)),
+    );
+    const findings = await analyzeAttachedImages(
+      getActiveEditorStore(),
+      text,
+      preparedImages,
+    );
+    if (
+      operationVersion !== attachmentOperationVersion ||
+      chat.value !== currentChat
     )
-    const findings = await analyzeAttachedImages(getActiveEditorStore(), text, preparedImages)
-    if (operationVersion !== attachmentOperationVersion || chat.value !== currentChat) return
+      return;
 
     setImageAttachmentPresentations(
       messageId,
       preparedImages.map((prepared, index) => {
-        const image = images[index]
-        const previewURL = createImagePreviewURL(prepared.blob)
+        const image = images[index];
+        const previewURL = createImagePreviewURL(prepared.blob);
         return {
           id: crypto.randomUUID(),
           messageId,
@@ -196,50 +234,54 @@ async function handleSubmit(text: string, images: ImageAttachmentDraft[] = []) {
           previewWidth: prepared.width,
           previewHeight: prepared.height,
           previewURL,
-          displayText: text
-        }
-      })
-    )
+          displayText: text,
+        };
+      }),
+    );
     await currentChat.sendMessage({
       messageId,
       text: designMessageWithImageFindings(
         text,
         images.map((image) => image.file.name),
-        findings
-      )
-    })
+        findings,
+      ),
+    });
   } catch (e) {
-    console.error('Chat error:', e)
-    toast.error(dialogs.value.chatRequestFailed)
+    console.error("Chat error:", e);
+    toast.error(dialogs.value.chatRequestFailed);
   } finally {
-    if (operationVersion === attachmentOperationVersion) isPreparingImages.value = false
+    if (operationVersion === attachmentOperationVersion)
+      isPreparingImages.value = false;
   }
 }
 
 function handleStop() {
-  chat.value?.stop()
+  chat.value?.stop();
 }
 
 async function handleCopyDebug() {
-  await copyChatLog(messages.value, chatFailure.value)
-  debugCopied.value = true
+  await copyChatLog(messages.value, chatFailure.value);
+  debugCopied.value = true;
 }
 
 function handleClearChat() {
-  attachmentOperationVersion += 1
-  isPreparingImages.value = false
-  clearChatFailure()
-  clearImageAttachmentPresentations()
-  chat.value = null
+  attachmentOperationVersion += 1;
+  isPreparingImages.value = false;
+  clearChatFailure();
+  clearImageAttachmentPresentations();
+  chat.value = null;
   void resetChat().catch((error: unknown) => {
-    console.error('Chat reset error:', error)
-  })
-  clearToolLogEntries()
+    console.error("Chat reset error:", error);
+  });
+  clearToolLogEntries();
 }
 </script>
 
 <template>
-  <div data-test-id="chat-panel" class="flex min-w-0 flex-1 flex-col overflow-hidden select-text">
+  <div
+    data-test-id="chat-panel"
+    class="flex min-w-0 flex-1 flex-col overflow-hidden select-text"
+  >
     <ProviderSetup v-if="!isConfigured" />
 
     <template v-else>
@@ -266,7 +308,11 @@ function handleClearChat() {
             />
 
             <!-- Thinking indicator: shown when AI is working but no visible activity -->
-            <div v-if="isThinking" data-test-id="chat-typing-indicator" class="flex gap-2">
+            <div
+              v-if="isThinking"
+              data-test-id="chat-typing-indicator"
+              class="flex gap-2"
+            >
               <div
                 class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted/20 text-[10px] font-bold text-muted"
               >
@@ -302,7 +348,10 @@ function handleClearChat() {
             <div ref="messagesEnd" />
           </div>
         </ScrollAreaViewport>
-        <ScrollAreaScrollbar orientation="vertical" class="flex w-1.5 touch-none p-px select-none">
+        <ScrollAreaScrollbar
+          orientation="vertical"
+          class="flex w-1.5 touch-none p-px select-none"
+        >
           <ScrollAreaThumb class="relative flex-1 rounded-full bg-muted/30" />
         </ScrollAreaScrollbar>
       </ScrollAreaRoot>
@@ -314,15 +363,19 @@ function handleClearChat() {
       >
         <AppTextButton
           v-if="IS_DEV"
-          :ui="{ base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover' }"
+          :ui="{
+            base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover',
+          }"
           @click="handleCopyDebug"
         >
           <icon-lucide-clipboard-copy v-if="!debugCopied" class="size-3" />
           <icon-lucide-check v-else class="size-3 text-green-400" />
-          {{ debugCopied ? 'Copied' : 'Copy log' }}
+          {{ debugCopied ? "Copied" : "Copy log" }}
         </AppTextButton>
         <AppTextButton
-          :ui="{ base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover' }"
+          :ui="{
+            base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover',
+          }"
           @click="handleClearChat"
         >
           <icon-lucide-trash-2 class="size-3" />

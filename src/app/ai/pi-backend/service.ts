@@ -29,8 +29,9 @@ import {
   SessionManager,
   type AgentSession
 } from '@earendil-works/pi-coding-agent'
-import type { UIMessageChunk } from 'ai'
+import type { UIMessage, UIMessageChunk } from 'ai'
 
+import { readPiHistoryFile } from './history'
 import { createPiEventMapper } from './mapping'
 import type { ModelSpec, ProviderAdmin } from './provider-admin'
 import { createOpenPencilTools } from './tools'
@@ -40,8 +41,13 @@ export type PiChatService = {
     sessionId: string,
     text: string,
     emit: (chunk: UIMessageChunk) => void,
-    model?: ModelSpec
+    model?: ModelSpec,
+    documentId?: string
   ): Promise<void>
+  /** T22：会话族谱前缀 → 族内最新 sessionId（index.json 前缀扫描，无则 null） */
+  resolveLatestSessionId(docKeyPrefix: string): string | null
+  /** T22：读回指定会话历史（零副作用纯读，history.ts） */
+  readHistory(sessionId: string): UIMessage[]
 }
 
 type SessionEntry = {
@@ -49,6 +55,8 @@ type SessionEntry = {
   queue: Promise<void>
   /** T21 step budget：当前 prompt 已消耗的 turn 数（turn_start 事件递增） */
   budget: { current: number }
+  /** T22 工具目标：当次请求的 documentId（桥 document_id 注入，T22-plan D4） */
+  target: { documentId?: string }
 }
 
 type SessionIndex = Record<string, { file: string }>
@@ -101,7 +109,10 @@ export function createPiChatService({
     // T21：step budget 每 session 一份（prompt 时清零、turn_start 递增），
     // 工具经闭包读它决定是否注 _warning（tools.ts）
     const budget = { current: 0 }
-    const customTools = createOpenPencilTools({ current: () => budget.current })
+    // T22：documentId 以当次请求为准（session 复用、target 可变），
+    // 工具经闭包读取注入桥 args.document_id
+    const target: { documentId?: string } = {}
+    const customTools = createOpenPencilTools({ current: () => budget.current }, target)
 
     const { session } = await createAgentSession({
       cwd: rootDir,
@@ -134,7 +145,7 @@ export function createPiChatService({
       writeIndex(index)
     }
 
-    const entry: SessionEntry = { session, queue: Promise.resolve(), budget }
+    const entry: SessionEntry = { session, queue: Promise.resolve(), budget, target }
     sessions.set(sessionId, entry)
     return entry
   }
@@ -143,9 +154,11 @@ export function createPiChatService({
     sessionId: string,
     text: string,
     emit: (chunk: UIMessageChunk) => void,
-    model?: ModelSpec
+    model?: ModelSpec,
+    documentId?: string
   ): Promise<void> {
     const entry = sessions.get(sessionId) ?? (await createSession(sessionId, model))
+    entry.target.documentId = documentId
     // 同一 session 的 prompt 串行：pi 在 streaming 中再 prompt 需要 streamingBehavior，
     // dev 单用户场景直接排队即可
     entry.queue = entry.queue.then(() => runPrompt(entry, sessionId, text, emit))
@@ -186,5 +199,21 @@ export function createPiChatService({
     }
   }
 
-  return { prompt }
+  function resolveLatestSessionId(docKeyPrefix: string): string | null {
+    // T22 D2/D3：族内会话 = index 键以 `<前缀>-` 起头；时间戳后缀定长字典序
+    // 可排（yyyyMMddTHHmmssZ），sort 末位即最新
+    const prefix = `${docKeyPrefix}-`
+    const keys = Object.keys(readIndex())
+      .filter((key) => key.startsWith(prefix))
+      .sort()
+    return keys.at(-1) ?? null
+  }
+
+  function readHistory(sessionId: string): UIMessage[] {
+    const file = readIndex()[sessionId]?.file
+    if (!file || !existsSync(file)) return []
+    return readPiHistoryFile(file)
+  }
+
+  return { prompt, resolveLatestSessionId, readHistory }
 }

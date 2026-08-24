@@ -8,7 +8,7 @@
 # tasks/T24-self-check.md · T24 自查记录
 
 > **T 编号**：T24（Phase 1-pi 实施 · prompt 装配）
-> **状态**：🔄 实施完成（2026-08-24 装配冒烟 27/27 + 浏览器冒烟 17/17 + 回归全绿，待独立核验）
+> **状态**：✅ 已收口（2026-08-24 独立核验 V1-V6 全过「可以收口」——[T24-verify](T24-verify.md)；CI 整改翻转后远端全绿）
 
 ## 1. 立项依据
 
@@ -72,3 +72,4 @@ F0.6「prompt 注入点」是层 1 价值闭环 C2a（选 type/profile → overl
 4. 模式切换入口在流式中禁用（前端 disabled + 后端 queue 排队兜底）；切换=驱逐重建对聊天 UI 无感（chat.messages 不动，历史回填语义不变）
 5. 本机环境限制（与改动无关，已 stash 实证为既有）：check:secrets 缺 gitleaks/go 二进制无法本机运行；check:audit 因 npmmirror 镜像 404；tools/type-shapes 一宗 Windows 路径分隔符测试既存失败（干净树同样失败，CI Linux 不受影响）
 6. T19/T20/T21 LLM 冒烟仍待 owner 补 OPENROUTER_API_KEY 后补跑（T22 收口登记的阻塞项，延续）
+7. 独立核验附赠发现（2026-08-24）：装配冒烟 stop() 在 Windows+bun 下仍可能残留孤儿后端（绿色运行后两进程仍监听，核验时已手动 taskkill）——§3.1-7 的「kill 后等 exit + taskkill 兜底」在该组合下未真正杀死子进程（疑似 exit 事件虚假置位跳过兜底分支）。不影响断言结论（验证工具非交付代码），建议 T25 或冒烟维护时把 stop() 改为「kill 后按端口/pid 实证复查」

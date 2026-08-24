@@ -419,3 +419,11 @@
 - **依据**：owner 三轮设计评审收敛定稿——R1 五问澄清（模式切换≠fork；resourceLoader 与 hook 注入对模型零差异；profile 保持提示词注入不走 skill；pickedProfileId per-request 利弊）；R2 工具集挑战命中要害——工具集建会话期定型使全量 per-run 装配失去意义，故模式层回归会话构建、工作流/profile 层保留 per-run；R3 owner 最终抽象拍板「现在不要费劲去拆 system-prompt.md……AgentMode-会话构建systemprompt/工具集-动态注入工作流-动态注入style profile，这一套抽象体系建立好」——四条变异轴各归最廉机制：模式（低频+工具耦合）→ 建会话烘焙；工作流段（模式可扩展）→ per-run；profile（高频）→ per-run。ui 模式 byte 级不变（576 行实战 prompt 零回归面），marketing 模式 = 上游 base 移植 + 上游 marketing 段 per-run + overlay per-run
 - **内容**：任务表 T24 行状态 🔄 立项→🔄 方案定稿（待实施），scope 描述改写为四层抽象；tasks/\_index.md 镜像行同步；T24-plan §1.2 D1-D9 就地重写（三段静态装配退役，D1 四层抽象 / D2 两初始模式 / D3 注入路径分层 / D4 切换即驱逐重建），§1.3/§2/§3 同步对齐（C1 ui 模式 byte 不变断言、C2 ui 模式无 overlay、C3 模式重建保历史、新增 modes.ts 注册表实施项）
 - **task 文档**：[tasks/T24-plan.md](../../tasks/T24-plan.md)
+
+## 修正-N · tracker.md T24 行收口（prompt 装配四层抽象落地 ✅）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-24
+- **依据**：T24 实施完成并全量验证通过。后端装配冒烟 27/27（C1 ui 模式探针 byte 级相等——实施期实证 pi 会给自定义 systemPrompt 追加 cwd 后缀，断言校准为 uiBase+cwdSuffix；C1 marketing 三段标记齐含 base 负断言；C2 picked/bogus/空种子/ui 忽略 profile；C3 同会话重选 + 模式切换后探针回 ui 基底、index.json 不动、JSONL 只增；manifest 路由形状/脱敏/405/空种子降级）；浏览器 mode-overlay-bind-smoke 17/17（C4 抓包最小载荷含反向断言、C5 选择器/流式禁用/刷新持久化/manifest 失败降级）。实施期两条 pi 源码级发现写入 §3.1：外部构建 DefaultResourceLoader 必须自调 reload()（createAgentSession 仅对自建 loader 重载，否则 inline extension 静默不注册）；auth preflight 先于 before_agent_start（keyless 冒烟须先投 dummy 凭证）。回归 t22 12/12+6/6、t23 14/14、t22 bind 15/15、t23 bind 19/19 全绿。subagent 独立核验 V1-V6 全过「可以收口」并附赠发现 Windows+bun 下冒烟 stop() 仍残留孤儿进程（已补登记 [T24-self-check §3.3-7](../../tasks/T24-self-check.md)，建议 T25 或冒烟维护时改为 kill 后按端口/pid 实证复查）——[T24-verify](../../tasks/T24-verify.md)。CI 一轮红整改翻转：gitleaks 拦截冒烟内 dummy key（sk-t24-probe-dummy ×2）→ 换仓内已登记 allowlist 键 sk-or-test-key-12345 并扩该 allowlist paths 至冒烟文件（zones.json P43 登记）+ 格式收敛，a84093b3；远端 CI rebuild/pi run 32713950013 全绿（13 jobs）
+- **内容**：任务表 T24 行状态 🔄 方案定稿→✅ 已完成（含验收证据链与核验/CI 引用）；tasks/\_index.md 镜像行同步；T24-self-check 状态行 ✅ 已收口 + §3.3-7 补登记核验附赠发现；T24-verify 核验表逐项回填（V1-V6 ✅ + 证据节全文）
+- **task 文档**：[tasks/T24-plan.md](../../tasks/T24-plan.md)

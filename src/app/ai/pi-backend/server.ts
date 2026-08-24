@@ -12,13 +12,17 @@
  *    ——无任何回读 key 的端点
  *
  * 请求体：{ sessionId: string, messages: UIMessage[], model?: ModelSpec,
- * documentId?: string }
+ * documentId?: string, chatMode?: 'ui'|'marketing', pickedProfileId?: string|null }
  * （ai SDK Chat 默认全量 messages 上报；本 service 只取末条 user 文本，
  * 历史由后端 SessionManager 持有。model 为前端 design role 解析结果，T21。
- * documentId 为桥目标注入，T22）。
+ * documentId 为桥目标注入，T22。chatMode/pickedProfileId 为 T24 四层装配
+ * 的最小载荷——types/profiles/工作流段永远后端读，T24-plan D7）。
  *
  * T22：GET /api/pi/history?docKey=<族谱前缀>（或 ?sessionId=<完整 id>）→
  * { sessionId, messages }——会话族谱解析 + 历史回填（T22-plan D2/D3）。
+ *
+ * T24：GET /api/pi/brand/manifest → PiBrandManifest（种子脱敏投影，
+ * 无 markdown 正文）——前端 profile 选择器数据源（T24-plan D6）。
  *
  * 仅运行于独立 bun/node 进程（main.ts 入口或 vite 插件 spawn 的子进程），
  * 不经 vite esbuild 打包——package 导入（@open-pencil/mcp/* 等 workspace 包）可用。
@@ -29,6 +33,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { join } from 'node:path'
 
 import { PI_BACKEND_DEFAULT_PORT } from './config'
+import { isPiChatMode } from './modes'
 import { createProviderAdmin, type ModelSpec } from './provider-admin'
 import { createPiChatService } from './service'
 
@@ -42,6 +47,8 @@ type PiChatRequestBody = {
   }>
   model?: ModelSpec
   documentId?: string
+  chatMode?: string
+  pickedProfileId?: string | null
 }
 
 function readBody(req: IncomingMessage): Promise<string> {
@@ -98,7 +105,12 @@ async function handlePiChatRequest(
   }
 
   try {
-    await service.prompt(sessionId, text, emit, body.model, body.documentId)
+    await service.prompt(sessionId, text, emit, {
+      model: body.model,
+      documentId: body.documentId,
+      chatMode: isPiChatMode(body.chatMode) ? body.chatMode : undefined,
+      pickedProfileId: typeof body.pickedProfileId === 'string' ? body.pickedProfileId : null
+    })
   } catch (error) {
     emit({
       type: 'error',
@@ -214,6 +226,16 @@ export function createPiBackendServer({ rootDir }: { rootDir: string }): Server 
       }
       const docKey = url.searchParams.get('docKey')
       sendJSON(res, 200, { sessions: docKey ? service.listSessionFamily(docKey) : [] })
+      return
+    }
+    // T24：brand manifest（D6）——种子脱敏投影供前端 profile 选择器；
+    // 只读。必须在 /api/pi/ 管理面前缀之前匹配
+    if (url.pathname === '/api/pi/brand/manifest') {
+      if (req.method !== 'GET') {
+        res.writeHead(405).end('Method Not Allowed')
+        return
+      }
+      sendJSON(res, 200, service.getBrandManifest())
       return
     }
     if (url.pathname.startsWith('/api/pi/')) {

@@ -36,6 +36,9 @@ export class PiBackendChatTransport implements ChatTransport<UIMessage> {
         sessionId: context.sessionId,
         messages,
         ...(context.documentId ? { documentId: context.documentId } : {}),
+        // T24：四层装配最小载荷（D7）
+        chatMode: context.chatMode,
+        pickedProfileId: context.pickedProfileId,
         ...(model ? { model } : {})
       }),
       signal: abortSignal ?? null

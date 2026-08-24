@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { useFileDialog } from '@vueuse/core'
 import { TooltipProvider } from 'reka-ui'
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
+import ChatModeSelect from '@/components/chat/ChatModeSelect.vue'
 import ChatProfileSelect from '@/components/chat/ChatProfileSelect.vue'
+import ChatStyleProfileSelect from '@/components/chat/ChatStyleProfileSelect.vue'
 import ProviderModelSelect from '@/components/chat/ProviderModelSelect.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import InputGroup from '@/components/ui/InputGroup.vue'
 import { useAIChat } from '@/app/ai/chat/use'
 import { designModelProfile, designModelProfiles } from '@/app/ai/models'
 import { piDesignAssignment } from '@/app/ai/pi-backend/assignment'
+import { ensurePiBrandManifest, piChatMode } from '@/app/ai/pi-backend/mode-selection'
 import {
   createImagePreviewURL,
   revokeImagePreviewURL,
@@ -77,6 +80,12 @@ function removeImage(index: number) {
 const isStreaming = computed(() => disabled || status === 'streaming' || status === 'submitted')
 // T21：pi 模式下模型由后端 catalog/指派决定，聊天输入只读展示当前指派
 const isPiBackend = import.meta.env.VITE_PI_BACKEND === '1'
+const isMarketingMode = computed(() => piChatMode.value === 'marketing')
+
+// T24：profile 下拉数据源（失败 → null → 空态降级，C5）；仅 pi 后端需要
+onMounted(() => {
+  if (isPiBackend) void ensurePiBrandManifest()
+})
 const piModelLabel = computed(
   () => piDesignAssignment.value?.modelId ?? dialogs.value.piDesignModelDefault
 )
@@ -208,6 +217,10 @@ function handleSubmit(e: Event) {
               >
                 <icon-lucide-bot class="size-3 shrink-0" />
                 <span class="truncate">{{ piModelLabel }}</span>
+                <!-- T24：AgentMode 切换 + profile 下拉（后者仅 marketing 模式，
+                     注册表 acceptsProfile 语义） -->
+                <ChatModeSelect :disabled="isStreaming" />
+                <ChatStyleProfileSelect v-if="isMarketingMode" :disabled="isStreaming" />
               </div>
               <template v-else-if="isAgentProvider">
                 <div class="flex min-w-0 items-center gap-1 px-1.5 text-[10px] text-muted">

@@ -75,6 +75,7 @@
         "vue": "^3.5.41",
         "vue-router": "^5.2.0",
         "vue-stream-markdown": "1.0.4",
+        "yaml": "^2.9.0",
         "yoga-layout": "npm:@open-pencil/yoga-layout@3.3.0-grid.3",
         "zod": "^4.4.3",
       },

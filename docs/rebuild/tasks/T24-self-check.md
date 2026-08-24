@@ -8,7 +8,7 @@
 # tasks/T24-self-check.md · T24 自查记录
 
 > **T 编号**：T24（Phase 1-pi 实施 · prompt 装配）
-> **状态**：🔄 立项（2026-08-24 三路 recon 完成）
+> **状态**：🔄 实施完成（2026-08-24 装配冒烟 27/27 + 浏览器冒烟 17/17 + 回归全绿，待独立核验）
 
 ## 1. 立项依据
 
@@ -48,12 +48,27 @@ F0.6「prompt 注入点」是层 1 价值闭环 C2a（选 type/profile → overl
 
 ## 3.1 实施事实
 
-（待实施期回填）
+1. **外部传入的 DefaultResourceLoader 必须自行 `reload()`**——createAgentSession 只在自构 loader 时才 reload（sdk.js `if (!resourceLoader)` 分支）；不 reload 则 extensionsResult 停留初始空集（resource-loader.js:183 初始值），inline extension 永不登记、before_agent_start 永不 fire。实证：首版实现 probe 不落盘、SSE 直接 finish('stop')（2026-08-24 调试复现）；补 `await loader.reload()` 后注入生效。此坑 T19-T23 未踩只因此前无 extension
+2. **pi buildSystemPrompt 固有尾巴**：自定义 systemPrompt 之后恒追加 `\nCurrent working directory: <cwd>\n`（正斜杠规范化）——「byte 级原样」精确口径 = 文件字节 + 该尾巴。T21 起即如此（同一条 resourceLoader 路径），非 T24 引入。冒烟断言按此口径（2026-08-24 探针 diff 实证：公共前缀 28032 = 文件全长，尾巴 82 字节）
+3. **auth 预检拦在 before_agent_start 之前**（agent-session.js：hasConfiguredAuth 检查 → 无 key 直接 throw，钩子不 fire）——免 key 装配冒烟必须先经 POST /api/pi/credentials 写 dummy key（写进 tempRoot 自带 agentDir，不碰真实 .openpencil）
+4. **探针机制**：env `PI_PROMPT_PROBE_DIR` 显式设置时登记第二个 inline extension（service.ts），位于装配 extension 之后——runner 链式语义（runner.js:846-868 currentSystemPrompt 传递）保证探针读到的 event.systemPrompt 即最终注入值；每 run 覆写 `last-system-prompt.md`
+5. **runner else 分支复位**（agent-session.js:905-908）：钩子不返回时 systemPrompt 回 _baseSystemPrompt——ui 模式钩子返回 undefined 即零注入，per-run 不粘连
+6. 模式切换驱逐前 `await existing.queue.catch(...)` 再 dispose——防御性排队防腰斩活跃流（前端流式中已禁发，此为后端兜底）
+7. 冒烟实证附属发现：Windows 上 `proc.killed` 在 kill() 后立即置位（不代表进程已退），冒烟清理必须等 exit 事件 + rmSync 重试；首两轮失败运行残留 12 个孤儿 bun 后端（各占监听端口），已清——积聚会顶爆 oxlint 的 fixed-size allocator（lint 报 Insufficient memory 的真因）
 
 ## 3.2 与计划的偏差
 
-（待实施期回填）
+1. **prompt 签名从位置参数改为 options bag**（`prompt(sessionId, text, emit, { model, documentId, chatMode, pickedProfileId })`）——参数增至 5 个后可读性差；server.ts 唯一调用点同步改
+2. **brand-manifest.ts 落入 brand/ 文件夹**（brand/manifest.ts）——lint 规则 no-sibling-domain-prefixed-files 要求；类型契约单源语义不变
+3. **选择态持久化用 useLocalStorage**（storage.ts 先例，`open-pencil:pi-chat-mode` 键）而非裸 localStorage——lint 规则 no-direct-storage-access 要求
+4. **re-pick 提示段文案改指路**——上游提 MarketingConfigBar（本仓无），改为「re-pick in the chat profile dropdown」（prompt-overlay.ts 头注释登记；C5a 落地 MarketingConfigBar 时再对齐）
+5. **yaml 升为直接依赖**（^2.9.0）——此前仅 pi 包的传递依赖；种子解析需显式依赖
 
 ## 3.3 已知边界
 
-（待实施期回填）
+1. marketing 工作流段提到 generate_image / setup_material_type / read_brief / compose_backdrop / derive_palette 等工具，本仓尚无（F0.3②/C3a/C1a 范围）——模型被指示「只调用工具列表里实际存在的工具」（工作流段 Phase 2.5 末句），缺口不伪造
+2. manifest 失败路径：前端 profile 下拉禁用空态 + 后端 overlay fallback 段，两侧降级语义一致；manifest 进程内只拉一次（不轮询不订阅）
+3. pickedProfileId 不随模式切回 ui 清空——回切 marketing 时选择仍在；ui 模式请求体仍带该字段（后端注册表兜底忽略），不视为泄露（id 非敏感）
+4. 模式切换入口在流式中禁用（前端 disabled + 后端 queue 排队兜底）；切换=驱逐重建对聊天 UI 无感（chat.messages 不动，历史回填语义不变）
+5. 本机环境限制（与改动无关，已 stash 实证为既有）：check:secrets 缺 gitleaks/go 二进制无法本机运行；check:audit 因 npmmirror 镜像 404；tools/type-shapes 一宗 Windows 路径分隔符测试既存失败（干净树同样失败，CI Linux 不受影响）
+6. T19/T20/T21 LLM 冒烟仍待 owner 补 OPENROUTER_API_KEY 后补跑（T22 收口登记的阻塞项，延续）

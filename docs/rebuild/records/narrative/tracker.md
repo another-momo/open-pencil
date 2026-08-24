@@ -395,3 +395,11 @@
 - **依据**：T22 收口当日 owner 体验后提出直接诉求——「前端有做查看/切换 session 的功能嘛？这样我能直观的看到是不是绑定关系是对的、也能方便的切到另一 session 继续对话」，即废止 T22-plan §1.4「会话线程列表 UI 不做」约定。注册期 recon 六条实证：后端族谱事实源现成（index.json + resolveLatestSessionId/readHistory 先例，service.ts:86,202-216）；pi 读取陷阱沿用 T22 recon 15（读只能走 readPiHistoryFile）；前端切换挂钩现成（storeSessions WeakMap + chat.messages 可整体赋值 + ensureChat 缓存先行）；DropdownMenu 原语与硬编码标签先例（CanvasPaneHeader.vue:59-70、ChatPanel.vue:334-345）；i18n 门禁只管 locale 文件（check-locales.ts）——[T23-self-check §2](../../tasks/T23-self-check.md)
 - **内容**：任务表新增 T23 行，状态 🔄 立项；tasks/\_index.md 镜像行同步；三件套一次登记齐（plan E1-E5 决策 + B1-B6 验收）
 - **task 文档**：[tasks/T23-plan.md](../../tasks/T23-plan.md)
+
+## 修正-N · tracker.md T23 行收口（B3-B6 实测全绿 + 独立核验「可以收口」+ CI 绿）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-24
+- **依据**：T23 实施完成并全量验证通过。后端冒烟 14/14（族谱清单内容/排序/字段/标题截断/折叠计数/未知前缀空/缺参空/405/异族隔离/GET 只读）；浏览器 MCP 实测全绿——首发触发器 Sessions→时间标签、种 OLD/MID 刷新恢复后 MID 回填无 OLD 串扰、下拉 2 项新→旧带标题条数勾在 MID、点 OLD 切换后发送沿用旧 sessionId、第二文档不铸 docId 仅禁用空族项、Clear 铸同前缀新后缀、未落盘会话渲染禁用 "new session" 占位项——并固化为 sessions-bind-smoke.mjs 19/19（plan §3.3）。实施期实证工具链三病并根治（写进冒烟头注释防再踩）：bun 跑 playwright launch 卡 CDP pipe（node 秒起）、脚本无配置时 getByTestId 默认属性 data-testid 不匹配仓内 data-test-id（selectors.setTestIdAttribute）、旧修订版 chromium_headless_shell 协议失配 locator 全废（钉死版优先）——同轮修好 t22 bind-smoke 首证 15/15（该文件自写入起从未跑绿）。subagent 独立核验 V1-V6 全过「可以收口」并附赠发现 stale 清单残影角落（已补登记 [T23-self-check §3.3-6](../../tasks/T23-self-check.md)，前缀守卫兜底无数据风险）——[T23-verify](../../tasks/T23-verify.md)。CI 两轮红整改翻转：①steiger no-native-title-attributes（触发器 :title → Tip 组件）；②test:type-shapes 禁 PiSessionSummary 前后端同构镜像（→ session-summary.ts 纯类型契约单源）；远端 CI rebuild/pi run 32695035580 全绿
+- **内容**：任务表 T23 行状态 🔄 立项→✅ 已完成（含验收证据链与核验/CI 引用）；tasks/\_index.md 镜像行同步；T23-self-check 状态行 ✅ 已收口；T23-verify 核验表逐项回填
+- **task 文档**：[tasks/T23-plan.md](../../tasks/T23-plan.md)

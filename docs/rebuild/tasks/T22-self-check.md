@@ -8,7 +8,7 @@
 # tasks/T22-self-check.md · T22 自查记录
 
 > **T 编号**：T22（Phase 1-pi 实施 · session↔file 绑定）
-> **状态**：🔄 立项（注册期 recon 已完成）
+> **状态**：🔄 方案定稿（两轮 recon 全过；owner 已拍板 docUuid 方案）
 
 ## 1. 立项依据
 
@@ -39,6 +39,13 @@ T21 收口后按排队序列推进（T20/T21 均留口「session↔file 绑定�
 
 11. 2026-08-24 in-app 浏览器实测事故：页面切后台被 Chromium 冻结 → WS 开而不处理 → 桥 RPC 20s 超时（create_shape 失败）；前台重载后恢复。佐证「工具落点依赖单一存活窗口」的脆弱性，T22 D4 注入 + 单窗口前提声明与此直接相关
 
+## 2.5 方案 recon（2026-08-23 核验，subagent 四路并行）
+
+12. **pluginData 写副作用**：`setSharedPluginData` = `graph.updateNode(id,{pluginData})` 薄封装（`packages/core/src/figma-api/plugin-data.ts:68-82`）；**不进 undo 栈**（UndoManager 纯显式 push，`packages/scene-graph/src/undo.ts:30-50`；updateNode 无 undo 引用，`packages/scene-graph/src/index.ts:392-440`）；**会触发 `node:updated` → `requestRender` → `sceneVersion++`**（`packages/core/src/editor/graph-events.ts:66-71`、`create.ts:85-92`），dirty = `sceneVersion > savedVersion`（`src/app/document/autosave/create.ts:25`）→ 3s 防抖 autosave（:56-62）或写 recovery 快照（`recovery/controller.ts:75-81`）。全仓无 beforeunload/未保存提示（grep 零命中）。命名空间 `openpencil.ai` 与保留 `open-pencil`（plugin-data.ts:3）不冲突
+13. **.fig 根节点往返闭环**：根节点不走通用 sceneNodeToKiwi；`export.ts:475-478` 先 `Object.assign(documentNc, rawNodeFields)` 再 `applyEnabledLibrariesPluginData`（`library-metadata.ts:9-34`）把**根节点整个 pluginData 数组**复制进 DOCUMENT NodeChange（覆盖 rawNodeFields 通道，live 状态胜出）；导入侧 `import.ts:50-60` `applyImportedDocumentMetadata` 原样还原到 rootNode.pluginData。普通节点往返有测试（`tests/engine/scene-graph/plugin-data.test.ts:88-119`），**根节点任意 key 无专项测试**（T22 §3.4 补）
+14. **云文档同一管线**：云文档保存 = `exportFigFile`（`src/app/document/io/source.ts:50-53`）→ 本地 IndexedDB + outbox 上传（`src/app/storage/sync/persist.ts:23-52`、`engine.ts:93-135`）；S3 上就是标准 .fig 字节 + meta sidecar（`s3/adapter.ts:192-216`）；加载经 `readFigForTab` 同一解析管线（`src/app/tabs/index.ts:301-306`）。→ docUuid 对云文档同样成立，`providerId:documentId` 兜底退役。唯一真实 provider = S3（`storage/providers.ts:4-20`）
+15. **pi 读取面**（关键修正：SessionManager 来自 `pi-coding-agent` 0.84.2 非 pi-agent-core，service.ts:26-31）：`loadEntriesFromFile(path)` 零副作用纯函数（`node_modules/.bun/@earendil-works+pi-coding-agent@0.84.2*/node_modules/@earendil-works/pi-coding-agent/dist/core/session-manager.d.ts:169`）；`SessionManager.open` 对 v3 非空文件事实只读（旧版本迁移重写、空文件写 header 两个陷阱）；**绝不用 createAgentSession 做读**（恢复时写 thinking_level_change，sdk.js:233-237）。**pi 不写 index.json**——index.json 全由我们 service.ts 写入（:78-89,130-135,179-186，grep pi dist 零命中 index.json）；**pi 内部 session id 与我们 index 键是两套 id**（service.ts:99 create 未传 options.id）。JSONL v3 实测结构：首行 `{type:'session',version:3,...}`，消息条目 `{type:'message',message:AgentMessage}`，toolResult 独立 role 按 toolCallId 折叠（实测 `.openpencil/pi-sessions/*.jsonl` 首行 version:3，2026-08-23）
+
 ## 2.2 实施事实
 
 （待实施期回填）
@@ -49,4 +56,4 @@ T21 收口后按排队序列推进（T20/T21 均留口「session↔file 绑定�
 
 ## 2.4 已知边界
 
-- 文件重命名/移动后 path 变 → 新 session（不迁移）；未保存文档不绑定；同一文件多浏览器 tab 并发时历史发散；多窗口 latest-wins（单窗口为前提约束）；index.json 只增不减无清理策略
+- 文件副本/save-as 同 docUuid 共享会话族谱；同一文件多浏览器 tab 并发时历史发散；多窗口 latest-wins（单窗口为前提约束）；index.json 只增不减无清理策略；会话线程列表 UI 不做（clear 即新会话，旧会话归档可查）

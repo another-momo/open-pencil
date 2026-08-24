@@ -371,3 +371,11 @@
 - **依据**：T21 收口后按排队序列推进（attach.ts:10 注释与 T21-plan §5 均留口「session↔file 绑定归 T22」）。注册期 recon 十一条实证：tab.id 为运行期内存计数器（tabs/index.ts:47-50，刷新即失效）、持久身份原料（DocumentSourceIdentity handle/path、StorageDocumentBinding）无 document key 导出、旧 ToolLoop 历史仅 WeakMap 内存（transports.ts:117）、pi sessionId 浏览器 tab 级 sessionStorage UUID（chat/storage.ts:135-145）致切 tab 前后端视图发散、reconnectToStream 恒 null 无回填通道（transport.ts:41-43）、桥 resolveAutomationTarget 原生支持 document_id 而 pi 链路不注入（target.ts:81 vs tools.ts:72）、多窗口 latest-wins（browser-rpc.ts:217-241）、当日 in-app 浏览器冻结致 RPC 超时实测事故——[T22-self-check §2](../../tasks/T22-self-check.md)。方案六神决策：文档 key 派生（path/云 binding/scratch 三分）、sessionId 确定性 `doc-<sha1(key)>` 免映射表、GET history 历史回填、documentId 请求体注入桥、单窗口前提、session 清理不做——[T22-plan §1.2](../../tasks/T22-plan.md)
 - **内容**：任务表新增 T22 行，状态 🔄 立项（方案待 owner 过目），三件套列一次登记齐；tasks/\_index.md 镜像行同步
 - **task 文档**：[tasks/T22-plan.md](../../tasks/T22-plan.md)
+
+## 修正-N · tracker.md T22 行方案定稿（path-hash 退役，docUuid 三段式接管）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-23
+- **依据**：owner 三轮评审拍板——①「path-hash 对新建未保存文件没招」挑战命中初版 D1/D2 软肋；②旧分支 2026-08-18 提案（open-pencil/docs/idea/2026-08-18-pi-sdk-migration.md）的 pluginData 思路复活但收敛为「文件里只写 docUuid 不写 sessionId」，杜绝 sessionId 随文件传播泄露/污染他机；③多 session 是刚需（页面已有 clear 上下文按钮），由时间戳后缀承接。四路方案 recon 全过（2026-08-23，[T22-self-check §2.5](../../tasks/T22-self-check.md)）：setSharedPluginData 不进 undo 栈、sceneVersion++ 脏标记+autosave 反成 docId 自愈持久化通道且全仓无未保存弹窗（plugin-data.ts:68-82、graph-events.ts:66-71、autosave/create.ts:25）；.fig 根节点 pluginData 往返闭环（library-metadata.ts:9-34 全量复制 + import.ts:50-60 全量还原，专项测试空白待补）；云文档走同一 exportFigFile 管线（S3 上即标准 .fig 字节），providerId:documentId 兜底退役；pi 读取面 loadEntriesFromFile 零副作用纯读、index.json 全系我们自建（pi 不写）、pi 内部 session id 与我们 index 键两套 id 互不干扰（session-manager.d.ts:169、service.ts:54,99）
+- **内容**：任务表 T22 行状态 🔄 立项→🔄 方案定稿（owner 拍板，待实施），scope 描述改写为 docUuid 方案；tasks/\_index.md 镜像行同步；T22-plan §1.2 D1/D2/D3 就地重写（path-hash/scratch/云兜底退役，docUuid 惰性铸造 + `doc-<sha1>-<ts>` 三段式 + GET history 前缀解析），新增 §1.3 决策副作用（recon 实证）与 §3.4 引擎测试面，验收 A1-A5 扩为 A1-A7
+- **task 文档**：[tasks/T22-plan.md](../../tasks/T22-plan.md)

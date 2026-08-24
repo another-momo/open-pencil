@@ -403,3 +403,11 @@
 - **依据**：T23 实施完成并全量验证通过。后端冒烟 14/14（族谱清单内容/排序/字段/标题截断/折叠计数/未知前缀空/缺参空/405/异族隔离/GET 只读）；浏览器 MCP 实测全绿——首发触发器 Sessions→时间标签、种 OLD/MID 刷新恢复后 MID 回填无 OLD 串扰、下拉 2 项新→旧带标题条数勾在 MID、点 OLD 切换后发送沿用旧 sessionId、第二文档不铸 docId 仅禁用空族项、Clear 铸同前缀新后缀、未落盘会话渲染禁用 "new session" 占位项——并固化为 sessions-bind-smoke.mjs 19/19（plan §3.3）。实施期实证工具链三病并根治（写进冒烟头注释防再踩）：bun 跑 playwright launch 卡 CDP pipe（node 秒起）、脚本无配置时 getByTestId 默认属性 data-testid 不匹配仓内 data-test-id（selectors.setTestIdAttribute）、旧修订版 chromium_headless_shell 协议失配 locator 全废（钉死版优先）——同轮修好 t22 bind-smoke 首证 15/15（该文件自写入起从未跑绿）。subagent 独立核验 V1-V6 全过「可以收口」并附赠发现 stale 清单残影角落（已补登记 [T23-self-check §3.3-6](../../tasks/T23-self-check.md)，前缀守卫兜底无数据风险）——[T23-verify](../../tasks/T23-verify.md)。CI 两轮红整改翻转：①steiger no-native-title-attributes（触发器 :title → Tip 组件）；②test:type-shapes 禁 PiSessionSummary 前后端同构镜像（→ session-summary.ts 纯类型契约单源）；远端 CI rebuild/pi run 32695035580 全绿
 - **内容**：任务表 T23 行状态 🔄 立项→✅ 已完成（含验收证据链与核验/CI 引用）；tasks/\_index.md 镜像行同步；T23-self-check 状态行 ✅ 已收口；T23-verify 核验表逐项回填
 - **task 文档**：[tasks/T23-plan.md](../../tasks/T23-plan.md)
+
+## 修正-N · tracker.md T24 行登记（prompt 装配立项）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-24
+- **依据**：T23 收口后 owner 指示推进下一任务。T24 = F0.6 prompt 注入点（层 1 闭环 C2a 前提）。注册期三路并行 recon 完成（2026-08-24，[T24-self-check §2](../../tasks/T24-self-check.md) 21 条实证）：pi 能力面——systemPrompt 仅经 resourceLoader 建会话时定型（sdk.ts:38-87 无此字段），受控运行期注入 = inline extension extensionFactories + before_agent_start 链式返回 systemPrompt（ephemeral、不落盘、run 后自清），JSONL 不存 systemPrompt 故模式切换驱逐重建无损；上游语义——三段直拼 BASE+MARKETING(+overlay)、overlay 每轮 prepareCall 重建下轮生效、profile 段仅显式 picked、请求载荷只带 pickedProfileId、前后端 byte-mirror 为已知脆弱点（本仓单源化）；仓内底座——brief/brand/marketing 零残留，T22 请求上下文管道与 ChatProfileSelect/aiModelSettings 先例可直接复用
+- **内容**：任务表新增 T24 行，状态 🔄 立项；tasks/\_index.md 镜像行同步；三件套一次登记齐（plan D1-D8 决策 + C1-C6 验收；浏览器旧 ToolLoop 退役拆为 T25 不塞入本任务）
+- **task 文档**：[tasks/T24-plan.md](../../tasks/T24-plan.md)

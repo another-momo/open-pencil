@@ -411,3 +411,11 @@
 - **依据**：T23 收口后 owner 指示推进下一任务。T24 = F0.6 prompt 注入点（层 1 闭环 C2a 前提）。注册期三路并行 recon 完成（2026-08-24，[T24-self-check §2](../../tasks/T24-self-check.md) 21 条实证）：pi 能力面——systemPrompt 仅经 resourceLoader 建会话时定型（sdk.ts:38-87 无此字段），受控运行期注入 = inline extension extensionFactories + before_agent_start 链式返回 systemPrompt（ephemeral、不落盘、run 后自清），JSONL 不存 systemPrompt 故模式切换驱逐重建无损；上游语义——三段直拼 BASE+MARKETING(+overlay)、overlay 每轮 prepareCall 重建下轮生效、profile 段仅显式 picked、请求载荷只带 pickedProfileId、前后端 byte-mirror 为已知脆弱点（本仓单源化）；仓内底座——brief/brand/marketing 零残留，T22 请求上下文管道与 ChatProfileSelect/aiModelSettings 先例可直接复用
 - **内容**：任务表新增 T24 行，状态 🔄 立项；tasks/\_index.md 镜像行同步；三件套一次登记齐（plan D1-D8 决策 + C1-C6 验收；浏览器旧 ToolLoop 退役拆为 T25 不塞入本任务）
 - **task 文档**：[tasks/T24-plan.md](../../tasks/T24-plan.md)
+
+## 修正-N · tracker.md T24 行方案定稿（四层抽象体系，owner 三轮评审拍板）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-24
+- **依据**：owner 三轮设计评审收敛定稿——R1 五问澄清（模式切换≠fork；resourceLoader 与 hook 注入对模型零差异；profile 保持提示词注入不走 skill；pickedProfileId per-request 利弊）；R2 工具集挑战命中要害——工具集建会话期定型使全量 per-run 装配失去意义，故模式层回归会话构建、工作流/profile 层保留 per-run；R3 owner 最终抽象拍板「现在不要费劲去拆 system-prompt.md……AgentMode-会话构建systemprompt/工具集-动态注入工作流-动态注入style profile，这一套抽象体系建立好」——四条变异轴各归最廉机制：模式（低频+工具耦合）→ 建会话烘焙；工作流段（模式可扩展）→ per-run；profile（高频）→ per-run。ui 模式 byte 级不变（576 行实战 prompt 零回归面），marketing 模式 = 上游 base 移植 + 上游 marketing 段 per-run + overlay per-run
+- **内容**：任务表 T24 行状态 🔄 立项→🔄 方案定稿（待实施），scope 描述改写为四层抽象；tasks/\_index.md 镜像行同步；T24-plan §1.2 D1-D9 就地重写（三段静态装配退役，D1 四层抽象 / D2 两初始模式 / D3 注入路径分层 / D4 切换即驱逐重建），§1.3/§2/§3 同步对齐（C1 ui 模式 byte 不变断言、C2 ui 模式无 overlay、C3 模式重建保历史、新增 modes.ts 注册表实施项）
+- **task 文档**：[tasks/T24-plan.md](../../tasks/T24-plan.md)

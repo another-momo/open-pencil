@@ -212,13 +212,13 @@ try {
   const cred = await fetch(`${BASE}/api/pi/credentials`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ providerId: 'openrouter', apiKey: 'sk-t24-probe-dummy' })
+    body: JSON.stringify({ providerId: 'openrouter', apiKey: 'sk-or-test-key-12345' })
   })
   check('前置：dummy 凭据写入（过 auth 预检用）', cred.ok)
   const cred2 = await fetch(`${BASE2}/api/pi/credentials`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ providerId: 'openrouter', apiKey: 'sk-t24-probe-dummy' })
+    body: JSON.stringify({ providerId: 'openrouter', apiKey: 'sk-or-test-key-12345' })
   })
   check('前置：无种子后端 dummy 凭据写入', cred2.ok)
 

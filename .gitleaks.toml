@@ -31,7 +31,7 @@ regexes = ['''keybinding:\s*['\"][^'\"]+['\"]''']
 [[allowlists]]
 description = "Documented dummy OpenRouter test key"
 regexTarget = "line"
-paths = ['''tests/e2e/chat/panel\.spec\.ts''']
+paths = ['''tests/e2e/chat/panel\.spec\.ts''', '''spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke\.mjs''']
 regexes = ['''sk-or-test-key-12345''']
 
 [[allowlists]]

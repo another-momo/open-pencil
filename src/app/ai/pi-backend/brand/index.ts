@@ -15,11 +15,7 @@ import { join } from 'node:path'
 
 import { parse } from 'yaml'
 
-import type {
-  PiBrandManifest,
-  PiBrandMaterialType,
-  PiBrandStyleProfileSummary
-} from './manifest'
+import type { PiBrandManifest, PiBrandMaterialType, PiBrandStyleProfileSummary } from './manifest'
 
 const SEED_PATH = 'src/app/ai/pi-backend/brand/config.yaml'
 

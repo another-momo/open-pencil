@@ -56,7 +56,7 @@ T21 收口后按排队序列推进（T20/T21 均留口「session↔file 绑定�
     - A6：Clear → 空态 → 再发送捕获 `…-20260824T032103Z`（同前缀、新后缀、≠ 种子）；clear 全程零 history 请求（守卫短路）；后端 index.json 种子条目仍在（旧会话归档）
     - A2：新 tab 开 `circle-text.fig` 铸造独立 docId → 前缀 `doc-097f3e25…` ≠ A 族 `doc-74ccb1c6…`；documentId 为 `tab-2`
 19. **冒烟复跑全绿（2026-08-24）**：`t22/history-smoke.mjs` 12/12（前缀解析族内最新、文本/工具折叠、reasoning 不回填、GET 只读）、`t22/target-smoke.mjs` 6/6（document_id 注入/缺省/透传、不进 schema）、引擎 `tests/engine/scene-graph/plugin-data.test.ts` 20/20（含新增根节点任意 key .fig 往返专项）；`t22/bind-smoke.mjs` 按实证流程重写（AI tab 激活、发送按钮提交、恢复对话框、void openFile）——本机 playwright `chromium.launch` 建 CDP 管道超时（headless shell 1208 / full 1187 均失败）【环境限制】，浏览器半由 MCP 实测代跑，脚本供 CI/他机复跑
-20. **本机 gate（2026-08-24）**：oxlint 全量 0 error（3 个 max-lines warning 均为既有 packages 文件）、tsgo --noEmit 净、vue-tsc 双工程净、check:zones 净、prettier 已格式化改动文件；T19/T20/T21 LLM 依赖冒烟因本机无 OPENROUTER_API_KEY 阻塞（已按规则上报 owner 补 key，不伪造通过）
+20. **本机 gate（2026-08-24）**：oxlint 全量 0 error（3 个 max-lines warning 均为既有 packages 文件）、tsgo --noEmit 净、vue-tsc 双工程净、check:zones 净、prettier 已格式化改动文件；~~T19/T20/T21 LLM 依赖冒烟因本机无 OPENROUTER_API_KEY 阻塞~~ → **已于 2026-08-24 补跑全绿**（key 在本机 `.openpencil/key-env`，owner 指出后实证）：admin 21/21、settings 11/11（修两处 UI 保存/清除段等响应竞态后）、tools 9/9（重试预算扩到容忍 tool-output-error 模型方差后）、T19 smoke.mjs 15/15、T20 tool-smoke 18/18（keeper wrapper 自开桥执行端）；期间定位两起非产品问题——7703 端口孤儿跨轮污染（T24-self-check §3.3-7 同根因）与 settings 冒烟环境敏感觉态，均已修复/登记。阻塞项至此**完全消解**：CI 无 LLM 冒烟 job（2026-08-24 grep .github/workflows 实证 OPENROUTER/smoke/spikes 零命中，冒烟依赖活浏览器/活桥/活编辑器，属本机验证工具），不存在 CI 补跑面，亦无需登记仓库 secret
 
 ## 3.2 与计划的偏差
 

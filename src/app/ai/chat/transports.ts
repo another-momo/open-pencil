@@ -1,29 +1,22 @@
 import { Chat } from '@ai-sdk/vue'
-import { DirectChatTransport, stepCountIs, ToolLoopAgent } from 'ai'
-import type { ChatTransport, FinishReason, LanguageModel, UIMessage } from 'ai'
-import type { ComputedRef } from 'vue'
+import type { ChatTransport, FinishReason, UIMessage } from 'ai'
 import { ref } from 'vue'
-
-import type { AIProviderID } from '@open-pencil/core/constants'
 
 import {
   classifyAIChatError,
   classifyAIChatFinish,
   type AIChatFailure
 } from '@/app/ai/chat/failure'
-import { resolveLanguageModelID } from '@/app/ai/chat/model'
-import { buildReasoningProviderOptions, type AIProviderOptions } from '@/app/ai/chat/reasoning'
-import SYSTEM_PROMPT from '@/app/ai/chat/system-prompt.md?raw'
-import { createAIModelRuntime, resolveModelConnectionAPIKey } from '@/app/ai/models'
-import { MAX_AGENT_STEPS, createAITools, recordStepUsage, resetRunSteps } from '@/app/ai/tools'
 import type { getActiveEditorStore } from '@/app/editor/active-store'
 
 type EditorStore = ReturnType<typeof getActiveEditorStore>
 
+/**
+ * T25：三路径收敛为 pi 单路径后的会话管理器——transport 唯一来源是 override
+ * 工厂（pi 由 pi-backend/attach.ts 注册；e2e mock 经同一钩子注入）。
+ * 旧浏览器 ToolLoopAgent 直连路径与 harness sidecar 路径已切除（T25-plan D1/D2）。
+ */
 type ChatSessionOptions = {
-  isConfigured: ComputedRef<boolean>
-  isHarnessProvider: ComputedRef<boolean>
-  credentialsReady: Promise<void>
   getActiveEditorStore: () => EditorStore
   /** T22：pi 后端历史回填——Chat 创建且本地无消息时拉取（T22-plan D3） */
   loadHistory?: (store: EditorStore) => Promise<UIMessage[] | undefined>
@@ -31,88 +24,7 @@ type ChatSessionOptions = {
   onSessionReset?: (store: EditorStore) => void
 }
 
-type ToolLoopTransportOptions = {
-  store: EditorStore
-  providerID: AIProviderID
-  model: LanguageModel
-  effectiveModelID: string
-  maxOutputTokens: number
-  reasoningEffort: string
-}
-
-const ANTHROPIC_CACHE_CONTROL = {
-  anthropic: { cacheControl: { type: 'ephemeral' } }
-} as const
-
-function supportsAnthropicCaching(providerID: AIProviderID, modelID: string): boolean {
-  return (
-    providerID === 'anthropic' ||
-    providerID === 'anthropic-compatible' ||
-    (providerID === 'openrouter' && modelID.startsWith('anthropic/'))
-  )
-}
-
-function mergeProviderOptions(
-  cacheOptions: typeof ANTHROPIC_CACHE_CONTROL | undefined,
-  reasoningOptions: AIProviderOptions | undefined
-): AIProviderOptions | undefined {
-  if (!cacheOptions && !reasoningOptions) return undefined
-  return { ...cacheOptions, ...reasoningOptions }
-}
-
-export function createToolLoopTransport({
-  store,
-  providerID,
-  model,
-  effectiveModelID,
-  maxOutputTokens,
-  reasoningEffort
-}: ToolLoopTransportOptions) {
-  const tools = createAITools(store)
-  const cacheProviderOptions = supportsAnthropicCaching(providerID, effectiveModelID)
-    ? ANTHROPIC_CACHE_CONTROL
-    : undefined
-  const providerOptions = mergeProviderOptions(
-    cacheProviderOptions,
-    buildReasoningProviderOptions(providerID, reasoningEffort)
-  )
-
-  const agent = new ToolLoopAgent({
-    model,
-    instructions: SYSTEM_PROMPT,
-    tools,
-    stopWhen: stepCountIs(MAX_AGENT_STEPS),
-    maxOutputTokens,
-    providerOptions,
-    prepareCall: (options) => {
-      resetRunSteps(store)
-      return {
-        ...options,
-        maxOutputTokens,
-        providerOptions
-      }
-    },
-    onStepFinish: ({ usage }) => {
-      recordStepUsage(
-        {
-          inputTokens: usage.inputTokens ?? 0,
-          outputTokens: usage.outputTokens ?? 0,
-          cacheReadTokens: usage.inputTokenDetails.cacheReadTokens ?? 0,
-          cacheWriteTokens: usage.inputTokenDetails.cacheWriteTokens ?? 0,
-          timestamp: Date.now()
-        },
-        store
-      )
-    }
-  })
-
-  return new DirectChatTransport({ agent }) as ChatTransport<UIMessage>
-}
-
 export function createChatSessionManager({
-  isConfigured,
-  isHarnessProvider,
-  credentialsReady,
   getActiveEditorStore,
   loadHistory,
   onSessionReset
@@ -122,7 +34,6 @@ export function createChatSessionManager({
   let currentChatStore: EditorStore | null = null
   let currentChatMessages = new WeakMap<EditorStore, UIMessage[]>()
   let chat: Chat<UIMessage> | null = null
-  let harnessTransportInstance: { destroy(): Promise<void> } | null = null
   let overrideTransport: ((store: EditorStore) => ChatTransport<UIMessage>) | null = null
 
   function handleChatFinish({
@@ -147,68 +58,15 @@ export function createChatSessionManager({
     currentChatMessages = new WeakMap()
   }
 
-  async function destroyAgentTransports(): Promise<void> {
-    const harness = harnessTransportInstance
-    harnessTransportInstance = null
-    await harness?.destroy()
-  }
-
-  async function createActiveHarnessTransport() {
-    await destroyAgentTransports()
-    const runtime = await createAIModelRuntime('design')
-    if (runtime?.kind !== 'harness') throw new Error('The Design agent is not configured for Pi')
-    const [{ HarnessChatTransport }, { buildPiMCPServers }, { getActiveTabId }] = await Promise.all(
-      [import('@/app/ai/harness/transport'), import('@/app/integrations/mcp'), import('@/app/tabs')]
-    )
-    const apiKey = await resolveModelConnectionAPIKey(runtime.role.connection.id)
-    if (!apiKey) throw new Error('Credential is unavailable for the Pi agent')
-    const model = runtime.role.profile.customModelID || runtime.role.profile.modelID
-    const transport = new HarnessChatTransport(
-      `tab-${getActiveTabId()}-${runtime.role.profile.id}`,
-      {
-        adapter: 'pi',
-        sandbox: 'just-bash',
-        model,
-        settings: {
-          thinkingLevel: runtime.role.profile.harnessThinkingLevel ?? 'medium',
-          permissionMode: runtime.role.profile.harnessPermissionMode ?? 'allow-edits'
-        },
-        instructions: SYSTEM_PROMPT,
-        mcpServers: await buildPiMCPServers()
-      },
-      { OPENPENCIL_HARNESS_API_KEY: apiKey }
-    )
-    harnessTransportInstance = transport
-    return transport as ChatTransport<UIMessage>
-  }
-
-  async function createTransport(store: EditorStore) {
-    if (overrideTransport) return overrideTransport(store)
-
-    await destroyAgentTransports()
-
-    const runtime = await createAIModelRuntime('design')
-    if (runtime?.kind !== 'direct') {
-      throw new Error('The Design model is not configured for direct API access')
+  function createTransport(store: EditorStore) {
+    if (!overrideTransport) {
+      // pi attach 在 app 启动时恒注册（T25 D3 门退役）；走到这里说明启动顺序异常
+      throw new Error('Chat transport is not registered (pi backend attach missing)')
     }
-    return createToolLoopTransport({
-      store,
-      providerID: runtime.role.connection.providerID,
-      model: runtime.model,
-      effectiveModelID: resolveLanguageModelID({
-        providerID: runtime.role.connection.providerID,
-        modelID: runtime.role.profile.modelID,
-        customModelID: runtime.role.profile.customModelID
-      }),
-      maxOutputTokens: runtime.role.profile.maxOutputTokens,
-      reasoningEffort: runtime.role.profile.reasoningEffort ?? ''
-    })
+    return overrideTransport(store)
   }
 
   async function ensureChat(): Promise<Chat<UIMessage> | null> {
-    await credentialsReady
-    if (!isConfigured.value) return null
-
     const store = getActiveEditorStore()
     if (currentChatStore && chat) {
       currentChatMessages.set(currentChatStore, chat.messages)
@@ -223,11 +81,8 @@ export function createChatSessionManager({
       if ((!messages || messages.length === 0) && loadHistory) {
         messages = (await loadHistory(store)) ?? messages
       }
-      let transport: ChatTransport<UIMessage>
-      if (isHarnessProvider.value) transport = await createActiveHarnessTransport()
-      else transport = await createTransport(store)
       chat = new Chat<UIMessage>({
-        transport,
+        transport: createTransport(store),
         messages,
         onError: (error) => {
           failure.value = classifyAIChatError(error)
@@ -249,7 +104,6 @@ export function createChatSessionManager({
   async function resetChat() {
     const store = currentChatStore
     if (store) currentChatMessages.delete(store)
-    await destroyAgentTransports()
     failure.value = null
     chat = null
     currentChatStore = null

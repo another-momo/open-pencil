@@ -6,8 +6,9 @@
  * buildEnd 回收（kill + 超时 SIGKILL 兜底）；/api/pi-chat 经 config() hook 注入
  * server.proxy 转发到后端端口——前端 transport 保持同源调用零改动。
  *
- * OPENROUTER_API_KEY 经 env 继承进入后端进程（vite 进程需已 source key-env）；
- * 后端进程内 service 惰性装配，缺 key 在首个 prompt 处如实报错（不阻断 vite 启动）。
+ * OPENROUTER_API_KEY 经 env 继承进入后端进程；缺 key 时后端自助读
+ * .openpencil/key-env 注入（main.ts，T25 D3），仍缺则 service 在首个 prompt
+ * 处如实报错（不阻断 vite 启动）。
  */
 
 import { spawn } from 'node:child_process'

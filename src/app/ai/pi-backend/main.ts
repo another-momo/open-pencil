@@ -3,17 +3,40 @@
  *
  * 启动方式：
  *  - dev：vite 插件 spawn 子进程（../vite-plugin.ts，env 继承 + 端口注入）
- *  - 独立：`bun run dev:backend`（需自行 source .openpencil/key-env 注入 key）
+ *  - 独立：`bun run dev:backend`
  *
  * 环境变量：
  *  - OPENPENCIL_PI_BACKEND_PORT：监听端口（默认 7700，见 server.ts）
- *  - OPENROUTER_API_KEY：模型 key（缺失时 service 在首个 prompt 处如实报错）
+ *  - OPENROUTER_API_KEY：模型 key。T25 D3：缺失时自动读 .openpencil/key-env
+ *    自助注入（shell 脚本 source 不再是前置条件）；仍缺则 service 在首个
+ *    prompt 处如实报错。key 只注入 process.env，不打印不落日志。
  */
+
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 import { createPiBackendServer, PI_BACKEND_DEFAULT_PORT } from './server'
 
-const port = Number(process.env.OPENPENCIL_PI_BACKEND_PORT ?? PI_BACKEND_DEFAULT_PORT)
 const rootDir = process.cwd()
+
+// T25 D3：key-env 自助注入（仅补缺失项，不覆盖已有 env）
+function injectKeyEnv(): void {
+  if (process.env.OPENROUTER_API_KEY) return
+  const keyEnvPath = join(rootDir, '.openpencil', 'key-env')
+  if (!existsSync(keyEnvPath)) return
+  for (const line of readFileSync(keyEnvPath, 'utf-8').split(/\r?\n/)) {
+    const match = /^\s*(?:export\s+)?([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line)
+    if (!match) continue
+    const [, name, rawValue] = match
+    if (process.env[name]) continue
+    const value = rawValue.replace(/^["']|["']$/g, '')
+    if (value) process.env[name] = value
+  }
+}
+
+injectKeyEnv()
+
+const port = Number(process.env.OPENPENCIL_PI_BACKEND_PORT ?? PI_BACKEND_DEFAULT_PORT)
 
 const server = createPiBackendServer({ rootDir })
 

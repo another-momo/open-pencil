@@ -3,7 +3,7 @@
  * 直接 POST /api/pi-chat 验证 SSE 帧序列、中文无损、跨请求 session 连续性、
  * SessionManager JSONL 落盘。
  *
- * 前置：vite dev server 已起（VITE_PI_BACKEND=1 + OPENROUTER_API_KEY 注入进程）。
+ * 前置：vite dev server 已起（T25 D3 后门退役：pi 为唯一路径；key 经 env 或 .openpencil/key-env 自助注入）。
  * 运行：node spikes/s-pi/backend-smoke/smoke.mjs [baseUrl]
  * 退出码 0 = 全过。key 卫生：脚本不接触 key 本体。
  */

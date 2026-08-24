@@ -2,56 +2,32 @@ import { ref } from 'vue'
 
 import { IS_BROWSER } from '@open-pencil/core/constants'
 
-import {
-  apiKeyStatus,
-  browserCredentialsRemembered,
-  credentialsReady,
-  customAPIType,
-  customBaseURL,
-  customModelID,
-  isHarnessProvider,
-  isConfigured,
-  maxOutputTokens,
-  modelID,
-  pexelsKeyStatus,
-  providerDef,
-  providerID,
-  registerAIChatEffects,
-  resolveAPIKey,
-  setAPIKey,
-  setPexelsKey,
-  setRememberCredentials,
-  setUnsplashKey,
-  unsplashKeyStatus
-} from '@/app/ai/chat/storage'
 import { createChatSessionManager } from '@/app/ai/chat/transports'
 import { loadPiChatHistory, mintPiSessionId } from '@/app/ai/pi-backend/document-key'
 import { exposeChatTransportOverride } from '@/app/browser-bridge'
 import { getActiveEditorStore } from '@/app/editor/active-store'
+import {
+  browserCredentialsRemembered,
+  pexelsKeyStatus,
+  setPexelsKey,
+  setRememberCredentials,
+  setUnsplashKey,
+  unsplashKeyStatus
+} from '@/app/settings/credentials/stock-photo-keys'
 
+/**
+ * T25：pi 单路径后的 chat 入口——会话钩子恒挂（T22 D2/D3），模型/凭证旧面
+ * 已切除；stock-photo key 与 remember 开关经此处 re-export 给设置 UI。
+ */
 const activeTab = ref<'design' | 'code' | 'ai'>('design')
 
-// T22：pi 后端模式下接线「历史回填 + clear 铸新会话」钩子（T22-plan D2/D3）；
-// 非 pi 模式不挂（legacy 路径行为零变化）
-const piSessionHooks =
-  import.meta.env.VITE_PI_BACKEND === '1'
-    ? {
-        loadHistory: loadPiChatHistory,
-        onSessionReset: (store: ReturnType<typeof getActiveEditorStore>) => {
-          void mintPiSessionId(store)
-        }
-      }
-    : {}
-
 const chatSession = createChatSessionManager({
-  isConfigured,
-  isHarnessProvider,
-  credentialsReady,
   getActiveEditorStore,
-  ...piSessionHooks
+  loadHistory: loadPiChatHistory,
+  onSessionReset: (store: ReturnType<typeof getActiveEditorStore>) => {
+    void mintPiSessionId(store)
+  }
 })
-
-registerAIChatEffects(chatSession.markTransportDirty)
 
 if (IS_BROWSER) {
   exposeChatTransportOverride((factory) => {
@@ -61,24 +37,13 @@ if (IS_BROWSER) {
 
 export function useAIChat() {
   return {
-    providerID,
-    providerDef,
-    apiKeyStatus,
-    browserCredentialsRemembered,
-    setAPIKey,
-    resolveAPIKey,
-    modelID,
-    customBaseURL,
-    customModelID,
-    customAPIType,
-    maxOutputTokens,
+    activeTab,
     pexelsKeyStatus,
     setPexelsKey,
-    setRememberCredentials,
     unsplashKeyStatus,
     setUnsplashKey,
-    activeTab,
-    isConfigured,
+    browserCredentialsRemembered,
+    setRememberCredentials,
     ensureChat: chatSession.ensureChat,
     resetChat: chatSession.resetChat,
     chatFailure: chatSession.failure,

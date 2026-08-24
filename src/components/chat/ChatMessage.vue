@@ -6,12 +6,7 @@ import { Markdown } from 'vue-stream-markdown'
 import { useI18n, vTestId } from '@open-pencil/vue'
 import 'vue-stream-markdown/index.css'
 
-import {
-  imageAttachmentsForMessage,
-  visibleUserMessageText
-} from '@/app/ai/attachment/image/presentation'
 import { resolvedAppTheme } from '@/app/shell/theme'
-import ImageAttachment from '@/components/chat/attachment/image/ImageAttachment.vue'
 
 import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from 'ai'
 
@@ -22,7 +17,6 @@ const { message, streaming = false } = defineProps<{
 const { dialogs } = useI18n()
 const isDark = computed(() => resolvedAppTheme.value === 'dark')
 const markdownMode = computed(() => (streaming ? 'streaming' : 'static'))
-const imageAttachments = imageAttachmentsForMessage(message.id)
 
 type ToolPart = Extract<UIMessagePart<UIDataTypes, UITools>, { toolCallId: string }>
 
@@ -139,25 +133,15 @@ function partKey(part: UIMessagePart<UIDataTypes, UITools>, index: number): stri
 
       <!-- User message -->
       <template v-else-if="message.role === 'user'">
-        <div v-if="imageAttachments.length" class="flex flex-wrap justify-end gap-1.5">
-          <ImageAttachment
-            v-for="attachment in imageAttachments"
-            :key="attachment.id"
-            :attachment="attachment"
-          />
-        </div>
         <div
           data-test-id="chat-text-bubble"
           class="rounded-xl rounded-br-md bg-accent px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap text-white"
         >
           {{
-            visibleUserMessageText(
-              message.id,
-              message.parts
-                .filter(isTextUIPart)
-                .map((p) => p.text)
-                .join('')
-            )
+            message.parts
+              .filter(isTextUIPart)
+              .map((p) => p.text)
+              .join('')
           }}
         </div>
       </template>

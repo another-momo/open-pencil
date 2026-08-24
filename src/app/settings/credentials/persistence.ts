@@ -1,42 +1,30 @@
-import { AI_PROVIDERS } from '@open-pencil/core/constants'
-
-import { aiModelSettings, modelConnectionCredentialRef } from '@/app/ai/models'
 import { VECTORIZE_CREDENTIAL_REFS } from '@/app/editor/vectorize/credentials'
-import { mcpConnectionSettings, mcpConnectionCredentialRef } from '@/app/integrations/mcp'
 import { storageCredentialRefs, storageProviderRegistry } from '@/app/integrations/storage'
 import {
   PEXELS_CREDENTIAL,
-  UNSPLASH_CREDENTIAL,
-  providerCredentialRef
-} from '@/app/settings/credentials/migration'
+  UNSPLASH_CREDENTIAL
+} from '@/app/settings/credentials/media-credentials'
 import { credentialKey } from '@/app/settings/credentials/reference'
 
 import { setBrowserCredentialPersistence } from './app'
 import type { CredentialRef } from './types'
 
+/**
+ * T25：旧 AI provider / 模型连接 / harness MCP 连接三类 credential ref 已随
+ * 旧面切除（T25-plan D1/D2），剩余 = stock-photo + vectorize + 存储集成。
+ */
 function uniqueCredentialRefs(references: CredentialRef[]): CredentialRef[] {
   return [...new Map(references.map((reference) => [credentialKey(reference), reference])).values()]
 }
 
 export function appCredentialRefs(): CredentialRef[] {
-  const legacyAIRefs = AI_PROVIDERS.filter((provider) => !provider.id.startsWith('acp:')).map(
-    (provider) => providerCredentialRef(provider.id)
-  )
-  const modelConnectionRefs = aiModelSettings.value.connections
-    .filter((connection) => !connection.providerID.startsWith('acp:'))
-    .map(modelConnectionCredentialRef)
   const storageCredentials = storageProviderRegistry
     .list()
     .flatMap((provider) => storageCredentialRefs(provider.id))
   return uniqueCredentialRefs([
-    ...legacyAIRefs,
-    ...modelConnectionRefs,
     PEXELS_CREDENTIAL,
     UNSPLASH_CREDENTIAL,
     ...VECTORIZE_CREDENTIAL_REFS,
-    ...mcpConnectionSettings.value.connections.map((connection) =>
-      mcpConnectionCredentialRef(connection.id)
-    ),
     ...storageCredentials
   ])
 }

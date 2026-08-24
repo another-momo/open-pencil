@@ -3,7 +3,7 @@
  * 验证前端零改动链路——attach 注册 override transport → Chat 类 POST /api/pi-chat
  * → SSE 流式渲染 → 后端 session 历史跨回合生效。
  *
- * 前置：vite dev server 已起（VITE_PI_BACKEND=1 + OPENROUTER_API_KEY 注入进程）。
+ * 前置：vite dev server 已起（T25 D3 后门退役：pi 为唯一路径；key 经 env 或 .openpencil/key-env 自助注入）。
  * 运行：node tests/engine/rebuild/pi-backend-browser-smoke.mjs [baseUrl]
  * 退出码 0 = 全过；截图证据落 .openpencil/p5b-*.png（gitignored）。
  */

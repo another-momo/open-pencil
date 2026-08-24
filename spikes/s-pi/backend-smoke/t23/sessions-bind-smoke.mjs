@@ -27,7 +27,7 @@
  *  ⑥ Clear 后发送铸同前缀新后缀；当前会话未入族谱时下拉顶部出现禁用的
  *    "new session" 占位项（currentSessionMissing，E5）
  *
- * 前置：dev server 已起（VITE_PI_BACKEND=1，无需 LLM key）。
+ * 前置：dev server 已起（T25 D3 后门退役，无需 LLM key）。
  * 运行：node spikes/s-pi/backend-smoke/t23/sessions-bind-smoke.mjs [base=http://localhost:1420]
  *   ⚠ 必须用 node——bun 跑 playwright chromium.launch 会卡 CDP pipe 握手
  *   （2026-08-24 实证：bun 下 180s launch timeout，node 秒起；二进制本身正常）

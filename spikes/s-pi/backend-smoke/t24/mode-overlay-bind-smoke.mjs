@@ -25,7 +25,7 @@
  *    触发器文案回占位（C5 失败路径；后端 overlay 同步走 fallback 由
  *    prompt-assembly-smoke 的无种子后端半覆盖）
  *
- * 前置：dev server 已起（VITE_PI_BACKEND=1）+ pi 后端已起（manifest 路由）。
+ * 前置：dev server 已起（T25 D3 后门退役）+ pi 后端已起（manifest 路由）。
  * 运行：node spikes/s-pi/backend-smoke/t24/mode-overlay-bind-smoke.mjs [base=http://localhost:1420]
  *   ⚠ 必须用 node——bun 跑 playwright chromium.launch 会卡 CDP pipe 握手
  *   （2026-08-24 实证：bun 下 180s launch timeout，node 秒起；二进制本身正常）

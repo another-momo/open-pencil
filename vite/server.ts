@@ -25,6 +25,9 @@ export function createDevServerOptions(host: string | undefined): ServerOptions 
     port: 1420,
     strictPort: true,
     host: host || false,
+    // T25 D3：一条命令起全栈——vite 起来后自动开浏览器；Tauri dev（host 注入）
+    // 走原生窗口，不弹浏览器
+    open: !host,
     hmr: host
       ? {
           protocol: 'ws',

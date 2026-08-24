@@ -2,8 +2,10 @@ import { expect, test, type Page } from '@playwright/test'
 
 import { CanvasHelper } from '#tests/helpers/canvas'
 
+// T25：pi 单通道后的 chat 面板 e2e——旧 provider 设置门/模型选择器/附件流
+// 已随旧面切除；transport 经 window.openPencil.setChatTransport 注入 mock
+// （与 pi attach 同一条 override 管道，D4 保留钩子）。
 const USE_REAL_LLM = process.env.TEST_REAL_LLM === '1'
-const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY ?? ''
 
 let page: Page
 let canvas: CanvasHelper
@@ -130,49 +132,27 @@ function chatInput() {
   return page.getByRole('textbox', { name: 'Describe a change' })
 }
 
-function apiKeyInput() {
-  return page.getByTestId('provider-settings-api-key')
-}
-
 test('⌘J switches to AI tab', async () => {
   await designTab().waitFor()
-  await page.keyboard.press('Meta+j')
+  await page.keyboard.press('ControlOrMeta+j')
   await expect(chatTab()).toHaveAttribute('data-state', 'active')
 })
 
 test('⌘J switches back to Design tab', async () => {
-  await page.keyboard.press('Meta+j')
+  await page.keyboard.press('ControlOrMeta+j')
   await expect(designTab()).toHaveAttribute('data-state', 'active')
 })
 
-test('clicking AI tab directs provider setup to unified settings', async () => {
+test('chat interface is available without provider setup (pi 单通道无设置门)', async () => {
   await chatTab().click()
-  await expect(page.getByText('Connect an AI provider to start chatting.')).toBeVisible()
-  await expect(page.getByTestId('provider-setup-open-settings')).toBeVisible()
-  await expect(apiKeyInput()).toBeHidden()
-})
-
-test('saving API key in unified settings shows chat interface', async () => {
-  const key = USE_REAL_LLM ? OPENROUTER_KEY : 'sk-or-test-key-12345'
-  await page.getByTestId('provider-setup-open-settings').click()
-  await expect(page.getByTestId('app-settings-dialog')).toBeVisible()
-  await expect(page.getByTestId('settings-remember-credentials')).toHaveAttribute(
-    'data-state',
-    'checked'
-  )
-  await expect(page.getByTestId('settings-credential-backend')).toContainText(
-    'encrypted browser storage'
-  )
-  await page.locator('[data-model-id]').first().click()
-  await page.getByTestId('settings-model-provider').click()
-  await page.getByRole('option', { name: 'OpenRouter' }).click()
-  await page.getByLabel('Name').fill('Claude Sonnet')
-  await apiKeyInput().fill(key)
-  await page.getByRole('button', { name: 'Save model' }).click()
-  await page.getByTestId('app-settings-done').click()
-
   await expect(chatInput()).toBeVisible()
   await expect(page.getByText('Describe what you want to create or change.')).toBeVisible()
+  // T25：pi 模型标签 + 模式选择器常驻；style profile 选择器仅 marketing 模式
+  // （mode-overlay-bind 冒烟覆盖）；旧 ProviderSetup 门不存在
+  await expect(page.getByTestId('chat-pi-model-label')).toBeVisible()
+  await expect(page.getByTestId('chat-mode-select')).toBeVisible()
+  await expect(page.getByTestId('chat-style-profile-select')).toHaveCount(0)
+  await expect(page.getByTestId('provider-setup-open-settings')).toHaveCount(0)
 })
 
 test('empty input has disabled send button', async () => {
@@ -184,54 +164,6 @@ test('typing enables send button', async () => {
   await chatInput().fill('Make a red rectangle')
   const sendButton = page.getByTestId('chat-send-button')
   await expect(sendButton).toBeEnabled()
-})
-
-test('multiple images appear inside the composer and can be removed', async () => {
-  await chatInput().fill('')
-  const chooser = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Attach images' }).click()
-  await (
-    await chooser
-  ).setFiles([
-    'tests/fixtures/vectorize/pilot_avatar.png',
-    'tests/fixtures/vectorize/python_logo.png'
-  ])
-
-  await expect(page.getByText('pilot_avatar.png', { exact: true })).toBeVisible()
-  await expect(page.getByText('python_logo.png', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Remove image pilot_avatar.png' })).toBeVisible()
-
-  await page.getByRole('button', { name: 'Remove image pilot_avatar.png' }).click()
-  await expect(page.getByText('pilot_avatar.png', { exact: true })).toBeHidden()
-  await expect(page.getByText('python_logo.png', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Remove image python_logo.png' }).click()
-})
-
-test('sending images shows the complete user message immediately', async () => {
-  await chatInput().fill('Use these images for the new layout')
-  const chooser = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Attach images' }).click()
-  await (
-    await chooser
-  ).setFiles([
-    'tests/fixtures/vectorize/pilot_avatar.png',
-    'tests/fixtures/vectorize/python_logo.png'
-  ])
-
-  await page.getByTestId('chat-send-button').click()
-
-  const userMessage = page.getByTestId('chat-message-user').last()
-  await expect(userMessage).toContainText('Use these images for the new layout', { timeout: 500 })
-  await expect(
-    userMessage.getByRole('button', { name: 'View image pilot_avatar.png' })
-  ).toBeVisible({
-    timeout: 500
-  })
-  await expect(userMessage.getByRole('button', { name: 'View image python_logo.png' })).toBeVisible(
-    {
-      timeout: 500
-    }
-  )
 })
 
 test('Shift+Enter inserts a line break without submitting', async () => {
@@ -293,19 +225,6 @@ test('assistant code blocks follow the active theme with readable contrast', asy
   await expect(code).toHaveCSS('background-color', 'rgb(255, 255, 255)')
 })
 
-test('model selector is visible and clickable', async () => {
-  const trigger = page.getByTestId('chat-model-selector')
-  await expect(trigger).toBeVisible()
-  await trigger.click()
-
-  await expect(page.getByRole('option', { name: /Claude Sonnet 4\.6/ })).toBeVisible()
-  await expect(page.getByText('Best for design')).toBeVisible()
-  await expect(page.getByText('Free').first()).toBeVisible()
-
-  await page.getByRole('option', { name: /Claude Sonnet 4\.6/ }).click()
-  await expect(page.getByRole('option', { name: /Claude Sonnet 4\.6/ })).toBeHidden()
-})
-
 test('tool calls render in assistant message', async () => {
   await chatInput().fill('Create a frame')
   await chatInput().press('Enter')
@@ -322,44 +241,11 @@ test('tool calls render in assistant message', async () => {
 })
 
 test('switching tabs preserves chat', async () => {
-  const selectedModel = page.getByRole('option', { name: /Claude Sonnet 4\.6/ })
-  if (await selectedModel.isVisible().catch(() => false)) {
-    await selectedModel.click()
-  }
   await designTab().click({ timeout: 10000 })
   await expect(designTab()).toHaveAttribute('data-state', 'active')
 
   await chatTab().click()
   await expect(page.getByText('Hello there', { exact: true })).toBeVisible({ timeout: 10000 })
-})
-
-test('OpenRouter accepts a custom model ID from provider settings', async () => {
-  const customModel = 'meta-llama/llama-3.3-70b-instruct'
-
-  await page.keyboard.press('Escape')
-  await page.getByTestId('provider-settings-trigger').click()
-  await page.locator('[data-model-id]').first().click()
-  await page.getByLabel('Model ID').click()
-  await page.getByRole('option', { name: 'Custom model…' }).click()
-  const customModelInput = page.getByTestId('provider-settings-custom-model')
-  await expect(customModelInput).toBeVisible()
-  await customModelInput.fill(customModel)
-  await page.getByRole('button', { name: 'Save model' }).click()
-  await page.getByTestId('app-settings-done').click()
-
-  await expect(page.getByTestId('chat-custom-model-label')).toContainText(customModel)
-  await expect(page.getByTestId('chat-model-selector')).toBeHidden()
-
-  await page.getByTestId('provider-settings-trigger').click()
-  await page.locator('[data-model-id]').first().click()
-  const savedCustomModelInput = page.getByTestId('provider-settings-custom-model')
-  await savedCustomModelInput.fill('')
-  await page.getByRole('combobox', { name: 'Model ID' }).click()
-  await page.getByRole('option', { name: /Claude Sonnet 4\.6/ }).click()
-  await page.getByRole('button', { name: 'Save model' }).click()
-  await page.getByTestId('app-settings-done').click()
-
-  await expect(page.getByTestId('chat-model-selector')).toBeVisible()
 })
 
 test('transport errors show a safe localized toast', async () => {
@@ -371,45 +257,4 @@ test('transport errors show a safe localized toast', async () => {
       hasText: 'The model request failed. Check the provider settings and try again.'
     })
   ).toBeVisible({ timeout: 5000 })
-})
-
-test('"Get API key" link opens external URL via window.open', async () => {
-  await page.getByTestId('provider-settings-trigger').click()
-  await page.locator('[data-model-id]').first().click()
-  await page.getByTestId('provider-settings-clear-key').click()
-  await page.getByRole('button', { name: 'Back' }).click()
-  await page.getByTestId('app-settings-done').click()
-  await expect(page.getByTestId('provider-setup-open-settings')).toBeVisible()
-  await page.getByTestId('provider-setup-open-settings').click()
-  await page.locator('[data-model-id]').first().click()
-  await page.getByTestId('settings-model-provider').click()
-  await page.getByRole('option', { name: 'OpenRouter' }).click()
-
-  const link = page.getByRole('button', { name: 'Get API key →' })
-  await expect(link).toBeVisible()
-
-  // Intercept window.open to verify it's called with the right URL
-  const openedUrls: string[] = []
-  await page.exposeFunction('mockWindowOpen', (url: string) => openedUrls.push(url))
-  await page.evaluate(() => {
-    window.openPencil ??= {}
-    window.openPencil.test = { ...window.openPencil.test, savedOpen: window.open }
-    window.open = (url: string | URL) => {
-      window.mockWindowOpen?.(String(url))
-      return null
-    }
-  })
-
-  await link.click()
-
-  await expect(() => {
-    expect(openedUrls.length).toBeGreaterThan(0)
-    expect(openedUrls[0]).toMatch(/^https:\/\//)
-  }).toPass({ timeout: 3000 })
-
-  // Restore
-  await page.evaluate(() => {
-    const savedOpen = window.openPencil?.test?.savedOpen
-    if (savedOpen) window.open = savedOpen
-  })
 })

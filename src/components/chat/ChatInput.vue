@@ -1,28 +1,16 @@
 <script setup lang="ts">
-import { useFileDialog } from '@vueuse/core'
 import { TooltipProvider } from 'reka-ui'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import ChatModeSelect from '@/components/chat/ChatModeSelect.vue'
-import ChatProfileSelect from '@/components/chat/ChatProfileSelect.vue'
 import ChatStyleProfileSelect from '@/components/chat/ChatStyleProfileSelect.vue'
-import ProviderModelSelect from '@/components/chat/ProviderModelSelect.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import InputGroup from '@/components/ui/InputGroup.vue'
-import { useAIChat } from '@/app/ai/chat/use'
-import { designModelProfile, designModelProfiles } from '@/app/ai/models'
 import { piDesignAssignment } from '@/app/ai/pi-backend/assignment'
 import { ensurePiBrandManifest, piChatMode } from '@/app/ai/pi-backend/mode-selection'
-import {
-  createImagePreviewURL,
-  revokeImagePreviewURL,
-  validateImageAttachmentFile
-} from '@/app/ai/attachment/image/prepare'
-import { MAX_IMAGE_ATTACHMENTS, type ImageAttachmentDraft } from '@/app/ai/attachment/image/types'
 import { openSettingsDialog } from '@/app/settings/dialog'
 import { useI18n } from '@open-pencil/vue'
 
-const { providerID, providerDef, modelID, customModelID } = useAIChat()
 const { dialogs } = useI18n()
 
 const { status, disabled = false } = defineProps<{
@@ -31,106 +19,26 @@ const { status, disabled = false } = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  submit: [text: string, images: ImageAttachmentDraft[]]
+  submit: [text: string]
   stop: []
   error: [message: string]
 }>()
 
 const input = ref('')
-const images = ref<ImageAttachmentDraft[]>([])
-const {
-  open: openImageDialog,
-  reset: resetImageDialog,
-  onChange: onImageChange
-} = useFileDialog({
-  accept: 'image/png,image/jpeg,image/webp',
-  multiple: true,
-  reset: true
-})
-
-function addImageFiles(files: File[]) {
-  const available = MAX_IMAGE_ATTACHMENTS - images.value.length
-  if (available <= 0) {
-    emit('error', `You can attach up to ${MAX_IMAGE_ATTACHMENTS} images.`)
-    resetImageDialog()
-    return
-  }
-
-  for (const file of files.slice(0, available)) {
-    const validationError = validateImageAttachmentFile(file)
-    if (validationError) {
-      emit('error', validationError)
-      continue
-    }
-    images.value.push({ file, previewURL: createImagePreviewURL(file) })
-  }
-  if (files.length > available) {
-    emit('error', `You can attach up to ${MAX_IMAGE_ATTACHMENTS} images.`)
-  }
-  resetImageDialog()
-}
-
-function removeImage(index: number) {
-  const image = images.value[index]
-  if (image) revokeImagePreviewURL(image.previewURL)
-  images.value.splice(index, 1)
-  resetImageDialog()
-}
 
 const isStreaming = computed(() => disabled || status === 'streaming' || status === 'submitted')
-// T21：pi 模式下模型由后端 catalog/指派决定，聊天输入只读展示当前指派
-const isPiBackend = import.meta.env.VITE_PI_BACKEND === '1'
+// T21：模型由后端 catalog/指派决定，聊天输入只读展示当前指派
+// T25：pi 已是唯一路径（门退役），旧模型/资料切换臂与图片附件流已切除
+// （图片从不进 pi 后端——analyze 直通已随旧面删除，C4a 通道 B 落地时恢复）
 const isMarketingMode = computed(() => piChatMode.value === 'marketing')
 
-// T24：profile 下拉数据源（失败 → null → 空态降级，C5）；仅 pi 后端需要
+// T24：profile 下拉数据源（失败 → null → 空态降级，C5）
 onMounted(() => {
-  if (isPiBackend) void ensurePiBrandManifest()
+  void ensurePiBrandManifest()
 })
 const piModelLabel = computed(
   () => piDesignAssignment.value?.modelId ?? dialogs.value.piDesignModelDefault
 )
-const isAgentProvider = computed(() => providerID.value === 'harness:pi')
-const agentName = computed(() => 'Pi')
-const isCustomProvider = computed(
-  () => providerID.value === 'openai-compatible' || providerID.value === 'anthropic-compatible'
-)
-const customModelName = computed(() => customModelID.value.trim())
-const usesCustomModel = computed(
-  () => !!providerDef.value.supportsCustomModel && !!customModelName.value
-)
-
-const selectedModelName = computed(() => {
-  if (usesCustomModel.value) return customModelName.value
-  if (isCustomProvider.value) return 'No model'
-  return providerDef.value.models.find((m) => m.id === modelID.value)?.name ?? modelID.value
-})
-
-// Switching between saved profiles only makes sense once more than one can drive the design agent.
-const switchableProfiles = computed(designModelProfiles)
-const canSwitchProfile = computed(() => switchableProfiles.value.length > 1)
-const selectedProfileName = computed(
-  () => designModelProfile.value?.name ?? selectedModelName.value
-)
-
-function clearImages() {
-  for (const image of images.value) revokeImagePreviewURL(image.previewURL)
-  images.value = []
-  resetImageDialog()
-}
-
-onImageChange((selectedFiles) => {
-  if (selectedFiles) addImageFiles([...selectedFiles])
-})
-
-function handlePaste(event: ClipboardEvent) {
-  const files = event.clipboardData?.files
-  const images = files ? [...files].filter((file) => file.type.startsWith('image/')) : []
-  if (images.length === 0) return
-  event.preventDefault()
-  addImageFiles(images)
-}
-
-onBeforeUnmount(clearImages)
 
 function handleInputKeydown(event: KeyboardEvent) {
   if (event.code !== 'Enter' || event.shiftKey || event.isComposing) return
@@ -143,10 +51,7 @@ function handleSubmit(e: Event) {
   e.preventDefault()
   const text = input.value.trim()
   if (!text) return
-  const submittedImages = images.value
-  images.value = []
-  resetImageDialog()
-  emit('submit', text, submittedImages)
+  emit('submit', text)
   input.value = ''
 }
 </script>
@@ -154,36 +59,8 @@ function handleSubmit(e: Event) {
 <template>
   <TooltipProvider>
     <div class="shrink-0 border-t border-border p-2.5">
-      <form @submit="handleSubmit" @paste.stop="handlePaste">
+      <form @submit="handleSubmit">
         <InputGroup :disabled="isStreaming">
-          <template v-if="images.length" #attachment>
-            <div class="flex flex-wrap gap-1.5">
-              <div
-                v-for="(image, index) in images"
-                :key="image.previewURL"
-                class="flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-border bg-canvas p-1.5 shadow-xs"
-              >
-                <img
-                  :src="image.previewURL"
-                  :alt="image.file.name"
-                  width="40"
-                  height="40"
-                  class="size-10 shrink-0 rounded-md border border-border object-cover"
-                />
-                <span class="min-w-0 flex-1 truncate text-[10px] text-surface">
-                  {{ image.file.name }}
-                </span>
-                <IconButton
-                  :label="`Remove image ${image.file.name}`"
-                  size="xs"
-                  @click="removeImage(index)"
-                >
-                  <icon-lucide-x class="size-3" />
-                </IconButton>
-              </div>
-            </div>
-          </template>
-
           <textarea
             v-model="input"
             data-test-id="chat-input"
@@ -197,21 +74,9 @@ function handleSubmit(e: Event) {
             @cut.stop
           />
 
-          <template #leading>
-            <IconButton
-              label="Attach images"
-              size="sm"
-              :disabled="isStreaming || images.length >= MAX_IMAGE_ATTACHMENTS"
-              @click="openImageDialog()"
-            >
-              <icon-lucide-image-plus class="size-4" />
-            </IconButton>
-          </template>
-
           <template #model>
             <div class="flex min-w-0 items-center">
               <div
-                v-if="isPiBackend"
                 class="flex min-w-0 items-center gap-1 px-1.5 text-[10px] text-muted"
                 data-test-id="chat-pi-model-label"
               >
@@ -222,32 +87,6 @@ function handleSubmit(e: Event) {
                 <ChatModeSelect :disabled="isStreaming" />
                 <ChatStyleProfileSelect v-if="isMarketingMode" :disabled="isStreaming" />
               </div>
-              <template v-else-if="isAgentProvider">
-                <div class="flex min-w-0 items-center gap-1 px-1.5 text-[10px] text-muted">
-                  <icon-lucide-bot class="size-3 shrink-0" />
-                  <span class="truncate">{{ agentName }}</span>
-                </div>
-              </template>
-              <ChatProfileSelect
-                v-else-if="canSwitchProfile && (isCustomProvider || usesCustomModel)"
-              >
-                <template #value>
-                  <span class="min-w-0 truncate">{{ selectedProfileName }}</span>
-                </template>
-              </ChatProfileSelect>
-              <div
-                v-else-if="isCustomProvider || usesCustomModel"
-                class="flex min-w-0 items-center gap-1 px-1.5 text-[10px] text-muted"
-                data-test-id="chat-custom-model-label"
-              >
-                <icon-lucide-bot class="size-3 shrink-0" />
-                <span class="truncate">{{ selectedModelName }}</span>
-              </div>
-              <ProviderModelSelect v-else>
-                <template #value>
-                  <span class="min-w-0 truncate">{{ selectedModelName }}</span>
-                </template>
-              </ProviderModelSelect>
             </div>
           </template>
 

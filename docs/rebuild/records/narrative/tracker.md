@@ -443,3 +443,14 @@
 - **依据**：T24-plan D9 拆分项 + T24 收口后 Phase 1-pi 任务面唯一剩余。owner 2026-08-24 拍板三决策：D1 harness 路径切（含 packages/harness 整包，grep 实证消费者仅 src/app/ai/harness 两文件）、D2 旧设置面切（含 analyzeAttachedImages 贴图分析知情退化——旧 vision 直通唯一活消费者，C4a 通道 B 落地时后端形态恢复）、D3 VITE_PI_BACKEND 门退役 + dev 体验对齐 DSH 一条命令（vite.config.ts:35 实证后端已随 dev 无条件拉起，缺 server.open 自动开浏览器 + key-env 自助注入两块）。答疑先行：generate_image（仓内零代码，C3a 纯新建）与 look 通道 B（vision-runtime.ts/tools-vision.ts 零消费者死代码，C4a 后端重建）与切除面零耦合，均不返工
 - **内容**：任务表新增 T25 行，状态 🔄 立项；tasks/\_index.md 镜像行同步；三件套一次登记齐（plan D1-D4 决策 + C1-C6 验收 + 七步实施分解；self-check 9 条 recon 实证；verify V1-V6 预审表）
 - **task 文档**：[tasks/T25-plan.md](../../tasks/T25-plan.md)
+
+---
+
+## T25 收口登记（2026-08-24）
+
+- **类型**：收口（按对象：tracker.md + tasks/\_index.md）
+- **时间**：2026-08-24
+- **依据**：C1-C6 验收全过——C1 切除面 grep 零残留（src/tests 无已删模块导入）；C2 门塌缩（VITE_PI_BACKEND 代码面零命中，仅冒烟注释存史）；C3 门禁全绿（secrets/audit 两件本机环境受限，实证与改动无关，交 CI）；C4 冒烟回归 9/9（t22 bind 15、t23 sessions-bind 19、t24 mode-overlay-bind 17 三件浏览器冒烟跑在切除后 UI 上 + history 12、sessions 14、装配 27、admin/settings/tools、T19、T20 全绿）；C5 净 shell 一条命令实证（vite 200 + 后端健康 + key-env 自助注入 configured:true + resolveConfig 实证 server.open=true）；C6 e2e panel spec 重写后本机实跑 13/13（mock 经 D4 保留钩子注入）
+- **内容**：T25 行状态改 ✅ 已完成；tasks/\_index.md 镜像同步；self-check §3.1/§3.2/§3.3 回填（实施事实 11 条、偏差 5 条、边界 5 条）；verify 由独立 subagent 执行 V1-V6 全过「可以收口」（附赠发现 piCatalogOffline 过时文案一件，已顺手修复并复核 check:i18n）
+- **task 文档**：[tasks/T25-plan.md](../../tasks/T25-plan.md) / [tasks/T25-self-check.md](../../tasks/T25-self-check.md) / [tasks/T25-verify.md](../../tasks/T25-verify.md)
+- **顺修登记**：tools/type-shapes Windows 反斜杠归一（P50）；e2e spec Meta+j → ControlOrMeta+j（P49 同条）；T20 keeper 包装一次性使用即删

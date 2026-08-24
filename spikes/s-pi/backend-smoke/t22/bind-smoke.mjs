@@ -28,7 +28,7 @@
  *    旧会话在后端 index.json 归档保留
  *  ④ 双文档隔离：第二个文件（新 tab 开 circle-text.fig）的会话前缀不同
  *
- * 前置：dev server 已起（VITE_PI_BACKEND=1，无需 LLM key）。
+ * 前置：dev server 已起（T25 D3 后门退役，无需 LLM key）。
  * 运行：node spikes/s-pi/backend-smoke/t22/bind-smoke.mjs [base=http://localhost:1420]
  *   ⚠ 必须用 node——bun 跑 playwright chromium.launch 会卡 CDP pipe 握手
  *   （2026-08-24 实证：bun 下 180s launch timeout，node 秒起；二进制本身正常）

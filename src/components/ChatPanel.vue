@@ -15,21 +15,6 @@ import { computed, markRaw, nextTick, ref, watch } from 'vue'
 
 import { copyChatLog } from '@/app/ai/debug'
 import {
-  analyzeAttachedImages,
-  designMessageWithImageFindings
-} from '@/app/ai/attachment/image/analyze'
-import {
-  createImagePreviewURL,
-  isImageAttachmentMediaType,
-  prepareImageAttachment,
-  revokeImagePreviewURL
-} from '@/app/ai/attachment/image/prepare'
-import {
-  clearImageAttachmentPresentations,
-  setImageAttachmentPresentations
-} from '@/app/ai/attachment/image/presentation'
-import type { ImageAttachmentDraft } from '@/app/ai/attachment/image/types'
-import {
   getPiCurrentSessionId,
   hasPiDocId,
   listPiSessionFamily,
@@ -43,7 +28,6 @@ import ChatInput from '@/components/chat/ChatInput.vue'
 import ChatMessage from '@/components/chat/ChatMessage.vue'
 import AppPlaceholder from '@/components/ui/AppPlaceholder.vue'
 import AppTextButton from '@/components/ui/AppTextButton.vue'
-import ProviderSetup from '@/components/chat/ProviderSetup.vue'
 import Tip from '@/components/ui/Tip.vue'
 import { menuItem, useMenuUI } from '@/components/ui/menu'
 import { useAIChat } from '@/app/ai/chat/use'
@@ -58,13 +42,11 @@ import type { JSONObject } from '@open-pencil/scene-graph/primitives'
 
 const IS_DEV = import.meta.env.DEV
 
-const { isConfigured, ensureChat, resetChat, chatFailure, clearChatFailure } = useAIChat()
+const { ensureChat, resetChat, chatFailure, clearChatFailure } = useAIChat()
 const { dialogs } = useI18n()
 const notifications = useNotificationMessages()
 
 const chat = ref<Chat<UIMessage> | null>(null)
-const isPreparingImages = ref(false)
-let attachmentOperationVersion = 0
 
 void ensureChat()
   .then((c) => {
@@ -142,9 +124,6 @@ watch(
 watch(
   () => activeTab.value?.id,
   async () => {
-    attachmentOperationVersion += 1
-    isPreparingImages.value = false
-    clearImageAttachmentPresentations()
     const nextChat = await ensureChat()
     chat.value = nextChat ? markRaw(nextChat) : null
     refreshSessionMeta()
@@ -170,7 +149,6 @@ watch(
 
 // T23：会话查看/切换（E3/E5）——下拉打开时实时拉族谱清单（不做轮询/缓存）；
 // 切换即采用该 sessionId 并整体替换消息（后续发送续写被选会话）
-const PI_BACKEND = import.meta.env.VITE_PI_BACKEND === '1'
 const sessionMenuCls = useMenuUI({ content: 'min-w-56 max-w-72' })
 const sessionItemCls = menuItem({ justify: 'start' })
 const sessionList = ref<PiSessionSummary[]>([])
@@ -179,7 +157,7 @@ const sessionMenuReady = ref(false)
 
 function refreshSessionMeta() {
   const store = getActiveEditorStore()
-  sessionMenuReady.value = PI_BACKEND && hasPiDocId(store)
+  sessionMenuReady.value = hasPiDocId(store)
   currentSessionId.value = getPiCurrentSessionId(store)
 }
 
@@ -227,91 +205,23 @@ async function handleSwitchSession(sessionId: string) {
   sessionMenuReady.value = true
 }
 
-async function handleSubmit(text: string, images: ImageAttachmentDraft[] = []) {
-  if (status.value === 'streaming' || status.value === 'submitted' || isPreparingImages.value) {
-    for (const image of images) revokeImagePreviewURL(image.previewURL)
-    if (images.length > 0) toast.error(dialogs.value.chatRequestFailed)
-    return
-  }
-
-  const operationVersion = ++attachmentOperationVersion
-  if (images.length > 0) isPreparingImages.value = true
+async function handleSubmit(text: string) {
+  if (status.value === 'streaming' || status.value === 'submitted') return
   clearChatFailure()
   try {
-    const currentChat = chat.value ?? (await ensureChat())
-    if (currentChat) chat.value = markRaw(currentChat)
-    if (!currentChat || operationVersion !== attachmentOperationVersion) {
-      for (const image of images) revokeImagePreviewURL(image.previewURL)
-      if (images.length > 0) toast.error(dialogs.value.chatRequestFailed)
+    // 恒走 ensureChat：transport dirty（如 e2e mock 后注入）时重建会话，
+    // 避免持有旧 transport 的 stale Chat
+    const currentChat = await ensureChat()
+    if (!currentChat) {
+      toast.error(dialogs.value.chatRequestFailed)
       return
     }
-
-    if (images.length === 0) {
-      await currentChat.sendMessage({ text })
-      refreshSessionMeta()
-      return
-    }
-
-    const messageId = crypto.randomUUID()
-    currentChat.messages = [
-      ...currentChat.messages,
-      { id: messageId, role: 'user', parts: [{ type: 'text', text }] }
-    ]
-    setImageAttachmentPresentations(
-      messageId,
-      images.map((image) => ({
-        id: crypto.randomUUID(),
-        messageId,
-        name: image.file.name,
-        mediaType: isImageAttachmentMediaType(image.file.type) ? image.file.type : 'image/png',
-        originalWidth: 0,
-        originalHeight: 0,
-        previewWidth: 0,
-        previewHeight: 0,
-        previewURL: image.previewURL,
-        displayText: text
-      }))
-    )
-
-    const preparedImages = await Promise.all(
-      images.map((image) => prepareImageAttachment(image.file))
-    )
-    const findings = await analyzeAttachedImages(getActiveEditorStore(), text, preparedImages)
-    if (operationVersion !== attachmentOperationVersion || chat.value !== currentChat) return
-
-    setImageAttachmentPresentations(
-      messageId,
-      preparedImages.map((prepared, index) => {
-        const image = images[index]
-        const previewURL = createImagePreviewURL(prepared.blob)
-        return {
-          id: crypto.randomUUID(),
-          messageId,
-          name: image?.file.name ?? `Image ${index + 1}`,
-          mediaType: prepared.mediaType,
-          originalWidth: prepared.originalWidth,
-          originalHeight: prepared.originalHeight,
-          previewWidth: prepared.width,
-          previewHeight: prepared.height,
-          previewURL,
-          displayText: text
-        }
-      })
-    )
-    await currentChat.sendMessage({
-      messageId,
-      text: designMessageWithImageFindings(
-        text,
-        images.map((image) => image.file.name),
-        findings
-      )
-    })
+    chat.value = markRaw(currentChat)
+    await currentChat.sendMessage({ text })
     refreshSessionMeta()
   } catch (e) {
     console.error('Chat error:', e)
     toast.error(dialogs.value.chatRequestFailed)
-  } finally {
-    if (operationVersion === attachmentOperationVersion) isPreparingImages.value = false
   }
 }
 
@@ -325,10 +235,7 @@ async function handleCopyDebug() {
 }
 
 function handleClearChat() {
-  attachmentOperationVersion += 1
-  isPreparingImages.value = false
   clearChatFailure()
-  clearImageAttachmentPresentations()
   chat.value = null
   void resetChat().catch((error: unknown) => {
     console.error('Chat reset error:', error)
@@ -342,173 +249,162 @@ function handleClearChat() {
 
 <template>
   <div data-test-id="chat-panel" class="flex min-w-0 flex-1 flex-col overflow-hidden select-text">
-    <ProviderSetup v-if="!isConfigured" />
-
-    <template v-else>
-      <!-- T23 会话栏：族谱查看/切换（docId 未铸造或族为空时菜单内空态项） -->
-      <div
-        v-if="PI_BACKEND"
-        data-test-id="chat-session-bar"
-        class="flex shrink-0 items-center border-b border-border px-3 py-1"
-      >
-        <DropdownMenuRoot @update:open="handleSessionMenuOpen">
-          <Tip :label="currentSessionId ?? undefined">
-            <DropdownMenuTrigger as-child>
-              <AppTextButton
-                data-test-id="chat-session-trigger"
-                :ui="{ base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover' }"
-              >
-                <icon-lucide-history class="size-3" />
-                {{ sessionTriggerLabel }}
-                <icon-lucide-chevron-down class="size-3" />
-              </AppTextButton>
-            </DropdownMenuTrigger>
-          </Tip>
-          <DropdownMenuPortal>
-            <DropdownMenuContent
-              side="bottom"
-              align="start"
-              :side-offset="3"
-              :class="sessionMenuCls.content"
-              data-test-id="chat-session-menu"
+    <!-- T23 会话栏：族谱查看/切换（docId 未铸造或族为空时菜单内空态项） -->
+    <div
+      data-test-id="chat-session-bar"
+      class="flex shrink-0 items-center border-b border-border px-3 py-1"
+    >
+      <DropdownMenuRoot @update:open="handleSessionMenuOpen">
+        <Tip :label="currentSessionId ?? undefined">
+          <DropdownMenuTrigger as-child>
+            <AppTextButton
+              data-test-id="chat-session-trigger"
+              :ui="{ base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover' }"
             >
-              <DropdownMenuItem
-                v-if="!sessionMenuReady || sessionList.length === 0"
-                disabled
-                :class="sessionItemCls"
-              >
-                <span>No sessions yet</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                v-if="currentSessionMissing"
-                disabled
-                :class="sessionItemCls"
-                data-test-id="chat-session-current-unsent"
-              >
-                <icon-lucide-check :class="sessionMenuCls.icon" />
-                <span>{{ sessionTriggerLabel }} · new session</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                v-for="session in sessionList"
-                :key="session.sessionId"
-                :class="sessionItemCls"
-                :data-test-id="`chat-session-item`"
-                :data-session-id="session.sessionId"
-                @select="handleSwitchSession(session.sessionId)"
-              >
-                <icon-lucide-check
-                  v-if="session.sessionId === currentSessionId"
-                  :class="sessionMenuCls.icon"
-                />
-                <span v-else class="size-3 shrink-0" />
-                <span class="min-w-0 truncate">
-                  {{ sessionTimeLabel(session.sessionId) }} · {{ session.title || '(empty)' }} ·
-                  {{ session.messageCount }} msgs
-                </span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenuPortal>
-        </DropdownMenuRoot>
-      </div>
-
-      <ScrollAreaRoot class="min-h-0 flex-1">
-        <ScrollAreaViewport class="h-full px-3 py-3 [&>div]:h-full">
-          <AppPlaceholder
-            v-if="messages.length === 0"
-            data-test-id="chat-empty-state"
-            :label="dialogs.describeCreateOrChange"
-            :ui="{ root: 'h-full' }"
+              <icon-lucide-history class="size-3" />
+              {{ sessionTriggerLabel }}
+              <icon-lucide-chevron-down class="size-3" />
+            </AppTextButton>
+          </DropdownMenuTrigger>
+        </Tip>
+        <DropdownMenuPortal>
+          <DropdownMenuContent
+            side="bottom"
+            align="start"
+            :side-offset="3"
+            :class="sessionMenuCls.content"
+            data-test-id="chat-session-menu"
           >
-            <template #icon>
-              <icon-lucide-message-circle class="size-5" />
-            </template>
-          </AppPlaceholder>
+            <DropdownMenuItem
+              v-if="!sessionMenuReady || sessionList.length === 0"
+              disabled
+              :class="sessionItemCls"
+            >
+              <span>No sessions yet</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              v-if="currentSessionMissing"
+              disabled
+              :class="sessionItemCls"
+              data-test-id="chat-session-current-unsent"
+            >
+              <icon-lucide-check :class="sessionMenuCls.icon" />
+              <span>{{ sessionTriggerLabel }} · new session</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              v-for="session in sessionList"
+              :key="session.sessionId"
+              :class="sessionItemCls"
+              :data-test-id="`chat-session-item`"
+              :data-session-id="session.sessionId"
+              @select="handleSwitchSession(session.sessionId)"
+            >
+              <icon-lucide-check
+                v-if="session.sessionId === currentSessionId"
+                :class="sessionMenuCls.icon"
+              />
+              <span v-else class="size-3 shrink-0" />
+              <span class="min-w-0 truncate">
+                {{ sessionTimeLabel(session.sessionId) }} · {{ session.title || '(empty)' }} ·
+                {{ session.messageCount }} msgs
+              </span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenuPortal>
+      </DropdownMenuRoot>
+    </div>
 
-          <!-- Messages -->
-          <div v-else data-test-id="chat-messages" class="flex flex-col gap-3">
-            <ChatMessage
-              v-for="(msg, index) in messages"
-              :key="msg.id"
-              :message="msg"
-              :streaming="isStreamingMessage(msg, index)"
-            />
+    <ScrollAreaRoot class="min-h-0 flex-1">
+      <ScrollAreaViewport class="h-full px-3 py-3 [&>div]:h-full">
+        <AppPlaceholder
+          v-if="messages.length === 0"
+          data-test-id="chat-empty-state"
+          :label="dialogs.describeCreateOrChange"
+          :ui="{ root: 'h-full' }"
+        >
+          <template #icon>
+            <icon-lucide-message-circle class="size-5" />
+          </template>
+        </AppPlaceholder>
 
-            <!-- Thinking indicator: shown when AI is working but no visible activity -->
-            <div v-if="isThinking" data-test-id="chat-typing-indicator" class="flex gap-2">
-              <div
-                class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted/20 text-[10px] font-bold text-muted"
-              >
-                AI
-              </div>
-              <div class="flex items-center gap-1 py-2">
-                <span
-                  class="size-1.5 animate-bounce rounded-full bg-muted"
-                  style="animation-delay: 0ms"
-                />
-                <span
-                  class="size-1.5 animate-bounce rounded-full bg-muted"
-                  style="animation-delay: 150ms"
-                />
-                <span
-                  class="size-1.5 animate-bounce rounded-full bg-muted"
-                  style="animation-delay: 300ms"
-                />
-              </div>
+        <!-- Messages -->
+        <div v-else data-test-id="chat-messages" class="flex flex-col gap-3">
+          <ChatMessage
+            v-for="(msg, index) in messages"
+            :key="msg.id"
+            :message="msg"
+            :streaming="isStreamingMessage(msg, index)"
+          />
+
+          <!-- Thinking indicator: shown when AI is working but no visible activity -->
+          <div v-if="isThinking" data-test-id="chat-typing-indicator" class="flex gap-2">
+            <div
+              class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted/20 text-[10px] font-bold text-muted"
+            >
+              AI
             </div>
-
-            <!-- Continue button when step limit reached -->
-            <div v-if="showContinue" class="flex justify-center py-2">
-              <button
-                class="flex items-center gap-1.5 rounded-full bg-accent/10 px-4 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent/20"
-                @click="handleSubmit('Continue where you left off')"
-              >
-                <icon-lucide-play class="size-3" />
-                Continue
-              </button>
+            <div class="flex items-center gap-1 py-2">
+              <span
+                class="size-1.5 animate-bounce rounded-full bg-muted"
+                style="animation-delay: 0ms"
+              />
+              <span
+                class="size-1.5 animate-bounce rounded-full bg-muted"
+                style="animation-delay: 150ms"
+              />
+              <span
+                class="size-1.5 animate-bounce rounded-full bg-muted"
+                style="animation-delay: 300ms"
+              />
             </div>
-
-            <div ref="messagesEnd" />
           </div>
-        </ScrollAreaViewport>
-        <ScrollAreaScrollbar orientation="vertical" class="flex w-1.5 touch-none p-px select-none">
-          <ScrollAreaThumb class="relative flex-1 rounded-full bg-muted/30" />
-        </ScrollAreaScrollbar>
-      </ScrollAreaRoot>
 
-      <!-- Chat toolbar -->
-      <div
-        v-if="messages.length > 0"
-        class="flex shrink-0 items-center gap-1 border-t border-border px-3 py-1"
+          <!-- Continue button when step limit reached -->
+          <div v-if="showContinue" class="flex justify-center py-2">
+            <button
+              class="flex items-center gap-1.5 rounded-full bg-accent/10 px-4 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent/20"
+              @click="handleSubmit('Continue where you left off')"
+            >
+              <icon-lucide-play class="size-3" />
+              Continue
+            </button>
+          </div>
+
+          <div ref="messagesEnd" />
+        </div>
+      </ScrollAreaViewport>
+      <ScrollAreaScrollbar orientation="vertical" class="flex w-1.5 touch-none p-px select-none">
+        <ScrollAreaThumb class="relative flex-1 rounded-full bg-muted/30" />
+      </ScrollAreaScrollbar>
+    </ScrollAreaRoot>
+
+    <!-- Chat toolbar -->
+    <div
+      v-if="messages.length > 0"
+      class="flex shrink-0 items-center gap-1 border-t border-border px-3 py-1"
+    >
+      <AppTextButton
+        v-if="IS_DEV"
+        :ui="{
+          base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover'
+        }"
+        @click="handleCopyDebug"
       >
-        <AppTextButton
-          v-if="IS_DEV"
-          :ui="{
-            base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover'
-          }"
-          @click="handleCopyDebug"
-        >
-          <icon-lucide-clipboard-copy v-if="!debugCopied" class="size-3" />
-          <icon-lucide-check v-else class="size-3 text-green-400" />
-          {{ debugCopied ? 'Copied' : 'Copy log' }}
-        </AppTextButton>
-        <AppTextButton
-          :ui="{
-            base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover'
-          }"
-          @click="handleClearChat"
-        >
-          <icon-lucide-trash-2 class="size-3" />
-          Clear
-        </AppTextButton>
-      </div>
+        <icon-lucide-clipboard-copy v-if="!debugCopied" class="size-3" />
+        <icon-lucide-check v-else class="size-3 text-green-400" />
+        {{ debugCopied ? 'Copied' : 'Copy log' }}
+      </AppTextButton>
+      <AppTextButton
+        :ui="{
+          base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover'
+        }"
+        @click="handleClearChat"
+      >
+        <icon-lucide-trash-2 class="size-3" />
+        Clear
+      </AppTextButton>
+    </div>
 
-      <ChatInput
-        :status="status"
-        :disabled="isPreparingImages"
-        @submit="handleSubmit"
-        @stop="handleStop"
-        @error="toast.error"
-      />
-    </template>
+    <ChatInput :status="status" @submit="handleSubmit" @stop="handleStop" @error="toast.error" />
   </div>
 </template>

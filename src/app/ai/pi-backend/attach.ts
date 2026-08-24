@@ -1,5 +1,6 @@
 /**
- * T19 选路接线：VITE_PI_BACKEND=1 时把 Chat 的 transport 切到 pi 后端。
+ * T19 选路接线：把 Chat 的 transport 切到 pi 后端；T25 D3 门退役后恒注册
+ * （pi 已是唯一路径——旧 ToolLoop/harness 分支已切除）。
  *
  * 走既有 override 钩子（browser-bridge.ts exposeChatTransportOverride，与 e2e
  * mock 注入同一条管道），因此 transports.ts / use.ts / ChatPanel.vue 零改动。
@@ -19,7 +20,7 @@ import { getPiRequestContext } from '@/app/ai/pi-backend/document-key'
 import { PiBackendChatTransport } from '@/app/ai/pi-backend/transport'
 
 export function attachPiBackendTransport(): void {
-  if (!IS_BROWSER || import.meta.env.VITE_PI_BACKEND !== '1') return
+  if (!IS_BROWSER) return
 
   const setChatTransport = window.openPencil?.setChatTransport
   if (!setChatTransport) {

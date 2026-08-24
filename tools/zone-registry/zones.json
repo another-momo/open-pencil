@@ -14,16 +14,14 @@
   "ownedFiles": [
     "src/components/chat/ChatModeSelect.vue",
     "src/components/chat/ChatStyleProfileSelect.vue",
-    "src/components/settings/models/PiModelsPanel.vue"
+    "src/components/settings/models/PiModelsPanel.vue",
+    "src/app/settings/credentials/stock-photo-keys.ts",
+    "src/app/settings/credentials/media-credentials.ts"
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
     "src/app/ai/chat/",
-    "src/app/ai/providers/",
-    "src/app/ai/models/",
-    "src/app/ai/attachment/",
     "src/app/ai/tools/",
-    "src/app/ai/vision-runtime.ts",
     "src/app/ai/debug/index.ts",
     "src/components/chat/",
     "src/components/ChatPanel.vue",
@@ -55,25 +53,25 @@
     {
       "id": "P4",
       "file": "src/components/ChatPanel.vue",
-      "reason": "remove ACPPermissionDialog and ACP log UI",
+      "reason": "remove ACPPermissionDialog and ACP log UI T25: attachment 分析流与 ProviderSetup 门切除（pi 单通道），会话栏恒挂",
       "disposition": "permanent"
     },
     {
       "id": "P5",
       "file": "src/components/chat/ChatInput.vue",
-      "reason": "remove ACP provider branch",
+      "reason": "remove ACP provider branch T25: 附件 UI 与旧模型臂切除，submit 仅文本",
       "disposition": "permanent"
     },
     {
       "id": "P6",
       "file": "src/app/ai/chat/transports.ts",
-      "reason": "remove ACP transport path (createACPTransport and session wiring) T10 重涂：上游本轮把 ACP transport 重构进 createChatSessionManager 并新增 harness(pi) 路径——维持裁 ACP（createACPTransport/createActiveACPTransport/isACPProvider），保 harness",
+      "reason": "remove ACP transport path (createACPTransport and session wiring) T10 重涂：上游本轮把 ACP transport 重构进 createChatSessionManager 并新增 harness(pi) 路径——维持裁 ACP（createACPTransport/createActiveACPTransport/isACPProvider），保 harness T25: 收敛单 pi——createToolLoopTransport/createActiveHarnessTransport 切除，无 override 即报错",
       "disposition": "permanent"
     },
     {
       "id": "P7",
       "file": "src/app/ai/chat/use.ts",
-      "reason": "remove ACP session options plumbing",
+      "reason": "remove ACP session options plumbing T25: 旧凭证面切除，stock-photo/remember 转由 stock-photo-keys.ts 供给；VITE_PI_BACKEND 门退役恒挂会话钩子",
       "disposition": "permanent"
     },
     {
@@ -133,13 +131,13 @@
     {
       "id": "P17",
       "file": "package.json",
-      "reason": "workspaces (-docs/-tools-docs), scripts (-tauri/-wdio/-docs/*, +check:zones), deps (-wdio/-tauri-cli/-pwa/-yjs-family/-trystero) T10: workspaces += packages/harness（上游新增 pi harness 包，保 harness 裁 ACP 决策随附）；lint/format 路径同步加 packages/harness T19: deps += @earendil-works/pi-coding-agent@0.84.2 + pi-ai@0.84.2 + typebox@1.3.7（精确钉扎，升级走 03 §5.5 窗口）T20: scripts += dev:backend（独立运行 pi 后端进程，不经 vite）",
+      "reason": "workspaces (-docs/-tools-docs), scripts (-tauri/-wdio/-docs/*, +check:zones), deps (-wdio/-tauri-cli/-pwa/-yjs-family/-trystero) T10: workspaces += packages/harness（上游新增 pi harness 包，保 harness 裁 ACP 决策随附）；lint/format 路径同步加 packages/harness T19: deps += @earendil-works/pi-coding-agent@0.84.2 + pi-ai@0.84.2 + typebox@1.3.7（精确钉扎，升级走 03 §5.5 窗口）T20: scripts += dev:backend（独立运行 pi 后端进程，不经 vite） T25: workspaces/scripts/deps 去 packages/harness；deps 去五个浏览器直调 AI SDK provider（@ai-sdk/anthropic、deepseek、google、openai、@openrouter/ai-sdk-provider）",
       "disposition": "permanent"
     },
     {
       "id": "P18",
       "file": "tsconfig.json",
-      "reason": "remove #docs-config/* paths (packages/docs deleted)",
+      "reason": "remove #docs-config/* paths (packages/docs deleted) T25: paths 去 @open-pencil/harness",
       "disposition": "permanent"
     },
     {
@@ -253,13 +251,13 @@
     {
       "id": "P37",
       "file": "src/components/settings/models/ModelsPanel.vue",
-      "reason": "T21: VITE_PI_BACKEND=1 时改向渲染 PiModelsPanel（provider/凭据由 pi 后端管理）；旧 profile/assignment 路径保留给 legacy 模式",
+      "reason": "T21: VITE_PI_BACKEND=1 时改向渲染 PiModelsPanel（provider/凭据由 pi 后端管理）；旧 profile/assignment 路径保留给 legacy 模式 T25: 塌缩为恒渲染 PiModelsPanel，旧 profile/assignment 臂随 models/providers 族删除",
       "disposition": "permanent"
     },
     {
       "id": "P38",
       "file": "packages/vue/src/i18n/messages/dialogs.ts",
-      "reason": "T21: PiModelsPanel 的 en 源文案键（pi* 前缀一组）；zh 翻译随附 locales/zh-cn/dialogs.json",
+      "reason": "T21: PiModelsPanel 的 en 源文案键（pi* 前缀一组）；zh 翻译随附 locales/zh-cn/dialogs.json T25: 删旧面专属键 106 个（connectionTest*/mcp*/model 编辑器族/harness 权限族等）",
       "disposition": "permanent"
     },
     {
@@ -271,7 +269,7 @@
     {
       "id": "P40",
       "file": "packages/vue/src/i18n/locales/zh-cn/dialogs.json",
-      "reason": "T21: PiModelsPanel 的 zh 翻译（pi* 键组，随 P38 en 源）",
+      "reason": "T21: PiModelsPanel 的 zh 翻译（pi* 键组，随 P38 en 源） T25: 随 P38 同步删键",
       "disposition": "permanent"
     },
     {
@@ -290,6 +288,48 @@
       "id": "P43",
       "file": ".gitleaks.toml",
       "reason": "T24: dummy OpenRouter key（sk-or-test-key-12345）allowlist 路径扩至 spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs（冒烟过 pi auth 预检用，同 tests/e2e 先例）",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P44",
+      "file": "src/components/settings/SettingsDialog.vue",
+      "reason": "T25: MCP 导航/区块/导入切除（settings-mcp 面随 integrations/mcp 删除）",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P45",
+      "file": "src/app/settings/dialog.ts",
+      "reason": "T25: SettingsSection 去 mcp",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P46",
+      "file": "src/app/settings/credentials/persistence.ts",
+      "reason": "T25: appCredentialRefs 收敛 stock-photo+vectorize+storage（AI provider/模型连接/MCP 连接三类 ref 随旧面切除）",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P47",
+      "file": "src/components/chat/ChatMessage.vue",
+      "reason": "T25: 附件呈现切除（attachment presentation/ImageAttachment 随 attachment 族删除）",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P48",
+      "file": "vite/server.ts",
+      "reason": "T25 D3: server.open 自动开浏览器（Tauri host 注入时除外）——一条命令起全栈",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P49",
+      "file": "tests/e2e/chat/panel.spec.ts",
+      "reason": "T25: 适配 pi 单通道——删 ProviderSetup 门/模型选择器/附件流用例，加无设置门断言；Meta+j 改 ControlOrMeta+j（$mod 跨平台）",
+      "disposition": "permanent"
+    },
+    {
+      "id": "P50",
+      "file": "tools/type-shapes/src/files.ts",
+      "reason": "T25 顺修：Windows 上 Bun.Glob 产出反斜杠导致 discoverTypeShapeFiles 输出混入 \\——统一正斜杠（tools/test.ts 本地门禁修复）",
       "disposition": "permanent"
     }
   ],
@@ -350,6 +390,36 @@
     "tests/helpers/tauri/event-recorder.ts",
     "tests/helpers/tauri/fig-export-fixture.ts",
     "tests/helpers/tauri/native-global.d.ts",
-    "tests/helpers/tauri/windows-input.ts"
+    "tests/helpers/tauri/windows-input.ts",
+    "src/app/ai/harness",
+    "packages/harness",
+    "src/app/integrations/mcp",
+    "src/components/settings/mcp",
+    "src/app/ai/models",
+    "src/app/ai/providers",
+    "src/app/ai/attachment",
+    "src/components/chat/attachment",
+    "src/app/ai/chat/model.ts",
+    "src/app/ai/chat/reasoning.ts",
+    "src/app/ai/chat/connection-test.ts",
+    "src/app/ai/chat/storage.ts",
+    "src/app/ai/vision-runtime.ts",
+    "src/app/ai/tools/vision.ts",
+    "src/app/settings/credentials/migration.ts",
+    "src/components/chat/ProviderSetup.vue",
+    "src/components/chat/ProviderModelSelect.vue",
+    "src/components/chat/ProviderConnectionTestButton.vue",
+    "src/components/chat/ChatProfileSelect.vue",
+    "src/components/settings/models/ProfileEditor.vue",
+    "src/components/settings/models/RoleAssignments.vue",
+    "tests/engine/app/ai/attachment",
+    "tests/engine/app/ai/catalog.test.ts",
+    "tests/engine/app/ai/model-roles.test.ts",
+    "tests/engine/app/ai/model.test.ts",
+    "tests/engine/app/ai/vision.test.ts",
+    "tests/engine/app/integrations/mcp-connections.test.ts",
+    "tests/engine/app/integrations/pi-mcp.test.ts",
+    "tests/engine/app/settings/credential-migration.test.ts",
+    "tests/helpers/mcp/acp-session.ts"
   ]
 }

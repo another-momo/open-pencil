@@ -22,8 +22,10 @@ export async function discoverTypeShapeFiles(
   const files: string[] = []
   for (const root of roots) {
     for await (const path of new Bun.Glob('**/*.{ts,tsx}').scan(root)) {
-      if (!isTypeShapeSourcePath(path)) continue
-      files.push(`${root}/${path}`)
+      // Windows 上 glob 产出反斜杠——统一正斜杠，保证输出跨平台一致
+      const normalized = path.replaceAll('\\', '/')
+      if (!isTypeShapeSourcePath(normalized)) continue
+      files.push(`${root}/${normalized}`)
     }
   }
   return files.sort()

@@ -173,3 +173,11 @@
 - **正确做法**：plan 阶段修订 → 单改 tasks/ 文件免指针，或挂父任务指针；records 追加无时效性，可并入下一个合法携带指针的 commit
 - **可选加固（登记备查，未实施）**：D19 占位探针可加启发式——被引用 task 的 self-check/verify 若全文仅状态行、无任何实测/核验条目，视同占位拒绝
 - **机制副发现（同一案例）**：check/tasks.ts 的 `getCommitMessage()` = `git log -1`，pre-commit 阶段新 message 尚不存在，本地钩子只能以 HEAD（前一 commit）message 为代理——本 commit 首次触发该代理错位（HEAD=c11fd4fa 的 `task: T11` 误拦了 `task: T10` 的新提交）。post-commit 的 CI 以真 message 为准不受影响。本 commit 因此以 `--no-verify` 落地，落地后立即以真 HEAD 重跑四检查验证；长期修法：tasks 检查迁移到 commit-msg hook（message 文件可读），登记备查
+
+## CI-11 · 推送通道手册建立（runbook-github-push）
+
+- **类型**：登记（横向指针）
+- **时间**：2026-08-24
+- **现象**：T25 收口期 github.com git 数据面持续黑洞（20 次重试全败），api.github.com 健康——盲重试烧时间且无信息
+- **处置**：建立 [runbook-github-push.md](../../runbook-github-push.md)（五通道盘点 + 30 秒探测分面 + 决策树 + 重试纪律）；T25 补记 d9823dad 经 `.gh-api-push.mjs` 推送成功（CI run 32740318724 全绿，API 推送正常触发 push 事件）
+- **记录**：见 [records/narrative/runbook-github-push.md](../narrative/runbook-github-push.md)

@@ -34,16 +34,10 @@ import type { UIMessage, UIMessageChunk } from 'ai'
 import { readPiHistoryFile } from './history'
 import { createPiEventMapper } from './mapping'
 import type { ModelSpec, ProviderAdmin } from './provider-admin'
+import type { PiSessionSummary } from './session-summary'
 import { createOpenPencilTools } from './tools'
 
-export type PiSessionSummary = {
-  sessionId: string
-  /** 首条用户消息文本截断（列表展示用） */
-  title: string
-  messageCount: number
-  /** 会话文件 mtime（毫秒） */
-  updatedAtMs: number
-}
+export type { PiSessionSummary }
 
 export type PiChatService = {
   prompt(

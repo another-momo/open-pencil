@@ -28,6 +28,11 @@ import type { UIMessage } from 'ai'
 
 import type { EditorStore } from '@/app/editor/active-store'
 
+import type { PiSessionSummary } from './session-summary'
+
+/** T23 族谱清单条目：单一事实源在 ./session-summary（type-only，构建期擦除） */
+export type { PiSessionSummary }
+
 const PI_DOC_NAMESPACE = 'openpencil.ai'
 const PI_DOC_ID_KEY = 'docId'
 const PI_DOC_ENTRY_KEY = `${PI_DOC_NAMESPACE}/${PI_DOC_ID_KEY}`
@@ -142,14 +147,6 @@ export async function getPiRequestContext(store: EditorStore): Promise<PiRequest
   } catch {
     return { sessionId }
   }
-}
-
-/** T23 族谱清单条目（后端 service.ts PiSessionSummary 结构镜像） */
-export type PiSessionSummary = {
-  sessionId: string
-  title: string
-  messageCount: number
-  updatedAtMs: number
 }
 
 /** T23：当前文档是否已有 docId（只读）——会话栏可用态判定 */

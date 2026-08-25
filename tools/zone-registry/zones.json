@@ -232,7 +232,7 @@
     {
       "id": "P34",
       "file": "knip.json",
-      "reason": "remove packages/acp + packages/demos from ignoreWorkspaces (never existed; upstream dead config, flagged by knip --include unlisted,unresolved after T10 merge). T10 附带",
+      "reason": "remove packages/acp + packages/demos from ignoreWorkspaces (never existed; upstream dead config, flagged by knip --include unlisted,unresolved after T10 merge). T10 附带 T27(2026-08-25): ignoreUnresolved += /src/app/tabs/index.ts、ignoreBinaries += taskkill（既有 latent 经白名单收口，报送 owner 复核——verify 补注）",
       "disposition": "permanent"
     },
     {

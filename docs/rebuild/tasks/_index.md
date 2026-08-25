@@ -9,9 +9,9 @@
 
 # tasks · 任务档案索引
 
-> **状态**：D15 重组 | **时间**：2026-08-25（T22 行 CI 假绿更正；§6 任务实录归档建立——决策批 #8） | **核验人**：主 agent
+> **状态**：已核验 | **时间**：2026-08-25 | **核验人**：主 agent
 > **身份**：task 维度档案的入口。**每个 task 三件套物理拆分**——`tasks/T<NN>-plan.md` / `tasks/T<NN>-self-check.md` / `tasks/T<NN>-verify.md`，CI 用 `existsSync` 逐个检查。
-> **与 [tracker.md §2 任务表](../tracker.md) 的关系**：tracker 是任务表**真源**，本文是镜像——同步 plan / self-check / verify 三列路径。如有不一致以 tracker 为准。
+> **与 [tracker.md §2 任务表](../tracker.md) 的关系**：本文 §2 任务清单是**逐任务索引真源**（每任务一行含三件套路径，永久保留——D31，2026-08-25）；tracker.md §2 是阶段门视角摘要（当前任务行 + 已收口分组行）。如有不一致以本文为准。
 > **与 records/narrative/ 的关系**：task 维度 vs 文件维度，**严格分离**——task 自检/核验不进 records/，文件腐烂/修正也不进 tasks/。详见 [05-process.md §3.2 + §4.11](05-process.md)。
 
 ## 1. 编号规则（D15）
@@ -25,9 +25,9 @@
 
 **禁止**：单文档 `T<id>-<slug>.md` + 章节正则形式（章节可以是占位，CI 误判率非零）——D15 决策核心。
 
-## 2. 任务清单（与 [tracker.md §2 任务表](../tracker.md) 同步）
+## 2. 任务清单（逐任务索引真源；tracker.md §2 摘要见 [tracker.md](../tracker.md)）
 
-> **归档机制**（2026-08-25 owner 决策批 #8 拍板）：tracker.md 任务表 T00-T20 行状态列长实录已迁入 [tasks/_index.md §6 任务实录归档](_index.md)（本节下方），tracker 行压缩为一句摘要 + 三件套链接；本表（镜像）行维持原样。
+> **两区结构**（2026-08-25 决策批 #8 归档机制 + D31 合并压缩）：本节 §2 = 逐任务索引真源，永久保留每任务一行；tracker.md §2 = 当前任务行 + 已收口任务分组行（同类项跨行合并）。T00-T20 行状态列长实录归档于 §6。
 
 | T 编号                      | 块                         | 标题                                                                                                                    | 状态                                                                                                                                         | plan                             | self-check                                   | verify                               |
 | --------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | -------------------------------------------- | ------------------------------------ |
@@ -57,6 +57,11 @@
 | [T23](../tasks/T23-plan.md) | Phase 1-pi 实施            | 会话查看/切换 UI（族谱清单 + ChatPanel 会话栏下拉）                                                                     | ✅ 已完成（V1-V6 全过 + CI 32695035580 全绿）                                                                                                | [T23-plan](../tasks/T23-plan.md) | [T23-self-check](../tasks/T23-self-check.md) | [T23-verify](../tasks/T23-verify.md) |
 | [T24](../tasks/T24-plan.md) | Phase 1-pi 实施            | prompt 装配（四层抽象：AgentMode 建会话烘焙 base/工具集 + per-run 工作流段 + per-run profile overlay + brand 种子薄切） | ✅ 已完成（V1-V6 全过 + CI 32713950013 全绿）                                                                                                | [T24-plan](../tasks/T24-plan.md) | [T24-self-check](../tasks/T24-self-check.md) | [T24-verify](../tasks/T24-verify.md) |
 | [T25](../tasks/T25-plan.md) | Phase 1-pi 实施            | 浏览器旧路径清扫（三路径收敛 pi 单路径 + 旧设置面切除 + VITE_PI_BACKEND 门退役 + 一键启动）                             | ✅ 已完成（C1-C6 全过 + subagent 核验 V1-V6 可以收口）                                                                                                       | [T25-plan](../tasks/T25-plan.md) | [T25-self-check](../tasks/T25-self-check.md) | [T25-verify](../tasks/T25-verify.md) |
+| [T26](../tasks/T26-plan.md) | 三方 review 整改（文档面） | 三方 review 文档叙事面逐条核实整改（T22 CI 假绿止损 + 阶段门重排 + 01 决策表同步 + 03 回血） | ✅ 已完成（43 条全闭环 + CI run 32809703730 success） | [T26-plan](../tasks/T26-plan.md) | [T26-self-check](../tasks/T26-self-check.md) | [T26-verify](../tasks/T26-verify.md) |
+| [T27](../tasks/T27-plan.md) | 三方 review 整改（代码面） | 三方 review 代码与机制面整改（session 队列接力 + SSE abort + 崩溃复活 + 死数据面切除 + 检查器修正） | ✅ 已完成（32 条全闭环 + smoke:pi 80 断言全绿 + CI run 32812269846 success） | [T27-plan](../tasks/T27-plan.md) | [T27-self-check](../tasks/T27-self-check.md) | [T27-verify](../tasks/T27-verify.md) |
+| [T28](../tasks/T28-plan.md) | 决策批落地（代码面） | owner 决策批代码面 6 项（pi 后端 bearer 鉴权 / session GC / oxfmt / smoke:pi 进 CI / 补丁过堂 / zones 报警） | ✅ 已完成（C1-C6 全过 + CI run 32831596110 success） | [T28-plan](../tasks/T28-plan.md) | [T28-self-check](../tasks/T28-self-check.md) | [T28-verify](../tasks/T28-verify.md) |
+| [T29](../tasks/T29-plan.md) | 决策批落地（文档面） | owner 决策批文档面 10 项（补签补登 / CI-14 / 05 规则文 / 层 1 验收口径重建 / 根 README+AGENTS 指针） | ✅ 已完成（C1-C9 全过 + CI run 32834978183 success） | [T29-plan](../tasks/T29-plan.md) | [T29-self-check](../tasks/T29-self-check.md) | [T29-verify](../tasks/T29-verify.md) |
+| [T30](../tasks/T30-plan.md) | 文档治理 | 01 推进规划重整（Phase 规划入 01 §2 + 原三路线对比节迁 03 §4.4 + 去补丁）+ 04/05 纪律轮 + tracker 合并压缩与真源互换 + F0.3② 归并 C3a（D30/D31/D32） | 🔄 进行中 | [T30-plan](../tasks/T30-plan.md) | [T30-self-check](../tasks/T30-self-check.md) | [T30-verify](../tasks/T30-verify.md) |
 | (后续 task 按顺序登记)      | —                          | —                                                                                                                       | —                                                                                                                                            | —                                | —                                            | —                                    |
 
 ## 3. 三件套结构（强制）

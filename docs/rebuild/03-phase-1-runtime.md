@@ -9,9 +9,8 @@
 
 # 03 · Phase 1：runtime 选型 spike（硬门）
 
-> **状态**：已核验（v3 + T09 修正 + 2026-08-25 D24 终局同步）| **时间**：2026-08-25（D24 拍板终局同步 + 索引指针修正 + constants.ts 行号与裸引用修正）
-> **核验人**：主 agent（基于 spike 01-04 全部源码级核查记录；T09 修正点经 subagent A 复核）
-> **身份**：case study / 技术调研（辅助参考信息）；**决策依据在 01-target-state.md §7 与 `records/topics/agent-runtime.md` D9（已闭环：D22 → D24）**。03 不直接驱动 Phase gate。
+> **状态**：已核验 | **时间**：2026-08-25 | **核验人**：主 agent
+> **身份**：case study / 技术调研（辅助参考信息）；**推进规划与验收主场在 [01-target-state.md §2](01-target-state.md)，决策登记在 `records/topics/agent-runtime.md` D9（已闭环：D22 → D24）**。03 不直接驱动 Phase gate。
 > **硬门**：runtime 已定（D24 拍 pi，2026-08-23）——本硬门已通过，对话层已在 T18-T25 落地。
 
 ---
@@ -154,6 +153,20 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 - **接受自写服务端与工具审批的额外成本**：但保留 dsh 颠簸自由度
 - **跨重开恢复是硬需求**：`SessionManager.open(path)` 一行 API 是杀手锏
 
+### 4.4 X 复用更贵的五条机制（自 [01-target-state.md](01-target-state.md) 原三路线对比节迁入，D30）
+
+X 路线**复用**的 dsh 基建：SessionFace（5 个方法，subscribe/getSnapshot/prompt/cancel/wait.respond）、Session/skills/tool approval/preset 等、Cordis 插件 + Slot UI 体系。
+
+X 路线**为此付出的代价**（这些代价就是它比 Y/pi 贵的来源）：
+
+1. **跨框架 SessionFace 桥**：dsh 浏览器端是 React + Cordis，`SessionFace` 类型只在 dsh 客户端进程存在；我们的 Vue 编辑器要从 React/Cordis 拿 SessionFace 必须自己写暴露层（React wrapper 或 JSON-RPC 桥）
+2. **react-vs-vue 双框架运行时**：编辑器是 Vue、ChatPanel 必须是 React（消费 SessionFace）、Slot 注册需要 React 应用——焦点/快捷键/事件/CSS 隔离全套都要做两套
+3. **跨 session 营销配置同步的 hard 约束**：dsh 跨进程通信事件白名单仅 11 个（`remote-events.ts:28`），marketing 状态桥不能自由订阅 cordis 事件
+4. **dsh developer preview 颠簸**：版本和 Slot API、cordis.patch.yml 格式都可能变；发布节奏与 dsh 升级强耦合
+5. **编辑器孤岛化**：Vue 编辑器作为 dsh 插件时要么走策略 B（SplitPanel 接管 conversation 列）或策略 C（overlay portal + 自管 z-index 越界绕过 retro-OS skin），都是 1-2d 额外工作
+
+Y / pi 路线全部不需要 SessionFace 桥、跨框架运行时、白名单约束——**「复用得多」不一定更便宜**：复用的 dsh 能力（chat UI + session）恰恰是必须自写的，复用的「同质能力」（SessionFace 那 5 个）被 React/Cordis 锁死必须有 bridge。综合下来 X 比 Y 多 12-13 人日、比 pi 多 17-18 人日。【假设】（规划估算数字，无工时验证依据——D24 拍板 pi 主线后 X 线未全量实施，该差额未经实证；维度口径见本文 §4.1 对比矩阵）
+
 ---
 
 ## 5. 选型决策（已拍板：D24，2026-08-23——pi SDK 升为主线，dsh-X 搁置归档）
@@ -224,8 +237,8 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 
 | 文档 | 角色 |
 |---|---|
-| 01-target-state.md §7 | **决策依据**（三路线对比 + 当前推荐） |
-| 01-target-state.md §8 | X 复用更贵的五条机制 |
+| [01-target-state.md §2](01-target-state.md) 推进规划 | **Phase ↔ 层映射 + 验收主场指针** |
+| 本文 §4.4 | X 复用更贵的五条机制（自 01 原三路线对比节迁入，D30） |
 | records/topics/agent-runtime.md D9/D22/D24 | **决策日志**（D9 已闭环：D22 拍 dsh 先行 → D24 拍 pi 升主线，2026-08-22/23 owner） |
 | spikes/01-dsh-integration-routes.zh.md | dsh-Y vs dsh-X 原始对比（Y 已不构成有效候选） |
 | spikes/02-pi-sdk-runtime.zh.md | pi sdk 源码级核查（含 9 题 P1-P9 + 工作量表） |

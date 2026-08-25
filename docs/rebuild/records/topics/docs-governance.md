@@ -495,3 +495,15 @@
   - **#2 session GC / rotate**：拍板按建议方案改、**归档不删除**——超龄（`OPENPENCIL_SESSION_MAX_AGE_DAYS`，默认 30 天）或超量（`OPENPENCIL_MAX_SESSIONS`，默认 200，最老先归）的会话文件**移动**到 `.openpencil/pi-sessions-archive/`（保文件名、index 除条、archive 无索引）；`listSessionFamily` 不扫 archive、`readHistory` 对已归档会话返回空；GC 失败只 warn 不阻断主流程。**T28 已落地**（session-gc.ts + service.ts 双触发点）；t28/session-gc-smoke.mjs 19/19 绿
   - **#10 format:check 净树判据**：拍板同意建议——`format:check` 由「format 写后 git status 判净树」改为 `oxfmt --check` 直接判据（与 `format` 逐字同路径集），CI Verify formatting 步骤引用同步。**T28 已落地**（package.json format:check + ci.yml）；消除「写后比对」在 CI 检出态下的判据失真
 - **报送源头**：[T27-plan.md §3.3](../../tasks/T27-plan.md) 第 1 组（pi 后端零鉴权）、第 2 组（session GC）、第 4 组（format:check 净树判据）
+
+
+## D32 · 生图独立凭证链（F0.3②）归并层 1 C3a，层 0 纯聊天地基闭环
+
+- **类型**：决策（分层归属）
+- **时间**：2026-08-25
+- **拍板**：owner（2026-08-25 会话指令）
+- **状态**：已拍板，T30 随批落地
+- **内容**：F0.3② 生图独立凭证链（key/baseURL/model 三键 + `setImageGenCredentials` 进程级注入 + 设置 UI）从层 0 F0 移出，并入层 1 C3a 生成环——凭证与其唯一消费者 generate_image 同阶段开发（C3a 依赖列收敛为 F0.2 桥）；层 0 F0 随之收敛为纯聊天地基（runtime 内核 / 工具执行桥 / 聊天凭证 / 传输契约+chat UI / session↔文件绑定 / prompt 注入点 / prompts 构建链脆依赖消除），hello-tool 验收本不依赖生图凭证；F0.3 更名为「聊天凭证链」（原 ② 取消，不沿用 F0.3② 编号）。
+- **依据**：owner 原话「生图独立凭证放到层 0/phase 2 也挺奇怪的，生图工具本身并不在这个阶段，凭证和工具本身应该在一起开发吧」。主 agent 评估支持：凭证价值随消费者而定，生图工具（C3a，层 1）未建前独立凭证链无消费者、验收无抓手；层 0 的判据是 hello-tool 全链（T20 已通），② 移出后 Phase 2 出口即刻全数达成。
+- **影响面**：01 §2 Phase 2 行「F0.1-F0.7」改「F0.1-F0.6」；01 §3 F0.3 行缩为 ①、删 ② 待建尾项；01 §4 C3a 依赖列「F0.2 + F0.3②」改「F0.2 桥」；tracker 阶段门 Phase 2 行删除「仅剩 F0.3② 生图独立凭证待建」（Phase 2 出口随之全数达成，状态列待主 agent 核实后另签）；04 移植清单两行「F0.3②」标签改指 C3a（归属变化，移植范围不变）
+- **执行**：[tasks/T30-plan.md](../../tasks/T30-plan.md)（T30 收尾随批落地，不另立 task）

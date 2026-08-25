@@ -9,7 +9,7 @@
 
 # 05 · 工作方式与文档纪律
 
-> **状态**：草稿（owner 两次提示后修订：§3.2 显式补一一对应 + [05-process.md §4.10](05-process.md) D14 + [05-process.md §4.11](05-process.md) D15 三件套物理拆分；T09 修订：§3.2 大改动段落按 D15 重写除腐、§3.1 脚本路径修正、§2 树状图修正、PR 列残留清除，待 owner + subagent 核验） | **时间**：2026-08-25（附录 B.3 新增 verify 远端 CI 复验强制规则——T22 假绿事件触发；§2 ≤80 行预算同步；§4 第 5 条「五处实锤」口径统一；头部与树状图裸 § 引用修正；同日 15 项决策批机制面落地：§3.3 补丁过堂节奏 + 双周窗口检测（#5/#15）、§3.2 zones.json 变更报警（#6）、§4 第 1 条 D 编号口径改口（#7）、§2 tracker 任务表归档机制（#8）——决策登记见 [records/topics/docs-governance.md](records/topics/docs-governance.md) 决策批总登记条目） | **核验人**：主 agent 修订，待 owner + subagent 核验
+> **状态**：已核验 | **时间**：2026-08-25 | **核验人**：主 agent
 > **身份**：本文是迁移改造全过程的过程定义：怎么干活、怎么跟踪、文档怎么写怎么管。优先级最高——与其他文档冲突时，以本文的过程裁决为准；事实冲突时，以代码与核验记录为准。
 
 ## 1. 角色与决策权
@@ -33,11 +33,12 @@ docs/rebuild/
 ├── 03-phase-1-runtime.md           # runtime spike 硬门（决策/调研）
 ├── 04-porting-discipline.md        # 移植纪律（决策）
 ├── 05-process.md                   # 本文（过程定义，优先级最高）
-├── tracker.md                      # 【活文档·精简】阶段门 + 任务表（plan/self-check/verify 三列路径）+ 记录索引
+├── tracker.md                      # 【活文档·精简】阶段门 + 任务表（当前任务行 + 已收口分组行）+ 记录索引
+├── runbook-github-push.md          # 推送通道 runbook（数据面故障分流 + 分支保护 staging SOP）
 ├── proposals/                      # 外部建议集合（append-only，不修改原条目）
 │   └── governance-v1.md            # D10-D15 落地的源头建议
 ├── tasks/                          # task 维度档案——三件套物理拆分（D15 决策）
-│   ├── _index.md                   # 任务表（镜像 tracker.md §2）
+│   ├── _index.md                   # 逐任务索引真源（§2 任务清单含三件套路径列）+ 实录归档（§6）
 │   └── T<NN>-{plan,self-check,verify}.md   # 每 task 三件套，编号全局递增（T00 起）
 ├── records/                        # 变更/核验/腐烂记录（append-only）—— 两层结构（D14 D15）
 │   ├── _index.md                   # 子文档索引（两层列表）
@@ -75,7 +76,7 @@ docs/rebuild/
 
 **proposals 集合**：外部建议文档——append-only，不修改原条目；采纳映射登记在 [`records/topics/docs-governance.md` 的 D 决策条目](records/topics/docs-governance.md)。
 
-**关于 tracker.md 拆分**：原 tracker.md 集阶段门 / 决策日志 / 任务表 / WIP 审判 / 核验日志 / 腐烂记录六类信息于一身，膨胀至 106 行后查找困难。新结构：tracker.md 只保留索引 + 阶段门 + 任务表 + 记录索引三块（≤80 行——T09 由 ≤50 行放宽，任务表行数随 task 增长，原预算已不可达）；详细记录按对象归 `records/` 子文档，子文档 append-only。**任务表行数治理（2026-08-25 决策批 #8 拍板，归档机制）**：已收口任务的长实录文本定期从 [tracker.md §2](tracker.md) 任务表移入 [tasks/_index.md](tasks/_index.md) 任务实录归档节，tracker 行压缩为一句摘要 + 三件套链接（一行一任务索引完整性不动），≤80 行预算由此重新可达。
+**tracker.md 结构**：阶段门 + 任务表 + 记录索引三块合一（≤80 行预算）；详细记录按对象归 `records/` 子文档，子文档 append-only。**任务表两区**（2026-08-25 决策批 #8 归档机制 + D31 合并压缩）：**逐任务索引真源 = [tasks/_index.md §2](tasks/_index.md)**（每任务一行，含三件套路径列，永久保留）；tracker.md §2 任务表 = 当前任务行（逐任务）+ 已收口任务分组行（按同类项跨行合并，只留 T 范围 + 摘要 + 索引指针）——已收口任务详情由 _index.md 与三件套回溯，不挤占 tracker 空间。
 
 ## 3. 工作方式
 
@@ -106,7 +107,7 @@ docs/rebuild/
 
 - **Task 维度**（`tasks/T<NN>-{plan,self-check,verify}.md` 三件套，D15 决策）：每个 task 由**三个独立物理文件**承载——`plan.md`（计划 + 任务清单 + 验收标准）/ `self-check.md`（主 agent 自检 + 完成度数字）/ `verify.md`（subagent 独立核验）。三件套对应任务表三列路径，CI 用 `existsSync` 逐个检查——零正则、零章节、零语义判定，三件套齐不齐一目了然。
 - **文件维度**（`records/narrative/<file>.md`）：**与物理文件一一对应**——每个被纳入治理的物理文件必须有自己的 `records/narrative/<file>.md`（文件名去后缀、连字符化）。承载腐烂/修正/核验——针对**物理文件**的变更历史，不放 task 相关的自检/核验。
-- **Tracker.md**（[tracker.md §2 任务表](tracker.md)）：**任务表的真源**——每行含 T 编号 + 块 + 内容 + 验收 + 状态 + **plan / self-check / verify 三列路径**（T08 起无 PR 列）。[tasks/_index.md §2 任务清单](tasks/_index.md) 作为辅助镜像同步。**不重复 task 计划内容**，仅作为三件套路径索引。
+- **任务表**（两区，D31）：**逐任务索引真源 = [tasks/_index.md §2 任务清单](tasks/_index.md)**——每任务一行，含 T 编号 + 块 + 标题 + 状态 + **plan / self-check / verify 三列路径**（T08 起无 PR 列），永久保留。[tracker.md §2 任务表](tracker.md) 是阶段门视角摘要——当前任务逐任务行 + 已收口任务分组行（合并同类项）。**两表都不重复 task 计划内容**，仅作三件套路径索引。
 - **错误示范 1**：把"task 自检-N"放进 `records/narrative/<file>.md` 会破坏文件维度档案的纯度——必须放 `tasks/T<NN>-self-check.md`。
 - **错误示范 2**：跨多个物理文件只维护一个"主题聚合"record（如 `records/topics/agent-runtime.md` 涵盖十几个文件）——主题聚合 record 是检索辅助，**不是替代物**；每个被治理文件必须有自己的 `records/narrative/<file>.md`。详细两层关系见 [05-process.md §4.10](05-process.md)。
 - **错误示范 3（D15 新增）**：把三件套装进单文档 `tasks/T<id>-<slug>.md` 然后用 `## 自检` / `## 核验` 章节正则识别——章节可以是占位（如「待 owner 触发」），CI 识别为通过但实际三件套不齐。**必须物理拆分 + 任务表路径列**。
@@ -173,7 +174,7 @@ docs/rebuild/
     - **暂不绑定**：纯转瞬文件（CI 临时产物、构建产物、缓存）不属于治理范围，不要求一一对应。
 11. **task 三件套物理拆分纪律（owner 触发 · D15 决策）**：
     - **核心约束**：每个 task 由**三个独立物理文件**承载——`tasks/T<NN>-plan.md` / `tasks/T<NN>-self-check.md` / `tasks/T<NN>-verify.md`（D15 决策）。**禁止**把三件套装回单文档 `tasks/T<id>-<slug>.md` 然后用章节正则识别——章节可以是占位（如「待 owner 触发」），CI 识别为通过但实际三件套不齐。
-    - **任务表路径列**：[tracker.md §2 任务表](../tracker.md) 与 [tasks/_index.md §2 任务清单](../tasks/_index.md) 各自维护一份任务表，每行含 T 编号 + 块 + 内容/标题 + 验收 + 状态 + plan 路径 + self-check 路径 + verify 路径（T08 起无 PR 列——`docs/rebuild/` 范围不采用 PR 管理）。两表互为指针、真源是 tracker.md。
+    - **任务表路径列**：逐任务索引真源 = [tasks/_index.md §2 任务清单](../tasks/_index.md)（每任务一行：T 编号 + 块 + 标题 + 状态 + plan / self-check / verify 三列路径，T08 起无 PR 列——`docs/rebuild/` 范围不采用 PR 管理）；[tracker.md §2 任务表](../tracker.md) 同步登记当前任务行，任务收口满一个阶段后并入分组行（D31 合并压缩）。
     - **CI 拦截**：`tools/zone-registry/src/check/tasks.ts` 检测大改动命中 + commit 含 `task: T<NN>` → 读任务表 → 检查 `existsSync(tasks/T<NN>-plan.md)` / `existsSync(tasks/T<NN>-self-check.md)` / `existsSync(tasks/T<NN>-verify.md)`。**任何一个缺失 → 拒绝 commit**。零正则、零章节、零语义判定。
     - **主 agent 自律**：完成度数字必须**实时期更新**（不允许"实际已 100%、自检停在 70%"的情况）；核验-N 不允许占位「待 owner 触发」——主 agent 在自检完成后**主动派 general-purpose subagent 独立核验**，不依赖 owner 触发。这是 D11「做而不报」纪律的机器可检查载体。
     - **错误示范**：在 `tasks/T<NN>-self-check.md` 写「核验-N 待 owner 触发」作为占位 → 即使三件套文件存在，CI `existsSync` 通过但纪律失效。**核验必须实做**——派单后由 subagent 产出实测报告填入 `tasks/T<NN>-verify.md`。
@@ -231,8 +232,8 @@ docs/rebuild/
 
 - **创建 plan.md**：`tasks/T<NN>-plan.md`（如 `tasks/T04-plan.md`）
 - plan.md 必须包含：任务概述 / 任务清单（多 step）/ 验收标准 / 参考方案文档 / 完成时间窗
-- **同时**在 [tracker.md §2 任务表](tracker.md) 新增一行（**仅一行**）：T 编号 + 块号 + 内容 + 验收 + 状态 + **plan / self-check / verify 三列路径**（D15 决策；无 PR 列，T08）
-- **同步** [tasks/_index.md §2 任务清单](tasks/_index.md) 镜像任务表
+- **同时**在 [tasks/_index.md §2 任务清单](tasks/_index.md) 新增逐任务永久行（**仅一行**）：T 编号 + 块 + 标题 + 状态 + **plan / self-check / verify 三列路径**（D15 决策；无 PR 列，T08）——逐任务索引真源
+- **同步**在 [tracker.md §2 任务表](tracker.md) 登记当前任务行（任务收口满一个阶段后并入分组行，D31）
 - **CI 拦截**（commit 阶段）：`tools/zone-registry/src/check/tasks.ts` 检测到大改动 → 检查 commit message 含 `task: T<NN>` 引用 + `existsSync(tasks/T<NN>-plan.md)` 必须为 true
 
 ### B.2 完工时：自检报告（落在 `tasks/T<NN>-self-check.md`）

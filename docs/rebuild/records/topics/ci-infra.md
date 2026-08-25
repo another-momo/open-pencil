@@ -226,3 +226,12 @@
   - 复验命令：`gh api repos/another-momo/open-pencil/branches/rebuild%2Fpi/protection --jq '.required_status_checks.checks[].context,.enforce_admins.enabled'`
 - **已知边界（如实记录）**：GitHub classic branch protection 的 required status checks **不拦截直接 push**——只在 PR 合入时强制。本仓 T08 决策为 commit 制不用 PR，故直接 push 路径的实际闸门仍是三件套：[05-process.md 附录 B.3](../../05-process.md) 远端 CI 复验（`gh run view`）+ 本地 pre-commit（check:zones/docs/bindings/tasks）+ check:tasks 任务表拦截。分支保护的增量价值 = 防误删 + 防 force-push 失控面收窄 + 未来若引入 PR 流程即自动生效
 - **独立复验**（T29 subagent，2026-08-25）：`gh api repos/another-momo/open-pencil/branches/rebuild%2Fpi/protection` 实测返回——checks = ["Code quality","Package integrity","Repository hygiene","Rebuild discipline"]、enforce_admins = true、allow_force_pushes = true、allow_deletions = false、required_linear_history = false，与主 agent 落地记录逐项一致（首次尝试 TLS handshake timeout 三 retry 失败，约一小时后重试成功——本机到 GitHub 连通性抖动实录）
+
+## CI-15 · 勘误 CI-14「已知边界」——required status checks 实际拦截直接 push（2026-08-25 实证）
+
+- **类型**：勘误（append-only，CI-14 原文不动）
+- **时间**：2026-08-25
+- **错的内容**：CI-14「已知边界」称「GitHub classic branch protection 的 required status checks **不拦截直接 push**——只在 PR 合入时强制」
+- **实况（实证）**：同日 T28/T29 收口推送时，API push 被 `HTTP 422 "4 of 4 required status checks are expected."` 硬拒——required checks 开启后，**头部 commit 无已通过检查结果的直接 push 被拦截**（检查未跑 ↔ 推送被拒之 deadlock）。复验：`PUSH_BRANCH=rebuild/pi node .gh-api-push.mjs <commits>` 返回 422（2026-08-25）
+- **破解路径（实证可行）**：同 SHA 先推 staging 分支（`rebuild/pi-staging`，ci.yml 触发器 `rebuild/**` 覆盖）→ CI 在该 SHA 上跑绿 → 同 SHA 再推 rebuild/pi 时保护见检查结果已绿即放行——「staging 先行 + 受保护分支快进」成为保护开启后的标准推送 SOP
+- **影响面修正**：分支保护的增量价值从 CI-14 的「防误删 + 未来 PR 自动生效」上修为「**直接 push 也被 required checks 硬门**」——B.3 + pre-commit + check:tasks 三件套之上再加一道服务端门。代价 = 推送链路多一步 staging 中转（runbook-github-push.md 待补此 SOP，随下一 task 顺手改）

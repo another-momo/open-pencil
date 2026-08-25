@@ -47,7 +47,7 @@
 | 看 | C4a | look 图片到达模型：对新 runtime 媒体模型实现（旧语义只取一份：elision K=2 + chat-completions 改写，双份镜像取一） | F0.1 + F0.2 |
 | 迭代 | C5a | MarketingConfigBar 集成进最简 chat UI | F0.4 |
 
-**层 1 验收**：C1a-C5a 五环各配一条端到端冒烟且全绿 + `smoke:pi` 批次全绿 + CI 绿。（修订注记：原口径「闭环端到端真实跑通 + 16 个移植测试文件全绿 + CI 绿」的 16 文件宿主——packages/agent 与 tests/engine/tools/{marketing,image-gen}——已随 T10 上游合并消失（2026-08-25 实测 `find tests/engine/rebuild -type f` 仅 1 文件），口径失效；2026-08-25 owner 拍板更换为本口径。`smoke:pi` 批次现状 = t22 target 6 + t22 history 12 + t23 sessions 14 + t24 装配 27 共 59 断言（`grep '"smoke:pi"' package.json`，2026-08-25）；C1a-C5a 五环的端到端冒烟随各环施工逐条补入，未齐前本验收不通过。）
+**层 1 验收**：C1a-C5a 五环各配一条端到端冒烟且全绿 + `smoke:pi` 批次全绿 + CI 绿。（修订注记：原口径「闭环端到端真实跑通 + 16 个移植测试文件全绿 + CI 绿」的 16 文件宿主——packages/agent 与 tests/engine/tools/{marketing,image-gen}——已随 T10 上游合并消失（2026-08-25 实测 `find tests/engine/rebuild -type f` 仅 1 文件），口径失效；2026-08-25 owner 拍板更换为本口径。`smoke:pi` 批次现状 = t22 target 6 + t22 history 12 + t23 sessions 14 + t24 装配 29 + t28 gc 19 共 80 断言（`grep '"smoke:pi"' package.json`，2026-08-25；T28 同日扩为五套件并纳入 t24 修复后计数）；C1a-C5a 五环的端到端冒烟随各环施工逐条补入，未齐前本验收不通过。）
 
 ## 4. 层 2：增强（每块独立、自带验收、可单独进）
 

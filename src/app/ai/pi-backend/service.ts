@@ -18,6 +18,10 @@
  *    （ephemeral、不落盘、run 后自清）；chatMode 请求级，切换即驱逐
  *    SessionEntry 重建（同 sessionId、JSONL 历史无损——JSONL 不存
  *    systemPrompt）
+ *  - T28：会话 GC（决策单 #2，session-gc.ts）——铸新会话后检查，超量
+ *    （OPENPENCIL_MAX_SESSIONS，默认 200）/超龄（OPENPENCIL_SESSION_MAX_AGE_DAYS，
+ *    默认 30）会话**移动**到 pi-sessions-archive/（保持文件名，index 除条），
+ *    归档不删除；GC 失败只 warn 不阻断
  *
  * 仅运行于独立后端进程（T20 起：main.ts 入口 / vite 插件 spawn 的子进程，
  * 不经 vite esbuild 打包）；只允许相对导入与 node/依赖包导入。
@@ -46,6 +50,7 @@ import { createPiEventMapper } from './mapping'
 import { isPiChatMode, loadModeSegment, PI_CHAT_MODES } from './modes'
 import { buildMarketingOverlay } from './prompt-overlay'
 import type { ModelSpec, ProviderAdmin } from './provider-admin'
+import { runSessionGc } from './session-gc'
 import type { PiSessionSummary } from './session-summary'
 import { createOpenPencilTools } from './tools'
 
@@ -107,6 +112,10 @@ export function createPiChatService({
   const agentDir = join(stateDir, 'pi-agent')
   const sessionsDir = join(stateDir, 'pi-sessions')
   const indexPath = join(sessionsDir, 'index.json')
+  // T28（决策单 #2）：GC 归档目录（不建索引；读取面经 index 解析，天然不扫）
+  const archiveDir = join(stateDir, 'pi-sessions-archive')
+  const maxSessions = Number(process.env.OPENPENCIL_MAX_SESSIONS ?? 200)
+  const sessionMaxAgeDays = Number(process.env.OPENPENCIL_SESSION_MAX_AGE_DAYS ?? 30)
 
   // T24 D6：brand 种子启动加载（缺失 → null 合法降级，overlay 走 fallback）
   const brand: PiBrandConfig | null = loadBrandSeed(rootDir)
@@ -135,6 +144,27 @@ export function createPiChatService({
     const tmpPath = `${indexPath}.tmp`
     writeFileSync(tmpPath, JSON.stringify(index, null, 2))
     renameSync(tmpPath, indexPath)
+  }
+
+  // T28（决策单 #2）：GC 触发封装——两个触发点：①铸新会话后（createSession，
+  // 存量清理）；②runPrompt 收尾（新会话 JSONL 此时必然已落盘——createSession
+  // 时点 pi 尚未写盘，阈值计数要含新文件必须等这里）。失败不阻断主流程。
+  function collectGarbage(): void {
+    try {
+      runSessionGc({
+        sessionsDir,
+        archiveDir,
+        maxSessions,
+        maxAgeDays: sessionMaxAgeDays,
+        readIndex,
+        writeIndex
+      })
+    } catch (error) {
+      console.warn(
+        '[pi-backend] session GC 失败（忽略，不阻断主流程）：' +
+          (error instanceof Error ? error.message : String(error))
+      )
+    }
   }
 
   async function createSession(
@@ -236,6 +266,9 @@ export function createPiChatService({
       writeIndex(index)
     }
 
+    // T28：触发点①铸新会话后（存量清理；新文件此时未落盘，不计入当次阈值）
+    collectGarbage()
+
     const entry: SessionEntry = {
       session,
       queue: Promise.resolve(),
@@ -322,6 +355,8 @@ export function createPiChatService({
         index[sessionId] = { file }
         writeIndex(index)
       }
+      // T28：触发点②runPrompt 收尾（新文件已落盘，阈值计数含新会话，归一到阈值内）
+      collectGarbage()
     }
   }
 

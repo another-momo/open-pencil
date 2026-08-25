@@ -14,6 +14,9 @@
  *
  * 运行：node spikes/s-pi/backend-smoke/t21/admin-smoke.mjs
  * 退出码 0 = 全过。
+ *
+ * T28（决策单 #1）：后端全端点鉴权——从 tempRoot 的 token 文件读 bearer
+ * 带 Authorization 头；未鉴权请求断言 401。
  */
 
 import { spawn } from 'node:child_process'
@@ -21,6 +24,8 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync,
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { authHeaders, readBackendToken } from '../pi-backend-auth.mjs'
 
 const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', '..', '..')
 const PORT = 7703
@@ -40,10 +45,10 @@ function assertRedacted(label, bodyText) {
   check(`${label}（响应体不含 key 本体）`, KEY.length === 0 || !bodyText.includes(KEY), `bodyLen=${bodyText.length}`)
 }
 
-async function api(method, path, payload) {
+async function api(method, path, payload, token) {
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...(token ? authHeaders(token) : {}) },
     ...(payload !== undefined ? { body: JSON.stringify(payload) } : {})
   })
   const text = await res.text()
@@ -94,8 +99,20 @@ try {
   check('后端无 env key 启动就绪（keyless boot）', up, backendErr.slice(0, 200))
   if (!up) throw new Error('backend not up')
 
+  // T28：standalone 后端 token 落盘后可读（只进请求头，不打印）
+  const token = readBackendToken(tempRoot)
+  check('T28 前置：token 文件可读', typeof token === 'string' && token.length > 0)
+  if (process.platform !== 'win32') {
+    const tokenMode = statSync(join(tempRoot, '.openpencil', 'pi-backend-token')).mode & 0o777
+    check('T28 token 文件权限 0600', tokenMode === 0o600, `mode=${tokenMode.toString(8)}`)
+  }
+
+  // T28 负向：未带 Authorization → 401
+  const noAuth = await api('GET', '/api/pi/catalog')
+  check('T28 负向：未鉴权请求 → 401', noAuth.status === 401, `status=${noAuth.status}`)
+
   // ── ① 空态 catalog
-  const empty = await api('GET', '/api/pi/catalog')
+  const empty = await api('GET', '/api/pi/catalog', undefined, token)
   const emptyRouter = empty.json?.providers?.find((p) => p.id === 'openrouter')
   check(
     '空态 catalog：openrouter 存在且未配置',
@@ -110,7 +127,7 @@ try {
   assertRedacted('空态 catalog 脱敏', empty.text)
 
   // ── ① POST key → auth.json 落盘 → catalog configured
-  const setRes = await api('POST', '/api/pi/credentials', { providerId: 'openrouter', apiKey: KEY })
+  const setRes = await api('POST', '/api/pi/credentials', { providerId: 'openrouter', apiKey: KEY }, token)
   check('POST /credentials 成功', setRes.status === 200 && setRes.json?.ok === true, setRes.text.slice(0, 120))
   assertRedacted('POST /credentials 脱敏', setRes.text)
 
@@ -126,7 +143,7 @@ try {
     }
   }
 
-  const configured = await api('GET', '/api/pi/catalog')
+  const configured = await api('GET', '/api/pi/catalog', undefined, token)
   const confRouter = configured.json?.providers?.find((p) => p.id === 'openrouter')
   check(
     '配置后 catalog：openrouter configured=true（stored credential）',
@@ -138,7 +155,7 @@ try {
   // ── ② 无 env key 全链聊天（凭 auth.json 里的 key）
   const chat = await fetch(`${BASE}/api/pi-chat`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...authHeaders(token) },
     body: JSON.stringify({
       sessionId: `t21-admin-${Date.now()}`,
       messages: [{ role: 'user', parts: [{ type: 'text', text: '1+1等于几？只回答一个数字。' }] }]
@@ -171,9 +188,9 @@ try {
     baseUrl: 'https://example.com/v1',
     api: 'openai-completions',
     models: ['m1', 'm2']
-  })
+  }, token)
   check('POST /providers 自定义 provider 成功', upsert.status === 200 && upsert.json?.ok === true, upsert.text.slice(0, 120))
-  const afterUpsert = await api('GET', '/api/pi/catalog')
+  const afterUpsert = await api('GET', '/api/pi/catalog', undefined, token)
   const gw = afterUpsert.json?.providers?.find((p) => p.id === 'my-gw')
   check(
     '自定义 provider 出现在 catalog（2 模型、未配置）',
@@ -186,9 +203,9 @@ try {
   )
 
   // ── ① DELETE → 回到空态
-  const del = await api('DELETE', '/api/pi/credentials', { providerId: 'openrouter' })
+  const del = await api('DELETE', '/api/pi/credentials', { providerId: 'openrouter' }, token)
   check('DELETE /credentials 成功', del.status === 200 && del.json?.ok === true, del.text.slice(0, 120))
-  const cleared = await api('GET', '/api/pi/catalog')
+  const cleared = await api('GET', '/api/pi/catalog', undefined, token)
   const clearedRouter = cleared.json?.providers?.find((p) => p.id === 'openrouter')
   check(
     '清除后 catalog：openrouter 回到未配置',
@@ -200,10 +217,21 @@ try {
     check('auth.json 不再含 openrouter 条目', doc?.openrouter === undefined)
   }
 } finally {
-  // Windows：进程 cwd 锁目录，须等退出后再删；rmSync 重试兜底句柄延迟释放
+  // Windows：进程 cwd 锁目录，须等退出后再删；rmSync 重试兜底句柄延迟释放。
+  // bun run = wrapper + 孙进程两段——win32 须对活 wrapper 直接 taskkill /T /F
+  // 整树杀（kill() 的 SIGTERM 只杀 wrapper，孙进程服务器成孤儿，
+  // 2026-08-25 T28 核验 pid 树实证，对齐 t22/t23/t28 清理口径）
+  if (process.platform === 'win32') {
+    try {
+      spawn('taskkill', ['/pid', String(backend.pid), '/T', '/F'], { stdio: 'ignore' })
+    } catch {
+      // 已退出
+    }
+  } else {
+    backend.kill('SIGTERM')
+  }
   await new Promise((resolve) => {
     backend.once('exit', resolve)
-    backend.kill()
     setTimeout(resolve, 3000)
   })
   rmSync(tempRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 })

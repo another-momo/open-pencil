@@ -27,11 +27,17 @@
  * 仅运行于独立 bun/node 进程（main.ts 入口或 vite 插件 spawn 的子进程），
  * 不经 vite esbuild 打包——package 导入（@open-pencil/mcp/* 等 workspace 包）可用。
  * key 卫生：凭据只进不出（写入经 provider-admin，任何响应/日志不含 key）。
+ *
+ * T28（决策单 #1）：除 /health 外全部端点要求 Authorization: Bearer <token>
+ * （auth.ts，timingSafeEqual 定常比较）；token 由 main.ts 解析传入——vite 插件
+ * spawn 时经 env 注入（proxy 自动补头，前端零改动），standalone 自生成落
+ * .openpencil/pi-backend-token。无 token 配置时 fail-close 全拒（不应发生）。
  */
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { join } from 'node:path'
 
+import { isAuthorized } from './auth'
 import { PI_BACKEND_DEFAULT_PORT } from './config'
 import { isPiChatMode } from './modes'
 import { createProviderAdmin, type ModelSpec } from './provider-admin'
@@ -272,13 +278,26 @@ function handleReadonlyPiRequest(
   return true
 }
 
-export function createPiBackendServer({ rootDir }: { rootDir: string }): Server {
+export function createPiBackendServer({
+  rootDir,
+  authToken
+}: {
+  rootDir: string
+  /** T28：bearer 鉴权 token（main.ts 解析）；null = 无配置，fail-close 全拒 */
+  authToken: string | null
+}): Server {
   const admin = createProviderAdmin({ agentDir: join(rootDir, '.openpencil', 'pi-agent') })
   const service = createPiChatService({ rootDir, admin })
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1')
     if (url.pathname === '/health') {
       sendJSON(res, 200, { status: 'ok' })
+      return
+    }
+    // T28：/health（就绪探针）之外全部端点鉴权——管理面写 key/baseUrl、
+    // 只读面泄会话历史，都不能裸奔；未带/带错 token 一律 401（响应不含任何提示内容）
+    if (!isAuthorized(req.headers.authorization, authToken)) {
+      sendJSON(res, 401, { error: 'unauthorized' })
       return
     }
     if (url.pathname === '/api/pi-chat') {

@@ -1,14 +1,17 @@
 /**
  * T22 历史回填 + 会话族谱冒烟（T22-plan D2/D3，验收 A1/A3/A6 的后端半）。
  *
- * 全程不需要 LLM key：会话族谱由真实 pi JSONL（仓内 .openpencil/pi-sessions
- * 实测 v3 文件，含 toolCall/toolResult）+ 合成 index.json 键构造，直接打
- * GET /api/pi/history 验证：
+ * 全程不需要 LLM key：会话族谱由合成 pi JSONL（../pi-session-fixture.mjs，
+ * T28 自含化——不再依赖本机 .openpencil/pi-sessions 既有文件）+ 合成
+ * index.json 键构造，直接打 GET /api/pi/history 验证：
  *  ① docKey 前缀解析族内最新会话（时间戳后缀字典序）
  *  ② 历史回填内容保真（user/assistant 文本 + 工具卡片折叠，reasoning 不回填）
  *  ③ sessionId 精确读取
  *  ④ 异族/未知前缀隔离
  *  ⑤ GET 全程只读（index.json 内容不变）
+ *
+ * T28（决策单 #1）：后端全端点鉴权——从 tempRoot 的 token 文件读 bearer
+ * 带 Authorization 头；未鉴权请求断言 401。
  *
  * 运行：bun spikes/s-pi/backend-smoke/t22/history-smoke.mjs（仓根）
  */
@@ -16,17 +19,18 @@
 import { spawn } from 'node:child_process'
 import {
   copyFileSync,
-  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  readdirSync,
   rmSync,
   writeFileSync
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { authHeaders, readBackendToken } from '../pi-backend-auth.mjs'
+import { buildSessionJsonl } from '../pi-session-fixture.mjs'
 
 const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', '..', '..')
 // 随机端口：固定端口曾被上一次崩溃残留的孤儿后端占用，健康检查误打旧实例
@@ -45,58 +49,16 @@ function check(name, ok, detail = '') {
   }
 }
 
-// ── ① fixture：真实 pi JSONL（A 族两个会话 + B 族一个）
-const liveDir = join(repoRoot, '.openpencil', 'pi-sessions')
-check('前置：仓内已有真实 pi 会话文件', existsSync(liveDir))
-const allJsonl = existsSync(liveDir)
-  ? readdirSync(liveDir).filter((f) => f.endsWith('.jsonl'))
-  : []
-const withTools = allJsonl
-  .filter((f) => readFileSync(join(liveDir, f), 'utf8').includes('"type":"toolCall"'))
-  .sort()
-const withUser = allJsonl
-  .filter((f) => readFileSync(join(liveDir, f), 'utf8').includes('"role":"user"'))
-  .sort()
+// ── ① fixture：合成 pi JSONL（A 族两个会话 + B 族一个；A2 含 toolCall/toolResult
+// 与 thinking part——覆盖工具卡片折叠 + reasoning 不回填两个断言面）
+const USER_A1 = 'A 族旧会话的用户消息：请把卡片的背景改成蓝色'
+const USER_A2 = 'A 族新会话的用户消息：创建一个 240×120 的 FRAME'
+const USER_B = 'B 族的用户消息：营销海报文案来一版'
+const TOOL_A2 = 'create_shape'
 
-const fileA2 = withTools[0] // A 族新会话（含工具调用）
-const fileA1 = withUser.find((f) => f !== fileA2) // A 族旧会话
-const fileB = withUser.find((f) => f !== fileA2 && f !== fileA1) // B 族
-check('前置：fixture 齐（A2 含 toolCall，A1/B 含 user 消息）', Boolean(fileA2 && fileA1 && fileB))
-
-function firstUserText(file) {
-  for (const line of readFileSync(join(liveDir, file), 'utf8').split('\n')) {
-    if (!line.trim()) continue
-    const entry = JSON.parse(line)
-    if (entry.type !== 'message' || entry.message?.role !== 'user') continue
-    const content = entry.message.content
-    const text =
-      typeof content === 'string'
-        ? content
-        : (content ?? [])
-            .filter((p) => p.type === 'text')
-            .map((p) => p.text)
-            .join('\n')
-    if (text.trim()) return text
-  }
-  return null
-}
-
-function firstToolName(file) {
-  for (const line of readFileSync(join(liveDir, file), 'utf8').split('\n')) {
-    if (!line.trim()) continue
-    const entry = JSON.parse(line)
-    if (entry.type !== 'message') continue
-    for (const part of entry.message?.content ?? []) {
-      if (part.type === 'toolCall' && part.name) return part.name
-    }
-  }
-  return null
-}
-
-const a1User = fileA1 ? firstUserText(fileA1) : null
-const a2User = fileA2 ? firstUserText(fileA2) : null
-const a2Tool = fileA2 ? firstToolName(fileA2) : null
-const bUser = fileB ? firstUserText(fileB) : null
+const fileA1 = 'fx-a1.jsonl'
+const fileA2 = 'fx-a2.jsonl'
+const fileB = 'fx-b.jsonl'
 
 // ── ② 临时 rootDir + 合成会话族谱
 const tempRoot = mkdtempSync(join(tmpdir(), 't22-history-'))
@@ -109,7 +71,48 @@ copyFileSync(
   join(tempRoot, 'src/app/ai/chat/system-prompt.md')
 )
 
-for (const f of [fileA1, fileA2, fileB]) copyFileSync(join(liveDir, f), join(sessionsDir, f))
+writeFileSync(
+  join(sessionsDir, fileA1),
+  buildSessionJsonl({
+    id: 'fx-a1',
+    messages: [
+      { role: 'user', text: USER_A1 },
+      { role: 'assistant', text: '好的，已改成蓝色。' }
+    ]
+  })
+)
+writeFileSync(
+  join(sessionsDir, fileA2),
+  buildSessionJsonl({
+    id: 'fx-a2',
+    messages: [
+      { role: 'user', text: USER_A2 },
+      { role: 'assistant', thinking: '先确认尺寸再建', text: '我来创建。' },
+      {
+        role: 'assistant',
+        toolCall: { id: 'call_fx_a2', name: TOOL_A2, arguments: { type: 'FRAME', width: 240, height: 120 } }
+      },
+      { role: 'toolResult', toolCallId: 'call_fx_a2', toolName: TOOL_A2, text: 'Created FRAME (id=0:3)', details: { id: '0:3' } },
+      { role: 'assistant', text: '已完成' }
+    ]
+  })
+)
+writeFileSync(
+  join(sessionsDir, fileB),
+  buildSessionJsonl({
+    id: 'fx-b',
+    messages: [
+      { role: 'user', text: USER_B },
+      { role: 'assistant', text: '给你一版。' }
+    ]
+  })
+)
+
+// 断言期望值的别名（合成 fixture 内容即常量，无需回读解析）
+const a1User = USER_A1
+const a2User = USER_A2
+const a2Tool = TOOL_A2
+const bUser = USER_B
 
 const PREFIX_A = `doc-${'a'.repeat(40)}`
 const PREFIX_B = `doc-${'b'.repeat(40)}`
@@ -154,16 +157,26 @@ async function waitHealth() {
   return false
 }
 
-async function getHistory(query) {
-  const res = await fetch(`${BASE}/api/pi/history?${query}`)
+async function getHistory(query, token) {
+  const res = await fetch(`${BASE}/api/pi/history?${query}`, {
+    headers: token ? authHeaders(token) : {}
+  })
   return { status: res.status, body: await res.json() }
 }
 
 try {
   check('后端就绪', await waitHealth())
 
+  // T28：standalone 后端 token 落盘后可读（只进请求头，不打印）
+  const token = readBackendToken(tempRoot)
+  check('T28 前置：token 文件可读', typeof token === 'string' && token.length > 0)
+
+  // T28 负向：未带 Authorization → 401
+  const noAuth = await getHistory(`docKey=${PREFIX_A}`)
+  check('T28 负向：未鉴权请求 → 401', noAuth.status === 401, `status=${noAuth.status}`)
+
   // ── ④ 断言
-  const latest = await getHistory(`docKey=${PREFIX_A}`)
+  const latest = await getHistory(`docKey=${PREFIX_A}`, token)
   check('① docKey 前缀解析回族内最新 sessionId', latest.body.sessionId === SID_A2)
 
   const texts = (latest.body.messages ?? [])
@@ -189,7 +202,7 @@ try {
       .some((p) => p.type === 'reasoning')
   )
 
-  const exact = await getHistory(`sessionId=${SID_A1}`)
+  const exact = await getHistory(`sessionId=${SID_A1}`, token)
   const exactTexts = (exact.body.messages ?? [])
     .flatMap((m) => m.parts ?? [])
     .filter((p) => p.type === 'text')
@@ -200,7 +213,7 @@ try {
     exact.body.sessionId === SID_A1 && Boolean(a1User && exactTexts.includes(a1User.slice(0, 30)))
   )
 
-  const other = await getHistory(`docKey=${PREFIX_B}`)
+  const other = await getHistory(`docKey=${PREFIX_B}`, token)
   const otherTexts = (other.body.messages ?? [])
     .flatMap((m) => m.parts ?? [])
     .filter((p) => p.type === 'text')
@@ -213,7 +226,7 @@ try {
       !(a2User && otherTexts.includes(a2User.slice(0, 30)))
   )
 
-  const none = await getHistory(`docKey=doc-${'z'.repeat(40)}`)
+  const none = await getHistory(`docKey=doc-${'z'.repeat(40)}`, token)
   check(
     '④ 未知前缀 → 空族（sessionId null + messages []）',
     none.body.sessionId === null && none.body.messages?.length === 0

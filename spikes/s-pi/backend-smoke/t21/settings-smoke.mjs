@@ -77,10 +77,11 @@ page.on("pageerror", (err) =>
 // 冒烟开始前确保 openrouter 无存量 stored key（前序运行可能残留）。
 // 注意：dev server 环境有 OPENROUTER_API_KEY 时 pi 解析顺序 auth.json→env
 // 会让状态灯恒为 configured——存储态只能以 auth.json 文件为准。
+// T28：后端全端点鉴权后直连 7700 无 token 会 401——改走 1420 proxy（自动补头）。
 if (existsSync(authPath)) {
   const doc = JSON.parse(readFileSync(authPath, "utf8"));
   if (doc?.openrouter) {
-    await fetch("http://127.0.0.1:7700/api/pi/credentials", {
+    await fetch(`${base}/api/pi/credentials`, {
       method: "DELETE",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ providerId: "openrouter" }),

@@ -35,307 +35,358 @@
       "id": "P1",
       "file": "src/router.ts",
       "reason": "remove /demo and /share/:roomId routes (demo/collab deletion)",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P2",
       "file": "src/views/WorkspaceView.vue",
       "reason": "remove createDemoShapes/useHead/SafariBanner + dead demo gate in shouldCreateHome (deletion cuts). T10: carrier migrated from src/views/EditorView.vue after upstream bb5960cd deleted it (files-workspace refactor); CollabPanel cut split to P33",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P3",
       "file": "src/constants.ts",
       "reason": "remove ACP_DESIGN_CONTEXT import/export and ACP_PERMISSION_TIMEOUT_MS",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P4",
       "file": "src/components/ChatPanel.vue",
       "reason": "remove ACPPermissionDialog and ACP log UI T25: attachment 分析流与 ProviderSetup 门切除（pi 单通道），会话栏恒挂 T27(2026-08-25): 死 UI 清理（showContinue/Continue 按钮随旧 ToolLoop step 计数面切除）+ 提交失败草稿回填（chatInputRef.restoreDraft）+ clear 后刷新改 resetChat().then 确定性等待（去 setTimeout(100)）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P5",
       "file": "src/components/chat/ChatInput.vue",
       "reason": "remove ACP provider branch T25: 附件 UI 与旧模型臂切除，submit 仅文本 T27(2026-08-25): 提交即清空保留但 defineExpose restoreDraft——失败时父级回填草稿",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P6",
       "file": "src/app/ai/chat/transports.ts",
       "reason": "remove ACP transport path (createACPTransport and session wiring) T10 重涂：上游本轮把 ACP transport 重构进 createChatSessionManager 并新增 harness(pi) 路径——维持裁 ACP（createACPTransport/createActiveACPTransport/isACPProvider），保 harness T25: 收敛单 pi——createToolLoopTransport/createActiveHarnessTransport 切除，无 override 即报错 T27(2026-08-25): ensureChat 加调用序号防跨 tab await 竞态（过期结果丢弃）；onSessionReset 可返回 Promise、resetChat await 它",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P7",
       "file": "src/app/ai/chat/use.ts",
       "reason": "remove ACP session options plumbing T25: 旧凭证面切除，stock-photo/remember 转由 stock-photo-keys.ts 供给；VITE_PI_BACKEND 门退役恒挂会话钩子 T27(2026-08-25): onSessionReset 改返回 mintPiSessionId Promise（配 P6 resetChat await）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P8",
       "file": "src/app/ai/chat/storage.ts",
       "reason": "remove isACPProvider and ACP branch of isConfigured T19: isConfigured 增加 VITE_PI_BACKEND==='1' 直通分支（pi 后端持 key，浏览器免配置）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P9",
       "file": "src/main.ts",
       "reason": "remove PWA registration (localhost serve form) T19: main.ts 调 attachPiBackendTransport（flag 门控 pi transport override）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P10",
       "file": "vite.config.ts",
       "reason": "remove openPencilPwaPlugin (vite/pwa.ts deleted) T19: 注册 piBackendPlugin T20: 插件改为 spawn 独立后端进程 + server.proxy 转发 /api/pi-chat（不再挂中间件）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P11",
       "file": "src/env.d.ts",
       "reason": "remove vite-plugin-pwa types reference",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P12",
       "file": "src/components/MobileHud/MobileHud.vue",
       "reason": "remove MobileShareButton mount (share is a dead end after collab cut)",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P13",
       "file": "src/components/MobileHud/context.ts",
       "reason": "remove share() dead-end (stub shareCurrentDoc returns '', /share route deleted)",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P14",
       "file": "packages/vue/src/i18n/locale.ts",
       "reason": "locales narrowed to en + zh-CN (7 translated locales deleted)",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P15",
       "file": "packages/vue/src/i18n/create.ts",
       "reason": "localeLoaders narrowed to zh-CN",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P16",
       "file": "tests/engine/vue/i18n/locale.test.ts",
       "reason": "assertions adapted to remaining locales (it/fr cases replaced)",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P17",
       "file": "package.json",
-      "reason": "workspaces (-docs/-tools-docs), scripts (-tauri/-wdio/-docs/*, +check:zones), deps (-wdio/-tauri-cli/-pwa/-yjs-family/-trystero) T10: workspaces += packages/harness（上游新增 pi harness 包，保 harness 裁 ACP 决策随附）；lint/format 路径同步加 packages/harness T19: deps += @earendil-works/pi-coding-agent@0.84.2 + pi-ai@0.84.2 + typebox@1.3.7（精确钉扎，升级走 03 §5.5 窗口）T20: scripts += dev:backend（独立运行 pi 后端进程，不经 vite） T25: workspaces/scripts/deps 去 packages/harness；deps 去五个浏览器直调 AI SDK provider（@ai-sdk/anthropic、deepseek、google、openai、@openrouter/ai-sdk-provider） T27(2026-08-25): scripts += smoke:pi（免 key/浏览器/dev-server 自含批次：t22 target+history、t23 sessions、t24 prompt-assembly）+ smoke:pi:ui（需 dev server 1420 + playwright chromium，免 key 的三个 bind 冒烟，必须 node 跑）",
-      "disposition": "permanent"
+      "reason": "workspaces (-docs/-tools-docs), scripts (-tauri/-wdio/-docs/*, +check:zones), deps (-wdio/-tauri-cli/-pwa/-yjs-family/-trystero) T10: workspaces += packages/harness（上游新增 pi harness 包，保 harness 裁 ACP 决策随附）；lint/format 路径同步加 packages/harness T19: deps += @earendil-works/pi-coding-agent@0.84.2 + pi-ai@0.84.2 + typebox@1.3.7（精确钉扎，升级走 03 §5.5 窗口）T20: scripts += dev:backend（独立运行 pi 后端进程，不经 vite） T25: workspaces/scripts/deps 去 packages/harness；deps 去五个浏览器直调 AI SDK provider（@ai-sdk/anthropic、deepseek、google、openai、@openrouter/ai-sdk-provider） T27(2026-08-25): scripts += smoke:pi（免 key/浏览器/dev-server 自含批次：t22 target+history、t23 sessions、t24 prompt-assembly）+ smoke:pi:ui（需 dev server 1420 + playwright chromium，免 key 的三个 bind 冒烟，必须 node 跑） T28(2026-08-25): format:check 判据修正（决策单 #10）——改 oxfmt --check 原路径集（与 format 同口径），不写入、不依赖净树（CI 干净树语义等价，本地脏树不再结构性必红）；smoke:pi += t28/session-gc-smoke.mjs（决策单 #2 GC 归档冒烟，凑成五套件）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P18",
       "file": "tsconfig.json",
       "reason": "remove #docs-config/* paths (packages/docs deleted) T25: paths 去 @open-pencil/harness",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P19",
       "file": "tools/unit-tests/src/shards.ts",
       "reason": "app group: drop acp/tauri dirs, add tests/engine/rebuild",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P20",
       "file": ".github/workflows/ci.yml",
       "reason": "remove native-test-contracts job (desktop deleted)",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P25",
       "file": ".github/workflows/ci.yml",
       "reason": "add push trigger scoped to rebuild/** branches (upstream CI is PR-only; we need push CI on the long-lived rebuild branch)",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P21",
       "file": ".lfsconfig",
       "reason": "REVOKED 2026-08-19: kept at upstream gateway (anonymous read verified working; fork's own GitHub LFS budget exceeded). Revisit when adding LFS files (e.g. fonts) — own hosting required for push",
-      "disposition": "revoked"
+      "disposition": "revoked",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P22",
       "file": "packages/core/src/tools/registry.ts",
       "reason": "tool registration seam: ALL_TOOLS spreads FORK_TOOLS (owned packages/core/src/tools/fork/)",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P23",
       "file": "bun.lock",
       "reason": "lockfile regenerated after workspace/dependency changes (mechanical)",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P24",
       "file": "src/app/i18n/notifications/index.ts",
       "reason": "trim localeLoaders to zh-CN (locale policy); added by upstream #557 during merge rehearsal",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P26",
       "file": ".github/workflows/ci.yml",
       "reason": "remove check:docs step from repository-quality job (docs site deleted; script no longer exists)",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P27",
       "file": "public/apple-touch-icon.png",
       "reason": "symlink pointed into deleted desktop/ (dangling on Linux CI, broke storybook); replaced with real PNG (pwa-192 copy)",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P28",
       "file": "public/favicon-128.png",
       "reason": "symlink into deleted desktop/ (dangling on Linux CI) — replaced with real PNG extracted from git history",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P29",
       "file": "public/favicon-32.png",
       "reason": "same as P28",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P30",
       "file": "public/favicon.ico",
       "reason": "same as P28",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P31",
       "file": ".github/actions/setup-bun/action.yml",
       "reason": "LFS object cache via actions/cache@v6 (T06, D18; ~99% upstream LFS egress saved per push). Retroactively registered in T09 — landed 2026-08-21 without patch registration because no CI enforced check:zones",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P32",
       "file": ".github/workflows/ci.yml",
       "reason": "add rebuild-discipline job: check:zones + check:docs + check:bindings + check:tasks wired to CI (T09 — these checks were documented as CI-enforced since Phase 0 but never actually wired) T10 附带：push 触发面 += merge/**（§3.3 月合并分支先跑 CI 再落 rebuild/v2）；T10 收工再加 spike/**（Phase 1 spike 分支走 CI）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P33",
       "file": "src/components/editor/EditorWorkspace.vue",
       "reason": "remove CollabPanel import + mount above PropertiesPanel (collab deletion cut; T10: migrated from P2 after upstream bb5960cd moved editor UI from EditorView.vue here)",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P34",
       "file": "knip.json",
       "reason": "remove packages/acp + packages/demos from ignoreWorkspaces (never existed; upstream dead config, flagged by knip --include unlisted,unresolved after T10 merge). T10 附带 T27(2026-08-25): ignoreUnresolved += /src/app/tabs/index.ts、ignoreBinaries += taskkill（既有 latent 经白名单收口，报送 owner 复核——verify 补注）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P35",
       "file": ".github/workflows/ci.yml",
       "reason": "add workbench-build job (T14): standalone npm build of workbench/ dsh bundle + X1 raw-JSX regression guard",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P36",
       "file": ".gitignore",
       "reason": "ignore .openpencil/ (T19 pi backend local session state) T27(2026-08-25): scratch/ 行保留理由注记（steiger 规则指定试验 spec 放置区，非死配置）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P37",
       "file": "src/components/settings/models/ModelsPanel.vue",
       "reason": "T21: VITE_PI_BACKEND=1 时改向渲染 PiModelsPanel（provider/凭据由 pi 后端管理）；旧 profile/assignment 路径保留给 legacy 模式 T25: 塌缩为恒渲染 PiModelsPanel，旧 profile/assignment 臂随 models/providers 族删除",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P38",
       "file": "packages/vue/src/i18n/messages/dialogs.ts",
       "reason": "T21: PiModelsPanel 的 en 源文案键（pi* 前缀一组）；zh 翻译随附 locales/zh-cn/dialogs.json T25: 删旧面专属键 106 个（connectionTest*/mcp*/model 编辑器族/harness 权限族等） T27(2026-08-25): harnessThinking* 7 键改名 piThinking*（harness 死标识清理，PiModelsPanel 活 UI 在用）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P39",
       "file": "src/app/automation/bridge/tool-handlers.ts",
       "reason": "T21: withAIUndo 环绕——桥 mutates 工具（render + ALL_TOOLS mutates 路径）产生 `AI: <name>` 撤销条目，对齐旧 ToolLoop src/app/ai/tools/index.ts:107-130 先例",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P40",
       "file": "packages/vue/src/i18n/locales/zh-cn/dialogs.json",
       "reason": "T21: PiModelsPanel 的 zh 翻译（pi* 键组，随 P38 en 源） T25: 随 P38 同步删键 T27(2026-08-25): 随 P38 同步改名 piThinking*（无尾随换行保持）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P41",
       "file": "src/app/browser-bridge.ts",
       "reason": "T22: setChatTransport 工厂签名加 store 参（pi 后端按 EditorStore 解析文档会话；无参工厂向后兼容）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P42",
       "file": "tests/engine/scene-graph/plugin-data.test.ts",
       "reason": "T22: 根节点 sharedPluginData .fig 往返专项测试（既有套件只覆盖普通节点）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P43",
       "file": ".gitleaks.toml",
       "reason": "T24: dummy OpenRouter key（sk-or-test-key-12345）allowlist 路径扩至 spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs（冒烟过 pi auth 预检用，同 tests/e2e 先例）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P44",
       "file": "src/components/settings/SettingsDialog.vue",
       "reason": "T25: MCP 导航/区块/导入切除（settings-mcp 面随 integrations/mcp 删除）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P45",
       "file": "src/app/settings/dialog.ts",
       "reason": "T25: SettingsSection 去 mcp",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P46",
       "file": "src/app/settings/credentials/persistence.ts",
       "reason": "T25: appCredentialRefs 收敛 stock-photo+vectorize+storage（AI provider/模型连接/MCP 连接三类 ref 随旧面切除）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P47",
       "file": "src/components/chat/ChatMessage.vue",
       "reason": "T25: 附件呈现切除（attachment presentation/ImageAttachment 随 attachment 族删除）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P48",
       "file": "vite/server.ts",
       "reason": "T25 D3: server.open 自动开浏览器（Tauri host 注入时除外）——一条命令起全栈",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P49",
       "file": "tests/e2e/chat/panel.spec.ts",
       "reason": "T25: 适配 pi 单通道——删 ProviderSetup 门/模型选择器/附件流用例，加无设置门断言；Meta+j 改 ControlOrMeta+j（$mod 跨平台）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P50",
       "file": "tools/type-shapes/src/files.ts",
       "reason": "T25 顺修：Windows 上 Bun.Glob 产出反斜杠导致 discoverTypeShapeFiles 输出混入 \\——统一正斜杠（tools/test.ts 本地门禁修复）",
-      "disposition": "permanent"
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P51",
       "file": "packages/core/src/constants.ts",
       "reason": "T27(2026-08-25): harness 死标识清理——AIProviderID union 去 'harness:pi'、删 HARNESS_PROVIDER_ID 常量与 AI_PROVIDERS 首个 Pi def（harness sidecar 已随 T25 切除；全仓 grep 零活消费点，storage 读取路径已随 chat/storage.ts 删除）",
       "disposition": "permanent",
+      "lastReviewed": "2026-08-25",
       "task": "T27"
     },
     {
@@ -343,6 +394,7 @@
       "file": "src/app/ai/debug/index.ts",
       "reason": "T27(2026-08-25): 裁死数据面——TOKEN USAGE/DIAGNOSTICS/TOOL EXECUTION LOG 三节依赖 src/app/ai/tools/（已删，pi 路径工具在后端执行，浏览器侧恒空）；保留 ERRORS/MESSAGE STATS/CONVERSATION 活内容",
       "disposition": "permanent",
+      "lastReviewed": "2026-08-25",
       "task": "T27"
     },
     {
@@ -350,6 +402,7 @@
       "file": "tools/secret-scan/src/index.ts",
       "reason": "T27(2026-08-25): 缺 gitleaks/go 二进制时打印 SKIPPED 并 exit 0（环境受限机不再误报红；CI runner 自带 go 经 go run 兜底仍真扫；二进制在而扫描失败仍 exit 1 严格）",
       "disposition": "permanent",
+      "lastReviewed": "2026-08-25",
       "task": "T27"
     },
     {
@@ -357,6 +410,7 @@
       "file": "steiger.config.ts",
       "reason": "T27(2026-08-25): 规则 drift 收口——补注册 5 条零违规规则（no-cross-package-reexport-shims/no-misplaced-engine-test-domain-paths/no-kitchen-sink-engine-basic-tests/no-production-test-ids-in-shared-layers/no-vue-template-ui-hooks-or-svg）；余 3 条有存量违规（17/4/1 处）暂不注册，配置内注释说明",
       "disposition": "permanent",
+      "lastReviewed": "2026-08-25",
       "task": "T27"
     },
     {
@@ -364,6 +418,7 @@
       "file": "tools/architecture/src/steiger-rules/index.ts",
       "reason": "T27(2026-08-25): 修复两条未注册规则的启用即崩 bug——no-kitchen-sink-engine-basic-tests 缺 collectFiles/readFileSync 导入；no-hardcoded-macos-shortcut-glyphs 的 matchAll 正则缺 g flag",
       "disposition": "permanent",
+      "lastReviewed": "2026-08-25",
       "task": "T27"
     },
     {
@@ -371,7 +426,32 @@
       "file": "packages/mcp/src/browser-rpc.ts",
       "reason": "T27(2026-08-25): RPC_TIMEOUT 20s 硬编码改 OPENPENCIL_RPC_TIMEOUT_MS 环境变量可覆盖（默认不变；长回合场景放宽用）",
       "disposition": "permanent",
+      "lastReviewed": "2026-08-25",
       "task": "T27"
+    },
+    {
+      "id": "P57",
+      "file": ".github/workflows/ci.yml",
+      "reason": "T28(2026-08-25): 新增 pi-backend-contract job（决策单 #12，owner 拍板只优化 pi-backend 测试）——smoke:pi 五套件进 CI（tempRoot 合成 fixture 自含，免 key/浏览器/7600 桥/dev server；bun 直跑 TS 源无需 build:packages）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25",
+      "task": "T28"
+    },
+    {
+      "id": "P58",
+      "file": "README.md",
+      "reason": "T29(2026-08-25): 决策单 #14 根文档最小指针——新增「OpenPencil Rebuild」节（4 行），链 docs/rebuild/README.md + tracker.md，明示内部工作文档非用户文档；CHANGELOG.md 不动",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25",
+      "task": "T29"
+    },
+    {
+      "id": "P59",
+      "file": "AGENTS.md",
+      "reason": "T29(2026-08-25): 决策单 #14 根文档最小指针——Documentation 节新增 2 行 docs/rebuild/README.md + tracker.md 指针（contributor/agent 可见 rebuild 跟踪）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25",
+      "task": "T29"
     }
   ],
   "deletedPaths": [

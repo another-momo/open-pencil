@@ -19,6 +19,10 @@
  * content change (e.g. force-added binaries) fails as unregistered.
  *
  * Usage: bun tools/zone-registry/src/check.ts [--base <ref>]  (default base: merge-base with upstream/master)
+ *        bun tools/zone-registry/src/check.ts --patches-report [--base <ref>]
+ *          T28（决策单 #5，轻量过堂机制）：报告模式——逐条补丁输出相对
+ *          upstream merge-base 的当前 diff 行数摘要（numstat），供过堂审视
+ *          补丁腐烂度；只读报告，恒 exit 0，不参与主检查判红。
  * Exit 0 = clean; exit 1 = violations listed on stderr.
  */
 import { execSync } from 'node:child_process'
@@ -33,7 +37,14 @@ interface Zones {
   ownedFiles: string[]
   stubs: string[]
   pendingReclass: string[]
-  patches: { id: string; file: string; reason: string; disposition: string }[]
+  patches: {
+    id: string
+    file: string
+    reason: string
+    disposition: string
+    /** T28（决策单 #5）：上次过堂日期（YYYY-MM-DD），轻量机制——登记即视为过堂 */
+    lastReviewed?: string
+  }[]
   deletedPaths: string[]
 }
 
@@ -140,11 +151,56 @@ function checkAdded(zones: Zones, added: string[]): string[] {
     .map((file) => `ADDED outside ownedRoots: ${file} (add an owned root or move the file)`)
 }
 
+/**
+ * T28（决策单 #5）：过堂报告——每条补丁相对 base 的当前 diff 行数。
+ * 只读：任何 git/文件错误降级为「?」，报告模式恒 exit 0。
+ */
+function patchesReport(zones: Zones, base: string): void {
+  console.log(`[zones] patches report (base ${base.slice(0, 8)})——过堂用，不参与判红：`)
+  let totalAdd = 0
+  let totalDel = 0
+  for (const p of zones.patches) {
+    let numstat = ''
+    try {
+      numstat = git(['diff', '--numstat', base, '--', p.file])
+    } catch {
+      numstat = ''
+    }
+    const lines = numstat ? numstat.split('\n').filter(Boolean) : []
+    let add = 0
+    let del = 0
+    let binary = false
+    for (const line of lines) {
+      const [a, d] = line.split('\t')
+      if (a === '-' || d === '-') {
+        binary = true // 二进制文件 numstat 给 '-'（图片/ico 等）
+        continue
+      }
+      add += Number(a) || 0
+      del += Number(d) || 0
+    }
+    totalAdd += add
+    totalDel += del
+    const size = binary ? 'binary' : `+${add}/-${del}`
+    const revoked = p.disposition === 'revoked' ? ' [revoked]' : ''
+    const reviewed = p.lastReviewed ? ` reviewed=${p.lastReviewed}` : ' reviewed=?'
+    console.log(`  ${p.id}\t${size}\t${p.file}${revoked}${reviewed}`)
+  }
+  console.log(
+    `[zones] patches total: +${totalAdd}/-${totalDel} across ${zones.patches.length} patch(es)`
+  )
+}
+
 function main() {
   const zones: Zones = JSON.parse(
     readFileSync(resolve(root, 'tools/zone-registry/zones.json'), 'utf8')
   )
   const base = resolveBase()
+  // T28：报告模式先行——只输出过堂摘要即返回，主检查流程不受影响
+  if (process.argv.includes('--patches-report')) {
+    patchesReport(zones, base)
+    process.exit(0)
+  }
   const changes = collectChanges(base)
   const violations = [
     ...changes.violations,

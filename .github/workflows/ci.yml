@@ -130,6 +130,24 @@ jobs:
           bun tools/zone-registry/src/check/bindings.ts --base "$BASE"
           bun tools/zone-registry/src/check/tasks.ts --base "$BASE"
 
+  # T28 (决策单 #12): pi 后端契约测试进 CI——smoke:pi 五套件自含（tempRoot
+  # 合成 JSONL/index fixture + standalone 后端 token 文件 + GC 超阈值/超龄归档），
+  # 无需 LLM key / 浏览器 / 7600 桥 / dev server；bun 直跑 TS 源（tools.ts 等
+  # 经 bun runtime 导入 src/app/ai/pi-backend/*，无需 build:packages）。
+  pi-backend-contract:
+    name: pi backend contract (smoke:pi)
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Run pi backend contract smokes
+        run: bun run smoke:pi
+
   # T14 (P35): workbench/ is a standalone-toolchain dsh bundle (not in bun
   # workspaces) — build it with its own npm lockfile and guard the X1
   # regression (raw JSX in client bundle breaks dsh module registration).

@@ -20,6 +20,9 @@
  *  路由 GET /api/pi/brand/manifest 形状 + 脱敏（无 markdown）+ 405
  *
  * 运行：bun spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs（仓根）
+ *
+ * T28（决策单 #1）：后端全端点鉴权——两个后端各自 tempRoot 的 token 文件
+ * 读 bearer 带 Authorization 头；未鉴权请求断言 401。
  */
 
 import { spawn } from 'node:child_process'
@@ -35,6 +38,8 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { authHeaders, readBackendToken } from '../pi-backend-auth.mjs'
 
 const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', '..', '..')
 const PORT = 7910 + Math.floor(Math.random() * 200)
@@ -145,13 +150,13 @@ async function waitHealth(base, exited) {
 }
 
 /** POST /api/pi-chat 并排空 SSE（provider 失败=预期；30s 竞时兜底防挂死） */
-async function sendPrompt(base, body) {
+async function sendPrompt(base, body, token) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 30_000)
   try {
     const res = await fetch(`${base}/api/pi-chat`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...authHeaders(token) },
       body: JSON.stringify(body),
       signal: controller.signal
     })
@@ -181,8 +186,20 @@ function userMessage(text) {
 try {
   check('后端就绪（种子后端 + 无种子后端）', (await waitHealth(BASE, () => backendExited)) && (await waitHealth(BASE2, () => backend2Exited)))
 
+  // T28：两个 standalone 后端各自的 token（只进请求头，不打印）
+  const token = readBackendToken(tempRoot)
+  const token2 = readBackendToken(emptySeedRoot)
+  check(
+    'T28 前置：两后端 token 文件可读且不相同',
+    token.length > 0 && token2.length > 0 && token !== token2
+  )
+
+  // T28 负向：未带 Authorization → 401
+  const noAuth = await fetch(`${BASE}/api/pi/brand/manifest`)
+  check('T28 负向：未鉴权请求 → 401', noAuth.status === 401, `status=${noAuth.status}`)
+
   // ── manifest 路由
-  const manifestRes = await fetch(`${BASE}/api/pi/brand/manifest`)
+  const manifestRes = await fetch(`${BASE}/api/pi/brand/manifest`, { headers: authHeaders(token) })
   const manifest = await manifestRes.json()
   check('路由 manifest：200 + 种子名称', manifestRes.ok && manifest.name === '默认品牌库', JSON.stringify(manifest).slice(0, 120))
   check(
@@ -199,9 +216,14 @@ try {
     '路由 manifest：脱敏——任何 profile 不带 markdown 正文',
     Array.isArray(manifest.profiles) && manifest.profiles.every((p) => !('markdown' in p))
   )
-  const manifest405 = await fetch(`${BASE}/api/pi/brand/manifest`, { method: 'POST' })
+  const manifest405 = await fetch(`${BASE}/api/pi/brand/manifest`, {
+    method: 'POST',
+    headers: authHeaders(token)
+  })
   check('路由 manifest：非 GET → 405', manifest405.status === 405)
-  const emptyManifest = await (await fetch(`${BASE2}/api/pi/brand/manifest`)).json()
+  const emptyManifest = await (
+    await fetch(`${BASE2}/api/pi/brand/manifest`, { headers: authHeaders(token2) })
+  ).json()
   check(
     '路由 manifest：无种子后端 → 空 types/profiles 降级',
     Array.isArray(emptyManifest.types) && emptyManifest.types.length === 0 &&
@@ -211,19 +233,19 @@ try {
   // ── dummy 凭据过 auth 预检（写 tempRoot 自带 agentDir，不碰真实 .openpencil）
   const cred = await fetch(`${BASE}/api/pi/credentials`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...authHeaders(token) },
     body: JSON.stringify({ providerId: 'openrouter', apiKey: 'sk-or-test-key-12345' })
   })
   check('前置：dummy 凭据写入（过 auth 预检用）', cred.ok)
   const cred2 = await fetch(`${BASE2}/api/pi/credentials`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...authHeaders(token2) },
     body: JSON.stringify({ providerId: 'openrouter', apiKey: 'sk-or-test-key-12345' })
   })
   check('前置：无种子后端 dummy 凭据写入', cred2.ok)
 
   // ── C1a：ui 模式 → 探针 == system-prompt.md byte 级原样
-  await sendPrompt(BASE, { sessionId: 't24-probe-ui', messages: userMessage('probe ui'), chatMode: 'ui' })
+  await sendPrompt(BASE, { sessionId: 't24-probe-ui', messages: userMessage('probe ui'), chatMode: 'ui' }, token)
   const uiProbe = probeText(tempRoot)
   check('C1 ui：探针落盘', uiProbe !== null)
   check(
@@ -233,7 +255,7 @@ try {
   )
 
   // ── C1b：marketing 模式 → base + 工作流段 + overlay（types 段恒在）
-  await sendPrompt(BASE, { sessionId: 't24-probe-mkt', messages: userMessage('probe marketing'), chatMode: 'marketing' })
+  await sendPrompt(BASE, { sessionId: 't24-probe-mkt', messages: userMessage('probe marketing'), chatMode: 'marketing' }, token)
   const mktProbe = probeText(tempRoot) ?? ''
   check('C1 marketing：含工作流段独有句式', mktProbe.includes(MARKETING_MARKER))
   check('C1 marketing：含 overlay types 段（未 picked 也恒在）', mktProbe.includes(TYPES_MARKER))
@@ -247,7 +269,7 @@ try {
     messages: userMessage('probe picked'),
     chatMode: 'marketing',
     pickedProfileId: 'casual_v1'
-  })
+  }, token)
   const pickedProbe = probeText(tempRoot) ?? ''
   check('C2 picked：含 Active style profile: casual_v1 段', pickedProbe.includes(`${PROFILE_MARKER} casual_v1`))
   check('C2 picked：含种子 profile markdown 正文（休闲活泼风格）', pickedProbe.includes('# 休闲活泼风格'))
@@ -258,7 +280,7 @@ try {
     messages: userMessage('probe re-pick'),
     chatMode: 'marketing',
     pickedProfileId: 'watercolor_poster_v3'
-  })
+  }, token)
   const repickProbe = probeText(tempRoot) ?? ''
   check(
     'C3 同 session 换 profile：下一条 probe 即新 overlay（水彩海报 v3）',
@@ -271,7 +293,7 @@ try {
     messages: userMessage('probe bogus'),
     chatMode: 'marketing',
     pickedProfileId: 'bogus_profile'
-  })
+  }, token)
   const bogusProbe = probeText(tempRoot) ?? ''
   check(
     'C2 bogus id：输出 (not in brand config) re-pick 段',
@@ -284,7 +306,7 @@ try {
   const fileBefore = indexBefore ? (JSON.parse(indexBefore)['t24-probe-mkt']?.file ?? null) : null
   check('C3 前置：marketing session 已落盘 index', typeof fileBefore === 'string' && existsSync(fileBefore))
   const jsonlBefore = fileBefore && existsSync(fileBefore) ? readFileSync(fileBefore, 'utf8') : ''
-  await sendPrompt(BASE, { sessionId: 't24-probe-mkt', messages: userMessage('probe switched to ui'), chatMode: 'ui' })
+  await sendPrompt(BASE, { sessionId: 't24-probe-mkt', messages: userMessage('probe switched to ui'), chatMode: 'ui' }, token)
   const switchedProbe = probeText(tempRoot) ?? ''
   check('C3 模式切换：probe 回 ui 基底 byte 级一致（驱逐重建携带新 base）', switchedProbe === uiBaseWithCwd)
   const indexAfter = existsSync(indexPath) ? readFileSync(indexPath, 'utf8') : ''
@@ -305,30 +327,40 @@ try {
     messages: userMessage('probe ui with profile'),
     chatMode: 'ui',
     pickedProfileId: 'casual_v1'
-  })
+  }, token)
   const uiProfileProbe = probeText(tempRoot) ?? ''
   check('C2 ui 模式忽略 pickedProfileId：仍与基底 byte 级一致', uiProfileProbe === uiBaseWithCwd)
 
   // ── C2：无种子后端 → fallback 引导段
-  await sendPrompt(BASE2, { sessionId: 't24-probe-empty', messages: userMessage('probe empty seed'), chatMode: 'marketing' })
+  await sendPrompt(BASE2, { sessionId: 't24-probe-empty', messages: userMessage('probe empty seed'), chatMode: 'marketing' }, token2)
   const emptyProbe = probeText(emptySeedRoot) ?? ''
   check('C2 无种子：overlay 输出 fallback 引导段', emptyProbe.includes('No material types available'))
   check('C2 无种子：工作流段仍在（种子缺失只降级 overlay）', emptyProbe.includes(MARKETING_MARKER))
 } finally {
-  // Windows 清理纪律：kill() 后 killed 标志立即置位（不代表进程已退），
-  // 必须等 exit 事件；rmSync 对句柄释放滞后做有限重试
+  // Windows 清理纪律：bun run 是 wrapper + 孙进程两段——SIGTERM 只杀 wrapper
+  // （信号致死 exitCode 恒 null，「exitCode===null 再升级」判据事后失效），
+  // 孙进程服务器成孤儿（2026-08-25 T28 核验 pid 树复现：本套件曾泄漏双后端）。
+  // win32 必须对活 wrapper 直接 taskkill /T /F 整树杀；posix 走 SIGTERM→SIGKILL。
+  // kill 后须等 exit 事件；rmSync 对句柄释放滞后做有限重试
   const { once } = await import('node:events')
+  const waitExit = (proc, ms) =>
+    Promise.race([once(proc, 'exit'), new Promise((r) => setTimeout(r, ms))])
   const stop = async (proc) => {
-    if (!proc.pid || proc.exitCode !== null) return
-    proc.kill('SIGTERM')
-    await Promise.race([once(proc, 'exit'), new Promise((r) => setTimeout(r, 2000))])
-    if (proc.exitCode === null) {
+    if (!proc.pid || proc.exitCode !== null || proc.signalCode !== null) return
+    if (process.platform === 'win32') {
       try {
-        spawn('taskkill', ['/pid', String(proc.pid), '/f', '/t'], { stdio: 'ignore' })
+        spawn('taskkill', ['/pid', String(proc.pid), '/T', '/F'], { stdio: 'ignore' })
       } catch {
         // 已退出
       }
-      await Promise.race([once(proc, 'exit'), new Promise((r) => setTimeout(r, 2000))])
+      await waitExit(proc, 3000)
+      return
+    }
+    proc.kill('SIGTERM')
+    await waitExit(proc, 2000)
+    if (proc.exitCode === null && proc.signalCode === null) {
+      proc.kill('SIGKILL')
+      await waitExit(proc, 2000)
     }
   }
   await stop(backend)

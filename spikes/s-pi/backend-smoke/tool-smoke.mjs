@@ -11,12 +11,18 @@
  *    仅重启段 spawn 独立后端时传递，脚本不读取不打印 key 本体
  * 运行：node spikes/s-pi/backend-smoke/tool-smoke.mjs [baseUrl]
  * 退出码 0 = 全过。
+ *
+ * T28（决策单 #1）：dev server 段经 1420 proxy 自动补鉴权头（零改动）；
+ * T4 恢复探针段自起 standalone 后端——token 落盘 .openpencil/pi-backend-token，
+ * 脚本读文件带 Authorization 头（不打印），未鉴权请求断言 401。
  */
 
 import { spawn } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+
+import { authHeaders, readBackendToken } from './pi-backend-auth.mjs'
 
 const base = process.argv[2] ?? 'http://localhost:1420'
 const backendPort = Number(process.env.OPENPENCIL_PI_BACKEND_PORT ?? 7700)
@@ -71,10 +77,10 @@ async function bridgeRpc(toolName, toolArgs) {
   return res.json()
 }
 
-async function post(text, sid = sessionId, target = base) {
+async function post(text, sid = sessionId, target = base, token = null) {
   const res = await fetch(`${target}/api/pi-chat`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...(token ? authHeaders(token) : {}) },
     body: JSON.stringify({
       sessionId: sid,
       messages: [{ role: 'user', parts: [{ type: 'text', text }] }]
@@ -225,12 +231,26 @@ try {
   }
   check('T4 恢复探针：新后端进程就绪（独立端口 7701）', up)
 
+  // T28：探针后端为 standalone 模式（cwd=仓根），token 落盘后可读（不打印）
+  let recoveryToken = null
+  if (up) {
+    recoveryToken = readBackendToken(root)
+    check('T28 前置：恢复探针 token 文件可读', recoveryToken.length > 0)
+    const noAuth = await fetch(`http://127.0.0.1:${recoveryPort}/api/pi-chat`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId: 't28-noauth', messages: [{ role: 'user', parts: [{ type: 'text', text: 'x' }] }] })
+    })
+    check('T28 负向：未鉴权请求 → 401', noAuth.status === 401, `status=${noAuth.status}`)
+  }
+
   if (up && nodeId) {
     // 恢复后记忆：旧 sessionId 在新进程里从磁盘恢复，仍记得节点 id
     const t4a = await post(
       '我们之前的对话里你用 create_shape 创建过一个 FRAME，它的节点 id 是什么？只回答 id。',
       t1Session,
-      `http://127.0.0.1:${recoveryPort}`
+      `http://127.0.0.1:${recoveryPort}`,
+      recoveryToken
     )
     check(
       'T4 重启后旧 session 恢复（记得节点 id）',
@@ -242,7 +262,8 @@ try {
     const t4b = await post(
       `请调用 create_shape 工具创建 RECTANGLE：type=RECTANGLE, x=400, y=160, width=100, height=100, name="${RECT_NAME}"。必须实际调用工具。`,
       `${sessionId}-recovery`,
-      `http://127.0.0.1:${recoveryPort}`
+      `http://127.0.0.1:${recoveryPort}`,
+      recoveryToken
     )
     const reOut = t4b.chunks.find((c) => c.type === 'tool-output-available')
     const reNodeId = reOut?.output?.id
@@ -261,7 +282,25 @@ try {
     }
   }
 } finally {
-  recovery?.kill()
+  // T28 核验补：bun run = wrapper + 孙进程两段——win32 须对活 wrapper 直接
+  // taskkill /T /F 整树杀（kill() 的 SIGTERM 只杀 wrapper，孙进程服务器
+  // 成孤儿，2026-08-25 pid 树实证，对齐 t22/t23/t28 清理口径）
+  if (recovery?.pid && recovery.exitCode === null && recovery.signalCode === null) {
+    if (process.platform === 'win32') {
+      try {
+        spawn('taskkill', ['/pid', String(recovery.pid), '/T', '/F'], { stdio: 'ignore' })
+      } catch {
+        // 已退出
+      }
+    } else {
+      recovery.kill('SIGTERM')
+    }
+    // 给进程树一点退出时间，避免脚本退出后句柄/端口滞留
+    await new Promise((resolve) => {
+      recovery.once('exit', resolve)
+      setTimeout(resolve, 3000)
+    })
+  }
 }
 
 if (failures.length) {

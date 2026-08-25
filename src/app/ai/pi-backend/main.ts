@@ -7,12 +7,17 @@
  *
  * 环境变量：
  *  - OPENPENCIL_PI_BACKEND_PORT：监听端口（默认 7700，见 server.ts）
+ *  - OPENPENCIL_PI_TOKEN：T28 鉴权 token——vite 插件 spawn 时注入（proxy 补头，
+ *    前端零改动）。未注入（standalone `bun run dev:backend`）时自生成 32-hex
+ *    随机值写 <cwd>/.openpencil/pi-backend-token（0o600，tmp+rename 原子落盘），
+ *    控制台只打印文件路径不打印 token；直连后端的脚本从该文件读 token。
  *  - OPENROUTER_API_KEY：模型 key。T25 D3：缺失时自动读 .openpencil/key-env
  *    自助注入（shell 脚本 source 不再是前置条件）；仍缺则 service 在首个
  *    prompt 处如实报错。key 只注入 process.env，不打印不落日志。
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { createPiBackendServer, PI_BACKEND_DEFAULT_PORT } from './server'
@@ -48,9 +53,31 @@ function injectKeyEnv(): void {
 
 injectKeyEnv()
 
+// T28：鉴权 token 解析——env 注入（vite 插件 spawn）优先；standalone 自生成落盘。
+// token 卫生：只写文件/传参，永不打印本体（控制台只给文件路径）。
+function resolveAuthToken(): string {
+  const injected = process.env.OPENPENCIL_PI_TOKEN
+  if (injected) return injected
+  const token = randomBytes(16).toString('hex')
+  const stateDir = join(rootDir, '.openpencil')
+  mkdirSync(stateDir, { recursive: true })
+  const tokenPath = join(stateDir, 'pi-backend-token')
+  // tmp + 同目录 rename 原子替换（同 index.json 先例），防崩溃留半个文件
+  const tmpPath = `${tokenPath}.tmp`
+  writeFileSync(tmpPath, token, { mode: 0o600 })
+  renameSync(tmpPath, tokenPath)
+  console.error(
+    `[pi-backend] standalone 模式：鉴权 token 已写入 ${tokenPath} ` +
+      `（直连后端需带 Authorization: Bearer 头，token 本体请读该文件）`
+  )
+  return token
+}
+
+const authToken = resolveAuthToken()
+
 const port = Number(process.env.OPENPENCIL_PI_BACKEND_PORT ?? PI_BACKEND_DEFAULT_PORT)
 
-const server = createPiBackendServer({ rootDir })
+const server = createPiBackendServer({ rootDir, authToken })
 
 server.on('error', (error: NodeJS.ErrnoException) => {
   if (error.code === 'EADDRINUSE') {

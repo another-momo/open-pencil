@@ -23,6 +23,13 @@
  *
  * Commit message must reference the task via `task: T<NN>`.
  *
+ * T28（决策单 #6，owner 拍板 ①+②）：zones.json 变更报警——diff 含
+ * tools/zone-registry/zones.json 时（不论是否大改动）：
+ *   ① commit message 必须含 task 指针（zones.json 变更不得使用
+ *      [no-task-plan] 例外——owner 决策批 #6 原文）
+ *   ② 输出本次 zones.json 变更的补丁条目 id 摘要（新增/移除/改动，相对
+ *      --base 版本的 id 集合对比）
+ *
  * Exemptions:
  *   - `[no-task-plan]` tag (owner only, emergency CI red fix)
  *
@@ -269,6 +276,75 @@ function checkNoPlaceholder(taskId: string, row: TaskTableRow): Violation[] {
   return violations
 }
 
+// ─── T28（决策单 #6）：zones.json 变更报警 ─────────────────────────────────
+
+const ZONES_FILE = 'tools/zone-registry/zones.json'
+
+interface ZonesDoc {
+  patches?: { id?: string }[]
+}
+
+function readZonesIds(json: string): Map<string, string> | null {
+  try {
+    const doc = JSON.parse(json) as ZonesDoc
+    const map = new Map<string, string>()
+    for (const p of doc.patches ?? []) {
+      if (p.id) map.set(p.id, JSON.stringify(p))
+    }
+    return map
+  } catch {
+    return null
+  }
+}
+
+/**
+ * ② P 条目 id 清单摘要：变更前后 id 集合对比（新增/移除/内容改动）。
+ * base 侧取不到（如未跟踪/解析失败）则全部按「无法对比」处理并说明。
+ */
+function zonesPatchesSummary(): string {
+  const beforeRaw = git(`show ${base}:${ZONES_FILE}`)
+  const afterRaw = (() => {
+    try {
+      return readFileSync(resolve(root, ZONES_FILE), 'utf8')
+    } catch {
+      return ''
+    }
+  })()
+  const before = beforeRaw ? readZonesIds(beforeRaw) : null
+  const after = afterRaw ? readZonesIds(afterRaw) : null
+  if (!before || !after) {
+    return 'zones.json 补丁条目集合无法完整解析（base 或工作区版本缺失/坏 JSON），跳过 id 对比'
+  }
+  const added = [...after.keys()].filter((id) => !before.has(id))
+  const removed = [...before.keys()].filter((id) => !after.has(id))
+  const changed = [...after.keys()].filter(
+    (id) => before.has(id) && before.get(id) !== after.get(id)
+  )
+  const parts: string[] = []
+  if (added.length) parts.push(`新增 ${added.join(', ')}`)
+  if (removed.length) parts.push(`移除 ${removed.join(', ')}`)
+  if (changed.length) parts.push(`改动 ${changed.join(', ')}`)
+  return parts.length ? parts.join('；') : '补丁条目集合无变化（仅格式/注释变动）'
+}
+
+function checkZonesChange(commitMsg: string, files: string[]): Violation[] {
+  if (!files.includes(ZONES_FILE)) return []
+  // ② 摘要始终输出（不判红）
+  console.log(`check-tasks: zones.json 变更——补丁条目摘要：${zonesPatchesSummary()}`)
+  // ① task 指针强制（owner 决策批 #6：zones.json 变更不得用 [no-task-plan] 豁免）
+  if (/\btask:\s*T?\d+/i.test(commitMsg)) return []
+  return [
+    {
+      rule: 'zones-change-task-pointer',
+      message: `本次变更含 ${ZONES_FILE}，但 commit message 无 \`task: T<NN>\` 指针。
+
+要求（T28，决策单 #6 ①）：
+- zones.json 任何变更（补丁登记/归属调整/删除路径）都必须挂 task 指针，保证过堂可追溯到任务三件套
+- zones.json 变更不得使用 \`[no-task-plan]\` 例外（owner 决策批 #6，2026-08-25）`
+    }
+  ]
+}
+
 function main(): void {
   const stats = getDiffStats()
   if (stats.files.length === 0) {
@@ -279,22 +355,43 @@ function main(): void {
   const commitMsg = getCommitMessage()
   const hasExemption = /\[no-task-plan\]/i.test(commitMsg)
 
+  // T28：zones.json 变更报警先于大改动判定——小改动含 zones.json 也要 ①+②；
+  // 决策批 #6 原文「不得使用 [no-task-plan] 例外」——zones 报警不受豁免影响
+  const zonesViolations = checkZonesChange(commitMsg, stats.files)
+
   const reasons = isBigChange(stats)
   if (reasons.length === 0) {
-    console.log(`check-tasks: ${stats.files.length} 文件变更（小改动，无需 task 计划）`)
-    process.exit(0)
+    if (zonesViolations.length === 0) {
+      console.log(`check-tasks: ${stats.files.length} 文件变更（小改动，无需 task 计划）`)
+      process.exit(0)
+    }
+    console.error(`check-tasks: ${zonesViolations.length} 处违规`)
+    for (const v of zonesViolations) {
+      console.error(`  [${v.rule}] ${v.message}`)
+    }
+    process.exit(1)
   }
 
   if (hasExemption) {
-    console.log(`check-tasks: 大改动命中（${reasons.join(' / ')}），但 [no-task-plan] 例外`)
-    process.exit(0)
+    // T28：大改动面可豁免，但 zones.json 报警不可豁免（决策批 #6）
+    if (zonesViolations.length === 0) {
+      console.log(`check-tasks: 大改动命中（${reasons.join(' / ')}），但 [no-task-plan] 例外`)
+      process.exit(0)
+    }
+    console.error(
+      `check-tasks: ${zonesViolations.length} 处违规（zones.json 变更不受 [no-task-plan] 豁免）`
+    )
+    for (const v of zonesViolations) {
+      console.error(`  [${v.rule}] ${v.message}`)
+    }
+    process.exit(1)
   }
 
   const taskRefMatch = commitMsg.match(/\btask:\s*T?(\d+)/i)
   const taskId = taskRefMatch ? taskRefMatch[1] : null
   const taskTable = readTaskTable()
 
-  const violations: Violation[] = [...checkPointer(commitMsg, reasons)]
+  const violations: Violation[] = [...zonesViolations, ...checkPointer(commitMsg, reasons)]
 
   if (taskId) {
     const row = taskTable.get(taskId)

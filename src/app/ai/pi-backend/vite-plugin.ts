@@ -11,9 +11,15 @@
  * OPENROUTER_API_KEY 经 env 继承进入后端进程；缺 key 时后端自助读
  * .openpencil/key-env 注入（main.ts，T25 D3），仍缺则 service 在首个 prompt
  * 处如实报错（不阻断 vite 启动）。
+ *
+ * T28（决策单 #1）：插件实例生成 32-hex 随机 token，经 env OPENPENCIL_PI_TOKEN
+ * 传给后端子进程（崩溃复活沿用同一枚）；config() hook 的 server.proxy 给
+ * /api/pi 转发统一注入 Authorization: Bearer 头——后端除 /health 外全端点鉴权，
+ * 前端同源调用零改动，token 不落盘不打印。
  */
 
 import { spawn } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 
 import type { Plugin } from 'vite'
 
@@ -28,6 +34,8 @@ const RESTART_BACKOFF_MS = [500, 1_500, 4_000]
 
 export function piBackendPlugin(): Plugin {
   const port = Number(process.env.OPENPENCIL_PI_BACKEND_PORT ?? PI_BACKEND_DEFAULT_PORT)
+  // T28：每 vite 进程一枚鉴权 token（子进程 env 注入 + proxy 补头，两侧共享）
+  const authToken = randomBytes(16).toString('hex')
   let child: ReturnType<typeof spawn> | null = null
   let restartCount = 0
   let restartTimer: ReturnType<typeof setTimeout> | null = null
@@ -98,7 +106,12 @@ export function piBackendPlugin(): Plugin {
   function spawnBackend(): void {
     const spawned = spawn('bun', ['run', 'src/app/ai/pi-backend/main.ts'], {
       stdio: ['ignore', 'inherit', 'pipe'],
-      env: { ...process.env, OPENPENCIL_PI_BACKEND_PORT: String(port) }
+      env: {
+        ...process.env,
+        OPENPENCIL_PI_BACKEND_PORT: String(port),
+        // T28：鉴权 token 经 env 注入（后端见 token 即不走 standalone 落盘路径）
+        OPENPENCIL_PI_TOKEN: authToken
+      }
     })
     child = spawned
 
@@ -136,7 +149,10 @@ export function piBackendPlugin(): Plugin {
             // 管理端点同走后端；/api/pi-chat 含于前缀内，前端零改动）
             '/api/pi': {
               target: `http://127.0.0.1:${port}`,
-              changeOrigin: false
+              changeOrigin: false,
+              // T28：转发统一补鉴权头（http-proxy headers 选项），后端全端点鉴权后
+              // 前端同源调用零改动；直连后端端口的请求无此头 → 401
+              headers: { authorization: `Bearer ${authToken}` }
             }
           }
         }

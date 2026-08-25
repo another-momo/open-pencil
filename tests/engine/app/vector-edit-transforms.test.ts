@@ -7,9 +7,9 @@ import type { SceneNode, VectorNetwork } from '@open-pencil/scene-graph'
 import { getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
 import Matrix from '@open-pencil/scene-graph/matrix'
 
-import { createVectorEditHistoryActions } from '@/app/editor/vector-edit/history'
-import { createVectorEditLifecycle } from '@/app/editor/vector-edit/lifecycle'
-import type { VectorEditState } from '@/app/editor/vector-edit/types'
+import { createVectorEditHistoryActions } from '@/app/editor/vector/history'
+import { createVectorEditLifecycle } from '@/app/editor/vector/lifecycle'
+import type { VectorEditState } from '@/app/editor/vector/types'
 
 import { expectDefined, getNodeOrThrow } from '#tests/helpers/assert'
 

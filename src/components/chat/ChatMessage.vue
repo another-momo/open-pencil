@@ -10,6 +10,8 @@ import { resolvedAppTheme } from '@/app/shell/theme'
 
 import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from 'ai'
 
+import { classifyToolState } from './tool-state'
+
 const { message, streaming = false } = defineProps<{
   message: UIMessage
   streaming?: boolean
@@ -37,9 +39,12 @@ function hasErrorOutput(part: ToolPart): boolean {
 }
 
 function toolState(part: ToolPart): 'pending' | 'done' | 'error' {
-  if (part.state === 'output-error' || hasErrorOutput(part)) return 'error'
-  if (part.state === 'output-available') return 'done'
-  return 'pending'
+  // 委托上游 classifyToolState（b65b1bd4：MCP output-available+isError:true 不再误判 done）
+  return classifyToolState({
+    toolName: getToolName(part),
+    state: part.state,
+    output: part.output
+  })
 }
 
 function partKey(part: UIMessagePart<UIDataTypes, UITools>, index: number): string {

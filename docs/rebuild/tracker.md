@@ -39,6 +39,7 @@
 | T18-T25 | Phase 1-pi 实施（F0 地基切片） | pi SDK 主线启动（D24）→ 后端换心 → hello-tool 全链 → provider/凭据管理 → session↔file 绑定 → 会话切换 UI → prompt 装配（F0.6）→ 浏览器旧路径清扫（8 任务全 ✅，hello-tool 全链已通） | 同上 | ✅ | — | — | — |
 | T26-T29 | 三方 review 整改+决策批落地 | 三方 review 文档面/代码面逐条整改（43+32 条全闭环）+ owner 2026-08-25 决策批 15 项代码面/文档面落地（4 任务全 ✅） | 同上 | ✅ | — | — | — |
 | T30 | 文档治理 | 01 推进规划重整（Phase 规划入 [01-target-state.md §2](01-target-state.md)、[01-target-state.md](01-target-state.md) 原三路线对比节迁 [03-phase-1-runtime.md §4.4](03-phase-1-runtime.md)、去补丁式备注）+ 04/05 文档纪律轮 + 本表合并压缩与真源互换（D30/D31） | [T30-plan.md 验收标准](tasks/T30-plan.md) | 🔄 | [T30-plan](tasks/T30-plan.md) | [T30-self-check](tasks/T30-self-check.md) | [T30-verify](tasks/T30-verify.md) |
+| T31 | upstream 合并第二轮 | upstream/master@88c10770 合并（8 commits/188 文件，内容裁定替代 git 三路合并——HTTPS 数据面断）：vector rename + clipboard 加固 + tool-state + recovery 四 commit 快进 + diagnostics/portless/changelog/cli 四 commit 维持删除 | [T31-plan.md §4](tasks/T31-plan.md) | 🔄 | [T31-plan](tasks/T31-plan.md) | [T31-self-check](tasks/T31-self-check.md) | [T31-verify](tasks/T31-verify.md) |
 
 ## 3. 记录索引
 

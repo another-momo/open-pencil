@@ -507,3 +507,14 @@
 - **依据**：owner 原话「生图独立凭证放到层 0/phase 2 也挺奇怪的，生图工具本身并不在这个阶段，凭证和工具本身应该在一起开发吧」。主 agent 评估支持：凭证价值随消费者而定，生图工具（C3a，层 1）未建前独立凭证链无消费者、验收无抓手；层 0 的判据是 hello-tool 全链（T20 已通），② 移出后 Phase 2 出口即刻全数达成。
 - **影响面**：01 §2 Phase 2 行「F0.1-F0.7」改「F0.1-F0.6」；01 §3 F0.3 行缩为 ①、删 ② 待建尾项；01 §4 C3a 依赖列「F0.2 + F0.3②」改「F0.2 桥」；tracker 阶段门 Phase 2 行删除「仅剩 F0.3② 生图独立凭证待建」（Phase 2 出口随之全数达成，状态列待主 agent 核实后另签）；04 移植清单两行「F0.3②」标签改指 C3a（归属变化，移植范围不变）
 - **执行**：[tasks/T30-plan.md](../../tasks/T30-plan.md)（T30 收尾随批落地，不另立 task）
+
+
+## D33 · 上游合并第二轮 Recovery 面（f75d67ad）改判为存量快进，不报送 owner
+
+- **类型**：决策（合并裁定）
+- **时间**：2026-08-25
+- **拍板**：主 agent（按移植纪律「内核/存量零交叠面跟随上游」常例自主裁定，备查登记）
+- **状态**：已拍板，T31 随批落地
+- **内容**：T31 立项时 f75d67ad（crash recovery 可配置）误判为「新功能面报送 owner」；实测 `document/recovery`、`settings/preferences`、`RecoveryDialog` 存量基础设施已在仓（T10 上游合并带入），本 commit 仅给存量加可配置开关，且与我们 5201404f..2014c81a 改动面（1338 文件）零交叠——按「存量加固快进」处理，不构成需 owner 拍板的新功能引入。
+- **依据**：`grep -E 'document/recovery|settings/preferences' our-changed-files` 零命中（2026-08-25）；快进后 `bun test tests/engine/app/document/recovery/` 11→14 全绿
+- **执行**：[tasks/T31-plan.md](../../tasks/T31-plan.md)

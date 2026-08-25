@@ -65,3 +65,20 @@
   - 本地验证：四检查绿（zones 基线 5201404f：30M/88A/953D）+ build:packages ✅ + lint 0 errors + vite build ✅ 19.09s；全量单测按 owner 指示交远端 CI
   - 核验：subagent A 11 通过 / 1 警告 / 0 失败（[T10-verify.md](../../tasks/T10-verify.md)）；N1 备查：ACP_AGENTS 仍存活于 settings 三文件（ProfileEditor/ProviderSelect/ModelsPanel）——与上表「acp: provider 概念残留」遗留项同根，Phase 1 重分类时清理
   - **闭环**（2026-08-21 补登）：合并 commit b84530bf + 附带 9f15c43f + 三轮 CI 修复（384560c3 tauri mocks 恢复/P34/format + 空 catch 与 task 指针；1749b877 TS6133 tabCount）→ 远端 CI run 32458703514 **12/12 success**；rebuild/v2 fast-forward 004b1f48 → 1749b877；ci.yml push 触发加 `spike/**`（P32）。逐 run 明细见 [T10-verify.md §6](../../tasks/T10-verify.md)
+
+## 合并-2 · upstream/master@88c10770（8 commits / 188 文件，内容裁定替代三路合并）
+
+- **类型**：合并记录
+- **时间**：2026-08-25
+- **分支**：rebuild/pi-upstream-merge-2（自 2014c81a 拉出）
+- **上游钉扎**：`88c1077071328b8df68f282543f16e20e97930b4`（`gh api repos/open-pencil/open-pencil/branches/master`，2026-08-25）
+- **方法**：HTTPS 数据面断（`git fetch` curl 28），不做 git 三路合并——以 `gh api compare 5201404f...88c10770` 取 8 commit 文件清单 + tarball 快照取内容，按归属分类逐 commit 裁定落盘
+- **漂移对账**：8 commit / 188 文件；与我们 5201404f..2014c81a 改动面（1338 文件）交叠 25 文件
+- **八 commit 裁定**：采纳 4（bb8c5c18 vector rename / 7a311677 clipboard 加固 / b65b1bd4 tool-state 部分 / f75d67ad recovery 快进——D33 改判存量加固）+ 维持删除 4（5f8a373b diagnostics / 0f981ff2 portless / a0a71c34 changelog / 88c10770 cli import）
+- **踩坑与处置**：
+  1. T10 tarball 法把上游 rename 落成「新目录加、旧目录留」孤儿死目录，本轮借 bb8c5c18 清除（vector-edit/node-edit 三处）
+  2. 拷上游 messages/dialogs.ts + zh-cn/dialogs.json 冲掉 T21 自定义 26 个 pi* i18n key（TS2339 批量报错暴露），按 HEAD 定义合并回写 + check:i18n 复绿
+  3. 7a311677 引入的 copySelectionToBrowserClipboard 圈复杂度 21>20 超仓内 lint 阈值，按纯度最小重构抽 helper（不增配置例外）
+  4. RecoveryDialog 引用的 AppButton.vue / theme/button.ts 不在 f75d67ad commit 清单（上游前序带入），随批补拷
+  5. zones.json 登记：deletedPaths +14（rename 旧路径）、ownedFiles +24（上游新文件）、patches P60-P82（21 modified + 2 测试重指）
+- **验收**：见 [tasks/T31-plan.md §4](../../tasks/T31-plan.md) C1-C5；自检 [tasks/T31-self-check.md](../../tasks/T31-self-check.md)

@@ -26,7 +26,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import {
@@ -75,6 +75,8 @@ export type PiChatService = {
   listSessionFamily(docKeyPrefix: string): PiSessionSummary[]
   /** T24：brand manifest（种子脱敏投影，无 markdown 正文；种子缺失 → 空 manifest） */
   getBrandManifest(): PiBrandManifest
+  /** T27：取消该 session 进行中的 run（SSE 断连锁停后端烧 token）；无活跃 run 时 no-op */
+  abort(sessionId: string): Promise<void>
 }
 
 type SessionEntry = {
@@ -88,6 +90,8 @@ type SessionEntry = {
   mode: PiChatMode
   /** T24：当次请求的 profile 选择（per-run 注入，before_agent_start 闭包读取） */
   overlay: { pickedProfileId: string | null }
+  /** T27：run 进行中标记——abort 只打活跃 run（空闲 session 调 pi abort 无意义） */
+  running: boolean
 }
 
 type SessionIndex = Record<string, { file: string }>
@@ -112,14 +116,25 @@ export function createPiChatService({
   function readIndex(): SessionIndex {
     try {
       return JSON.parse(readFileSync(indexPath, 'utf8')) as SessionIndex
-    } catch {
+    } catch (error) {
+      // T27：ENOENT（首跑尚无索引）属正常静默；文件在但读/解析失败必须出声
+      // （只报路径与错误类型，不打印文件内容）
+      if (existsSync(indexPath)) {
+        console.warn(
+          `[pi-backend] session index 读取失败，按空索引处理（${indexPath}）：` +
+            (error instanceof Error ? error.message : String(error))
+        )
+      }
       return {}
     }
   }
 
   function writeIndex(index: SessionIndex): void {
     mkdirSync(sessionsDir, { recursive: true })
-    writeFileSync(indexPath, JSON.stringify(index, null, 2))
+    // T27：tmp + 同目录 rename 原子替换，防进程崩溃把 index.json 截成半个 JSON
+    const tmpPath = `${indexPath}.tmp`
+    writeFileSync(tmpPath, JSON.stringify(index, null, 2))
+    renameSync(tmpPath, indexPath)
   }
 
   async function createSession(
@@ -227,7 +242,8 @@ export function createPiChatService({
       budget,
       target,
       mode: chatMode,
-      overlay
+      overlay,
+      running: false
     }
     sessions.set(sessionId, entry)
     return entry
@@ -251,6 +267,11 @@ export function createPiChatService({
       existing.session.dispose()
       sessions.delete(sessionId)
     }
+    // T27/B1 复核（2026-08-25）：`get ?? await createSession` 之间的并发双创建窗口
+    // 在 dev 单用户拓扑下不可达——前端流式/提交中禁发（ChatInput isStreaming +
+    // ChatPanel handleSubmit 双重守卫），同 sessionId 的第二个 POST 只能来自
+    // 绕过 UI 的手工并发，代价是后者顶掉前者 entry（JSONL 文件各自独立、不串
+    // 数据）。不做 promise 缓存去重：引入的复杂度大于 dev 场景收益。
     const entry =
       sessions.get(sessionId) ?? (await createSession(sessionId, options.model, chatMode))
     entry.target.documentId = options.documentId
@@ -259,7 +280,12 @@ export function createPiChatService({
       : null
     // 同一 session 的 prompt 串行：pi 在 streaming 中再 prompt 需要 streamingBehavior，
     // dev 单用户场景直接排队即可
-    entry.queue = entry.queue.then(() => runPrompt(entry, sessionId, text, emit))
+    // T27：rejection 接力——先吞掉前次 queue 的 rejection 再挂新 run；否则一次失败
+    // 会让 entry.queue 永久处于 rejected，该 session 后续所有 prompt 直接跳过执行
+    // （await 旧 rejected 队列立即抛）。当次 run 的 rejection 仍经 await 透传给调用方。
+    entry.queue = entry.queue
+      .catch(() => undefined)
+      .then(() => runPrompt(entry, sessionId, text, emit))
     await entry.queue
   }
 
@@ -272,6 +298,7 @@ export function createPiChatService({
     const mapper = createPiEventMapper(`pi-${randomUUID()}`)
     const debug = process.env.PI_BACKEND_DEBUG === '1'
     entry.budget.current = 0
+    entry.running = true
     const unsubscribe = entry.session.subscribe((event) => {
       if (event.type === 'turn_start') entry.budget.current++
       if (debug) {
@@ -286,6 +313,7 @@ export function createPiChatService({
       emit({ type: 'error', errorText: error instanceof Error ? error.message : String(error) })
       emit({ type: 'finish', finishReason: 'error' })
     } finally {
+      entry.running = false
       unsubscribe()
       // prompt 完成后 session 文件必然已落盘，补记 index（create 时 file 可能尚未生成）
       const file = entry.session.sessionManager.getSessionFile()
@@ -345,5 +373,29 @@ export function createPiChatService({
     return toBrandManifest(brand)
   }
 
-  return { prompt, resolveLatestSessionId, readHistory, listSessionFamily, getBrandManifest }
+  async function abort(sessionId: string): Promise<void> {
+    const entry = sessions.get(sessionId)
+    if (!entry?.running) return
+    // T27：pi abort() 语义 = 取消当前操作并等 agent 回 idle
+    // （agent-session.d.ts:433）；排队中的后续 run 会照常接着跑。
+    // abort 抛错（如 session 已 dispose / agent 未响应）不该冒成 unhandled
+    // rejection（server.ts 用 void 丢弃本 promise）——吞掉并出声即可。
+    try {
+      await entry.session.abort()
+    } catch (error) {
+      console.warn(
+        `[pi-backend] abort(${sessionId}) 失败（忽略）:`,
+        error instanceof Error ? error.message : error
+      )
+    }
+  }
+
+  return {
+    prompt,
+    resolveLatestSessionId,
+    readHistory,
+    listSessionFamily,
+    getBrandManifest,
+    abort
+  }
 }

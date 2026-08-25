@@ -21,7 +21,6 @@ import {
   switchPiSession,
   type PiSessionSummary
 } from '@/app/ai/pi-backend/document-key'
-import { clearToolLogEntries, didHitStepLimit } from '@/app/ai/tools'
 import { activeTab } from '@/app/tabs'
 import { getActiveEditorStore } from '@/app/editor/active-store'
 import ChatInput from '@/components/chat/ChatInput.vue'
@@ -47,6 +46,9 @@ const { dialogs } = useI18n()
 const notifications = useNotificationMessages()
 
 const chat = ref<Chat<UIMessage> | null>(null)
+// T27：提交失败时经此把草稿回填进输入框（ChatInput 提交即清空——见 restoreDraft）；
+// 结构化类型即可，不 import 组件类型（避免 script 侧只剩类型引用触发 consistent-type-imports）
+const chatInputRef = ref<{ restoreDraft: (text: string) => void } | null>(null)
 
 void ensureChat()
   .then((c) => {
@@ -98,13 +100,6 @@ const isThinking = computed(() => {
   if ('toolCallId' in lastPart && lastPart.state === 'output-available') return true
   if ('toolCallId' in lastPart && lastPart.state === 'output-error') return true
   return s === 'submitted'
-})
-
-const showContinue = computed(() => {
-  if (status.value !== 'ready') return false
-  if (messages.value.length === 0) return false
-  const last = messages.value[messages.value.length - 1]
-  return last.role === 'assistant' && didHitStepLimit()
 })
 
 function scrollToBottom() {
@@ -214,14 +209,19 @@ async function handleSubmit(text: string) {
     const currentChat = await ensureChat()
     if (!currentChat) {
       toast.error(dialogs.value.chatRequestFailed)
+      chatInputRef.value?.restoreDraft(text)
       return
     }
     chat.value = markRaw(currentChat)
     await currentChat.sendMessage({ text })
+    // T27：ai SDK 的 sendMessage 内部吞错（错误走 onError + status='error'，
+    // 不 reject——node_modules/ai AbstractChat.makeRequest 实证）——失败时回填草稿
+    if (currentChat.status === 'error') chatInputRef.value?.restoreDraft(text)
     refreshSessionMeta()
   } catch (e) {
     console.error('Chat error:', e)
     toast.error(dialogs.value.chatRequestFailed)
+    chatInputRef.value?.restoreDraft(text)
   }
 }
 
@@ -237,13 +237,16 @@ async function handleCopyDebug() {
 function handleClearChat() {
   clearChatFailure()
   chat.value = null
-  void resetChat().catch((error: unknown) => {
-    console.error('Chat reset error:', error)
-  })
-  clearToolLogEntries()
-  // T23：clear 后 onSessionReset 异步铸新会话（crypto.subtle 微任务级），
-  // 稍待再刷会话栏元信息，让触发钮显示新后缀
-  window.setTimeout(refreshSessionMeta, 100)
+  // T27：resetChat 现在 await 铸新会话完成（onSessionReset 返回 Promise），
+  // then 里确定性刷新会话栏元信息——替代原 setTimeout(100) 魔法数等待
+  void resetChat()
+    .then(() => {
+      refreshSessionMeta()
+      return undefined
+    })
+    .catch((error: unknown) => {
+      console.error('Chat reset error:', error)
+    })
 }
 </script>
 
@@ -359,17 +362,6 @@ function handleClearChat() {
             </div>
           </div>
 
-          <!-- Continue button when step limit reached -->
-          <div v-if="showContinue" class="flex justify-center py-2">
-            <button
-              class="flex items-center gap-1.5 rounded-full bg-accent/10 px-4 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent/20"
-              @click="handleSubmit('Continue where you left off')"
-            >
-              <icon-lucide-play class="size-3" />
-              Continue
-            </button>
-          </div>
-
           <div ref="messagesEnd" />
         </div>
       </ScrollAreaViewport>
@@ -405,6 +397,12 @@ function handleClearChat() {
       </AppTextButton>
     </div>
 
-    <ChatInput :status="status" @submit="handleSubmit" @stop="handleStop" @error="toast.error" />
+    <ChatInput
+      ref="chatInputRef"
+      :status="status"
+      @submit="handleSubmit"
+      @stop="handleStop"
+      @error="toast.error"
+    />
   </div>
 </template>

@@ -5,6 +5,8 @@
  * 实证）：configureServer spawn `bun run src/app/ai/pi-backend/main.ts` 子进程，
  * buildEnd 回收（kill + 超时 SIGKILL 兜底）；/api/pi-chat 经 config() hook 注入
  * server.proxy 转发到后端端口——前端 transport 保持同源调用零改动。
+ * T27：子进程意外崩溃（非 buildEnd 主动回收）自动复活——最多 3 次、间隔退避，
+ * 一次 /health 就绪即清零计数；超过次数打印明确指引并停手。
  *
  * OPENROUTER_API_KEY 经 env 继承进入后端进程；缺 key 时后端自助读
  * .openpencil/key-env 注入（main.ts，T25 D3），仍缺则 service 在首个 prompt
@@ -20,10 +22,15 @@ import { PI_BACKEND_DEFAULT_PORT } from './config'
 const CHILD_EXIT_TIMEOUT_MS = 2_000
 const HEALTH_TIMEOUT_MS = 15_000
 const HEALTH_INTERVAL_MS = 150
+// T27：崩溃自动复活——最多 3 次、间隔退避；超过即停手并给明确指引（防复活风暴）
+const MAX_AUTO_RESTARTS = 3
+const RESTART_BACKOFF_MS = [500, 1_500, 4_000]
 
 export function piBackendPlugin(): Plugin {
   const port = Number(process.env.OPENPENCIL_PI_BACKEND_PORT ?? PI_BACKEND_DEFAULT_PORT)
   let child: ReturnType<typeof spawn> | null = null
+  let restartCount = 0
+  let restartTimer: ReturnType<typeof setTimeout> | null = null
 
   async function stopChild(): Promise<void> {
     const running = child
@@ -51,6 +58,8 @@ export function piBackendPlugin(): Plugin {
       try {
         const res = await fetch(`http://127.0.0.1:${port}/health`)
         if (res.ok) {
+          // T27：一次健康就绪即清零崩溃计数——自动复活只针对「连续」崩溃
+          restartCount = 0
           console.error(`[pi-backend] ready (http://127.0.0.1:${port})`)
           return
         }
@@ -63,6 +72,57 @@ export function piBackendPlugin(): Plugin {
       })
     }
     console.warn(`[pi-backend] ${HEALTH_TIMEOUT_MS}ms 内未等到 /health 就绪（端口 ${port}）`)
+  }
+
+  // T27：崩溃后的有限次自动复活（退避间隔见 RESTART_BACKOFF_MS）
+  function scheduleRestart(): void {
+    if (restartCount >= MAX_AUTO_RESTARTS) {
+      console.error(
+        `[pi-backend] 后端进程已连续崩溃 ${MAX_AUTO_RESTARTS} 次，停止自动复活——` +
+          `修复后重启 vite dev server，或 bun run dev:backend 单起后端看启动报错`
+      )
+      return
+    }
+    // 上方已 guard restartCount < MAX_AUTO_RESTARTS，索引必然有值
+    const delay = RESTART_BACKOFF_MS[restartCount]
+    restartCount++
+    console.error(
+      `[pi-backend] ${delay}ms 后自动重启后端进程（第 ${restartCount}/${MAX_AUTO_RESTARTS} 次）`
+    )
+    restartTimer = setTimeout(() => {
+      restartTimer = null
+      spawnBackend()
+    }, delay)
+  }
+
+  function spawnBackend(): void {
+    const spawned = spawn('bun', ['run', 'src/app/ai/pi-backend/main.ts'], {
+      stdio: ['ignore', 'inherit', 'pipe'],
+      env: { ...process.env, OPENPENCIL_PI_BACKEND_PORT: String(port) }
+    })
+    child = spawned
+
+    spawned.on('error', (err) => {
+      console.error(`[pi-backend] 无法 spawn 后端进程：${err.message}`)
+      // T27：spawn 失败（如 bun 不在 PATH）视同崩溃走有限复活；exit 不一定再触发
+      if (child === spawned) {
+        child = null
+        scheduleRestart()
+      }
+    })
+    spawned.stderr.on('data', (data: Buffer) => {
+      process.stderr.write(data)
+    })
+    spawned.on('exit', (code) => {
+      // child 已被 stopChild 置 null = 主动回收（buildEnd/重启 vite），不复活
+      if (child !== spawned) return
+      child = null
+      if (!code || code === 0) return // 正常退出不复活
+      console.error(`[pi-backend] 后端进程退出，code=${code}`)
+      scheduleRestart()
+    })
+
+    void waitForHealth(spawned)
   }
 
   return {
@@ -83,27 +143,13 @@ export function piBackendPlugin(): Plugin {
       }
     },
     configureServer() {
-      const spawned = spawn('bun', ['run', 'src/app/ai/pi-backend/main.ts'], {
-        stdio: ['ignore', 'inherit', 'pipe'],
-        env: { ...process.env, OPENPENCIL_PI_BACKEND_PORT: String(port) }
-      })
-      child = spawned
-
-      spawned.on('error', (err) => {
-        console.error(`[pi-backend] 无法 spawn 后端进程：${err.message}`)
-        if (child === spawned) child = null
-      })
-      spawned.stderr.on('data', (data: Buffer) => {
-        process.stderr.write(data)
-      })
-      spawned.on('exit', (code) => {
-        if (code && code !== 0) console.error(`[pi-backend] 后端进程退出，code=${code}`)
-        if (child === spawned) child = null
-      })
-
-      void waitForHealth(spawned)
+      spawnBackend()
     },
     async buildEnd() {
+      if (restartTimer) {
+        clearTimeout(restartTimer)
+        restartTimer = null
+      }
       await stopChild()
     }
   }

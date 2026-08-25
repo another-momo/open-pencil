@@ -24,9 +24,8 @@ const activeTab = ref<'design' | 'code' | 'ai'>('design')
 const chatSession = createChatSessionManager({
   getActiveEditorStore,
   loadHistory: loadPiChatHistory,
-  onSessionReset: (store: ReturnType<typeof getActiveEditorStore>) => {
-    void mintPiSessionId(store)
-  }
+  // T27：返回 Promise——resetChat await 它，ChatPanel 在铸会话完成后确定性刷新会话栏
+  onSessionReset: (store: ReturnType<typeof getActiveEditorStore>) => mintPiSessionId(store)
 })
 
 if (IS_BROWSER) {

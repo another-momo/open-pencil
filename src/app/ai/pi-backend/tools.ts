@@ -88,6 +88,9 @@ async function callBridgeTool(
       body: JSON.stringify({ command: 'tool', args: { name: toolName, args } })
     })
   } catch (error) {
+    // T27 复核：单次重试并非死重试——重试会重读 discovery 文件（每次调用开头），
+    // 覆盖「独立 dev:backend 后端存活期间 vite/7600 桥重启、端口或 token 恰好
+    // 在首次 fetch 前漂移」的窗口；两次之间无其他状态变化，第二次失败即放弃
     if (allowRetry) return callBridgeTool(toolName, toolArgs, target, false)
     throw new Error(
       `7600 桥连接失败（${error instanceof Error ? error.message : String(error)}）——确认 dev server 已启动`
@@ -101,6 +104,7 @@ async function callBridgeTool(
   } | null
 
   if (res.status === 401) {
+    // T27：同上——401 唯一可恢复场景是桥重启换了 token，重读 discovery 后再试一次
     if (allowRetry) return callBridgeTool(toolName, toolArgs, target, false)
     throw new Error('7600 桥鉴权失败（401）——discovery token 与运行中实例不匹配，重启 dev server')
   }

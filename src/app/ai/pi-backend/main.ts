@@ -24,7 +24,19 @@ function injectKeyEnv(): void {
   if (process.env.OPENROUTER_API_KEY) return
   const keyEnvPath = join(rootDir, '.openpencil', 'key-env')
   if (!existsSync(keyEnvPath)) return
-  for (const line of readFileSync(keyEnvPath, 'utf-8').split(/\r?\n/)) {
+  // T27：文件在但不可读（权限/损坏）不应炸启动——降级为「缺 key」路径，
+  // service 会在首个 prompt 处如实报错；文案只含路径，不含任何内容
+  let lines: string[]
+  try {
+    lines = readFileSync(keyEnvPath, 'utf-8').split(/\r?\n/)
+  } catch (error) {
+    console.error(
+      `[pi-backend] key-env 存在但读取失败（${keyEnvPath}）：` +
+        `${error instanceof Error ? error.message : String(error)}——按未配置 key 继续`
+    )
+    return
+  }
+  for (const line of lines) {
     const match = /^\s*(?:export\s+)?([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line)
     if (!match) continue
     const [, name, rawValue] = match

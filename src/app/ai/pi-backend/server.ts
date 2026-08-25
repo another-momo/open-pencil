@@ -51,10 +51,29 @@ type PiChatRequestBody = {
   pickedProfileId?: string | null
 }
 
+// T27：UIMessage[] 全量上报的最大合理体量留有数量级余量（聊天文本 KB 级）
+const MAX_BODY_BYTES = 4 * 1024 * 1024
+class PayloadTooLargeError extends Error {
+  constructor() {
+    super('request body too large')
+    this.name = 'PayloadTooLargeError'
+  }
+}
+
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
-    req.on('data', (chunk: Buffer) => chunks.push(chunk))
+    let size = 0
+    req.on('data', (chunk: Buffer) => {
+      size += chunk.length
+      // T27：请求体上限——超限即拒并断流，防无界读取打爆后端内存
+      if (size > MAX_BODY_BYTES) {
+        reject(new PayloadTooLargeError())
+        req.destroy()
+        return
+      }
+      chunks.push(chunk)
+    })
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
     req.on('error', reject)
   })
@@ -81,7 +100,12 @@ async function handlePiChatRequest(
   let body: PiChatRequestBody
   try {
     body = JSON.parse(await readBody(req)) as PiChatRequestBody
-  } catch {
+  } catch (error) {
+    // T27：超限单独 413；其余（坏 JSON / 连接中断）按 400
+    if (error instanceof PayloadTooLargeError) {
+      res.writeHead(413).end('Payload Too Large')
+      return
+    }
     res.writeHead(400).end('Bad Request: invalid JSON')
     return
   }
@@ -98,6 +122,12 @@ async function handlePiChatRequest(
     'cache-control': 'no-cache',
     connection: 'keep-alive',
     'x-vercel-ai-ui-message-stream': 'v1'
+  })
+
+  // T27：客户端断连（前端 stop 只 abort fetch）时取消后端当次 run，停止烧 token；
+  // 正常收尾（res.end 已发）时 writableEnded 为 true，不误伤
+  res.on('close', () => {
+    if (!res.writableEnded) void service.abort(sessionId)
   })
 
   const emit = (chunk: unknown) => {
@@ -182,9 +212,64 @@ async function handleAdminRequest(
     }
     res.writeHead(404).end('Not Found')
   } catch (error) {
-    // 错误文案由 provider-admin 保证不含 key 本体
+    // T27：超限 413；其余错误文案由 provider-admin 保证不含 key 本体
+    if (error instanceof PayloadTooLargeError) {
+      res.writeHead(413).end('Payload Too Large')
+      return
+    }
     sendJSON(res, 400, { error: error instanceof Error ? error.message : String(error) })
   }
+}
+
+/**
+ * T27：只读 GET 路由（history/sessions/brand manifest）统一收编——
+ * ① fs 读取异常不应打穿进程（500 而非崩溃/悬挂）；② 从 createServer 回调
+ * 抽出控制复杂度（oxlint complexity 上限）。返回是否已处理。
+ * 必须在 /api/pi/ 管理面前缀之前匹配（调用方保证顺序）。
+ */
+function handleReadonlyPiRequest(
+  service: ReturnType<typeof createPiChatService>,
+  req: IncomingMessage,
+  res: ServerResponse,
+  url: URL
+): boolean {
+  const { pathname } = url
+  if (
+    pathname !== '/api/pi/history' &&
+    pathname !== '/api/pi/sessions' &&
+    pathname !== '/api/pi/brand/manifest'
+  ) {
+    return false
+  }
+  if (req.method !== 'GET') {
+    res.writeHead(405).end('Method Not Allowed')
+    return true
+  }
+  try {
+    // T22：历史回填（D3）——docKey 前缀解析族内最新会话，或 sessionId 精确读取
+    if (pathname === '/api/pi/history') {
+      const exact = url.searchParams.get('sessionId')
+      const docKey = url.searchParams.get('docKey')
+      const sessionId = exact ?? (docKey ? service.resolveLatestSessionId(docKey) : null)
+      if (!sessionId) {
+        sendJSON(res, 200, { sessionId: null, messages: [] })
+        return true
+      }
+      sendJSON(res, 200, { sessionId, messages: service.readHistory(sessionId) })
+      return true
+    }
+    // T23：会话族谱清单（E1）——docKey 前缀扫描族内全部会话摘要，最新在前
+    if (pathname === '/api/pi/sessions') {
+      const docKey = url.searchParams.get('docKey')
+      sendJSON(res, 200, { sessions: docKey ? service.listSessionFamily(docKey) : [] })
+      return true
+    }
+    // T24：brand manifest（D6）——种子脱敏投影供前端 profile 选择器
+    sendJSON(res, 200, service.getBrandManifest())
+  } catch (error) {
+    sendJSON(res, 500, { error: error instanceof Error ? error.message : String(error) })
+  }
+  return true
 }
 
 export function createPiBackendServer({ rootDir }: { rootDir: string }): Server {
@@ -200,44 +285,8 @@ export function createPiBackendServer({ rootDir }: { rootDir: string }): Server 
       void handlePiChatRequest(service, req, res)
       return
     }
-    // T22：历史回填（D3）——docKey 前缀解析族内最新会话，或 sessionId 精确读取；
-    // 必须在 /api/pi/ 管理面前缀之前匹配
-    if (url.pathname === '/api/pi/history') {
-      if (req.method !== 'GET') {
-        res.writeHead(405).end('Method Not Allowed')
-        return
-      }
-      const exact = url.searchParams.get('sessionId')
-      const docKey = url.searchParams.get('docKey')
-      const sessionId = exact ?? (docKey ? service.resolveLatestSessionId(docKey) : null)
-      if (!sessionId) {
-        sendJSON(res, 200, { sessionId: null, messages: [] })
-        return
-      }
-      sendJSON(res, 200, { sessionId, messages: service.readHistory(sessionId) })
-      return
-    }
-    // T23：会话族谱清单（E1）——docKey 前缀扫描族内全部会话摘要，最新在前；
-    // 只读。必须在 /api/pi/ 管理面前缀之前匹配
-    if (url.pathname === '/api/pi/sessions') {
-      if (req.method !== 'GET') {
-        res.writeHead(405).end('Method Not Allowed')
-        return
-      }
-      const docKey = url.searchParams.get('docKey')
-      sendJSON(res, 200, { sessions: docKey ? service.listSessionFamily(docKey) : [] })
-      return
-    }
-    // T24：brand manifest（D6）——种子脱敏投影供前端 profile 选择器；
-    // 只读。必须在 /api/pi/ 管理面前缀之前匹配
-    if (url.pathname === '/api/pi/brand/manifest') {
-      if (req.method !== 'GET') {
-        res.writeHead(405).end('Method Not Allowed')
-        return
-      }
-      sendJSON(res, 200, service.getBrandManifest())
-      return
-    }
+    // T22/T23/T24 只读路由（须在 /api/pi/ 管理面前缀之前匹配）
+    if (handleReadonlyPiRequest(service, req, res, url)) return
     if (url.pathname.startsWith('/api/pi/')) {
       void handleAdminRequest(admin, req, res, url.pathname)
       return

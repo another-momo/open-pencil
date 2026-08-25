@@ -52,12 +52,12 @@ const designCredentialMissing = computed(() => {
 
 function thinkingLabel(level: PiThinkingLevel): string {
   const labels: Record<PiThinkingLevel, string> = {
-    off: dialogs.value.harnessThinkingOff,
-    minimal: dialogs.value.harnessThinkingMinimal,
-    low: dialogs.value.harnessThinkingLow,
-    medium: dialogs.value.harnessThinkingMedium,
-    high: dialogs.value.harnessThinkingHigh,
-    xhigh: dialogs.value.harnessThinkingExtraHigh
+    off: dialogs.value.piThinkingOff,
+    minimal: dialogs.value.piThinkingMinimal,
+    low: dialogs.value.piThinkingLow,
+    medium: dialogs.value.piThinkingMedium,
+    high: dialogs.value.piThinkingHigh,
+    xhigh: dialogs.value.piThinkingExtraHigh
   }
   return labels[level]
 }
@@ -353,7 +353,7 @@ onMounted(() => void refreshPiCatalog())
             </option>
           </select>
 
-          <label class="mt-1 text-[10px] text-muted">{{ dialogs.harnessThinkingLevel }}</label>
+          <label class="mt-1 text-[10px] text-muted">{{ dialogs.piThinkingLevel }}</label>
           <select
             v-model="designThinking"
             class="rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none"

@@ -2,13 +2,15 @@
  * T19 P5 恢复探针：对 pi-backend-smoke.mjs 已建立的 session 在 dev server 重启后
  * 追问锚点数字——命中即证明 SessionManager.open 从 JSONL 恢复了历史。
  *
- * 运行：node tests/engine/rebuild/pi-backend-recovery-probe.mjs <sessionId> <marker> [baseUrl]
+ * 前置：vite dev server 已起 + 活模型 key（不经浏览器）。
+ * 运行：node spikes/s-pi/backend-smoke/recovery-probe.mjs <sessionId> <marker> [baseUrl]
+ * （T27 修正头注释 stale 路径——本脚本 T19 从 tests/engine/rebuild/ 迁来后未更新）
  * 退出码 0 = 恢复命中。
  */
 
 const [, , sessionId, marker, base = 'http://localhost:1420'] = process.argv
 if (!sessionId || !marker) {
-  console.error('usage: node pi-backend-recovery-probe.mjs <sessionId> <marker> [baseUrl]')
+  console.error('usage: node recovery-probe.mjs <sessionId> <marker> [baseUrl]')
   process.exit(2)
 }
 

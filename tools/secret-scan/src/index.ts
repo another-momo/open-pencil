@@ -19,9 +19,18 @@ function run(command: string, args: string[]): Bun.SpawnSyncReturns<Buffer> | nu
 
 const proc = run('gitleaks', gitleaksArgs) ?? run('go', ['run', GITLEAKS_MODULE, ...gitleaksArgs])
 
-if (!proc?.success) {
+// T27：缺二进制（gitleaks 与 go 都没装的环境受限机器）不是扫描失败——
+// 明确打印 SKIPPED 并 exit 0；CI runner 镜像自带 go（go run 兜底路径），仍真扫。
+if (!proc) {
+  console.log(
+    'Secret scan SKIPPED: gitleaks/go not installed (environment-limited; CI runs the real scan).'
+  )
+  process.exit(0)
+}
+
+if (!proc.success) {
   console.error('Secret scan failed.')
-  process.exit(proc?.exitCode || 1)
+  process.exit(proc.exitCode || 1)
 }
 
 console.log('Secret scan passed.')

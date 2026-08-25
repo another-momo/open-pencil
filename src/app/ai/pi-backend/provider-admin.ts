@@ -22,31 +22,17 @@ import { join } from 'node:path'
 
 import { ModelRuntime } from '@earendil-works/pi-coding-agent'
 
+// T27：catalog DTO 单源在 ./catalog（type-only，与前端 client.ts 共享契约）
+import type { PiCatalog, PiCatalogModel, PiCatalogProvider } from './catalog'
+
+export type { PiCatalog, PiCatalogModel, PiCatalogProvider }
+
 export type ThinkingLevelName = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
 
 export type ModelSpec = {
   providerId: string
   modelId: string
   thinkingLevel?: ThinkingLevelName
-}
-
-export type CatalogModel = {
-  id: string
-  name: string
-  api: string
-  reasoning: boolean
-  input: string[]
-  contextWindow: number
-  maxTokens: number
-  cost: { input: number; output: number; cacheRead: number; cacheWrite: number }
-}
-
-export type CatalogProvider = {
-  id: string
-  name: string
-  baseUrl?: string
-  auth: { configured: boolean; type?: 'api_key' | 'oauth'; source?: string }
-  models: CatalogModel[]
 }
 
 export type CustomProviderInput = {
@@ -94,6 +80,37 @@ const SEED_MODELS_JSON = {
 
 const PROVIDER_ID_PATTERN = /^[a-z0-9-]+$/
 
+/** T27：models.json 最小结构校验——启动/重建 runtime 前 fail-fast；
+ * 错误文案只含路径与字段名，不打印文件内容（文件内有 apiKey 引用） */
+function validateModelsDoc(raw: string, modelsPath: string): void {
+  let doc: unknown
+  try {
+    doc = JSON.parse(raw)
+  } catch {
+    throw new Error(
+      `models.json 不是合法 JSON（${modelsPath}）——修复或删除后重启（缺失时会自动重建种子）`
+    )
+  }
+  const providers = (doc as { providers?: unknown } | null)?.providers
+  if (!providers || typeof providers !== 'object' || Array.isArray(providers)) {
+    throw new Error(`models.json 缺少 providers 对象（${modelsPath}）`)
+  }
+  for (const [providerId, provider] of Object.entries(providers)) {
+    const models = (provider as { models?: unknown } | null)?.models
+    if (!Array.isArray(models) || models.length === 0) {
+      throw new Error(`models.json provider "${providerId}" 缺少非空 models 数组（${modelsPath}）`)
+    }
+    for (const model of models) {
+      const id = (model as { id?: unknown } | null)?.id
+      if (typeof id !== 'string' || !id) {
+        throw new Error(
+          `models.json provider "${providerId}" 含缺 id 的 model 条目（${modelsPath}）`
+        )
+      }
+    }
+  }
+}
+
 function assertKeyCarriable(apiKey: string): string {
   const key = apiKey.trim()
   if (!key) throw new Error('API key 为空')
@@ -113,9 +130,19 @@ export function createProviderAdmin({ agentDir }: { agentDir: string }) {
       mkdirSync(agentDir, { recursive: true })
       if (!existsSync(modelsPath)) {
         writeFileSync(modelsPath, JSON.stringify(SEED_MODELS_JSON, null, 2))
+      } else {
+        // T27：既有 models.json 先做最小结构校验，坏配置在启动期报清晰错误
+        // 而非在 ModelRuntime 深处炸难以定位的解析失败
+        validateModelsDoc(readFileSync(modelsPath, 'utf8'), modelsPath)
       }
       return ModelRuntime.create({ authPath, modelsPath })
     })()
+    // T27：校验/初始化失败不留死 promise（否则修完 models.json 仍永久 400）——
+    // 失败即释放缓存，下次调用重试
+    const pending = runtimePromise
+    pending.catch(() => {
+      if (runtimePromise === pending) runtimePromise = null
+    })
     return runtimePromise
   }
 
@@ -123,9 +150,9 @@ export function createProviderAdmin({ agentDir }: { agentDir: string }) {
     runtimePromise = null
   }
 
-  async function getCatalog(): Promise<{ providers: CatalogProvider[] }> {
+  async function getCatalog(): Promise<PiCatalog> {
     const runtime = await ensureRuntime()
-    const providers: CatalogProvider[] = []
+    const providers: PiCatalogProvider[] = []
     for (const provider of runtime.getProviders()) {
       const check = await runtime.checkAuth(provider.id).catch(() => undefined)
       providers.push({

@@ -8,7 +8,10 @@
 #                    broken by ANY upstream file change, not just docs.
 #   check:docs     — only when docs/rebuild/*.md staged
 #   check:bindings — only when docs/rebuild/*.md staged
-#   check:tasks    — only when docs/rebuild/*.md staged
+#   check:tasks    — when docs/rebuild/*.md staged, OR any big pure-code
+#                    change (>=10 files or >=200 lines staged; T27——大改动
+#                    任务登记纪律不只约束文档改动，与 check:tasks 自身
+#                    R1/R2 阈值同口径)
 #
 # Setup (one time, per clone / worktree):
 #   bun run hooks:install
@@ -28,11 +31,19 @@ fi
 echo "pre-commit: 跑 check:zones..."
 bun run check:zones
 
-# doc 三检查仅在 docs/rebuild/*.md 改动时触发
+# doc 三检查在 docs/rebuild/*.md 改动时触发
 changed_docs=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^docs/rebuild/.*\.md$' || true)
 
 if [ -z "$changed_docs" ]; then
-  echo "pre-commit: 无 docs/ 改动，跳过 check-docs/bindings/tasks"
+  # T27：纯代码大改动也触发 check:tasks（阈值与 check:tasks 的 R1/R2 同口径）
+  file_count=$(git diff --cached --name-only --diff-filter=ACMR | grep -c . || true)
+  line_count=$(git diff --cached --numstat | awk '{a+=$1; d+=$2} END {print a+d+0}')
+  if [ "$file_count" -ge 10 ] || [ "$line_count" -ge 200 ]; then
+    echo "pre-commit: 无 docs/ 改动但属大改动（${file_count} 文件 / ${line_count} 行），跑 check:tasks..."
+    bun run check:tasks
+  else
+    echo "pre-commit: 无 docs/ 改动且非大改动，跳过 check-docs/bindings/tasks"
+  fi
   exit 0
 fi
 

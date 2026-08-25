@@ -6,7 +6,9 @@ import { isAuthorized } from '#mcp/auth'
 import type { RPCJSONObject } from '#mcp/json'
 import type { PendingRequest } from '#mcp/rpc-types'
 
-const RPC_TIMEOUT = 20_000
+// T27：长回合场景（大文档批量工具调用）可经 OPENPENCIL_RPC_TIMEOUT_MS 放宽；
+// 默认 20s 不变。Number(...)||默认值 的写法同时挡住未设置（NaN）与非法值。
+const RPC_TIMEOUT = Number(process.env.OPENPENCIL_RPC_TIMEOUT_MS) || 20_000
 const APP_WAIT_TIMEOUT = 10_000
 
 const APP_NOT_CONNECTED_MESSAGE =

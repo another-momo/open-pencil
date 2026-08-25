@@ -12,9 +12,14 @@
  *
  *   Exemptions:
  *   - records/* changes (no required counterpart)
- *   - changes that include `[no-record]` in the commit message
  *   - changes that introduce a new narrative file (the new counterpart
  *     is added in the same commit)
+ *
+ *   T27 语义修正（注释此前与代码不一致，按 fail-safe 方向对齐为严格语义）：
+ *   - commit message 里的 `[no-record]` **不是豁免**——代码从不放行违规，
+ *     该标记只改变日志文案（提示性）。绑定违规一律 fail。
+ *   - 删除 narrative 文件必须同步删除对应 records 档案（此前被误判为
+ *     「新增」而放行，产生孤儿 records——已修正为显式检查删除方向）。
  *
  * Usage: bun tools/zone-registry/src/check-bindings.ts [--base <ref>] (default: HEAD)
  * Exit 0 = clean; exit 1 = violations listed on stderr.
@@ -48,15 +53,26 @@ function git(args: string): string {
   }
 }
 
-function getChangedFiles(): string[] {
+function getChangedFiles(): { changed: string[]; deleted: Set<string> } {
   // 默认 base=HEAD：
   //   - CI 场景（hook 触发于 commit 之后）：看 HEAD~1..HEAD（即上一次 commit 的所有变更）
   //   - pre-commit hook 场景：用户 git add 后看 staged vs HEAD——已 staged 但未 commit 的改动也会被检出
   //   - 未 add 的 working tree 改动：依赖 oxlint / CI 兜底
-  const diff = git(`diff --name-only ${base}`)
+  // T27：--name-status 区分删除方向——被删的 narrative 不能再靠
+  // existsSync=false 蒙混成「新增豁免」，其 records 档案必须同删（防孤儿）
+  const diff = git(`diff --name-status ${base}`)
   const untracked = git('ls-files --others --exclude-standard')
-  const all = `${diff}\n${untracked}`.split('\n').filter(Boolean)
-  return Array.from(new Set(all))
+  const changed = new Set<string>()
+  const deleted = new Set<string>()
+  for (const line of diff.split('\n').filter(Boolean)) {
+    const [status, ...paths] = line.split('\t')
+    const file = paths.at(-1)
+    if (!file) continue
+    changed.add(file)
+    if (status === 'D') deleted.add(file)
+  }
+  for (const line of untracked.split('\n').filter(Boolean)) changed.add(line)
+  return { changed: Array.from(changed), deleted }
 }
 
 function getCommitMessage(): string {
@@ -96,9 +112,10 @@ function isNarrative(file: string): { counterpart: string | null; isNew: boolean
 
 function main(): void {
   const commitMsg = getCommitMessage()
-  const hasExemption = /\[no-record\]/i.test(commitMsg)
+  // T27：[no-record] 仅提示性标记，不豁免（见文件头「T27 语义修正」）
+  const hasMarker = /\[no-record\]/i.test(commitMsg)
 
-  const changed = getChangedFiles()
+  const { changed, deleted } = getChangedFiles()
   if (changed.length === 0) {
     console.log('check-bindings: 无变更，跳过')
     process.exit(0)
@@ -110,8 +127,21 @@ function main(): void {
     const { counterpart } = isNarrative(file)
     if (!counterpart) continue
 
-    // 检查 counterpart 是否也在变更列表里
+    // 检查 counterpart 是否也在变更列表里（修改或删除都算「同步处置」）
     const counterpartChanged = changed.includes(counterpart)
+
+    // T27：删除方向显式处理——narrative 被删时 records 档案必须同删，
+    // 否则留孤儿（此前 existsSync=false 被误判为「新增文件」而整体放行）
+    if (deleted.has(file)) {
+      if (!counterpartChanged && existsSync(resolve(root, counterpart))) {
+        violations.push({
+          file,
+          rule: 'binding',
+          message: `narrative 文件 ${file} 已删除，但对应 records ${counterpart} 仍残留。请同步删除（孤儿档案不留）`
+        })
+      }
+      continue
+    }
 
     // 新增文件：检查文件是否存在于 working tree（被 staged）
     const isNewFile = !existsSync(resolve(root, file))
@@ -123,22 +153,24 @@ function main(): void {
         violations.push({
           file,
           rule: 'binding',
-          message: `narrative 文件 ${file} 已修改，但对应 records ${counterpart} 未修改。请同步更新或加 [no-record] 例外`
+          message: `narrative 文件 ${file} 已修改，但对应 records ${counterpart} 未修改。请同步更新`
         })
       } else {
         // counterpart 也不存在——可能是新增 narrative 文件但忘记建对应档案
         violations.push({
           file,
           rule: 'binding',
-          message: `新增 narrative 文件 ${file}，但缺少对应 records ${counterpart}。请同时创建或加 [no-record] 例外`
+          message: `新增 narrative 文件 ${file}，但缺少对应 records ${counterpart}。请同时创建`
         })
       }
     }
   }
 
   if (violations.length === 0) {
-    if (hasExemption) {
-      console.log(`check-bindings: ${changed.length} 文件变更，含 [no-record] 例外，跳过绑定检查`)
+    if (hasMarker) {
+      console.log(
+        `check-bindings: ${changed.length} 文件变更（含 [no-record] 提示标记），binding 全绿`
+      )
     } else {
       console.log(`check-bindings: ${changed.length} 文件变更，binding 全绿`)
     }
@@ -146,8 +178,8 @@ function main(): void {
   }
 
   console.error(`check-bindings: ${violations.length} 处 binding 违规`)
-  if (hasExemption) {
-    console.error('  [no-record] 例外存在，但仍有未豁免的违规')
+  if (hasMarker) {
+    console.error('  注：[no-record] 不是豁免（T27 语义修正）——绑定违规一律拒收')
   }
   for (const v of violations) {
     console.error(`  [${v.rule}] ${v.file}: ${v.message}`)

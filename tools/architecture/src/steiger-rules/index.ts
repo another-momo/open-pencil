@@ -1,3 +1,6 @@
+// T27：no-kitchen-sink-engine-basic-tests 长期未注册且启用即崩——补上缺失的
+// readFileSync/collectFiles 导入（规则本体在 :152）
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { parse as parseVueSfc } from 'vue/compiler-sfc'
@@ -8,6 +11,7 @@ import {
   noVueTemplateUIHooksOrSVG
 } from './dynamic-tailwind-classes.ts'
 import {
+  collectFiles,
   collectFolders,
   createFileRule,
   createImportRule,
@@ -347,7 +351,8 @@ const noPropertyPanelInternalsOutsidePanel = createImportRule(
   }
 )
 
-const MACOS_MODIFIER_GLYPH_PATTERN = /[⌘⌥⌃]/u
+// T27：matchAll 要求 g flag（该规则此前未注册，此 bug 从未被触发）
+const MACOS_MODIFIER_GLYPH_PATTERN = /[⌘⌥⌃]/gu
 
 const noHardcodedMacOSShortcutGlyphs = createTextRule(
   'open-pencil/no-hardcoded-macos-shortcut-glyphs',

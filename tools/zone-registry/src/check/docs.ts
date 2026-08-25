@@ -81,16 +81,33 @@ function readFile(file: string): string {
 
 // ─── R1/R2/R3 ────────────────────────────────────────────────────────────
 
+// T27：R1/R2/R3 是「头部 blockquote」必填字段——此前 /m 全文档扫描，正文里
+// 任何一行引用性 blockquote（如摘录他文状态行）都能蒙混过关。锚定 = 前 30 行内
+// 第一个连续 '>' 引用块（05 §4 头部字段的家；纪律注释块 + 标题在前属正常排版，
+// 故不能钉死行号）。
+const HEADER_SCAN_LINES = 30
+
+function headerBlock(content: string): string {
+  const lines = content.split('\n').slice(0, HEADER_SCAN_LINES)
+  const start = lines.findIndex((line) => line.startsWith('>'))
+  if (start === -1) return ''
+  let end = start
+  while (end < lines.length && lines[end].startsWith('>')) end++
+  return lines.slice(start, end).join('\n')
+}
+
 function checkStatus(file: string, content: string): string | null {
-  if (!/^>\s*\*\*状态\*\*[：:]/m.test(content)) {
-    return '头部 blockquote 缺少 **状态** 字段（05 §4 第 3 条）'
+  if (!/^>\s*\*\*状态\*\*[：:]/m.test(headerBlock(content))) {
+    return '头部 blockquote（前 30 行首个引用块）缺少 **状态** 字段（05 §4 第 3 条）'
   }
   return null
 }
 
 function checkTime(file: string, content: string): string | null {
-  const m = content.match(/^>\s*(?:.*?\|\s*)?\*\*时间\*\*[：:]\s*(.+?)(?:\s*\*\*|\s*$)/m)
-  if (!m) return '头部 blockquote 缺少 **时间** 字段（05 §4 第 3 条）'
+  const m = headerBlock(content).match(
+    /^>\s*(?:.*?\|\s*)?\*\*时间\*\*[：:]\s*(.+?)(?:\s*\*\*|\s*$)/m
+  )
+  if (!m) return '头部 blockquote（前 30 行首个引用块）缺少 **时间** 字段（05 §4 第 3 条）'
   const value = m[1]
   if (!/\d{4}-\d{2}-\d{2}/.test(value)) {
     return `**时间** 字段缺少 YYYY-MM-DD 日期：${value}`
@@ -99,8 +116,8 @@ function checkTime(file: string, content: string): string | null {
 }
 
 function checkIdentity(file: string, content: string): string | null {
-  if (!/^>\s*\*\*身份\*\*[：:]/m.test(content)) {
-    return '头部 blockquote 缺少 **身份** 字段（05 §4 第 3 条）'
+  if (!/^>\s*\*\*身份\*\*[：:]/m.test(headerBlock(content))) {
+    return '头部 blockquote（前 30 行首个引用块）缺少 **身份** 字段（05 §4 第 3 条）'
   }
   return null
 }

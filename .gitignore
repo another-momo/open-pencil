@@ -72,7 +72,9 @@ components.d.ts
 # Git worktrees for parallel agent work
 .worktrees/
 
-# Agent scratch space (reviews, plans, test artifacts)
+# Agent scratch space (reviews, plans, test artifacts)——T27 复核：非死配置，
+# tools/architecture steiger 规则（strict-test-file-placement / no-prototype-or-generated-imports）
+# 指定的试验性 spec 放置区即 scratch/，保留
 scratch/
 
 # OpenCode

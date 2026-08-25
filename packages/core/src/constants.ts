@@ -187,7 +187,6 @@ export type AIProviderID =
   | 'zai'
   | 'minimax'
   | 'anthropic-compatible'
-  | 'harness:pi'
   | `acp:${ACPAgentID}`
 
 export interface ModelOption {
@@ -209,18 +208,7 @@ export interface AIProviderDef {
   supportsCustomModel?: boolean
 }
 
-export const HARNESS_PROVIDER_ID = 'harness:pi' as const
-
 export const AI_PROVIDERS: AIProviderDef[] = [
-  {
-    id: HARNESS_PROVIDER_ID,
-    name: 'Pi',
-    keyPlaceholder: 'Provider API key',
-    keyURL: '',
-    defaultModel: '',
-    supportsCustomModel: true,
-    models: []
-  },
   {
     id: 'openrouter',
     name: 'OpenRouter',

@@ -258,11 +258,11 @@
   "codePreviewFailed": "Preview failed",
   "codeGeneratedReadOnly": "Generated, read only",
   "codeReset": "Reset",
-  "harnessThinkingLevel": "思考级别",
-  "harnessThinkingOff": "关闭",
-  "harnessThinkingMinimal": "最低",
-  "harnessThinkingLow": "低",
-  "harnessThinkingMedium": "中",
-  "harnessThinkingHigh": "高",
-  "harnessThinkingExtraHigh": "极高"
+  "piThinkingLevel": "思考级别",
+  "piThinkingOff": "关闭",
+  "piThinkingMinimal": "最低",
+  "piThinkingLow": "低",
+  "piThinkingMedium": "中",
+  "piThinkingHigh": "高",
+  "piThinkingExtraHigh": "极高"
 }

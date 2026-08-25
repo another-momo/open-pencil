@@ -4,7 +4,8 @@
  * → SSE 流式渲染 → 后端 session 历史跨回合生效。
  *
  * 前置：vite dev server 已起（T25 D3 后门退役：pi 为唯一路径；key 经 env 或 .openpencil/key-env 自助注入）。
- * 运行：node tests/engine/rebuild/pi-backend-browser-smoke.mjs [baseUrl]
+ * 运行：node spikes/s-pi/backend-smoke/browser-smoke.mjs [baseUrl]
+ * （T27 修正头注释 stale 路径——本脚本 T19 从 tests/engine/rebuild/ 迁来后未更新）
  * 退出码 0 = 全过；截图证据落 .openpencil/p5b-*.png（gitignored）。
  */
 

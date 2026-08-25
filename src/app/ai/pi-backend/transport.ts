@@ -74,7 +74,12 @@ function parseSSEChunkStream(body: ReadableStream<Uint8Array>): ReadableStream<U
               controller.close()
               return
             }
-            controller.enqueue(JSON.parse(data) as UIMessageChunk)
+            // T27：坏帧（代理串扰/后端半截写）跳过即可——单帧损坏不应击穿整段流
+            try {
+              controller.enqueue(JSON.parse(data) as UIMessageChunk)
+            } catch {
+              console.warn('[pi-transport] 跳过无法解析的 SSE 帧（已丢弃该帧，流继续）')
+            }
           }
           continue
         }

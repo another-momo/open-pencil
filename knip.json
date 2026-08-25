@@ -9,13 +9,15 @@
   "ignoreUnresolved": [
     "~icons/*",
     "/src/app/editor/fonts/index.ts",
-    "#core/*"
+    "#core/*",
+    "/src/app/tabs/index.ts"
   ],
   "ignoreBinaries": [
     "figma-use",
     "identify",
     "magick",
     "open",
-    "osascript"
+    "osascript",
+    "taskkill"
   ]
 }

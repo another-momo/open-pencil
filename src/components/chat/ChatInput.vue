@@ -54,6 +54,13 @@ function handleSubmit(e: Event) {
   emit('submit', text)
   input.value = ''
 }
+
+// T27：父级在提交失败时回填草稿（emit 即清空是即时反馈设计，失败不该丢稿）；
+// 用户已另起新输入时不覆盖
+function restoreDraft(text: string) {
+  if (!input.value.trim()) input.value = text
+}
+defineExpose({ restoreDraft })
 </script>
 
 <template>

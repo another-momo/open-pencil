@@ -8,10 +8,16 @@
  *   POST   /api/pi/providers    CustomProviderInput
  *
  * 凭据只进不出：catalog 里只有 configured/type/source，绝不回传 key 本体。
- * 本模块自带 DTO 类型（不 import 后端 provider-admin，避免浏览器侧打进 node 依赖）。
+ * catalog DTO 单源在 ./catalog（T27：纯类型契约模块，type-only import 构建期
+ * 擦除，不会把后端 node 依赖打进浏览器包；此前双形状可选性不同逃逸了
+ * type-shapes 查重——kimi M-4）。
  */
 
 import { ref } from 'vue'
+
+import type { PiCatalog, PiCatalogModel, PiCatalogProvider } from './catalog'
+
+export type { PiCatalog, PiCatalogModel, PiCatalogProvider }
 
 export type PiThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
 
@@ -20,27 +26,6 @@ export type PiModelSpec = {
   modelId: string
   thinkingLevel?: PiThinkingLevel
 }
-
-export type PiCatalogModel = {
-  id: string
-  name: string
-  api?: string
-  reasoning?: boolean
-  input?: string[]
-  contextWindow?: number
-  maxTokens?: number
-  cost?: { input?: number; output?: number }
-}
-
-export type PiCatalogProvider = {
-  id: string
-  name: string
-  baseUrl?: string
-  auth: { configured: boolean; type?: string; source?: string }
-  models: PiCatalogModel[]
-}
-
-export type PiCatalog = { providers: PiCatalogProvider[] }
 
 export type PiCustomProviderInput = {
   id: string

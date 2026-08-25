@@ -42,9 +42,7 @@
     "tests/engine/app/clipboard/keyboard.test.ts",
     "tests/engine/app/clipboard/memory.test.ts"
   ],
-  "stubs": [
-    "src/app/collab/use.ts"
-  ],
+  "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
     "src/app/ai/chat/",
     "src/app/ai/debug/index.ts",

@@ -2,8 +2,8 @@ import { describe, expect, test } from 'bun:test'
 
 import { DEFAULT_SNAPPING_PREFERENCES, createEditor } from '@open-pencil/core/editor'
 
-import { applyNodeEditSnap } from '#vue/shared/input/vector/snap'
 import type { DragEditNode } from '#vue/shared/input/types'
+import { applyNodeEditSnap } from '#vue/shared/input/vector/snap'
 
 function createDrag(startX: number, startY: number): DragEditNode {
   return {

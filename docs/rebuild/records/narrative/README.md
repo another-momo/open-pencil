@@ -69,3 +69,11 @@
 - **依据**：T09 核验 subagent 发现 N2——一轮修正只改了正文 gate 条目（第 6 步），第一层表格行（README.md L29）仍残留「§3.1 gate review 第 4 步」
 - **内容**：第一层表格 05-process.md 行「第 4 步」→「第 6 步」；至此 README 两处步骤号引用均与 [05-process.md §3.1](../../05-process.md) 实际一致
 - **教训**：同一文档内多处引用同一事实时，修正必须全文 grep 兜底（本轮漏改即为「改了正文没改表」）
+
+## 修正-N · README.md 基线/预算更正 + tasks/proposals 入口补全（2026-08-25 三方 review 整改）
+
+- **类型**：修正（按对象：README.md）
+- **时间**：2026-08-25
+- **依据**：三方 review 发现——① 基线行仍写 `rebuild/v2` + upstream@15bd0ba1，实测当前分支 rebuild/pi、merge-base upstream/master@5201404f（`git merge-base HEAD upstream/master`，2026-08-25）；② 第一层表 tracker 行「≤50 行」为旧预算（T09 已放宽 ≤80）；③ 第一层表缺 tasks/ 三件套与 proposals/ 入口
+- **内容**：基线行改 rebuild/pi + upstream@5201404f（附核验命令与日期）；tracker 行 ≤50→≤80；第一层表新增 tasks/ 与 proposals/ 两行；头部时间刷新
+- **task 文档**：无独立 task（T26 统一登记）

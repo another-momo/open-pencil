@@ -9,9 +9,9 @@
 
 # 重建文档集（rebuild）
 
-> **状态**：已核验 | **时间**：2026-08-21（T09 整改）| **核验人**：主 agent + owner
+> **状态**：已核验 | **时间**：2026-08-25（基线与预算更正 + tasks/proposals 入口补全）| **核验人**：主 agent + owner
 > **身份**：重建文档集（re-fork + 绞杀式移植）的叙事与决策文档来源。治理规则由 05-process.md 定义，本文件是入口。
-> **基线**：分支 `rebuild/v2`（基线 `upstream/master` @ `15bd0ba1`）| 供货方/参考：旧分支 `feature/agent-backend`（测量点 `a1c33881`）
+> **基线**：分支 `rebuild/pi`（merge-base `upstream/master` @ `5201404f`，`git merge-base HEAD upstream/master` 2026-08-25 实测）| 供货方/参考：旧分支 `feature/agent-backend`（测量点 `a1c33881`）
 
 ## 本目录是什么
 
@@ -27,7 +27,9 @@
 | [03-phase-1-runtime.md](03-phase-1-runtime.md) | 辅助参考（case study / 技术调研） | runtime 选型硬门与 spike 问题（不直接驱动 gate） |
 | [04-porting-discipline.md](04-porting-discipline.md) | 辅助参考 | 移植纪律与 parity 线 |
 | [05-process.md](05-process.md) | **过程定义（最高优先级）** | 工作方式与文档纪律（[§4 七条规则](05-process.md) + [§3.1 gate review 第 6 步](05-process.md)） |
-| [tracker.md](tracker.md) | **执行依据（核心，活文档·精简）** | 阶段门 + 任务表 + 记录索引（≤50 行） |
+| [tracker.md](tracker.md) | **执行依据（核心，活文档·精简）** | 阶段门 + 任务表 + 记录索引（≤80 行——T09 由 ≤50 行放宽） |
+| [tasks/](tasks/_index.md) | **执行依据（task 维度档案）** | 每 task 三件套物理拆分：`T<NN>-{plan,self-check,verify}.md`（[05-process.md §4.11](05-process.md) D15），索引见 [tasks/_index.md](tasks/_index.md) |
+| [proposals/](proposals/governance-v1.md) | 外部建议集合（append-only） | D10-D15 落地的源头建议（governance-v1.md，已采纳 v1，历史快照不再修改） |
 | spikes/*.md | 辅助参考（源码核查报告） | dsh / pi 路线 + weshop 案例的实证 |
 
 ### 第二层：变更/核验/腐烂记录（append-only）

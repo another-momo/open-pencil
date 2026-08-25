@@ -234,3 +234,12 @@
 - **时间**：2026-08-23
 - **内容**：D24 第 5 条「工具审批与 skills 无内置需自写 extension」中 **skills 半句有误**——pi 内置 Agent Skills 标准支持：`~/.pi/agent/skills/`、`~/.agents/skills/`、`.pi/skills/`、`.agents/skills/`（cwd 向父级逐层）文件系统发现 + `/skill:name` 展开 + 可经 pi package 分享（pi packages/coding-agent README.md:354-367、docs/extensions.md:895-933，2026-08-23 复核原文；spikes/02 §P8 早有同结论）。**工具审批**半句维持原判（自写 `tool_call` event + `ctx.ui.confirm()`，extensions.md:778-799）。owner 提出「skill 支持可后期引入别人的 extension」——实际更优：skills 无需 extension，第三方 SKILL.md（agentskills.io 开放标准，多工具通用）直接落目录即用
 - **同步修正**：03 §3.2 skills 行已就地勘误（原述「无内置子系统」误，与 02 §P8 矛盾，按详细证据文档为准）
+
+## 状态更新 · D9 / D7 闭环确认 + D24 后全局 D 注册表停更说明（2026-08-25）
+
+- **类型**：状态更新（对既有条目；append-only，原条目不改动）
+- **时间**：2026-08-25
+- **内容**：
+  1. **D9 闭环确认**：D9 条目本体状态字段仍为「open（待 owner 拍板）」——系未回刷的滞留值。D9 已由 D22（2026-08-22 拍 a 先行）与 D24（2026-08-23 拍 pi 升主线、取代 D22 排序）实际闭环；D22 条目自称「D9 从 open 闭环」属实，以本条为 D9 条目的正式状态桥接：**D9 = 已闭环（闭环凭证 = D22/D24）**
+  2. **D7 闭环**：D7（runtime 选型）状态字段同为滞留 open——D7 与 D9 同体，闭环凭证同为 D24（pi SDK 升主线）：**D7 = 已闭环（= D24）**
+  3. **全局 D 注册表停更现象记录**：D24 之后（T20-T25 窗口），owner 拍板只落在各 task 三件套内的任务级 D 编号（T22-plan D1-D6、T24-plan D1-D9、T25-plan D1-D4 等），全局 records/topics/ 层未再新增 D 条目——全局 D 注册表事实停更于 D24。任务级 D 与全局 D 撞名（如 T24-plan 的 D5 overlay 形状 vs 全局 D5 chatMode）已构成检索歧义，整改方案报送 owner（见 2026-08-25 review 报送清单）

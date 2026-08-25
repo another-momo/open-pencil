@@ -455,3 +455,21 @@
 - **task 文档**：[tasks/T25-plan.md](../../tasks/T25-plan.md) / [tasks/T25-self-check.md](../../tasks/T25-self-check.md) / [tasks/T25-verify.md](../../tasks/T25-verify.md)
 - **顺修登记**：tools/type-shapes Windows 反斜杠归一（P50）；e2e spec Meta+j → ControlOrMeta+j（P49 同条）；T20 keeper 包装一次性使用即删
 - **远端 CI**：run 32735915321 format:check 红（zh-cn dialogs.json 尾随换行——python 写入与 oxfmt 规则差异）→ 37fb9f0b 收敛 → run 32736988169 全绿
+
+## 勘误 · tracker.md T22 行「远端 CI 32687026233 全绿」不实（2026-08-25 三方 review 发现）
+
+- **类型**：勘误（更正本档案既有记录，旧条目按 append-only 纪律保留不动）
+- **时间**：2026-08-25
+- **错的内容**：本档案「修正-N · tracker.md T22 行收口」条目与 tracker.md T22 行均记「远端 CI rebuild/pi run 32687026233 全绿」——**不实**。复验（`gh run view <id> -R another-momo/open-pencil --json conclusion`，2026-08-25）：run 32687026233（2640605a）= failure、run 32687981729（a52add36，T22 docs 收口 commit）= failure，均红于 format:check
+- **后续去向**：format 红被 T23 首 commit 1a78076f 顺带吸收——其 run 32693810508 红于 steiger 而非 format，反证 format 已静默修复；T23 收口 run 32695035580 全绿，链路最终收敛
+- **无法改正处**：commit a52add36 的 message 内含「CI 32687026233 全绿」字样，git 历史不可改，仅以本勘误为准
+- **根因与教训**：T22 verify 清单（V1-V6）缺「远端 CI 复验」项——核验范围缩水致假绿穿检。已补救：05-process.md 附录 B.3 新增 verify 强制 `gh run view` 复验规则（2026-08-25）；完整实录见 [records/topics/ci-infra.md CI-12](../topics/ci-infra.md)
+- **同步更正**：tracker.md T22 行、tasks/_index.md T22 行、T22-self-check.md 头部、T22-verify.md 更正补记（均 2026-08-25）
+
+## 修正-N · tracker.md 阶段门表重排 + 计数/死链/状态值修正（2026-08-25 三方 review 整改）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-25
+- **依据**：三方 review 发现：① 阶段门表「Phase 1 runtime spike ⬜」「Phase 2 F0 地基切片 ⬜」与任务表 T11-T25 全 ✅ 矛盾；② Phase 1 判据「能力契约测试绿」全仓无定义（grep 零命中，2026-08-25）；③ §3.1 narrative 计数 13 实为 15（`find docs/rebuild/records/narrative -type f | wc -l` 实测，T18 spike 05 与 T25 runbook 入册后未刷新）；④ §3.1/§3.2 两处 `../records/_index.md` 死链（相对路径错误，应为 `records/_index.md`）；⑤ T11 行 🔶 状态值图例未定义；⑥ T05 行「05 §2」裸引用
+- **内容**：Phase 1 行按实录改 ✅（spike 完成 = T11-T13、D24 拍 pi 2026-08-23、pi 线 T18-T25 续建，「能力契约测试绿」判据废止标注）；Phase 2 行改 🔄（F0.1-F0.6 已在 T19-T25 建成，仅剩 F0.3② 生图凭证）；表上方补一行重排原因注释；narrative 计数 13→15；两处死链修正；T11 行 🔶 翻 ✅（活模型面由 T18 补跑完成并注明承担方）；T05 行「05 §2」→「05-process.md §2」；头部时间刷新 2026-08-25
+- **task 文档**：无独立 task（review 整改轮，T26 由主 agent 收口时统一登记）

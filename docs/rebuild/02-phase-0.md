@@ -9,7 +9,8 @@
 
 # 02 · Phase 0：机制与减法（起点定义）
 
-> **状态**：已执行 + 已核验 | **时间**：2026-08-19 16:30 完成；本轮整改 2026-08-20 18:30；T09 修正 2026-08-21（§5 #2「CI 已接线」声称证伪）
+> **状态**：已执行 + 已核验 | **时间**：2026-08-25（§3.3 pending-reclass 清单按 zones.json 实测刷新——T25 已删条目出列）| **核验人**：subagent A（gate review 机械审计）+ 主 agent + subagent C/D（执行期 4 项核验 R3/R4/P0-1~P0-10）
+> **原验收时间**：2026-08-19 16:30 完成；本轮整改 2026-08-20 18:30；T09 修正 2026-08-21（02-phase-0.md §5 #2「CI 已接线」声称证伪）
 > **核验人**：subagent A（gate review 机械审计）+ 主 agent + subagent C/D（执行期 4 项核验 R3/R4/P0-1~P0-10）
 > **身份**：**本文是 Phase 0 执行依据**；01-target-state.md 是「做哪些加法」的决策依据；03-phase-1-runtime.md 与 spikes/*.md 是 case study 与技术调研，身份是辅助参考信息，不直接驱动 Phase gate。
 > **基线**：commit 序列 `f4efaff7..68f67484` → 合并演习 `44205546` → `ae23db01`，后续文档提交 `cbc3fe4f`、`4a17fc77`。执行期实测修正已迁移至 `records/topics/docs-governance.md` 修正-2 条目；合并演习细节见 `records/topics/upstream-merge.md` MERGE-1。
@@ -36,7 +37,7 @@ Phase 0 不加任何产品功能，验收通过前不得进入 Phase 1。
 
 **配置连带面**（R3 实测）：`package.json` 的 workspaces（-packages/docs、-tools/docs）与 scripts（删 tauri/wdio/docs 系，check 链摘除、加 check:zones）与依赖（裁 6 个 @wdio/* + @tauri-apps/cli + expect-webdriverio + vite-plugin-pwa + workbox-window + 未用的 yjs 系 4 个 + trystero；**8 个 @tauri-apps/* runtime 依赖保留**，vite build 需可解析）；`tsconfig.json` 删 `#docs-config/*` paths；knip.json、steiger.config.ts、oxlint.json 中对被删目录的 ignore 条目**保留未清**（无害，零补丁纪律，见 [records/topics/upstream-merge.md 执行期遗留](records/topics/upstream-merge.md)）。
 
-**删除标准**：目标态不存在、且建设过程也不需要。不符合两条的不删，见 [§3 机制建设](#3-机制建设phase-0-的核心)。
+**删除标准**：目标态不存在、且建设过程也不需要。不符合两条的不删，见 [02-phase-0.md §3 机制建设](#3-机制建设phase-0-的核心)。
 
 ## 3. 机制建设（Phase 0 的核心）
 
@@ -56,7 +57,7 @@ Phase 0 不加任何产品功能，验收通过前不得进入 Phase 1。
 
 **豁免条款（与 zones.json `$comment` 对齐）**：待重分类文件可以携带**减法切断补丁**（如 chat/ 系被 ACP 删除波及的 P4-P8、ci.yml 的 P20）——补丁登记即合法，「一行不许改」只约束功能改动。
 
-清单（按文件点名）：`src/app/ai/chat/`（9 文件）、`src/components/chat/`（6 个 .vue + `attachment/`，ACPPermissionDialog 已删）、`src/components/ChatPanel.vue`、`src/app/ai/providers/`（3）+ `models/`（6）、`src/app/ai/attachment/`、`src/app/ai/tools/`、`src/app/ai/vision-runtime.ts`、`src/app/automation/`（12）+ `packages/mcp` + `src/app/browser-bridge.ts`、`packages/cli`、`src/app/ai/debug/index.ts`、`.github/workflows/`（剩余 4 个：ci/heavy-tests/native-contracts-image/pr-review-guidance）。
+清单（2026-08-25 对照 `tools/zone-registry/zones.json` pendingReclass 实测刷新——`src/app/ai/providers/`、`src/app/ai/models/`、`src/app/ai/attachment/`、`src/app/ai/vision-runtime.ts` 已随 T25 旧路径清扫删除出仓，`ls src/app/ai/` 仅剩 chat/debug/pi-backend/tools）：`src/app/ai/chat/`、`src/app/ai/tools/`、`src/app/ai/debug/index.ts`、`src/components/chat/`、`src/components/ChatPanel.vue`、`src/app/automation/` + `packages/mcp/` + `src/app/browser-bridge.ts`、`packages/cli/`、`.github/workflows/`（剩余 4 个：ci/heavy-tests/native-contracts-image/pr-review-guidance，`ls .github/workflows/` 2026-08-25 实证）。
 
 ⚠️ **已登记的内部冲突**：`browser-bridge.ts` 被 EditorView 用于 `exposeCollaborationActions(collab)`——collab stub 化时类型可能不配合。处置：给它预备补丁额度，或 stub 签名对齐 `useCollab` 返回类型。R3 实测，勿回避。
 
@@ -64,8 +65,8 @@ Phase 0 不加任何产品功能，验收通过前不得进入 Phase 1。
 
 ### 3.4 两条缝合缝（已落地）
 
-- **工具注册缝**：已落地为补丁 P22——`registry.ts` 加 import + spread 两行，owned 工具落 `packages/core/src/tools/fork/`（当前空数组占位）。上游 `component-catalog.ts` 的 `registerComponentCatalog` 是同构先例。
-- **i18n 缝**：已落地于 `src/app/i18n/fork/`——fork 自建 createI18n 实例绑共享 locale atom，自带 zh-CN 懒加载包，`packages/vue` 零修改。合并演习发现上游 #557 自建了同构的 `src/app/i18n/notifications/`，方向被上游验证；避让命名见 `records/topics/docs-governance.md` 修正-2 第 4 条。验证：`tests/engine/rebuild/i18n-seam.test.ts` 2/2 绿。（教训记录：初版文档虚构了 `mergeLocaleMessage` API，R3 证伪后按上游实际用的 `@nanostores/i18n` 重新设计。）
+- 【决策】**工具注册缝**（主 agent 设计、Phase 0 落地，2026-08-19）：已落地为补丁 P22——`registry.ts` 加 import + spread 两行，owned 工具落 `packages/core/src/tools/fork/`（当前空数组占位）。上游 `component-catalog.ts` 的 `registerComponentCatalog` 是同构先例。
+- 【决策】**i18n 缝**（主 agent 设计、Phase 0 落地，2026-08-19）：已落地于 `src/app/i18n/fork/`——fork 自建 createI18n 实例绑共享 locale atom，自带 zh-CN 懒加载包，`packages/vue` 零修改。合并演习发现上游 #557 自建了同构的 `src/app/i18n/notifications/`，方向被上游验证；避让命名见 `records/topics/docs-governance.md` 修正-2 第 4 条。验证：`tests/engine/rebuild/i18n-seam.test.ts` 2/2 绿。（教训记录：初版文档虚构了 `mergeLocaleMessage` API，R3 证伪后按上游实际用的 `@nanostores/i18n` 重新设计。）
 
 ### 3.5 基础设施纪律
 

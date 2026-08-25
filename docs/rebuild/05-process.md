@@ -3,13 +3,13 @@
   - 本文是过程定义，优先级最高。修改本文需在 records/topics/docs-governance.md 登记一条决策
   - 修改本文后必须刷新头部的「状态/时间/核验人」三字段
   - 详细规则见 docs/rebuild/05-process.md §4
-  - 文件↔record 一一对应纪律见 §4.10（D14 决策）
-  - task 三件套物理拆分纪律见 §4.11（D15 决策，owner 提议"任务表填三列 + CI 查表对路径"）
+  - 文件↔record 一一对应纪律见 05-process.md §4.10（D14 决策）
+  - task 三件套物理拆分纪律见 05-process.md §4.11（D15 决策，owner 提议"任务表填三列 + CI 查表对路径"）
 -->
 
 # 05 · 工作方式与文档纪律
 
-> **状态**：草稿（owner 两次提示后修订：§3.2 显式补一一对应 + [05-process.md §4.10](05-process.md) D14 + [05-process.md §4.11](05-process.md) D15 三件套物理拆分；T09 修订：§3.2 大改动段落按 D15 重写除腐、§3.1 脚本路径修正、§2 树状图修正、PR 列残留清除，待 owner + subagent 核验） | **时间**：2026-08-21（T09） | **核验人**：主 agent 修订，待 owner + subagent 核验
+> **状态**：草稿（owner 两次提示后修订：§3.2 显式补一一对应 + [05-process.md §4.10](05-process.md) D14 + [05-process.md §4.11](05-process.md) D15 三件套物理拆分；T09 修订：§3.2 大改动段落按 D15 重写除腐、§3.1 脚本路径修正、§2 树状图修正、PR 列残留清除，待 owner + subagent 核验） | **时间**：2026-08-25（附录 B.3 新增 verify 远端 CI 复验强制规则——T22 假绿事件触发；§2 ≤80 行预算同步；§4 第 5 条「五处实锤」口径统一；头部与树状图裸 § 引用修正） | **核验人**：主 agent 修订，待 owner + subagent 核验
 > **身份**：本文是迁移改造全过程的过程定义：怎么干活、怎么跟踪、文档怎么写怎么管。优先级最高——与其他文档冲突时，以本文的过程裁决为准；事实冲突时，以代码与核验记录为准。
 
 ## 1. 角色与决策权
@@ -37,11 +37,11 @@ docs/rebuild/
 ├── proposals/                      # 外部建议集合（append-only，不修改原条目）
 │   └── governance-v1.md            # D10-D15 落地的源头建议
 ├── tasks/                          # task 维度档案——三件套物理拆分（D15 决策）
-│   ├── _index.md                   # 任务表（镜像 tracker §2）
+│   ├── _index.md                   # 任务表（镜像 tracker.md §2）
 │   └── T<NN>-{plan,self-check,verify}.md   # 每 task 三件套，编号全局递增（T00 起）
 ├── records/                        # 变更/核验/腐烂记录（append-only）—— 两层结构（D14 D15）
 │   ├── _index.md                   # 子文档索引（两层列表）
-│   ├── narrative/                  # 物理绑定层（与文件 1:1，§4.10 D14）
+│   ├── narrative/                  # 物理绑定层（与文件 1:1，05-process.md §4.10 D14）
 │   │   ├── 00-why-rebuild.md
 │   │   ├── 01-target-state.md
 │   │   ├── 02-phase-0.md
@@ -75,7 +75,7 @@ docs/rebuild/
 
 **proposals 集合**：外部建议文档——append-only，不修改原条目；采纳映射登记在 [`records/topics/docs-governance.md` 的 D 决策条目](records/topics/docs-governance.md)。
 
-**关于 tracker.md 拆分**：原 tracker.md 集阶段门 / 决策日志 / 任务表 / WIP 审判 / 核验日志 / 腐烂记录六类信息于一身，膨胀至 106 行后查找困难。新结构：tracker.md 只保留索引 + 阶段门 + 任务表 + 记录索引三块（≤50 行）；详细记录按对象归 `records/` 子文档，子文档 append-only。
+**关于 tracker.md 拆分**：原 tracker.md 集阶段门 / 决策日志 / 任务表 / WIP 审判 / 核验日志 / 腐烂记录六类信息于一身，膨胀至 106 行后查找困难。新结构：tracker.md 只保留索引 + 阶段门 + 任务表 + 记录索引三块（≤80 行——T09 由 ≤50 行放宽，任务表行数随 task 增长，原预算已不可达）；详细记录按对象归 `records/` 子文档，子文档 append-only。
 
 ## 3. 工作方式
 
@@ -147,7 +147,7 @@ docs/rebuild/
 2. **腐烂即改**：发现文档与现实不符，当场修正文档，并在 `records/` 对应对象子文档「腐烂记录」加一条（ROT-N 编号，日期/文档/错的内容/实况）。不许「知道错了但留着」。
 3. **状态字段**：每个叙事文档（00-04）头部必须包含五字段：`状态` / `时间`（YYYY-MM-DD HH:MM，本地时间 24h 制）/ `核验人` / `身份`（决策链角色）/ `基线`（可选）。状态值：`草稿`（agent 新写未核）/ `已核验`（对账通过）/ `已执行`（描述的 phase 已执行完成，可与「已核验」并存）/ `已过期`（归档 archive/）。时间精度用 `YYYY-MM-DD HH:MM` 便于同日事件排序。
 4. **维护触发器**：①阶段转换；②决策拍板或变更；③实测发现不符；④每次 upstream 合并后；⑤每个 gate review 全量重核；⑥叙事文档大改后（主 agent 判定本文档做了结构性重写时，写入完成 24h 内排一次核验）。
-5. **档案纪律**：归档不删除；旧分支文档只作历史参考，引用前重新核验（[00-why-rebuild.md §5](00-why-rebuild.md) 已有三处实锤）。
+5. **档案纪律**：归档不删除；旧分支文档只作历史参考，引用前重新核验（[00-why-rebuild.md §5](00-why-rebuild.md) 已有五处实锤）。
 6. **写作风格**：写约束，不写心路；写可检查的标准，不写方向性口号；每个「必须/应该」都要能被 CI 或核验命令检查。
 7. **计划修正**：当执行实测推翻文档中的计划/假设时：
    - 叙事文档（00-04）**直接改成新版本**，不加修正节、不加 blockquote、不保留旧方案痕迹。
@@ -243,6 +243,7 @@ docs/rebuild/
 - **创建 verify.md**：`tasks/T<NN>-verify.md`（如 `tasks/T04-verify.md`）
 - **主 agent 主动派 general-purpose subagent 独立核验**——**不依赖 owner 触发**。这是 D11「做而不报」纪律的机器可检查载体。
 - verify.md 必须包含：核验背景（核验人/时间/范围/依据）/ 逐条核验表（每条含证据命令 + 实测值）/ 总评 / 综合判定 / 失败项详情（如有）
+- **verify 必须含远端 CI 复验项**（2026-08-25 新增，T22 假绿事件触发——实录见 [records/topics/ci-infra.md CI-12](records/topics/ci-infra.md)）：凡 self-check / tracker 登记了远端 CI run 结论的，verify 必须用 `gh run view <id> --json conclusion`（或 `gh api repos/<owner>/<repo>/actions/runs/<id>`）独立复验该结论为真；**核验范围缺此项即打回**（核验范围缩水本身构成打回理由，同 ROT-16 占位核验同级）
 - **同时**更新 [tracker.md §2 任务表](tracker.md) + [tasks/_index.md §2 任务清单](tasks/_index.md) 的 verify 列路径
 - **CI 拦截**：commit 时 `existsSync(tasks/T<NN>-verify.md)` 必须为 true；否则拒绝合入
 

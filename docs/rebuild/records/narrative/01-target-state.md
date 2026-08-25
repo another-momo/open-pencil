@@ -72,3 +72,11 @@
 - **依据**：T10 upstream 合并（79 commits/864 文件）后 F0 表地面依据列大面积腐烂——实测（ls/find/grep）：packages/agent、scripts/inline-prompts.ts、agent-vite-plugin.ts、http-agent-transport.ts、agent-transport.ts、marketing/settings.ts、image-gen/providers.ts、ImageGenKeysSection.vue、setImageGenCredentials、/v1/auth 全部消失；现存实况为 src/app/ai/chat/transports.ts 双路径（浏览器内 ToolLoopAgent + harness:pi sidecar）+ src/app/automation/bridge 11 项 + packages/mcp + src/components/chat/ChatInput|ChatMessage.vue + system-prompt.md 运行时 ?raw 直读
 - **内容**：F0.2/F0.3/F0.4/F0.7 四行地面依据列就地重写为 post-merge 实况（均附 2026-08-23 核验命令）；F0.3 处置由「移植并统一」改为「重建」（无码可移）；F0.7 处置改为「已消除」（脆依赖随 T10 移除）；其余行不动
 - **task 文档**：[tasks/T18-plan.md](../../tasks/T18-plan.md)
+
+## 修正-N · 01 §2 F0 处置列刷新 + §6 决策表同步 + §3 验收口径标注 + §8 人日【假设】标注（2026-08-25 三方 review 整改）
+
+- **类型**：修正（按对象：01-target-state.md）
+- **时间**：2026-08-25
+- **依据**：三方 review 发现——① §2 F0 表处置列停在 pre-T19 口径（重建/移植+复审/新建），与 T19-T25 落地实录脱节；② F0.4 行内 `[§2-D9 runtime 选型](#27-dsh-集成形态)` 锚点不存在（本文无 §2.7 节）；③ §6 表头「集中登记于 tracker.md §1 阶段门」系错误指针（tracker 已无决策日志）；④ §3 层 1 验收「16 个移植测试文件全绿」口径失效（`find tests/engine/rebuild -type f` 实测仅 1 文件，2026-08-25；16 文件宿主 tests/engine/tools/{marketing,image-gen} 随 T10 消失）；⑤ §8 人日数字（X 比 Y 多 12-13、比 pi 多 17-18）无工时验证依据
+- **内容**：F0.1/F0.4→已建成（T19）、F0.2→已建成（T20）、F0.3①→已建成（T21）②→待建、F0.5→已建成（T22/T23）、F0.6→已建成（T24），每格附 task 指针；F0.4 断裂锚点改指 [03-phase-1-runtime.md §5 选型决策](../../03-phase-1-runtime.md)；§6 表头改指 records/topics/ 各档案 + 增「状态」「登记档案」两列（D2 已拍板 2026-08-20、D7 已拍板=D24、D3/D5 已事实落地待补签、D1/D4/D6/D8 保持 open）；§3 层 1 验收数字旁加【口径失效待重建】标注（不改验收语义本身，报送 owner）；§8 人日句尾加【假设】标注；头部时间刷新
+- **task 文档**：无独立 task（review 整改轮，T26 由主 agent 收口时统一登记）

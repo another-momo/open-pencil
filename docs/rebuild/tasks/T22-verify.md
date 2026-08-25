@@ -83,3 +83,9 @@ self-check §3.1-18 的四条记录与代码行为一一自洽：
 **可以收口。** V1-V6 全部通过：代码与自述逐文件一致；时序修复三件套真实落地且与实测记录自洽；四项可运行验证本机复跑全绿（20/20、12/12、6/6、0 error）；边界/偏差登记完整覆盖 plan §1.4 与 recon 副作用；git 卫生干净。
 
 两条已登记的环境限制不影响收口（均属 §3.3 明示，非代码缺陷）：① 本机 playwright 起不了浏览器，bind-smoke.mjs 留 CI/他机复跑，浏览器侧结论以 MCP 实测记录为准；② T19/T20/T21 LLM 冒烟待 owner 补 OPENROUTER_API_KEY 后补跑（A5 的 CI/全量回归臂）。
+
+## 更正补记（2026-08-25，三方 review 触发）
+
+- **本 verify 的核验清单缺「远端 CI 复验」项**——V1-V6 只覆盖代码/测试/边界/卫生，未含 `gh run view <id>` 复验远端 CI 结论，导致 self-check 与 tracker 登记的「CI 32687026233 全绿」假绿未被发现。
+- **实录**（`gh run view <id> -R another-momo/open-pencil --json conclusion`，2026-08-25 复验）：run 32687026233（2640605a）= **failure**、run 32687981729（a52add36）= **failure**，均红于 format:check；format 红被 T23 首 commit 1a78076f 顺带吸收（其 run 32693810508 红于 steiger 而非 format，反证 format 已修复）。
+- **教训**：核验范围缩水本身构成打回理由——本表 V1-V6 结论不受影响（均为本机可复跑项），但「可以收口」结论当时缺少 CI 维度佐证。05-process.md 附录 B.3 已追加「verify 必须含远端 CI 复验」强制规则（2026-08-25）；事件完整实录见 [records/topics/ci-infra.md CI-12](../records/topics/ci-infra.md)。

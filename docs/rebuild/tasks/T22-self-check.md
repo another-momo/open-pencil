@@ -8,7 +8,8 @@
 # tasks/T22-self-check.md · T22 自查记录
 
 > **T 编号**：T22（Phase 1-pi 实施 · session↔file 绑定）
-> **状态**：✅ 已收口（2026-08-24，V1-V6 核验通过 + CI 32687026233 全绿）
+> **状态**：✅ 已收口（2026-08-24，V1-V6 核验通过；CI 结论见更正记录）
+> **更正记录（2026-08-25，三方 review 触发）**：本行原记「CI 32687026233 全绿」**不实**——`gh run view 32687026233 -R another-momo/open-pencil --json conclusion` 复验 = failure（红于 format:check），本任务 docs 收口 commit a52add36 的 run 32687981729 亦 failure；format 红被 T23 首 commit 1a78076f 顺带吸收（其 run 32693810508 红于 steiger 而非 format，反证 format 已静默修复）。根因 = 本任务 verify 清单缺「远端 CI 复验」项，教训登记见 [records/topics/ci-infra.md CI-12](../records/topics/ci-infra.md) 与 [T22-verify.md 更正补记](T22-verify.md)；05-process.md 附录 B.3 已就此追加 verify 强制复验规则。
 
 ## 1. 立项依据
 

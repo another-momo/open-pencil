@@ -9,14 +9,16 @@
 
 # 03 · Phase 1：runtime 选型 spike（硬门）
 
-> **状态**：已核验（v3 + T09 修正）| **时间**：2026-08-21（T09：X 工作量数字对齐 records 层、悬空/错误引用修正、§5.2 数据实采填入、推荐方向不一致显式标注）
+> **状态**：已核验（v3 + T09 修正 + 2026-08-25 D24 终局同步）| **时间**：2026-08-25（D24 拍板终局同步 + 索引指针修正 + constants.ts 行号与裸引用修正）
 > **核验人**：主 agent（基于 spike 01-04 全部源码级核查记录；T09 修正点经 subagent A 复核）
-> **身份**：case study / 技术调研（辅助参考信息）；**决策依据在 01-target-state.md §7 与 `records/topics/agent-runtime.md` D9**。03 不直接驱动 Phase gate。
-> **硬门**：runtime 未定，对话层一行代码不写。
+> **身份**：case study / 技术调研（辅助参考信息）；**决策依据在 01-target-state.md §7 与 `records/topics/agent-runtime.md` D9（已闭环：D22 → D24）**。03 不直接驱动 Phase gate。
+> **硬门**：runtime 已定（D24 拍 pi，2026-08-23）——本硬门已通过，对话层已在 T18-T25 落地。
 
 ---
 
 ## 0. 一句话结论
+
+**终局已定（D24，2026-08-23 owner 拍板）**：pi SDK 路线升为主线（rebuild/pi 分支，T18-T25 已建成 F0 地基切片大部），dsh-X 路线于 T17 收口态搁置归档、不删除。以下为选型期的对比实录，保留作档案。
 
 经源码级核查（02/04 已落库），**真正值得考虑的候选只剩两条**：
 
@@ -60,7 +62,7 @@ open-pencil marketing 工作台作为**一个 dsh bundle** 发布：用户装 ds
 | bundle ≠ plugin ≠ preset | 三者含义互异；plugin 是命令动词 | spikes/04-dsh-x-design.zh.md §1 术语表 |
 | `shell.overlay` 切 session **不卸载** | 核心论证：编辑器状态跨 session 保留 | `参考项目/deepseek-harness/packages/client/ui-layout/src/client/AppFrame.tsx:194`（`renderSlot('shell.overlay', {})` 无 `only` 参数）vs `packages/client/ui-conversation/src/client/skeleton/ConversationSession.tsx:168-172`（有 `only`） |
 | `SessionFace` 完整方法 | 11 方法（subscribe/getSnapshot + prompt/cancel/rename/loadOlder/updateQueue/readAttachment/command + pending.respond + projections） | `参考项目/deepseek-harness/packages/client/runtime/src/client/contract/session.ts:30-82, 89` |
-| 7600 port 是 open-pencil 自己的 | `AUTOMATION_HTTP_PORT = 7600` 在 `open-pencil/packages/core/src/constants.ts:347`；dsh 全仓零命中 | [spikes/04-dsh-x-design.zh.md §C2](spikes/04-dsh-x-design.zh.md) 实证 |
+| 7600 port 是 open-pencil 自己的 | `AUTOMATION_HTTP_PORT = 7600` 在 `open-pencil/packages/core/src/constants.ts:359`（`grep -n "AUTOMATION_HTTP_PORT" packages/core/src/constants.ts`，2026-08-25 实测；此前记的 :347 已漂移）；dsh 全仓零命中 | [spikes/04-dsh-x-design.zh.md §C2](spikes/04-dsh-x-design.zh.md) 实证 |
 | 视觉回路多模态 | dsh host tool 调用 → pi-ai 适配器 → 与旧 `media-rewriter.ts` 同构的"图转合成 user 消息"路径 | [spikes/02-pi-sdk-runtime.zh.md §P3](spikes/02-pi-sdk-runtime.zh.md) + `参考项目/pi/packages/ai/src/api/openai-completions.ts:1284`（图-only tool result 占位合成）+ `参考项目/pi/packages/ai/src/api/transform-messages.ts` `downgradeUnsupportedImages`（2026-08-21 T09 复核；原引用 `weshop-dsh-plugin/src/integrations/pi.ts:18` 悬空已撤） |
 | 系统提示注入 | marketing 选择项可走 `ctx.inject(['systemPrompt'], (promptCtx) => { promptCtx.systemPrompt.section(...) })`——不是只能经 message body | `参考项目/deepseek-harness/packages/bundle/web-app/src/index.ts:141-149` |
 | 工作量 | S-X spike 4.5 人日；X 路线全量落地 ≈ **37-38 人日**（weshop 实证上修后口径；本文此前版本的「15.5 人日」系 v3 重写时误植的无源数字，T09 修正，详见 [records/topics/agent-runtime.md 修正-1 / SP-3](records/topics/agent-runtime.md)） | [spikes/04-dsh-x-design.zh.md §7.1](spikes/04-dsh-x-design.zh.md) + [01-target-state.md §8](01-target-state.md) |
@@ -93,7 +95,7 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 | 多模态 | 与 dsh 共享 pi-ai；"图转合成 user 消息"路径同构（**DeepSeek 有占位降级——静默不报错**，需 spike 实测） | [spikes/02-pi-sdk-runtime.zh.md §P3](spikes/02-pi-sdk-runtime.zh.md) + `参考项目/pi/packages/ai/src/api/openai-completions.ts:1269-1337` + transform-messages.ts:35-57 |
 | 流式 RPC event | text_start/delta/end、toolcall_start/delta/end、tool_execution_*、compaction_*/auto_retry_*——与 UIMessage v1 字段**先天同构** | [spikes/02-pi-sdk-runtime.zh.md §Y2](spikes/02-pi-sdk-runtime.zh.md) + `参考项目/pi/packages/coding-agent/src/core/`（session 与 RPC 实现所在包，T09 修正路径标签） |
 | 工具审批 | 无内置——需自写 extension（`tool_call` event 返回 `{block: true}`） | spikes/02-pi-sdk-runtime.zh.md §Y7 + extensions.md:778-799 |
-| skills | **内置**：`~/.pi/agent/skills/<name>/SKILL.md` 等四路径文件系统发现 + `/skill:name` 展开（Agent Skills 开放标准），零新代码（02 §P8；pi README.md:354-367、docs/extensions.md:895-933，2026-08-23 复核）。本行原述「无内置子系统」为误述，2026-08-23 勘误 | spikes/02-pi-sdk-runtime.zh.md §P8 |
+| skills | **内置**：`~/.pi/agent/skills/<name>/SKILL.md` 等四路径文件系统发现 + `/skill:name` 展开（Agent Skills 开放标准），零新代码（spikes/02-pi-sdk-runtime.zh.md §P8；pi README.md:354-367、docs/extensions.md:895-933，2026-08-23 复核）。本行原述「无内置子系统」为误述，2026-08-23 勘误 | spikes/02-pi-sdk-runtime.zh.md §P8 |
 | compaction | 可整体替换的 seam（`session_before_compact` event 钩子改写 summary） | `参考项目/pi/packages/.../compaction.md:280-310` |
 | 双 provider 路径 | pi-ai 的 declarative OpenAI 兼容网关路由（dsh 走同样路径） | spikes/02-pi-sdk-runtime.zh.md §P6 |
 | 工作量 | F0 + 层 1 ≈ **20 人日** | spikes/02-pi-sdk-runtime.zh.md §0 |
@@ -111,7 +113,7 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 - 周更 break 风险（pin + smoke 流程）
 - photon-node WAS Windows 安装未实测
 - 无官方插件生态（不像 dsh 有 profile/preset 分发）
-- 工具审批 / skills 需自写 extension
+- 工具审批需自写 extension（`tool_call` event 返回 `{block: true}`，spikes/02-pi-sdk-runtime.zh.md §Y7）；skills 无需自写——pi 内置（见 03-phase-1-runtime.md §3.2 skills 行勘误，2026-08-23）
 
 ### 3.5 pi 路线作为"独立产品"的可达性
 
@@ -154,7 +156,7 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 
 ---
 
-## 5. 选型决策（待 owner 拍板）
+## 5. 选型决策（已拍板：D24，2026-08-23——pi SDK 升为主线，dsh-X 搁置归档）
 
 ### 5.1 候选选项
 
@@ -163,7 +165,9 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 - **C. 双轨并行**：先走 X 发布，X 内部 host runtime 用 pi（spikes/02-pi-sdk-runtime.zh.md §6 提到的 hedge）
 - **D. 维持现状**：继续等更多信号
 
-> ⚠️ **推荐方向不一致（T09 显式标注，2026-08-21）**：本文此前标注「A 推荐（你已表达偏好）」，而 [records/topics/agent-runtime.md D9](records/topics/agent-runtime.md) 记录为「当前推荐：c（pi 直接驱动）推 1」。按冲突裁决（records 子文档 > 叙事文档），推荐方向以 D9 记录 + owner 拍板为准；本节不再标注推荐项。Y 路线排除是否正式拍板见 [records/topics/docs-governance.md D16](records/topics/docs-governance.md)。
+> **拍板结论（2026-08-23，[records/topics/agent-runtime.md D24](records/topics/agent-runtime.md)）**：选 **B（走 pi sdk）**——pi SDK 路线升为主线（rebuild/pi 分支，Phase 0 不重做、Phase 1 于 pi 重启，T18-T25 已实施）；A（dsh-X）于 T17 收口态搁置归档不删除，重启即续。此前 D22（2026-08-22，dsh 先行 pi 后置）的排序被 D24 取代；D9 双路线证据结论不变。
+
+> ⚠️ **推荐方向不一致（T09 显式标注，2026-08-21）**：本文此前标注「A 推荐（你已表达偏好）」，而 [records/topics/agent-runtime.md D9](records/topics/agent-runtime.md) 记录为「当前推荐：c（pi 直接驱动）推 1」。按冲突裁决（records 子文档 > 叙事文档），推荐方向以 D9 记录 + owner 拍板为准；本节不再标注推荐项。Y 路线排除是否正式拍板见 [records/topics/docs-governance.md D16](records/topics/docs-governance.md)。（2026-08-25 注：本 ⚠️ 已由 D24 拍板终结，保留作历史注记。）
 
 ### 5.2 触发任何选项的前置验证
 
@@ -204,7 +208,7 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 **【事实】版本现状**（核验日期 2026-08-23）：
 
 - 主线基准版本：`@earendil-works/pi-coding-agent@0.84.2`（+`@earendil-works/pi-ai@0.84.2`、`typebox@1.3.7` 同钉）——T11 S-pi 全部离线证据（SP-7）在此版本产出；`npm view @earendil-works/pi-coding-agent version` → `0.84.2`（2026-08-23 实测），**钉扎版即 npm 最新版**，零落后
-- 发布节奏：pi 周更（spikes/02 §3.4 R-pi-1），钉扎+升级 smoke 为既定纪律；D21 已排除经 harness-pi 间接依赖（其锁 pi ^0.80.10 与我们证据线冲突）
+- 发布节奏：pi 周更（spikes/02-pi-sdk-runtime.zh.md §R-pi-1），钉扎+升级 smoke 为既定纪律；D21 已排除经 harness-pi 间接依赖（其锁 pi ^0.80.10 与我们证据线冲突）
 - 锁定实证：`spikes/s-pi/package.json` 依赖三无 `^`/`~` 前缀（2026-08-23 读文件）
 
 **纪律**：
@@ -222,7 +226,7 @@ spikes/04-dsh-x-design.zh.md §7.1 完整 6 项；其中**第 5 项**（shell.ov
 |---|---|
 | 01-target-state.md §7 | **决策依据**（三路线对比 + 当前推荐） |
 | 01-target-state.md §8 | X 复用更贵的五条机制 |
-| tracker.md D9 | **决策日志**（待 owner 拍板） |
+| records/topics/agent-runtime.md D9/D22/D24 | **决策日志**（D9 已闭环：D22 拍 dsh 先行 → D24 拍 pi 升主线，2026-08-22/23 owner） |
 | spikes/01-dsh-integration-routes.zh.md | dsh-Y vs dsh-X 原始对比（Y 已不构成有效候选） |
 | spikes/02-pi-sdk-runtime.zh.md | pi sdk 源码级核查（含 9 题 P1-P9 + 工作量表） |
 | spikes/03-weshop-case-deep-dive.zh.md | weshop 实证（X 路线的形态修正） |

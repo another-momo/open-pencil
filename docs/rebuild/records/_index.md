@@ -9,7 +9,7 @@
 
 # records · 子文档索引（两层结构）
 
-> **状态**：D15 重组（横向档案独立为 topics/） | **时间**：2026-08-21（T09 修正绑定范围表述） | **核验人**：主 agent
+> **状态**：D15 重组（横向档案独立为 topics/） | **时间**：2026-08-25（§2 绑定表补 runbook/proposals 行 + §3 类型列修正） | **核验人**：主 agent
 > **身份**：变更/核验/腐烂记录的索引入口。**两层结构**——`narrative/` 物理绑定层（与文件 1:1）+ `topics/` 主题聚合层（跨文件横向档案）。**禁止混用**：横向档案不替代物理绑定层；物理绑定层不替代横向档案。详见 [05-process.md §4.10 D14](05-process.md)。
 > **tracker.md 通过本文档找到具体记录**。
 
@@ -39,7 +39,11 @@
 | `docs/rebuild/05-process.md` | `records/narrative/05-process.md` |
 | `docs/rebuild/README.md` | `records/narrative/README.md` |
 | `docs/rebuild/tracker.md` | `records/narrative/tracker.md` |
+| `docs/rebuild/runbook-github-push.md` | `records/narrative/runbook-github-push.md` |
+| `docs/rebuild/proposals/*.md` | `records/narrative/proposals/<file>.md`（现仅 governance-v1.md） |
 | `docs/rebuild/spikes/*.zh.md` | `records/narrative/spikes/<file>.zh.md` |
+
+> 计数（2026-08-25 `find docs/rebuild/records/narrative -type f | wc -l` 实测 = **15**）：6 个核心叙事（00-05）+ README + tracker + runbook-github-push + 5 个 spike + 1 个 proposal。
 
 ## 3. topics/ 主题聚合层（横向档案）
 
@@ -47,16 +51,16 @@
 
 | 对象 | 横向档案 | 主要记录类型 |
 |---|---|---|
-| agent 后端 / runtime | `topics/agent-runtime.md` | D7-D9、D9 修正、spike 选型 |
-| brand config / type / profile | `topics/brand-config.md` | D1（参考图机制）、V2（实测） |
-| ChatPanel / ChatInput | `topics/chat-ui.md` | UI 相关决策与腐烂 |
+| agent 后端 / runtime | `topics/agent-runtime.md` | D7-D9（已闭环）、D20-D24、spike 选型（SP-1~SP-8） |
+| brand config / type / profile | `topics/brand-config.md` | D1（参考图机制）、D2/D2a（vision 通道）、V2（实测） |
+| ChatPanel / ChatInput | `topics/chat-ui.md` | D5（chatMode，T24 已事实落地）、D8、UI 相关决策与腐烂 |
 | i18n 缝 / locale | `topics/i18n.md` | locale 删除、缝落位 |
-| 营销工具 | `topics/tools-marketing.md` | D5（chatMode）、V2（16 文件） |
+| 营销工具 | `topics/tools-marketing.md` | V2（16 文件实测）等营销工具核验 |
 | 生图管线 | `topics/tools-image-gen.md` | F0.3② 凭证链 |
 | upstream 合并 | `topics/upstream-merge.md` | MERGE-1、合并演习、合并 SOP |
-| CI / workflows / zone registry | `topics/ci-infra.md` | CI-1~CI-5、P0-9/P0-10 |
+| CI / workflows / zone registry | `topics/ci-infra.md` | CI-1~CI-13、P0-9/P0-10、D18 |
 | spike 文档的核验与修正 | `topics/spikes.md` | SP-1~SP-3、修正-1 |
-| 文档体系本身的修改 | `topics/docs-governance.md` | D10~D15、P0-8、修正-N、ROT-N |
+| 文档体系本身的修改 | `topics/docs-governance.md` | D10~D17、D19、P0-8、修正-N、ROT-N、治理冻结期提案 |
 
 ## 4. 子文档使用纪律
 

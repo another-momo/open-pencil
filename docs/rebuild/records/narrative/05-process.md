@@ -162,3 +162,22 @@
   2. §3.3 upstream 合并段 `check-docs.ts` → `check:docs`（旧脚本名残留）
   3. 附录 B.5 表三行 `check-tasks.ts` → `tools/zone-registry/src/check/tasks.ts` 全路径，并在 self-check/verify 两行补「占位检测 D19」
 - **附带**：T08-verify.md 依据行「第 5 步」→「第 6 步」（tasks/ 文件不入 narrative 绑定，登记于此备查）
+
+## 修正-N · 05-process.md 附录 B.3 新增 verify 远端 CI 复验强制规则（2026-08-25，T22 假绿事件触发）
+
+- **类型**：修正（按对象：05-process.md）
+- **时间**：2026-08-25
+- **依据**：T22 假绿事件——T22 verify 清单缺远端 CI 复验项，致「CI 32687026233 全绿」不实登记穿检（两 run 均 failure，`gh run view` 2026-08-25 复验；实录见 [records/topics/ci-infra.md CI-12](../topics/ci-infra.md)）
+- **内容**：附录 B.3 新增一条——verify 必须含远端 CI 复验项（`gh run view <id> --json conclusion` 独立复验 self-check/tracker 登记的 run 结论），核验范围缺此项即打回（核验范围缩水本身构成打回理由）
+- **影响**：过程定义层补齐「声称 CI 结论必须当次复验」的明文纪律（与 ROT-15/ROT-16 同族教训的第三条防线）
+- **task 文档**：无独立 task（review 整改轮，T26 由主 agent 收口时统一登记）
+
+## 修正-N · 05-process.md 预算/口径/裸引用三处同步（2026-08-25）
+
+- **类型**：修正（按对象：05-process.md）
+- **时间**：2026-08-25
+- **内容**：
+  1. §2「关于 tracker.md 拆分」段「≤50 行」→「≤80 行」——同步 T09 放宽决定（tracker.md 头部已是 ≤80，05 残留旧预算）
+  2. §4 第 5 条「三处实锤」→「五处实锤」——00-why-rebuild.md §5 实列 5 条、README 亦写五处，05 口径滞后
+  3. 裸 § 引用修正（R5 口径）：头部纪律注释块两处（§4.10/§4.11 补 05-process.md 文件名）、§2 树状图两处（「镜像 tracker §2」→「镜像 tracker.md §2」、「§4.10 D14」→「05-process.md §4.10 D14」）
+- **task 文档**：同上（T26 统一登记）

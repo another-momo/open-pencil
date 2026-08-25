@@ -74,3 +74,7 @@
 - diff 内唯一 key 形态为 sk-or-test-key-12345，已入 .gitleaks.toml allowlist（zones.json P43 登记）
 - src/docs 提交文件无 `C:\Users`/`D:\Desktop` 绝对路径
 - yaml 依赖升级（§3.2-5）与 options bag 重构（§3.2-1）等偏差均如实登记
+
+## 更正注记（2026-08-25，三方 review 触发）
+
+上文总结论「**D1-D9** 全部如述落地」措辞越界——plan §1.2 的 **D9 明文「浏览器旧 ToolLoop 退役另行清扫（T25），不塞进本任务」**，不在本任务核验范围；本核验 §V1 实际逐条核对的是 D1-D8。正确表述应为「**D1-D8** 全部如述落地」（D9 由 T25 承载并已收口，见 [T25-verify.md](T25-verify.md)）。原表按活文档纪律保留，以本注记为准。

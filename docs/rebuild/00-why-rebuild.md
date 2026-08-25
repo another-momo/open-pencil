@@ -9,7 +9,7 @@
 
 # 00 · 为什么重建，以及保留什么
 
-> **状态**：已核验 | **时间**：2026-08-18 14:00（核查轮 R1-R4）| **核验人**：subagent A-D + 主 agent
+> **状态**：已核验 | **时间**：2026-08-25（头部时间刷新；最近实质修改 = 2026-08-21 T04 topics/ 重组路径迁移，正文事实仍以 2026-08-18 核查轮 R1-R4 为准）| **核验人**：subagent A-D + 主 agent
 > **身份**：背景叙事，回答「为什么走 re-fork + 绞杀式移植这条路」，不直接驱动 Phase gate。
 > **基线**：旧分支 `feature/agent-backend` @ `a1c33881`；核验方式 = 4 个只读 subagent 对账 + 主 agent 整体 review，详细结果见 `records/topics/docs-governance.md` §R1。
 

@@ -109,3 +109,11 @@
 - **依据**：T09 review（ROT-15）
 - **内容**：§5 验收第 2 条「CI 已接线 check:zones」实测不实（四检查从未进 workflow；grep + git log -S 双证伪）；正文改为如实记录，T09 起经 rebuild-discipline job 真正接线
 - **影响**：Phase 0 验收记录恢复可信；gate review 步骤 1-5 的「已自动化」从此有 workflow 文件佐证
+
+## 修正-N · 02 §3.3 pending-reclass 清单刷新 + §3.4【决策】标注 + 裸引用修正（2026-08-25 三方 review 整改）
+
+- **类型**：修正（按对象：02-phase-0.md）
+- **时间**：2026-08-25
+- **依据**：三方 review 发现——§3.3 清单仍列 `src/app/ai/providers/`、`src/app/ai/models/`、`src/app/ai/attachment/`、`src/app/ai/vision-runtime.ts`，实测均已随 T25 删除出仓（`ls src/app/ai/` 仅剩 chat/debug/pi-backend/tools；对照 zones.json pendingReclass 实测，2026-08-25）
+- **内容**：§3.3 清单按 zones.json pendingReclass 当前态重写（chat/、tools/、debug/index.ts、components/chat/、ChatPanel.vue、automation/、mcp/、browser-bridge.ts、cli/、workflows 4 个）；§3.4 两条缝合缝补【决策】标注；正文「见 §3 机制建设」裸引用补全文件名；头部时间刷新为 2026-08-25（原头部时间停在 T09 修正 2026-08-21，T09 后状态字段未刷新问题一并处理——原时间信息移入「原验收时间」行保留）
+- **task 文档**：无独立 task（T26 统一登记）

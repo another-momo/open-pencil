@@ -117,3 +117,11 @@
 - **依据**：D24 pi 升主线后需要与 dsh 对称的版本纪律（pi 周更，R-pi-1）；照 §5.4 模板成文；pin 0.84.2 三重依据（T11 证据基线 / npm 最新实测 / spikes-s-pi package.json 已锁）
 - **内容**：新增 §5.5——pi 主线基准 0.84.2 精确钉扎（不用 ^/~ 与 dist-tag）、双周升级评估窗口（首窗 2026-09-05 所在周）、升级=独立 commit 且重跑 S-pi 全证据脚本（offline + T18 live）、安全修复例外需 owner 拍板
 - **task 文档**：[tasks/T18-plan.md](../../tasks/T18-plan.md)
+
+## 修正-N · 03 D24 终局同步 + 索引/行号/裸引用修正（2026-08-25 三方 review 整改）
+
+- **类型**：修正（按对象：03-phase-1-runtime.md）
+- **时间**：2026-08-25
+- **依据**：三方 review 发现——① §0/§5 仍按「选型待定」撰写，D24（2026-08-23 pi 升主线）终局未同步；② §6 索引「tracker.md D9 决策日志」为错误指针（tracker 无决策日志，D9 在 records/topics/agent-runtime.md）；③ §3.4 风险段「工具审批 / skills 需自写 extension」与 §3.2 skills 行 2026-08-23 勘误矛盾；④ §2.2 表 `constants.ts:347` 行号漂移（2026-08-25 grep 实测 :359）；⑤ §5.5「spikes/02 §3.4」与 §3.2「02 §P8」裸引用
+- **内容**：§0 开头补 D24 终局宣告（对比内容保留作档案）；§5 标题改「已拍板：D24」+ §5.1 补拍板结论行；§6 索引改指 records/topics/agent-runtime.md D9/D22/D24；§3.4 风险行改为「工具审批需自写 extension；skills 内置」；constants.ts 行号 :347→:359 并附核验命令；两处裸引用补全文件名；头部时间刷新 + 硬门行改「已通过」
+- **task 文档**：无独立 task（T26 统一登记）

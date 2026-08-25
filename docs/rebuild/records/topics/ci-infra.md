@@ -181,3 +181,34 @@
 - **现象**：T25 收口期 github.com git 数据面持续黑洞（20 次重试全败），api.github.com 健康——盲重试烧时间且无信息
 - **处置**：建立 [runbook-github-push.md](../../runbook-github-push.md)（五通道盘点 + 30 秒探测分面 + 决策树 + 重试纪律）；T25 补记 d9823dad 经 `.gh-api-push.mjs` 推送成功（CI run 32740318724 全绿，API 推送正常触发 push 事件）
 - **记录**：见 [records/narrative/runbook-github-push.md](../narrative/runbook-github-push.md)
+
+## CI-12 · T22 假绿事件实录（run 32687026233 / 32687981729 均 failure，「全绿」登记不实）
+
+- **类型**：核验 + 腐烂更正（事件实录）
+- **时间**：2026-08-25（三方 review 发现）
+- **现象**：tracker.md T22 行、tasks/_index.md T22 行、T22-self-check.md 头部、records/narrative/tracker.md T22 收口条目、commit a52add36 message 五处宣称「远端 CI rebuild/pi run 32687026233 全绿」——**全部不实**
+- **复验**（2026-08-25）：
+  - `gh run view 32687026233 -R another-momo/open-pencil --json conclusion` → **failure**（headSha 2640605a，T22 实施 commit；红于 format:check）
+  - `gh run view 32687981729 -R another-momo/open-pencil --json conclusion` → **failure**（headSha a52add36，T22 docs 收口 commit；同红于 format:check）
+  - 对照：`gh run list -R another-momo/open-pencil --branch rebuild/pi --limit 30` —— T23 首 commit 1a78076f 的 run 32693810508 红于 steiger（no-native-title-attributes）而非 format，**反证 format 红已被 T23 顺带吸收**；T23 收口 run 32695035580 全绿
+- **无法改正处**：commit a52add36 message 内「CI 32687…全绿」字样入 git 历史不可改，以 docs 更正为准
+- **根因**：T22-verify.md 的 V1-V6 核验清单**缺远端 CI 复验项**——只核本机可复跑面（代码/测试/边界/卫生），未对 self-check 登记的 CI 结论做 `gh run view` 独立复验；核验范围缩水使假绿穿检
+- **教训与补救**：
+  1. 05-process.md 附录 B.3 新增强制规则（2026-08-25）：verify 必须含 `gh run view <id>` 远端 CI 复验项，缺失即打回（核验范围缩水本身构成打回理由）
+  2. T22-self-check.md 头部加更正记录、T22-verify.md 末尾加更正补记、tracker.md 与 tasks/_index.md 的 T22 行改实录（均 2026-08-25）
+  3. 与 ROT-15（「CI 已接线」声称虚构）/ ROT-16（占位核验）同族：**凡声称 CI 结论，必须有当次 `gh run view` 输出佐证**
+- **影响评估**：假绿未造成代码面损失（format 红被下一任务静默吸收，后续 run 链真实全绿）；纯文档面失真，已全部更正
+
+## CI-13 · T11-T25 窗口 CI run 总账（从 tracker 任务表回溯 + gh 复验）
+
+- **类型**：核验（补录）
+- **时间**：2026-08-25
+- **方法**：`gh run list -R another-momo/open-pencil --branch rebuild/pi --limit 30 --json databaseId,conclusion,headSha,displayTitle` + 逐 id `gh run view <id> --json conclusion` 复验（2026-08-25）
+- **T10-T20 各 task 收口 run 复验**（tracker 登记口径 vs 实测结论，全部一致）：T10 = 32458703514 success、T12 = 32560998564 success、T13 = 32563228158 success、T14 = 32569154626 success、T15 = 32576137352 success、T16 = 32579903008 success、T17 = 32611136517 success、T18 = 32627633002 success、T19 = 32637559364 success、T20 = 32645061123 success
+- **T21-T25 窗口全量**（rebuild/pi 分支，含中间红 run）：
+  - T21：32655127504 failure（format/dupes 红，首轮打回）→ 32655585170 failure（c7a0a44c 整改 commit 仍红——**此 run id 此前未入任何文档，本次补录**）→ 32656186119 success（7431f9f4，13 job 全绿）→ 32656473633 success（docs 收口）
+  - T22：32679418378 success / 32681736683 success（立项与方案定稿 docs）→ **32687026233 failure + 32687981729 failure**（假绿事件，见 CI-12）
+  - T23：32693810508 failure（steiger title 红，顺带吸收 T22 format 红）→ 32694435629 failure（type-shapes 同构镜像红）→ 32695035580 success（62691d09 收口）→ 32695459952 success（docs 收口）
+  - T24：32702695959 success / 32707287225 success（立项与定稿 docs）→ 32713295092 failure（gitleaks 拦冒烟 dummy key）→ 32713950013 success（a84093b3 整改，13 job 全绿）→ 32715357613 success（docs 收口）
+  - T25：32723107581 success（立项）→ 32735915321 failure（format:check 红，zh-cn dialogs.json 尾随换行）→ 32736988169 success（37fb9f0b 修复）→ 32740318724 success（API 推送通道实证，CI-11）→ 32742586617 failure（runbook 初版 push 路径红）→ 32742929539 success（48a46385，当前 HEAD）
+- **观察**：T21-T25 五个 task 全部经历「红 → 整改 → 绿」循环，无一一次通过；红因分布：format:check ×3、steiger ×1、type-shapes ×1、gitleaks ×1、dupes ×1、推送通道 ×1——format:check（oxfmt）为最高频红因

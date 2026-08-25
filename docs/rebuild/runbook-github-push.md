@@ -7,7 +7,7 @@
 
 # runbook-github-push.md · GitHub 推送通道手册
 
-> **状态**：生效中 | **时间**：2026-08-24 | **身份**：运维 runbook（推送故障时的标准处置流程）
+> **状态**：生效中 | **时间**：2026-08-25（§2.2 补分支保护前置 staging SOP——CI-15 实证 required checks 硬拒直接 push；§3 流程同步） | **身份**：运维 runbook（推送故障时的标准处置流程）
 > **对应 records**：[records/narrative/runbook-github-push.md](records/narrative/runbook-github-push.md)
 
 ## 1. 背景与教训
@@ -28,7 +28,12 @@
 
 - **前提**：api.github.com 可达 + `gh` 已认证（判定信号：`gh run list --repo another-momo/open-pencil --limit 1` 能出结果）
 - **用法**：`PUSH_BRANCH=rebuild/pi node .gh-api-push.mjs <commit> [<commit>...]`（commit 按时间顺序；默认分支是 rebuild/v2，**必须显式设 PUSH_BRANCH**）
-- **实证**：2026-08-24 T25 收口补记 d9823dad 经此路推送成功（当时 HTTPS 数据面全挂），CI run 32740318724 正常触发并全绿
+- **分支保护前置（2026-08-25 CI-15 实证）**：rebuild/pi 已开 required status checks 分支保护——**头部 commit 无绿色检查结果的直接推送被 422 硬拒**（检查未跑 ↔ 推送被拒之 deadlock）。标准走法 = **staging 先行 + 快进**：
+  1. `PUSH_BRANCH=rebuild/pi-staging node .gh-api-push.mjs <commit>...`（分支不存在先 `gh api repos/another-momo/open-pencil/git/refs -f ref="refs/heads/rebuild/pi-staging" -f sha="<full-sha>"` 建之）
+  2. `gh run list --branch rebuild/pi-staging` 等该 SHA 的 CI 跑绿（ci.yml 触发器 `rebuild/**` 覆盖 staging）
+  3. 同 SHA 再 `PUSH_BRANCH=rebuild/pi node .gh-api-push.mjs <commit>...`——保护见检查结果已绿即放行
+  4. rebuild/pi 上触发的新 run 仍需 `gh run view` 复验绿（05 附录 B.3）
+- **实证**：2026-08-24 T25 收口补记 d9823dad 经此路推送成功（当时 HTTPS 数据面全挂），CI run 32740318724 正常触发并全绿；2026-08-25 T28/T29 收口（7e553cb4/df908884）与 verify 批次（8540df95/911d2c07）两轮均走 staging 中转推送成功（runs 32831236127/32831596110/32834413415/32834978183 全 success）
 - **限制**：逐 blob 上传，大 commit 慢；LFS 实体不走此路（git 里的 LFS 指针 blob 可以推，本仓 5 件 fixture 本就不动）；单文件 100MB 上限
 - **强退**：`PUSH_FORCE=1` 环境变量（仅确知远端无人并行推时使用）
 
@@ -52,10 +57,11 @@ Step 0  探测（30 秒内出结果，三选二即可定位）：
           gh run list --repo another-momo/open-pencil --limit 1   # 通 = api.github.com 健康
 决策：
   github.com 通            → git push（1-2 次，勿循环）
-  github.com 挂 + gh 通    → PUSH_BRANCH=rebuild/pi node .gh-api-push.mjs <commit>
+  github.com 挂 + gh 通    → staging 先行 + 快进（§2.2 分支保护前置四步：
+                             先推 rebuild/pi-staging 等 CI 绿，再同 SHA 推 rebuild/pi）
   两路全挂                 → 探测 SSH（2.3/2.4）与代理（2.5）；
                              都无可行 → 挂起等待 + 向 owner 上报，不挡主线工作
-推送后验证：gh run list 确认 CI 触发（API 推送同样触发 push 事件）
+推送后验证：gh run view 复验 rebuild/pi 上对应 run 绿（05 附录 B.3 口径）
 ```
 
 **重试纪律**：同通道最多 3 次短间隔重试；失败即换通道；无新通道可用即停手等待——不做同命令长循环。

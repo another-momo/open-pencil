@@ -8,7 +8,7 @@
 # tasks/T28-self-check.md · T28 自查记录
 
 > **T 编号**：T28（决策批落地 · 代码面）
-> **状态**：✅ 已收口（C1-C6 本地面全过；远端 CI 待推送后回填；独立核验见 [T28-verify.md](T28-verify.md)）
+> **状态**：✅ 已收口（C1-C6 本地面全过；远端 CI run 32831596110 success（`gh run view` 复验 2026-08-25，B.3）；独立核验见 [T28-verify.md](T28-verify.md)）
 
 ## 1. 承诺 / 落地 / 偏差
 

@@ -8,7 +8,7 @@
 # tasks/T29-self-check.md · T29 自查记录
 
 > **T 编号**：T29（决策批落地 · 文档面）
-> **状态**：✅ 已收口（C1-C9 全过；远端 CI 与 T28 同批复核回填；独立核验见 [T29-verify.md](T29-verify.md)）
+> **状态**：✅ 已收口（C1-C9 全过；远端 CI run 32831596110 + 32834978183 success（`gh run view` 复验 2026-08-25，B.3）；独立核验见 [T29-verify.md](T29-verify.md)）
 
 ## 1. 承诺 / 落地 / 偏差
 
@@ -82,7 +82,7 @@
 
 ## 4. 遗留与边界
 
-- T26/T27 tracker 行状态列「远端 CI 待回填」字样：随 T28/T29 同批推送后统一复验回填口径（B.3）
+- T26/T27/T28/T29 tracker 行「远端 CI 待回填」已于 2026-08-25 统一复验回填：runs 32809703730（ebaa0e1c）/ 32812269846（08b4129a）/ 32831596110（df908884）/ 32834978183（911d2c07）均 success（`gh run view` 复验，B.3 口径）
 - tracker 行数：T28/T29 两行入库后 80 行贴预算顶；后续收口满一阶段即按 #8 机制归档 T21+ 行
 - **机制幸免事件实录**（2026-08-25 主 agent 自查发现）：T28/T29 首版 commit message 正文在解释规则时含字面量 `[no-task-plan]`（ASCII 方括号）——check:tasks 豁免判定 `git log -1 --format=%B` 全文体正则匹配，不区分「 prose 提及」与「实际豁免 tag」，会把该 commit 的 task 校验整条跳过。已在入库前重写两个 commit message（正文改用无 ASCII 方括号表述），使校验真实运行。此为决策批 #9「占位正则/豁免维持现状」口径下的已知盲区：**commit message 正文禁写 ASCII `[no-task-plan]` 字面量**（规则文引用时用全角或无括号写法）——是否机器化（如仅匹配 trailer 行）留待 owner 决策，本任务不动检查器
 

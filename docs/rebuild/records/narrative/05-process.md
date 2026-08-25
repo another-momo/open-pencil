@@ -181,3 +181,18 @@
   2. §4 第 5 条「三处实锤」→「五处实锤」——00-why-rebuild.md §5 实列 5 条、README 亦写五处，05 口径滞后
   3. 裸 § 引用修正（R5 口径）：头部纪律注释块两处（§4.10/§4.11 补 05-process.md 文件名）、§2 树状图两处（「镜像 tracker §2」→「镜像 tracker.md §2」、「§4.10 D14」→「05-process.md §4.10 D14」）
 - **task 文档**：同上（T26 统一登记）
+
+## 修正-N · 05-process.md 决策批机制面落地（2026-08-25，决策批 #5/#6/#7/#8/#15）
+
+- **类型**：修正（按对象：05-process.md）
+- **时间**：2026-08-25
+- **依据**：owner 2026-08-25 对三方 review 整改 15 项决策批逐项拍板；按 05 自身纪律（修改本文须登记决策），决策登记 = [records/topics/docs-governance.md](../topics/docs-governance.md) 决策批总登记条目
+- **内容**：
+  1. **§3.3 补丁过堂节奏（#5）**：zones.json 全部补丁携带 `lastReviewed` 字段；每次 upstream 合并（T10 类）对所有补丁做 `--base upstream/master` 全量 diff 人工过堂并刷新 lastReviewed；过堂报告命令 `bun run check:zones --patches-report`（T28 落地后回填，2026-08-25）
+  2. **§3.3 双周窗口检测（#15）**：upstream 漂移 >20 commits 即触发合并登记，与原月合并口径并存（三者取最先触发者）
+  3. **§3.2 zones.json 变更报警（#6）**：zones.json 变更的 commit 必须含 task 指针（不得用 `[no-task-plan]` 例外）+ CI rebuild-discipline job 输出 P 条目变更摘要（摘要命令 `bun run check:tasks`，T28 落地后回填，2026-08-25）
+  4. **§4 第 1 条 D 编号口径改口（#7）**：全局 D 仅用于跨任务决策，任务内设计决策一律 Tk-Dn 命名（如 T28-D1），规则文指向 [records/_index.md §1](../_index.md)
+  5. **§2 tracker 任务表归档机制（#8）**：已收口任务长实录定期移入 [tasks/_index.md](../../tasks/_index.md) 任务实录归档节，tracker 行压缩为摘要 + 三件套链接，≤80 行预算重新可达
+  6. 头部时间字段刷新（追加本批修订摘要 + 决策登记指针）
+- **落点判断注记**：#5/#6 规则文候选落点为 05-process.md 或 02-phase-0.md 三区机制节——取 05（#5 过堂节奏绑定 §3.3 upstream 合并节律、#6 属 §3.2 大改动/CI 拦截工作方式），02 三区机制定义本体不动
+- **task 文档**：无独立 task（决策批文档面落地，T29 由主 agent 收口时统一登记）

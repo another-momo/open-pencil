@@ -243,3 +243,26 @@
   1. **D9 闭环确认**：D9 条目本体状态字段仍为「open（待 owner 拍板）」——系未回刷的滞留值。D9 已由 D22（2026-08-22 拍 a 先行）与 D24（2026-08-23 拍 pi 升主线、取代 D22 排序）实际闭环；D22 条目自称「D9 从 open 闭环」属实，以本条为 D9 条目的正式状态桥接：**D9 = 已闭环（闭环凭证 = D22/D24）**
   2. **D7 闭环**：D7（runtime 选型）状态字段同为滞留 open——D7 与 D9 同体，闭环凭证同为 D24（pi SDK 升主线）：**D7 = 已闭环（= D24）**
   3. **全局 D 注册表停更现象记录**：D24 之后（T20-T25 窗口），owner 拍板只落在各 task 三件套内的任务级 D 编号（T22-plan D1-D6、T24-plan D1-D9、T25-plan D1-D4 等），全局 records/topics/ 层未再新增 D 条目——全局 D 注册表事实停更于 D24。任务级 D 与全局 D 撞名（如 T24-plan 的 D5 overlay 形状 vs 全局 D5 chatMode）已构成检索歧义，整改方案报送 owner（见 2026-08-25 review 报送清单）
+
+## D3 补签 · session 模型 = 一文件多会话 + 族谱，owner 正式拍板（2026-08-25）
+
+- **类型**：决策（补签——对「已事实落地待补签」的形式闭环）
+- **时间**：2026-08-25
+- **拍板**：owner（2026-08-25 对三方 review 整改 15 项决策批 #3 逐项拍板）
+- **状态**：已拍板（D3 从 open 正式闭环）
+- **内容**：**session 模型 = 一文件多会话 + 族谱形态确认**——T22/T23 事实落地形态获 owner 正式确认：pluginData docUuid 文件身份 + sessionId 三段式（`doc-<sha1>-<ts>`，clear 即同前缀新后缀开新会话）+ 后端族谱清单（GET /api/pi/sessions）+ ChatPanel 会话栏查看/切换
+- **落地凭证**：[tasks/T22-plan.md](../../tasks/T22-plan.md) / [tasks/T23-plan.md](../../tasks/T23-plan.md) / [tasks/T23-verify.md](../../tasks/T23-verify.md)；[01-target-state.md §6 决策表](../../01-target-state.md) D3 行已同步「已拍板」
+
+## 补登 · 全局 D 注册表恢复登记（D25-D29，T20-T25 窗口 owner 拍板补登，2026-08-25）
+
+- **类型**：决策（补登记——原记录在各 task plan 的任务级 D 编号，本条为全局 D 编号层面的统一补登；2026-08-25 owner 决策批 #7 拍板 D 编号规则改口后执行）
+- **时间**：2026-08-25
+- **拍板**：各条均为 owner 拍板（拍板日期各条标注；本条目为形式补登，非新决策）
+- **说明**：D24 后全局 D 注册表停更（见上条状态更新第 3 点）的补救登记——T20-T25 窗口的 owner 拍板原载于各 task 三件套，现按时间序补登全局编号 D25 起；内容一句话 + 出处指针，详情以出处为准
+- **补登清单**：
+  - **D25 · pi 后端为独立进程（非 vite 中间件）且为唯一 agent 能力来源**——owner 拍板 2026-08-23（T20 开工前两拍板之一）；出处 [tasks/T20-plan.md](../../tasks/T20-plan.md) / [records/narrative/tracker.md](../narrative/tracker.md) T20 行登记条目
+  - **D26 · LLM provider/凭据管理一步到位 pi 原生（ModelRuntime + auth.json），不迁移存量凭据、参考 deepseek-harness 产品形态**——owner 拍板 2026-08-24；出处 [tasks/T21-plan.md](../../tasks/T21-plan.md)
+  - **D27 · 会话查看/切换 UI 立项（后端族谱清单 + ChatPanel 会话栏下拉），废止 T22-plan §1.4「会话线程列表 UI 不做」约定**——owner 直接诉求 2026-08-24；出处 [tasks/T23-plan.md](../../tasks/T23-plan.md) / [records/topics/chat-ui.md](chat-ui.md)（本条横跨 agent-runtime 与 chat-ui 两主题，登记于此备查）
+  - **D28 · prompt 装配四层抽象体系（AgentMode 建会话烘焙 base prompt/工具集 → per-run 工作流段注入 → per-run profile overlay）+ chatMode 请求级 + 切换即驱逐重建**——owner 三轮评审拍板 2026-08-24；出处 [tasks/T24-plan.md §1.2 D1-D9](../../tasks/T24-plan.md)；chatMode 双模式去留本身的闭环见 [records/topics/chat-ui.md](chat-ui.md) D5 补签条目
+  - **D29 · 浏览器旧路径切除四决策（T25-plan D1-D4）：harness 路径切除（含 packages/harness 整包）/ 旧模型与凭证设置面切除（analyze 贴图分析知情退化，C4a 恢复）/ VITE_PI_BACKEND 门退役 / 一键启动（server.open + key-env 自助注入）**——owner 拍板 2026-08-24；出处 [tasks/T25-plan.md §1.2 D1-D4](../../tasks/T25-plan.md)
+- **后续口径**：自 2026-08-25 起任务内设计决策一律 Tk-Dn 命名、全局 D 仅用于跨任务决策（决策批 #7，规则文见 [records/_index.md §1](../_index.md)）；本组补登是全局 D 最后一次批量回填

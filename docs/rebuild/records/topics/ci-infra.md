@@ -212,3 +212,17 @@
   - T24：32702695959 success / 32707287225 success（立项与定稿 docs）→ 32713295092 failure（gitleaks 拦冒烟 dummy key）→ 32713950013 success（a84093b3 整改，13 job 全绿）→ 32715357613 success（docs 收口）
   - T25：32723107581 success（立项）→ 32735915321 failure（format:check 红，zh-cn dialogs.json 尾随换行）→ 32736988169 success（37fb9f0b 修复）→ 32740318724 success（API 推送通道实证，CI-11）→ 32742586617 failure（runbook 初版 push 路径红）→ 32742929539 success（48a46385，当前 HEAD）
 - **观察**：T21-T25 五个 task 全部经历「红 → 整改 → 绿」循环，无一一次通过；红因分布：format:check ×3、steiger ×1、type-shapes ×1、gitleaks ×1、dupes ×1、推送通道 ×1——format:check（oxfmt）为最高频红因
+
+## CI-14 · rebuild/pi 分支保护开启（owner 2026-08-25 决策批 #4，主 agent 经 gh api 落地）
+
+- **类型**：决策 + 机制落地登记
+- **时间**：2026-08-25
+- **拍板**：owner（2026-08-25 决策批 #4——T27 报送「机制信任根」组之分支保护项；报送前 `gh api` 实测保护为 404 未开启，见 [T27-plan.md §3.3](../../tasks/T27-plan.md)）
+- **落地内容**（主 agent 2026-08-25 经 `gh api` 设置并复验）：
+  1. **required status checks 四项**：Code quality / Package integrity / Repository hygiene / Rebuild discipline
+  2. **enforce_admins = true**——连 owner（仓库管理员）也强制，无特权旁路
+  3. **allow_force_pushes = true**——保留 API 推送 amend 通道（[runbook-github-push.md](../../runbook-github-push.md) 的推送通道纪律不因保护失效）
+  4. **禁删分支**（allow_deletions = false）
+  - 复验命令：`gh api repos/another-momo/open-pencil/branches/rebuild%2Fpi/protection --jq '.required_status_checks.checks[].context,.enforce_admins.enabled'`
+- **已知边界（如实记录）**：GitHub classic branch protection 的 required status checks **不拦截直接 push**——只在 PR 合入时强制。本仓 T08 决策为 commit 制不用 PR，故直接 push 路径的实际闸门仍是三件套：[05-process.md 附录 B.3](../../05-process.md) 远端 CI 复验（`gh run view`）+ 本地 pre-commit（check:zones/docs/bindings/tasks）+ check:tasks 任务表拦截。分支保护的增量价值 = 防误删 + 防 force-push 失控面收窄 + 未来若引入 PR 流程即自动生效
+- **独立复验**（T29 subagent，2026-08-25）：`gh api repos/another-momo/open-pencil/branches/rebuild%2Fpi/protection` 实测返回——checks = ["Code quality","Package integrity","Repository hygiene","Rebuild discipline"]、enforce_admins = true、allow_force_pushes = true、allow_deletions = false、required_linear_history = false，与主 agent 落地记录逐项一致（首次尝试 TLS handshake timeout 三 retry 失败，约一小时后重试成功——本机到 GitHub 连通性抖动实录）

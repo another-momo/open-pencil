@@ -9,7 +9,7 @@
 
 # 01 · 目标态定义
 
-> **状态**：已核验 | **时间**：2026-08-25（§2 F0 处置列按 T18-T25 落地实录刷新 + §6 决策表同步 D2/D3/D5/D7 + §3 层 1 验收口径失效标注 + §8 人日【假设】标注）| **核验人**：subagent A-D + 主 agent + owner 拍板 D2
+> **状态**：已核验 | **时间**：2026-08-25（§2 F0 处置列按 T18-T25 落地实录刷新 + §6 决策表同步 D2/D3/D5/D7 + §8 人日【假设】标注；同日 15 项决策批落地：§3 层 1 验收口径重建为五环冒烟口径（owner 拍板）+ §6 D3/D5 补签已拍板 + §7 parity 线同步新口径）| **核验人**：subagent A-D + 主 agent + owner 拍板 D2/D3/D5
 > **身份**：**本文是「做哪些加法」的决策依据**；02-phase-0.md 是 Phase 0 执行依据；03-phase-1-runtime.md 与 spikes/*.md 是 case study 与技术调研，身份是辅助参考信息，不直接驱动 Phase gate。
 > **结构原则**：按依赖排序，不按价值排序。没有支撑底座，闭环跑不起来——这是首轮 review 的核心修正。
 
@@ -47,7 +47,7 @@
 | 看 | C4a | look 图片到达模型：对新 runtime 媒体模型实现（旧语义只取一份：elision K=2 + chat-completions 改写，双份镜像取一） | F0.1 + F0.2 |
 | 迭代 | C5a | MarketingConfigBar 集成进最简 chat UI | F0.4 |
 
-**层 1 验收**：闭环端到端真实跑通 + 16 个移植测试文件全绿 + CI 绿。【口径失效待重建：2026-08-25 实测 `find tests/engine/rebuild -type f` 仅 1 文件，「16 个移植测试文件」的宿主 packages/agent 与 tests/engine/tools/{marketing,image-gen} 已随 T10 上游合并消失；新验收口径待 owner 拍板】
+**层 1 验收**：C1a-C5a 五环各配一条端到端冒烟且全绿 + `smoke:pi` 批次全绿 + CI 绿。（修订注记：原口径「闭环端到端真实跑通 + 16 个移植测试文件全绿 + CI 绿」的 16 文件宿主——packages/agent 与 tests/engine/tools/{marketing,image-gen}——已随 T10 上游合并消失（2026-08-25 实测 `find tests/engine/rebuild -type f` 仅 1 文件），口径失效；2026-08-25 owner 拍板更换为本口径。`smoke:pi` 批次现状 = t22 target 6 + t22 history 12 + t23 sessions 14 + t24 装配 27 共 59 断言（`grep '"smoke:pi"' package.json`，2026-08-25）；C1a-C5a 五环的端到端冒烟随各环施工逐条补入，未齐前本验收不通过。）
 
 ## 4. 层 2：增强（每块独立、自带验收、可单独进）
 
@@ -76,22 +76,22 @@
 
 ## 6. 待拍板决策（拍板前对应块不动工；登记处 = `records/topics/` 各主题档案，按 D 主题列指针）
 
-> 本表 2026-08-25 同步：D2/D7 已拍板、D3/D5 已事实落地待补签（原表头「集中登记于 tracker.md §1 阶段门」系错误指针——tracker 已无决策日志，D 决策登记在 records/topics/ 各档案）。
+> 本表 2026-08-25 同步：D2/D7 已拍板、D3/D5 已拍板（2026-08-25 owner 补签，三方 review 整改 15 项决策批 #3）；原表头「集中登记于 tracker.md §1 阶段门」系错误指针——tracker 已无决策日志，D 决策登记在 records/topics/ 各档案。
 
 | # | 决策 | 影响 | 状态（2026-08-25 同步） | 登记档案 |
 |---|---|---|---|---|
 | D1 | 参考图机制形态（参考区 page / 收编 brand config） | C2/C3 边界 | open | [records/topics/brand-config.md](records/topics/brand-config.md) |
 | D2 | **vision 通道 B 为默认**（look 截图不进主 agent 上下文→成本优势 + 可换视觉模型；A 直送为备选，仅在 B 失败或 vision 模型质量不达标时降级） | C4 + F0.3 | **已拍板**（2026-08-20 owner） | [records/topics/brand-config.md](records/topics/brand-config.md) D2 |
-| D3 | session 模型（一文件一个 / 多个） | F0.5 + C5b | **已事实落地**（T22/T23：一文件多会话 + 族谱，2026-08-24），待 owner 补签 | [records/topics/agent-runtime.md](records/topics/agent-runtime.md) |
+| D3 | session 模型（一文件一个 / 多个） | F0.5 + C5b | **已拍板**（2026-08-25 owner 补签：一文件多会话 + 族谱形态确认；落地 = T22/T23，2026-08-24） | [records/topics/agent-runtime.md](records/topics/agent-runtime.md) |
 | D4 | 产品形态（localhost serve 是否定论） | B4 + cli 处置 | open | [records/topics/agent-runtime.md](records/topics/agent-runtime.md) |
-| D5 | chatMode 双模式去留 | C5 与 prompt 装配范围 | **已事实落地**（T24：chatMode 请求级，owner 三轮评审 2026-08-24），待 owner 补签 | [records/topics/chat-ui.md](records/topics/chat-ui.md) |
+| D5 | chatMode 双模式去留 | C5 与 prompt 装配范围 | **已拍板**（2026-08-25 owner 补签：双模式保留；落地 = T24 chatMode 请求级，owner 三轮评审 2026-08-24） | [records/topics/chat-ui.md](records/topics/chat-ui.md) |
 | D6 | 中文字体策略（62MB 全量 / 子集化 / 系统字体） | E1 | open | [records/topics/brand-config.md](records/topics/brand-config.md) |
 | D7 | runtime 选型（pi sdk / dsh） | Phase 1 spike 后定，见 03；spike 02 推荐 pi 直接驱动 | **已拍板 = D24**（2026-08-23：pi SDK 升主线，dsh-X 搁置） | [records/topics/agent-runtime.md](records/topics/agent-runtime.md) D22/D24 |
 | D8 | 「素材图理解」是否新建立项 | C1 增强范围 | open | [records/topics/chat-ui.md](records/topics/chat-ui.md) D8 条目 |
 
 ## 7. parity 线（新旧分支切换标准）
 
-**层 0 + 层 1 验收通过**（hello-tool + 最小闭环端到端 + 16 个测试文件绿 + CI 绿），owner 拍板切换。
+**层 0 + 层 1 验收通过**（hello-tool + 层 1 验收——口径见本文 §3：C1a-C5a 五环端到端冒烟全绿 + smoke:pi 批次全绿 + CI 绿），owner 拍板切换。
 不是「旧功能全搬完」——层 2 搬不完的让它们在旧分支自然死亡。
 
 ## 8. 三路线对比补充（为什么「复用 dsh 基建更多」的 X 反而更贵）

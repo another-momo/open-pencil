@@ -9,7 +9,7 @@
 
 # 05 · 工作方式与文档纪律
 
-> **状态**：草稿（owner 两次提示后修订：§3.2 显式补一一对应 + [05-process.md §4.10](05-process.md) D14 + [05-process.md §4.11](05-process.md) D15 三件套物理拆分；T09 修订：§3.2 大改动段落按 D15 重写除腐、§3.1 脚本路径修正、§2 树状图修正、PR 列残留清除，待 owner + subagent 核验） | **时间**：2026-08-25（附录 B.3 新增 verify 远端 CI 复验强制规则——T22 假绿事件触发；§2 ≤80 行预算同步；§4 第 5 条「五处实锤」口径统一；头部与树状图裸 § 引用修正） | **核验人**：主 agent 修订，待 owner + subagent 核验
+> **状态**：草稿（owner 两次提示后修订：§3.2 显式补一一对应 + [05-process.md §4.10](05-process.md) D14 + [05-process.md §4.11](05-process.md) D15 三件套物理拆分；T09 修订：§3.2 大改动段落按 D15 重写除腐、§3.1 脚本路径修正、§2 树状图修正、PR 列残留清除，待 owner + subagent 核验） | **时间**：2026-08-25（附录 B.3 新增 verify 远端 CI 复验强制规则——T22 假绿事件触发；§2 ≤80 行预算同步；§4 第 5 条「五处实锤」口径统一；头部与树状图裸 § 引用修正；同日 15 项决策批机制面落地：§3.3 补丁过堂节奏 + 双周窗口检测（#5/#15）、§3.2 zones.json 变更报警（#6）、§4 第 1 条 D 编号口径改口（#7）、§2 tracker 任务表归档机制（#8）——决策登记见 [records/topics/docs-governance.md](records/topics/docs-governance.md) 决策批总登记条目） | **核验人**：主 agent 修订，待 owner + subagent 核验
 > **身份**：本文是迁移改造全过程的过程定义：怎么干活、怎么跟踪、文档怎么写怎么管。优先级最高——与其他文档冲突时，以本文的过程裁决为准；事实冲突时，以代码与核验记录为准。
 
 ## 1. 角色与决策权
@@ -75,7 +75,7 @@ docs/rebuild/
 
 **proposals 集合**：外部建议文档——append-only，不修改原条目；采纳映射登记在 [`records/topics/docs-governance.md` 的 D 决策条目](records/topics/docs-governance.md)。
 
-**关于 tracker.md 拆分**：原 tracker.md 集阶段门 / 决策日志 / 任务表 / WIP 审判 / 核验日志 / 腐烂记录六类信息于一身，膨胀至 106 行后查找困难。新结构：tracker.md 只保留索引 + 阶段门 + 任务表 + 记录索引三块（≤80 行——T09 由 ≤50 行放宽，任务表行数随 task 增长，原预算已不可达）；详细记录按对象归 `records/` 子文档，子文档 append-only。
+**关于 tracker.md 拆分**：原 tracker.md 集阶段门 / 决策日志 / 任务表 / WIP 审判 / 核验日志 / 腐烂记录六类信息于一身，膨胀至 106 行后查找困难。新结构：tracker.md 只保留索引 + 阶段门 + 任务表 + 记录索引三块（≤80 行——T09 由 ≤50 行放宽，任务表行数随 task 增长，原预算已不可达）；详细记录按对象归 `records/` 子文档，子文档 append-only。**任务表行数治理（2026-08-25 决策批 #8 拍板，归档机制）**：已收口任务的长实录文本定期从 [tracker.md §2](tracker.md) 任务表移入 [tasks/_index.md](tasks/_index.md) 任务实录归档节，tracker 行压缩为一句摘要 + 三件套链接（一行一任务索引完整性不动），≤80 行预算由此重新可达。
 
 ## 3. 工作方式
 
@@ -130,11 +130,15 @@ docs/rebuild/
 
 **CI 拦截**：`tools/zone-registry/src/check/tasks.ts` 检查命中大改动 → commit message 必须含 `task: T<NN>` 指针 + 任务表有对应行 + 三件套 `existsSync` 全过 + 占位检测全过。**例外**：commit message 加 `[no-task-plan]` tag（限 owner 标注，**仅限紧急 CI 红修复**，24h 内必须补办）。
 
+**zones.json 变更报警**（2026-08-25 owner 决策批 #6 拍板）：`tools/zone-registry/zones.json` 是三区机制的信任根，其自身变更必须显式留痕——①任何修改 zones.json 的 commit，message 必须含 `task: T<NN>` 指针（zones.json 变更**不得**使用 `[no-task-plan]` 例外）；②CI rebuild-discipline job 对 zones.json 变更输出 P 条目变更摘要——新增 / 撤销 / 修改的补丁编号各带一句话理由，供 review 对账（摘要输出命令：`bun run check:tasks`——diff 含 zones.json 时先输出 P 条目「新增/移除/改动」id 摘要（不判红），HEAD commit message 无 `task: T<NN>` 指针即 fail）。
+
 **针对 agent 的核心约束**：主 agent 自认完成大改动任务前，**必须主动对照方案文档产出完成度对照报告**——不得"做而不报"或"号称完成未对照"。详见附录 B 的工作流程。
 
 ### 3.3 upstream 合并
 
 - 月合并（或漂移显著时提前），在专用分支操作；合并后**当场**刷新 zone registry 与补丁清单，`records/topics/upstream-merge.md` 记一条合并记录。
+- **双周窗口检测**（2026-08-25 owner 决策批 #15 拍板）：每两周检测一次 upstream 漂移——`git rev-list --count HEAD..upstream/master` > 20 commits 即触发合并登记（立项合并 task 或由下一 task 携带）。与原月合并口径并存：双周窗口是节律性兜底、月合并是最长间隔、「漂移显著时提前」随时可触发——三者取最先触发者。
+- **补丁过堂节奏**（2026-08-25 owner 决策批 #5 拍板）：zones.json 全部补丁携带 `lastReviewed` 字段（YYYY-MM-DD）；每次 upstream 合并（T10 类）时对所有登记补丁做 `--base upstream/master` 全量 diff 人工过堂——逐补丁确认 hunk 仍落在预期位置、处置方向（上游化 / 永久保留）仍成立，过堂后刷新全部补丁的 `lastReviewed` 为当日。过堂报告命令：`bun run check:zones --patches-report`（输出逐补丁 numstat 摘要 + `lastReviewed` 日期，恒 exit 0 不判红）；过堂结论记入 `records/topics/upstream-merge.md` 对应合并条目。
 - 合并后必须跑 check:docs（CI 自动）+ 排 subagent 核验受影响文档。
 - Phase 0 出口含一次「合并演习」。
 
@@ -142,7 +146,7 @@ docs/rebuild/
 
 1. **三种陈述分标**：
    - 【事实】可重跑的观察。必须附：核验命令/路径 + 日期。例：「`packages/core/src/tools/marketing/` 14 文件（`ls`，2026-08-18）」。
-   - 【决策】人的选择。必须附：拍板人 + 日期 + 理由，登记进 `records/` 对应对象子文档（D 编号）。
+   - 【决策】人的选择。必须附：拍板人 + 日期 + 理由，登记进 `records/` 对应对象子文档（D 编号；编号口径自 2026-08-25 决策批 #7 改口：全局 D 仅用于跨任务决策，任务内设计决策一律 Tk-Dn 命名——如 T28-D1，规则文见 [records/_index.md §1](records/_index.md)）。
    - 【假设】未验证的判断。必须显式标注【假设】，且**禁止进入任何验收标准**。
 2. **腐烂即改**：发现文档与现实不符，当场修正文档，并在 `records/` 对应对象子文档「腐烂记录」加一条（ROT-N 编号，日期/文档/错的内容/实况）。不许「知道错了但留着」。
 3. **状态字段**：每个叙事文档（00-04）头部必须包含五字段：`状态` / `时间`（YYYY-MM-DD HH:MM，本地时间 24h 制）/ `核验人` / `身份`（决策链角色）/ `基线`（可选）。状态值：`草稿`（agent 新写未核）/ `已核验`（对账通过）/ `已执行`（描述的 phase 已执行完成，可与「已核验」并存）/ `已过期`（归档 archive/）。时间精度用 `YYYY-MM-DD HH:MM` 便于同日事件排序。

@@ -247,6 +247,10 @@ OpenPencil is the alternative: open source (MIT), reads .fig files natively, eve
 
 See the [roadmap](https://openpencil.dev/development/roadmap) for product direction and current Figma compatibility gaps.
 
+## OpenPencil Rebuild
+
+This fork carries an in-progress rebuild (re-fork + strangler-port of the AI workbench onto a pi SDK runtime, branch `rebuild/pi`). Planning, decisions, and process discipline live under `docs/rebuild/` — entry point: [docs/rebuild/README.md](docs/rebuild/README.md); live status: [docs/rebuild/tracker.md](docs/rebuild/tracker.md). These are internal working documents, not user documentation.
+
 ## Contributing
 
 ### Setup

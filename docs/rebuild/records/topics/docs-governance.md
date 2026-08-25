@@ -446,3 +446,52 @@
 - **内容**：
   1. **D16 前提已随 D24 过期**：D16 登记的矛盾是「D9 open vs 03 §0 已按 Y 弃 + X/pi 双候选撰写」——D24（2026-08-23）已正式拍板 pi 主线、dsh-X 搁置，Y 路线弃置已成事实（D22/D24 两轮拍板均不含 Y），D16 的三个选项前提不复存在。D16 实质消解，仍待 owner 在形式上补签关闭（报送清单 2026-08-25）
   2. **治理冻结期提案状态**：「Phase 1 期间治理机制只准 ROT 登记、不新增治理机制」提案（2026-08-21 T09 F2 登记）至今仍为**候选 · 待 owner 拍板**——Phase 1（T10-T25）期间事实上未新增治理机制（仅 T22 假绿事件触发的 05 附录 B.3 verify 复验规则属「gate 阻塞级机制缺陷」例外条款覆盖范围），提案被事实遵守但未获正式拍板，状态标注于此
+
+## D16 形式关闭 · owner 拍板（2026-08-25）
+
+- **类型**：决策（形式闭环——对上条「待 owner 形式补签关闭」的闭环）
+- **时间**：2026-08-25
+- **拍板**：owner（2026-08-25 对三方 review 整改 15 项决策批 #3 逐项拍板）
+- **状态**：已关闭
+- **内容**：**D16 正式关闭**——其前提（D9 open vs 03 §0 已按 Y 弃撰写的不一致）已随 D24（2026-08-23 pi 升主线、dsh-X 搁置）消解，Y 路线弃置经 D22/D24 两轮拍板成事实，无需再对齐；D16 条目本体按 append-only 纪律保留作审计线索
+
+## 治理冻结期拍板 · 部分解冻（2026-08-25）
+
+- **类型**：决策（对 2026-08-21 T09 F2「治理冻结期」候选提案的拍板）
+- **时间**：2026-08-25
+- **拍板**：owner（2026-08-25 决策批）
+- **状态**：已拍板（候选提案闭环）
+- **内容**：**部分解冻**——①**堵漏型机制修正放行**：对既有机制暴露的漏洞/失真做修正不受冻结限制（如 05-process.md 附录 B.3 verify 远端 CI 复验强制规则这类「gate 阻塞级机制缺陷」修正，T22 假绿事件触发）；②**新增治理面继续冻结**（Phase 2 期间）：不新增检查器、不新增目录层、不新增三件套变体等新治理机制——治理成本让位于产品进度（原提案理由维持）
+- **依据**：原提案（本档案 2026-08-21「提案 · 治理冻结期」条目）事实遵守了一个 Phase 但未拍板；本次 owner 决策批将其收敛为「部分解冻」口径正式拍板
+
+## 决策批总登记 · 2026-08-25 owner 对三方 review 整改 15 项决策逐项结论
+
+- **类型**：决策（汇总登记——owner 2026-08-25 对 T26/T27 报送清单（[T26-self-check.md §1.6](../../tasks/T26-self-check.md) 8 项 + [T27-plan.md §3.3](../../tasks/T27-plan.md) 7 组）共 15 项逐项拍板；本条目为决策批的单一留痕口）
+- **时间**：2026-08-25
+- **拍板**：owner
+- **逐项结论**（一句话 + 落地指针）：
+  - **#3 决策补签组**：D3（session 模型）/D5（chatMode）补签已拍板，D16 形式关闭，治理冻结期拍板「部分解冻」——落地见本档案上两条 + [records/topics/agent-runtime.md](agent-runtime.md) D3 补签 + [records/topics/chat-ui.md](chat-ui.md) D5 补签 + [01-target-state.md §6](../../01-target-state.md) 决策表（T29）
+  - **#4 分支保护**：rebuild/pi 开启分支保护（required checks 四项 + enforce_admins + 保留 force-push 通道 + 禁删），主 agent 经 gh api 落地——登记见 [records/topics/ci-infra.md CI-14](ci-infra.md)（T29）
+  - **#5 补丁过堂节奏**：zones.json 全部补丁带 lastReviewed 字段，每次 upstream 合并全量过堂并刷新——规则文见 [05-process.md §3.3](../../05-process.md)（T29 写规则、T28 实现机制）
+  - **#6 zones.json 变更报警**：zones.json 变更的 commit 必须含 task 指针 + CI discipline job 输出 P 条目变更摘要——规则文见 [05-process.md §3.2](../../05-process.md)（T29 写规则、T28 实现机制）
+  - **#7 D 编号规则改口**：全局 D 仅用于跨任务决策，任务内设计决策一律 Tk-Dn（如 T28-D1）；历史不回改——规则文见 [records/_index.md §1](../_index.md) + [05-process.md §4](../../05-process.md)；T20-T25 窗口拍板补登 D25-D29 见 [records/topics/agent-runtime.md](agent-runtime.md)（T29）
+  - **#8 tracker 行数治理**：owner 拍板归档方案——T00-T20 长实录移入 [tasks/_index.md](../../tasks/_index.md) 归档节，tracker.md 任务表压缩为摘要索引回 ≤80 行（T29）
+  - **#9 check:tasks 阈值/占位正则**：**维持现状**——大改动阈值（R1-R4）与 D19 占位正则模式集不加固、不扩词（T27 报送第 5 组「阈值博弈加固、占位正则纳『待核验』」拍板不做；现有机制见 [05-process.md §3.2 + §4.11](../../05-process.md)）
+  - **#11 包结构五连**：**交上游管理、本仓不做**——SceneGraph 拆分 / core barrel 收口 / stock-photo 移层 / packages noUnusedLocals / kiwi oxlint 豁免等包结构项不在我仓立项，跟随上游演进（T27 报送第 3 组之包结构半）
+  - **#12 测试体系**：**只优化 pi-backend 冒烟面（smoke:pi 已并入单一入口，T27 落地），其余测试体系项交上游**——unit test 进 CI / CI e2e + 契约测试等不在我仓立项（T27 报送第 3 组之测试半）
+  - **#13 层 1 验收口径重建**：新口径 = C1a-C5a 五环各配一条端到端冒烟且全绿 + smoke:pi 批次全绿 + CI 绿（原 16 文件口径宿主随 T10 消失）——落地见 [01-target-state.md §3](../../01-target-state.md) + [tracker.md §1](../../tracker.md) Phase 3 行（T29）
+  - **#14 根文档最小指针**：只改根 README.md + AGENTS.md 加 rebuild 指针，CHANGELOG.md 不动——落地见根 README.md「OpenPencil Rebuild」节与 AGENTS.md Documentation 节（T29；zones patch 由主 agent 收口登记）
+  - **#15 upstream 双周合并 SOP**：双周窗口检测——upstream 漂移 >20 commits 即触发合并登记，与原月合并口径并存——规则文见 [05-process.md §3.3](../../05-process.md)（T29）
+  - **#1 / #2 / #10**：本 subagent（T29 文档面）未持有该三项的拍板内容与落点映射——以 owner 2026-08-25 会话决策单为准，由主 agent 收口时补登；报送源头候选见 [T26-self-check.md §1.6](../../tasks/T26-self-check.md) 第 4/5 项（§4.1 三态分标补标 / §4.3 状态词汇表）与 [T27-plan.md §3.3](../../tasks/T27-plan.md)（pi 后端零鉴权 / session GC / smoke:pi fixture 供给 / format:check 净树判据等组）
+- **05-process.md 修改决策登记**（05 自身纪律要求：修改 05 须在本档案登记一条决策）：本决策批 #5/#6/#7/#8/#13/#15 的规则文落地涉及 05-process.md 修改（§3.2 zones.json 变更报警、§3.3 补丁过堂 + 双周窗口、§4 第 1 条 D 编号口径、§2 tracker 归档机制一句话），决策依据即本条目，不再单独立 D——owner 2026-08-25 拍板
+
+## 决策批总登记补登 · #1 / #2 / #10（主 agent 收口回填，2026-08-25）
+
+- **类型**：决策补登（上一条目遗留的三项缺口，按 append-only 原则另起本条，不改原文）
+- **时间**：2026-08-25
+- **拍板**：owner（2026-08-25 决策批原话：#1「按你建议的方式改」；#2「按你建议的方式改，归档，不删除」；#10「同意建议」）
+- **逐项结论**（拍板口径 + T28 落地事实）：
+  - **#1 pi 后端零鉴权**：拍板按建议方案改——vite-plugin 每进程生成 32-hex token，经 env `OPENPENCIL_PI_TOKEN` 注入子进程并由 proxy 对 `/api/pi` 统一补 `Authorization` 头；后端中间件定常比较（sha256 + `timingSafeEqual`）、`/health` 豁免、无 token 时 fail-close 全拒；standalone 模式自生成写 `<cwd>/.openpencil/pi-backend-token`（0o600，控制台只打路径）。**T28 已落地**（[auth.ts](../../../../src/app/ai/pi-backend/auth.ts)、server.ts 中间件、main.ts standalone 自生成、vite-plugin token 注入）；全部直连后端的冒烟脚本带 token + 401 负向断言。token 文件适用 key 卫生同级纪律（不打印、不入库、不外传）
+  - **#2 session GC / rotate**：拍板按建议方案改、**归档不删除**——超龄（`OPENPENCIL_SESSION_MAX_AGE_DAYS`，默认 30 天）或超量（`OPENPENCIL_MAX_SESSIONS`，默认 200，最老先归）的会话文件**移动**到 `.openpencil/pi-sessions-archive/`（保文件名、index 除条、archive 无索引）；`listSessionFamily` 不扫 archive、`readHistory` 对已归档会话返回空；GC 失败只 warn 不阻断主流程。**T28 已落地**（session-gc.ts + service.ts 双触发点）；t28/session-gc-smoke.mjs 19/19 绿
+  - **#10 format:check 净树判据**：拍板同意建议——`format:check` 由「format 写后 git status 判净树」改为 `oxfmt --check` 直接判据（与 `format` 逐字同路径集），CI Verify formatting 步骤引用同步。**T28 已落地**（package.json format:check + ci.yml）；消除「写后比对」在 CI 检出态下的判据失真
+- **报送源头**：[T27-plan.md §3.3](../../tasks/T27-plan.md) 第 1 组（pi 后端零鉴权）、第 2 组（session GC）、第 4 组（format:check 净树判据）

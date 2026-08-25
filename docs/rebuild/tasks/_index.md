@@ -9,7 +9,7 @@
 
 # tasks · 任务档案索引
 
-> **状态**：D15 重组 | **时间**：2026-08-25（T22 行 CI 假绿更正） | **核验人**：主 agent
+> **状态**：D15 重组 | **时间**：2026-08-25（T22 行 CI 假绿更正；§6 任务实录归档建立——决策批 #8） | **核验人**：主 agent
 > **身份**：task 维度档案的入口。**每个 task 三件套物理拆分**——`tasks/T<NN>-plan.md` / `tasks/T<NN>-self-check.md` / `tasks/T<NN>-verify.md`，CI 用 `existsSync` 逐个检查。
 > **与 [tracker.md §2 任务表](../tracker.md) 的关系**：tracker 是任务表**真源**，本文是镜像——同步 plan / self-check / verify 三列路径。如有不一致以 tracker 为准。
 > **与 records/narrative/ 的关系**：task 维度 vs 文件维度，**严格分离**——task 自检/核验不进 records/，文件腐烂/修正也不进 tasks/。详见 [05-process.md §3.2 + §4.11](05-process.md)。
@@ -26,6 +26,8 @@
 **禁止**：单文档 `T<id>-<slug>.md` + 章节正则形式（章节可以是占位，CI 误判率非零）——D15 决策核心。
 
 ## 2. 任务清单（与 [tracker.md §2 任务表](../tracker.md) 同步）
+
+> **归档机制**（2026-08-25 owner 决策批 #8 拍板）：tracker.md 任务表 T00-T20 行状态列长实录已迁入 [tasks/_index.md §6 任务实录归档](_index.md)（本节下方），tracker 行压缩为一句摘要 + 三件套链接；本表（镜像）行维持原样。
 
 | T 编号                      | 块                         | 标题                                                                                                                    | 状态                                                                                                                                         | plan                             | self-check                                   | verify                               |
 | --------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | -------------------------------------------- | ------------------------------------ |
@@ -87,3 +89,112 @@
 `tools/zone-registry/src/check/tasks.ts` 检测大改动命中 + commit 含 `task: T<NN>` → 读任务表 → 检查 `existsSync(tasks/T<NN>-{plan,self-check,verify}.md)`。**任何一个缺失 → 拒绝 commit**。零正则、零章节、零语义判定。
 
 详细纪律见 [05-process.md §3.1 gate review 第 5 项 + §4.11 三件套物理拆分纪律](../05-process.md)。
+
+## 6. 任务实录归档（T00-T20，2026-08-25 自 [tracker.md §2](../tracker.md) 迁入）
+
+> **归档依据**：2026-08-25 owner 决策批 #8 拍板 tracker 行数治理——tracker.md 任务表 T00-T20 行压缩为一句摘要 + 三件套链接，状态列长实录文本移至本节（每任务一节，原文照录，信息零丢失）。T00-T09 行原文本即摘要（状态列仅 ✅、验收列为短句），tracker 行未改动，本节照录其验收列原文备查；T10-T20 行为本次实际压缩对象。T21 起近期行保留在 tracker 原表，后续收口满一个阶段再归档。
+
+### T00 · 文档集首轮整改（R1-R4 核查轮）
+
+- **验收列原文**：✅ 完成（历史回填）
+- **状态列原文**：✅
+
+### T01 · 文档体系整改（plan-correction / tracker拆分 / check-docs / binding / tasks）
+
+- **验收列原文**：✅ 完成（待 owner 验收）
+- **状态列原文**：✅
+
+### T02 · 文档纪律二次检查（05-process.md §5 迁移 + check-tasks 增强）
+
+- **验收列原文**：✅ 完成（CI 11/11 全绿）
+- **状态列原文**：✅
+
+### T03 · 05-process.md §4.10 文件↔record 一一对应纪律补漏（D14 决策落地）
+
+- **验收列原文**：✅ 完成（CI 11/11 全绿 + subagent A 18/18 通过）
+- **状态列原文**：✅
+
+### T04 · task 纪律 CI 强化（D15 三件套物理拆分 + 任务表路径检查）
+
+- **验收列原文**：✅ 完成（CI 11/11 全绿 + subagent A 18/18 + 3 追加通过）
+- **状态列原文**：✅
+
+### T05 · 00-05 系统性腐烂 review（外部 proposal 内化 + 05-process.md §2 树状图重写 + D16 候选登记 + D17 本机绝对路径清理）
+
+- **验收列原文**：✅ 完成（CI 11/11 全绿 × 2 commits + subagent A 19/19 通过）
+- **状态列原文**：✅
+
+### T06 · LFS cache 启用（每次 push 节省 ~99% 上游 LFS 流量）
+
+- **验收列原文**：✅ 完成（setup-bun action.yml 加 actions/cache@v6）
+- **状态列原文**：✅
+
+### T07 · 修正 05-process.md §4.10 应用错误（横向档案 narrative 绑定撤回）+ 高频腐烂防御
+
+- **验收列原文**：✅ 完成（核验由 T09 回填：subagent A 12 通过 + 1 警告，见 [T07-verify.md](T07-verify.md)）
+- **状态列原文**：✅
+
+### T08 · tracker.md 任务表删 PR 列（owner 提议）
+
+- **验收列原文**：✅ 完成（CI 11/11 全绿 + subagent A 12/12 通过，commit 7d013794）
+- **状态列原文**：✅
+
+### T09 · review 发现核实与修复（CI 接线 + 占位检测 + 腐烂修正 + T06/T07 核验回填）
+
+- **验收列原文**：✅ 完成（CI 12/12 全绿含新 Rebuild discipline job，run 32447539784 + subagent A 核验 N1-N5 闭环）
+- **状态列原文**：✅
+
+### T10 · upstream/master@5201404f 合并（79 commits/864 文件漂移）+ D20 登记 + spike 任务登记
+
+- **验收列原文**：[T10-plan.md §3](T10-plan.md) 七条验收
+- **状态列原文**：✅ 完成（远端 CI run 32458703514 12/12；rebuild/v2 ff → 1749b877）
+
+### T11 · S-pi spike（pi sdk 库形态四项验证）
+
+- **验收列原文**：[T11-plan.md §3](T11-plan.md)
+- **状态列原文**：✅ 已完成（离线面全过 subagent 核验讫，commit e58a6ea9；活模型面由 T18 补跑完成——S-pi-1 活模型 8/8（openrouter/free，见 T18 行），原「阻塞待 owner 补 key」已消解，2026-08-25 翻 ✅）
+
+### T12 · S-X spike（dsh-X 六项验证含硬 gate）
+
+- **验收列原文**：[T12-plan.md §3](T12-plan.md)
+- **状态列原文**：✅ 已完成（CI run 32560998564 12/12；X5 硬 gate 通过；模型面阻塞已上报）
+
+### T13 · D22 拍板后收口：双 spike 合并回归 + dsh 版本钉扎纪律 + S-X 模型面补跑
+
+- **验收列原文**：[T13-plan.md §3](T13-plan.md)
+- **状态列原文**：✅ 已完成（合并回归+版本纪律 CI run 32563228158 全绿；X3/X6 模型面 2026-08-23 以 openrouter/free 实测通过——真实工具调用 → 7600 桥 → 活编辑器回包，证据 workbench/evidence/t13-x3-x6-openrouter-live.png；S-pi 模型面随 pi 产品版后置 D22）
+
+### T14 · 插件骨架产品化（MS-X1：workbench/ bundle 骨架 + 版本钉扎 + dev 回路 + HMR 决策点证伪）
+
+- **验收列原文**：[T14-plan.md §3](T14-plan.md)
+- **状态列原文**：✅ 已完成（装机冒烟 + HMR A 级证伪 + CI job；远端 CI run 32569154626 全绿）
+
+### T15 · M2 编辑器入孤岛（E1 CanvasKit wasm 探针 → E2 编辑器外壳 → E3 生命周期 → E4 冒烟收口）
+
+- **验收列原文**：[T15-plan.md §3](T15-plan.md)
+- **状态列原文**：✅ 已完成（E1-E4 全过 + subagent 核验 V1-V8「可以提交」；远端 CI HEAD run 32576137352 全绿）
+
+### T16 · 7600 桥真链路 + token 链（M3+M4 链路半：真桥起服 → island 桥客户端 → host 工具端到端）
+
+- **验收列原文**：[T16-plan.md §3](T16-plan.md)
+- **状态列原文**：✅ 已完成（B1-B4 全过 + subagent 核验 V1-V8「可以提交」；远端 CI HEAD run 32579903008 全绿）
+
+### T17 · ChatPanel 消费 SessionFace（M3 消息回路半：绑定层 → 消息流渲染 → 发送回路 → 控制面 → 端到端冒烟）
+
+- **验收列原文**：[T17-plan.md §3](T17-plan.md)
+- **状态列原文**：✅ 已完成（C1-C5 全过 + subagent 独立核验 V1-V8「可以提交」；远端 CI HEAD run 32611136517 全绿）
+
+### T18 · pi SDK 主线启动（D24）：rebuild/pi 分支 + pi 版本钉扎纪律 + S-pi 活模型面补跑 + 01 F0 地面依据 post-merge 核查
+
+- **验收列原文**：[T18-plan.md §3](T18-plan.md)
+- **状态列原文**：✅ 已完成（P1-P4 全过：S-pi-1 活模型 8/8 + S-pi-2 主线 7/7 + 钉扎纪律 + F0 四行修正；subagent 独立核验 V1-V8「可以提交」含改参防伪造复跑；远端 CI rebuild/pi run 32627633002 全绿）
+
+### T19 · 后端换心（F0.1/F0.4）：pi SDK 薄 service + UIMessage v1 SSE 契约 + 前端 Chat 类零改动（文本回路）
+
+- **验收列原文**：[T19-plan.md §3](T19-plan.md)
+- **状态列原文**：✅ 已完成（P1-P5 全过：后端冒烟 14/14 + 重启恢复 RECOVERY-PASS + 真实 Chromium 浏览器冒烟 7/7；subagent 独立核验 V1-V8「可以提交」；远端 CI rebuild/pi run 32637559364 全绿；CI 三连红事故链与 oxfmt 平台坑实录见 [T19-self-check.md §2.7](T19-self-check.md)）
+
+### T20 · 工具链路：后端独立进程化（owner 拍板：非 vite 中间件）+ hello-tool 全链 + 工具事件映射（工具卡片可见）
+
+- **验收列原文**：[T20-plan.md §3](T20-plan.md)
+- **状态列原文**：✅ 已完成（P1-P5 全过：API 冒烟 18/18 + 浏览器冒烟全绿含卡片 pending→完成 + nodeId↔画布对账 + T19 回归 15/15；willRetry 提前 finish 根因修复见 [T20-self-check §2.3](T20-self-check.md)；subagent 独立核验 V1-V8「可以收口」；远端 CI rebuild/pi run 32645061123 全绿）

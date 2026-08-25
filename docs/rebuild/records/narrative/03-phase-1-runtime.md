@@ -136,3 +136,12 @@
   2. **§6 文档关系索引两行修正**：「01-target-state.md §7 决策依据（三路线对比 + 当前推荐）」→「01-target-state.md §2 推进规划（Phase ↔ 层映射 + 验收主场指针）」；「01-target-state.md §8 X 复用更贵的五条机制」→「本文 §4.4（自 01 迁入，D30）」——删掉指向已删除章节的腐烂指针
   3. **头部纯化**：状态/时间字段 changelog 化内容删（状态：已核验 | 时间：2026-08-25 | 核验人：主 agent）；身份行改指 01 §2 推进规划主场
 - **task 文档**：[tasks/T30-plan.md](../../tasks/T30-plan.md)
+
+## 修正-N · §2.2 工作量行残留旧号错指修复（T30 verify V3 打回项）
+
+- **类型**：修正（按对象：03-phase-1-runtime.md）
+- **时间**：2026-08-25
+- **依据**：T30 独立核验 V3 打回——§2.2 工作量行来源列残留 `[01-target-state.md §8](01-target-state.md)` 旧号错指（01 重编号后 §8 已是 parity 线，三路线对比内容已迁本文 §4.4）；T30 首轮修了 4 处引用中的 3 处（头部 + §6 两行），独漏此 1 处
+- **内容**：§2.2 工作量行来源列「[spikes/04-dsh-x-design.zh.md §7.1] + [01-target-state.md §8]」→「[spikes/04-dsh-x-design.zh.md §7.1] + 本文 §4.4」；records/_index.md 生图管线行「F0.3② 凭证链」描述顺手改口「生图独立凭证链（原 F0.3②，D32 归并 C3a）」（verify V8 边界项）
+- **教训**：跨文档重编号时引用面排查要用「旧文档名 + § + 旧号段」全 grep（`grep -n '01-target-state.md §[0-9]'` 逐号对账），不能只按记忆清单修
+- **task 文档**：[tasks/T30-verify.md](../../tasks/T30-verify.md) V3 条

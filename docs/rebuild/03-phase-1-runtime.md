@@ -64,7 +64,7 @@ open-pencil marketing 工作台作为**一个 dsh bundle** 发布：用户装 ds
 | 7600 port 是 open-pencil 自己的 | `AUTOMATION_HTTP_PORT = 7600` 在 `open-pencil/packages/core/src/constants.ts:359`（`grep -n "AUTOMATION_HTTP_PORT" packages/core/src/constants.ts`，2026-08-25 实测；此前记的 :347 已漂移）；dsh 全仓零命中 | [spikes/04-dsh-x-design.zh.md §C2](spikes/04-dsh-x-design.zh.md) 实证 |
 | 视觉回路多模态 | dsh host tool 调用 → pi-ai 适配器 → 与旧 `media-rewriter.ts` 同构的"图转合成 user 消息"路径 | [spikes/02-pi-sdk-runtime.zh.md §P3](spikes/02-pi-sdk-runtime.zh.md) + `参考项目/pi/packages/ai/src/api/openai-completions.ts:1284`（图-only tool result 占位合成）+ `参考项目/pi/packages/ai/src/api/transform-messages.ts` `downgradeUnsupportedImages`（2026-08-21 T09 复核；原引用 `weshop-dsh-plugin/src/integrations/pi.ts:18` 悬空已撤） |
 | 系统提示注入 | marketing 选择项可走 `ctx.inject(['systemPrompt'], (promptCtx) => { promptCtx.systemPrompt.section(...) })`——不是只能经 message body | `参考项目/deepseek-harness/packages/bundle/web-app/src/index.ts:141-149` |
-| 工作量 | S-X spike 4.5 人日；X 路线全量落地 ≈ **37-38 人日**（weshop 实证上修后口径；本文此前版本的「15.5 人日」系 v3 重写时误植的无源数字，T09 修正，详见 [records/topics/agent-runtime.md 修正-1 / SP-3](records/topics/agent-runtime.md)） | [spikes/04-dsh-x-design.zh.md §7.1](spikes/04-dsh-x-design.zh.md) + [01-target-state.md §8](01-target-state.md) |
+| 工作量 | S-X spike 4.5 人日；X 路线全量落地 ≈ **37-38 人日**（weshop 实证上修后口径；本文此前版本的「15.5 人日」系 v3 重写时误植的无源数字，T09 修正，详见 [records/topics/agent-runtime.md 修正-1 / SP-3](records/topics/agent-runtime.md)） | [spikes/04-dsh-x-design.zh.md §7.1](spikes/04-dsh-x-design.zh.md) + 本文 §4.4 |
 
 ### 2.3 风险（X 专属）
 

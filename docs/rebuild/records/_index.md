@@ -56,7 +56,7 @@
 | ChatPanel / ChatInput | `topics/chat-ui.md` | D5（chatMode，T24 已事实落地）、D8、UI 相关决策与腐烂 |
 | i18n 缝 / locale | `topics/i18n.md` | locale 删除、缝落位 |
 | 营销工具 | `topics/tools-marketing.md` | V2（16 文件实测）等营销工具核验 |
-| 生图管线 | `topics/tools-image-gen.md` | F0.3② 凭证链 |
+| 生图管线 | `topics/tools-image-gen.md` | 生图独立凭证链（原 F0.3②，D32 归并 C3a） |
 | upstream 合并 | `topics/upstream-merge.md` | MERGE-1、合并演习、合并 SOP |
 | CI / workflows / zone registry | `topics/ci-infra.md` | CI-1~CI-13、P0-9/P0-10、D18 |
 | spike 文档的核验与修正 | `topics/spikes.md` | SP-1~SP-3、修正-1 |

@@ -529,3 +529,11 @@
 - **依据**：T31 立项（owner 2026-08-25 指令「拉一个分支处理上游合并」）；按 05 附录 B.1 登记规则，tracker.md §2 登记当前任务行
 - **内容**：§2 任务表 T30 行后新增 T31 当前任务行（upstream/master@88c10770 合并，8 commits/188 文件，内容裁定替代 git 三路合并）；T30 行保持当前行（与本批同分支并行收口）
 - **task 文档**：[tasks/T31-plan.md](../../tasks/T31-plan.md)
+
+## 修正-N · T31 行收口翻 ✅（独立核验通过）
+
+- **类型**：修正（按对象：tracker.md）
+- **时间**：2026-08-26
+- **依据**：T31 独立核验 subagent 结论「可以收口」（[tasks/T31-verify.md](../../tasks/T31-verify.md) V1-V5 全过）；远端 CI 四 run 链全 success（staging 32861755654 + 32863770126 + rebuild/pi 32864065492 + verify 32918297304）
+- **内容**：§2 任务表 T31 行状态 🔄 → ✅，验收列填收口实录（C1-C5 全过 + CI 链 + 核验结论）
+- **task 文档**：[tasks/T31-plan.md](../../tasks/T31-plan.md)

@@ -112,6 +112,6 @@
 ## 11. 关联文档
 
 - plan：[T32-plan.md](T32-plan.md)
-- verify：[T32-verify.md](T32-verify.md)（待 subagent 收口阶段填写 V1-V5）
+- verify：[T32-verify.md](T32-verify.md)
 - 索引：[tasks/\_index.md §2](../tasks/_index.md)
 - 当前行：[tracker.md §2 T32 行](../tracker.md)

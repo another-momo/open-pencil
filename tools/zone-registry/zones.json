@@ -19,9 +19,7 @@
     "src/app/settings/credentials/media-credentials.ts",
     "src/components/ui/AppTextButton.vue"
   ],
-  "stubs": [
-    "src/app/collab/use.ts"
-  ],
+  "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
     "src/app/ai/chat/",
     "src/app/ai/debug/index.ts",

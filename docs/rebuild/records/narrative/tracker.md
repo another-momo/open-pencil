@@ -548,3 +548,8 @@
 
 - 改动：tracker §2 T32 当前行状态 🔄 → ✅（C1-C13 全过 + subagent V1-V5「可以收口」+ 远端 CI 414d37d8 双链 success）；_index §2 同步。
 - 详见：[tasks/T32-verify.md](../../tasks/T32-verify.md)
+
+## T33 修正-N（2026-08-26） · T33 行追加
+
+- 改动：tracker §2 追加 T33 行（localhost 分发骨架——生产编排器 host.ts + P103-P105）。
+- 详见：[tasks/T33-plan.md](../../tasks/T33-plan.md)

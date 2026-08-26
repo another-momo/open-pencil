@@ -18,6 +18,7 @@
   "scripts": {
     "dev": "vite",
     "dev:backend": "bun run src/app/ai/pi-backend/main.ts",
+    "serve": "bun run src/app/ai/pi-backend/host.ts",
     "dev:portless": "portless run vite",
     "build": "bun run build:packages && bun run lint && vite build",
     "preview": "vite preview",
@@ -123,9 +124,9 @@
     "typebox": "1.3.7",
     "valibot": "^1.4.2",
     "vue": "^3.5.41",
-    "yaml": "^2.9.0",
     "vue-router": "^5.2.0",
     "vue-stream-markdown": "1.0.4",
+    "yaml": "^2.9.0",
     "yoga-layout": "npm:@open-pencil/yoga-layout@3.3.0-grid.3",
     "zod": "^4.4.3"
   },

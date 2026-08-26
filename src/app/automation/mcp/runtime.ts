@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 
-import { AUTOMATION_HTTP_PORT } from '@open-pencil/core/constants'
+import { AUTOMATION_HTTP_PORT, IS_BROWSER } from '@open-pencil/core/constants'
 
 import { connectAutomation } from '@/app/automation/bridge/server'
 import type { EditorStore } from '@/app/editor/active-store'
@@ -167,7 +167,13 @@ export function createMCPRuntimeService(dependencies: MCPRuntimeDependencies) {
 
 const appMCPRuntime = createMCPRuntimeService({
   connect: (getStore, authToken) => connectAutomation(getStore, authToken).disconnect,
-  canConnect: () => import.meta.env.DEV || isTauri(),
+  // T33（P105）：host 托管的 localhost 生产形态放行连接——桥由 pi-backend
+  // host.ts spawn、token 经 index.html 注入运行时全局（见 spawn.ts P104）。
+  // dev / Tauri 判定保持原语义不变。
+  canConnect: () =>
+    import.meta.env.DEV ||
+    isTauri() ||
+    (IS_BROWSER && typeof window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__ === 'string'),
   readHealth: readAutomationHealth,
   setToolDescriptors: setMCPToolDescriptors,
   spawn: spawnMCPIfNeeded

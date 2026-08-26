@@ -1,6 +1,6 @@
 import { promiseTimeout } from '@vueuse/core'
 
-import { AUTOMATION_HTTP_PORT } from '@open-pencil/core/constants'
+import { AUTOMATION_HTTP_PORT, IS_BROWSER } from '@open-pencil/core/constants'
 import { randomHex } from '@open-pencil/core/random'
 import type { DiscoveryInfo } from '@open-pencil/mcp/discovery'
 import {
@@ -31,10 +31,27 @@ export interface AutomationServerHandle {
   managed: boolean
 }
 
-const DEV_AUTOMATION_AUTH_TOKEN =
-  import.meta.env.DEV && typeof __OPENPENCIL_LOCAL_AUTOMATION_TOKEN__ === 'string'
-    ? __OPENPENCIL_LOCAL_AUTOMATION_TOKEN__
+// T33（P104）：生产 host 运行时注入——host.ts 托管 index.html 时前置
+// `<script>window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__=…</script>`，让
+// 非 Tauri 的 localhost 生产形态也能拿到桥 token（上游生产形态是 Tauri 读
+// discovery 文件，web 形态没有该通道）。运行时值优先；dev 编译期注入与
+// 上游 Tauri 路径行为不变。
+declare global {
+  interface Window {
+    __OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__?: unknown
+  }
+}
+
+const RUNTIME_AUTOMATION_AUTH_TOKEN =
+  IS_BROWSER && typeof window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__ === 'string'
+    ? window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__
     : null
+
+const DEV_AUTOMATION_AUTH_TOKEN =
+  RUNTIME_AUTOMATION_AUTH_TOKEN ??
+  (import.meta.env.DEV && typeof __OPENPENCIL_LOCAL_AUTOMATION_TOKEN__ === 'string'
+    ? __OPENPENCIL_LOCAL_AUTOMATION_TOKEN__
+    : null)
 const APP_VERSION =
   typeof __OPENPENCIL_APP_VERSION__ === 'string' ? __OPENPENCIL_APP_VERSION__ : '0.0.0-test'
 const noop = () => undefined
@@ -362,7 +379,19 @@ async function configureDevMCP(): Promise<AutomationServerHandle> {
 async function startMCPIfNeeded(): Promise<AutomationServerHandle | null> {
   runtimeAutomationStartupError = null
   if (import.meta.env.DEV) return configureDevMCP()
-  if (!isTauri()) return null
+  // T33（P104）：host 托管的 localhost 生产形态——MCP 桥由 host 进程（pi-backend
+  // host.ts）spawn，浏览器只负责连接；桥 token 已随 index.html 注入运行时全局
+  // （RUNTIME_AUTOMATION_AUTH_TOKEN）。web 形态没有 Tauri 的 discovery 本地读
+  // 通道，只能信同源注入。无注入值时维持原 null 行为（纯静态托管场景）。
+  if (!isTauri()) {
+    if (!RUNTIME_AUTOMATION_AUTH_TOKEN) return null
+    const health = await pollHealth(10, 250, RUNTIME_AUTOMATION_AUTH_TOKEN)
+    if (!health) {
+      throw new Error('host 托管的 MCP 桥未就绪（health 轮询超时）——确认 bun run serve 正在运行')
+    }
+    runtimeAutomationAuthToken = RUNTIME_AUTOMATION_AUTH_TOKEN
+    return { disconnect: noop, authToken: RUNTIME_AUTOMATION_AUTH_TOKEN, managed: false }
+  }
 
   const existing = await readExistingServerHandle()
   if (existing) {

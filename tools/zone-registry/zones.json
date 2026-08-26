@@ -514,6 +514,30 @@
       "disposition": "permanent",
       "lastReviewed": "2026-08-26",
       "task": "T32"
+    },
+    {
+      "id": "P103",
+      "file": "package.json",
+      "reason": "T33(2026-08-26): scripts += serve（生产编排器入口，bun run build && bun run serve 一条链起全栈——localhost 分发骨架 T33）。编号复用说明：前一个 P103（AppTextButton patch 方案）当日撤销、从未入 commit",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-26",
+      "task": "T33"
+    },
+    {
+      "id": "P104",
+      "file": "src/app/automation/mcp/spawn.ts",
+      "reason": "T33(2026-08-26): 桥 token 解析加运行时注入 hook（window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__ 优先于 dev 编译期 define）——非 Tauri 的 localhost 生产形态没有上游「Tauri 读 discovery」通道，host.ts 托管 index.html 时前置注入；运行时值缺省时 dev/Tauri 行为不变。pendingReclass 文件的最小加法 hook，重分类仪式到时一并处置",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-26",
+      "task": "T33"
+    },
+    {
+      "id": "P105",
+      "file": "src/app/automation/mcp/runtime.ts",
+      "reason": "T33(2026-08-26): canConnect 放行 host 托管形态（window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__ 存在即允许 connect）——生产 web 形态原判定 DEV||isTauri 恒 false，编辑器永不 attach 到桥；dev/Tauri 语义不变",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-26",
+      "task": "T33"
     }
   ],
   "deletedPaths": [

@@ -223,9 +223,9 @@ function checkGhostDeleted(zones: Zones, base: string): string[] {
     // upstream/master 不可达——跳过本次核查
     return []
   }
-  // T32 P103：patch 登记的文件有合法理由保留本地（如 AppTextButton.vue 上游删但
-  // 本地 4 个 importer 仍在用）；豁免 ghost 检测。tarball.paths 是结构化白名单，
-  // 也应豁免。ownedFiles 同样豁免（我们自有）。
+  // 豁免面与三态登记对齐（04-porting-discipline.md §5）：owned（含过渡态，如
+  // AppTextButton.vue 上游删但本地 importer 在用）/ patch（base 改动登记）/
+  // tarball.paths（byte 一致白名单）。三者已脱离 follow 区范畴，ghost 不归本检查管。
   const patchedFiles = new Set(
     zones.patches.filter((p) => p.disposition !== 'revoked').map((p) => p.file)
   )
@@ -245,22 +245,23 @@ function checkGhostDeleted(zones: Zones, base: string): string[] {
 }
 
 /**
- * T32 L4：tarball drift——本地文件 byte 与 tarball.paths 收录的版本不一致时
- *  warn（不阻断）。合法的处置路径见 04-porting-discipline.md §3.x：
- *  小改 → 转 patch；大改 → 转 ownedFile（owner 拍板）。
- *  本函数输出 warn 到 stderr，不进 violations 列表。
+ * T32 L4：tarball drift——本地文件 byte 与 tarball.paths 收录的版本不一致即违规。
+ *  tarball 语义 = 与 base 字节一致（04-porting-discipline.md §5.2），任何本地改动
+ *  都破坏该语义：小改应转 patch、大改应转 ownedFile（owner 拍板），改完前判红。
+ *  （收口评审 F1：初版为 warn 不阻断——等于把 tarball 文件的未登记修改从 T31 前
+ *  的红灯降成警告，门禁被削弱；实测升红时零 drift，无副作用。）
  */
 function checkDriftTarball(zones: Zones): string[] {
   const tarballs = zones.upstreamMergeTarball ?? []
   if (tarballs.length === 0) return []
-  const warnings: string[] = []
+  const violations: string[] = []
   for (const t of tarballs) {
     for (const path of t.paths) {
       try {
         const localSha = git(['hash-object', path])
         const upstreamSha = git(['ls-tree', t.base, path]).split(/\s+/)[2]
         if (localSha && upstreamSha && localSha !== upstreamSha) {
-          warnings.push(
+          violations.push(
             `TARBALL_DRIFT: ${path} (task ${t.task}) drifted from base ${t.base.slice(0, 8)} — reclassify to patch or ownedFile`
           )
         }
@@ -270,7 +271,7 @@ function checkDriftTarball(zones: Zones): string[] {
       }
     }
   }
-  return warnings
+  return violations
 }
 
 function checkModified(zones: Zones, modified: string[]): string[] {
@@ -278,7 +279,7 @@ function checkModified(zones: Zones, modified: string[]): string[] {
     zones.patches.filter((p) => p.disposition !== 'revoked').map((p) => p.file)
   )
   const owned = new Set([...zones.ownedFiles, ...zones.stubs])
-  // T32：tarball.paths 也是 follow 区合法登记，视为已承认的"接受基线版本"
+  // tarball 文件的本地修改由 checkDriftTarball 判红（单一职责，避免双报）
   const tarballPaths = new Set((zones.upstreamMergeTarball ?? []).flatMap((t) => t.paths))
   return modified
     .filter(
@@ -381,14 +382,9 @@ function main() {
     process.exit(0)
   }
   const changes = collectChanges(base)
-  // T32：rename 交叉一致性 + drift warn（drift 不进 violations，仅 stderr 提示）
+  // T32：rename 交叉一致性 + tarball drift（F1 收口评审：drift 判红，不 warn）
   const renames = collectRenames(base)
-  const driftWarns = checkDriftTarball(zones)
-  if (driftWarns.length > 0) {
-    console.error(`[zones] ${driftWarns.length} tarball drift warning(s) (informational):`)
-    for (const w of driftWarns) console.error(`  - ${w}`)
-  }
-  // T32：装配顺序——violations 在前、Renames/Ghost 在中、Tarball 白名单在后兜底 ADDED
+  // 装配顺序——violations 在前、Renames/Ghost/Drift 在中、Tarball 白名单在后兜底 ADDED
   const violations = [
     ...changes.violations,
     ...checkRenames(zones, renames),
@@ -396,6 +392,7 @@ function main() {
     ...checkDeletedRegistered(zones, changes.deleted),
     ...checkDeletedAbsent(zones),
     ...checkGhostDeleted(zones, base),
+    ...checkDriftTarball(zones),
     ...checkUpstreamMergeTarball(zones),
     ...checkAdded(zones, changes.added)
   ]

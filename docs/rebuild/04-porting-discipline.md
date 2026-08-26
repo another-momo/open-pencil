@@ -76,7 +76,7 @@ tarball 字段收录的是 byte 一致的拷贝。**若该文件在登记 tarbal
 - **小改**（行级 / hunk 级） → 改走 patch 模式（保留 base 锚点 + 描述本地 hunk）；
 - **大改**（功能级 / 与上游分叉） → 改走 ownedFile（owner 拍板 + 删除 tarball 条目）。
 
-`check.ts` 的 `checkDriftTarball` 函数在本地文件 byte 与 `tarball.paths` 收录的版本不一致时**主动 warn**（stderr 提示 `TARBALL_DRIFT: <path>`），不阻断——给主 agent 一次改判机会。
+`check.ts` 的 `checkDriftTarball` 函数在本地文件 byte 与 `tarball.paths` 收录的版本不一致时**判红**（violation `TARBALL_DRIFT: <path>`）。tarball 语义 = 与 base 字节一致，任何本地改动都破坏该语义——先按改动幅度转 patch/owned 完成再登记，改完前 CI 保持红。（T32 收口评审 F1：初版 warn 不阻断，等于把 tarball 文件的未登记修改从红灯降成警告、削弱门禁——实测升红时零 drift，无副作用。）
 
 ### 5.3 上游"既改名又动代码"的处理
 

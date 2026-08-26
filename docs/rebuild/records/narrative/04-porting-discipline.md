@@ -62,3 +62,9 @@
 
 - 改动：04 §3 次序段 4 处 01-target-state.md 引用改号同步（§2 层 0 → §3 / §3 → §4 / §4 → §5 / §7 → §8），与 D30/D31 整合一致。
 - 备注：本档案前次已记录的「§3 次序改号」与本次 T32 一并覆盖；详见 [records/narrative/04-porting-discipline.md 之前 ROT 条目](../../records/narrative/04-porting-discipline.md)。
+
+## T32 收口评审修正-N（2026-08-26） · §5.2 drift 处置从 warn 改判红（F1）
+
+- 改动：`docs/rebuild/04-porting-discipline.md` §5.2 与 `tools/zone-registry/src/check.ts` `checkDriftTarball` 同步——tarball 文件本地 byte 与 base 不一致时**判红**（violation），不再 warn。
+- 理由：初版 warn 不阻断等于把 tarball 文件的未登记修改从 T31 前的红灯降成警告、削弱门禁；实测升红时 44 个 tarball path 零 drift，无副作用。单一职责：tarball 文件的修改由 drift 检查判红，checkModified 不再重复报。
+- 同批订正：checkGhostDeleted 注释去除已废弃的 P103 引用、zones.json $comment 补 upstreamMergeTarball 语义与 P62-P82/P83-P97 缺号说明。

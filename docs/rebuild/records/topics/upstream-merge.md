@@ -76,9 +76,22 @@
 - **漂移对账**：8 commit / 188 文件；与我们 5201404f..2014c81a 改动面（1338 文件）交叠 25 文件
 - **八 commit 裁定**：采纳 4（bb8c5c18 vector rename / 7a311677 clipboard 加固 / b65b1bd4 tool-state 部分 / f75d67ad recovery 快进——D33 改判存量加固）+ 维持删除 4（5f8a373b diagnostics / 0f981ff2 portless / a0a71c34 changelog / 88c10770 cli import）
 - **踩坑与处置**：
-  1. T10 tarball 法把上游 rename 落成「新目录加、旧目录留」孤儿死目录，本轮借 bb8c5c18 清除（vector-edit/node-edit 三处）
+  1. **vector 改名实际发生时间**：上游 `bb8c5c18`（2026-08-24 提交，T10 之后）把 vector-edit → vector、node-edit → vector-input、shared/input/node-edit → vector。T10 合并（`b84530bf`，base=5201404f）未触碰 vector 系列（`git show b84530bf --name-status | grep vector` 零命中，2026-08-26 复核）。T31 借 bb8c5c18 落地新路径 + 物理清掉 vector-edit/node-edit 死目录。**T10 之所以留死目录，不是 tarball 法本身错，而是当时 check.ts 没有 ghost-deleted 检测兜底**——T32 新增 [`checkGhostDeleted`](../../../tools/zone-registry/src/check.ts) 根治此类死目录复发（同步清掉 12 个上游已删的 snapshot / AppTextButton.vue ghost）。
   2. 拷上游 messages/dialogs.ts + zh-cn/dialogs.json 冲掉 T21 自定义 26 个 pi* i18n key（TS2339 批量报错暴露），按 HEAD 定义合并回写 + check:i18n 复绿
   3. 7a311677 引入的 copySelectionToBrowserClipboard 圈复杂度 21>20 超仓内 lint 阈值，按纯度最小重构抽 helper（不增配置例外）
   4. RecoveryDialog 引用的 AppButton.vue / theme/button.ts 不在 f75d67ad commit 清单（上游前序带入），随批补拷
-  5. zones.json 登记：deletedPaths +14（rename 旧路径）、ownedFiles +24（上游新文件）、patches P60-P82（21 modified + 2 测试重指）
+  5. zones.json 登记：deletedPaths +14（rename 旧路径）、ownedFiles +24（上游新文件）、patches P60-P82（21 modified + 2 测试重指）。**T32 复审**：这 24 个 ownedFile byte 与上游 88c10770 完全一致（属于 tarball 错位），21 枚 P60-P82 patch 中 18 枚 byte 一致（属 patch 错位），另 3 枚（P60/P61/P74）确有本地改动保留；5 个真实自有 ownedFile（ChatModeSelect 等）补 P98-P102 patch 溯源登记。详见 T32 §3 任务清单 S2-S5。
 - **验收**：见 [tasks/T31-plan.md §4](../../tasks/T31-plan.md) C1-C5；自检 [tasks/T31-self-check.md](../../tasks/T31-self-check.md)
+
+## T32 追写（2026-08-26） · zones 边界纠正 + check.ts 机制改造
+
+- **背景**：T31 上游合并第二轮的 zones.json 登记存在 24+18=42 处 byte 一致错位（24 个 ownedFile + 18 个 patch 实际是 tarball 形态）+ 5 处自有 ownedFile 缺 patch 溯源登记。
+- **改造**：
+  - zones.json 新增 `upstreamMergeTarball` 顶层字段，含 T31 retro-T32 一条记录（base=88c10770, paths 含 42 个 byte 一致文件, deletedPaths 含 vector-edit/node-edit 三处）
+  - 5 个真实自有 ownedFile（ChatModeSelect.vue / ChatStyleProfileSelect.vue / PiModelsPanel.vue / stock-photo-keys.ts / media-credentials.ts）保留 ownedFile + 新增 P98-P102 patch 溯源
+  - P60/P61/P74 保留 patch（确有本地改动）；P62/P63/P65-P73/P75-P82 转 tarball
+  - check.ts 新增 5 个函数：`checkUpstreamMergeTarball`（白名单）/ `checkRenames`（rename 交叉一致性）/ `checkGhostDeleted`（上游已删本地残留）/ `checkDriftTarball`（warn 模式）/ `collectRenames`；改 `collectChanges` 加 `-M` 启用 rename detection；改 `main()` 装配顺序
+  - 物理清理 12 个 ghost 文件：AppTextButton.vue（上游 5f8a373b 删）+ 11 个 e2e snapshot png（上游 bb8c5c18 删）
+  - 04-porting-discipline.md 新增 §5「owned/follow/tarball 三态边界判定」（含 tarball 与本地改动互斥规则 + ghost 检测 + 反例警示）
+  - 02-phase-0.md §3.3 末尾追加指向 04 §5 的一句话
+- **验收**：见 [tasks/T32-plan.md §6](../../tasks/T32-plan.md) C1-C13；自检 [tasks/T32-self-check.md](../../tasks/T32-self-check.md)；独立核验 [tasks/T32-verify.md](../../tasks/T32-verify.md)

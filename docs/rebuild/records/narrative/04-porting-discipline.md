@@ -51,3 +51,14 @@
   4. **§4 移植操作约定登记规则改 D31 口径**：「[tracker.md §2 任务表](tracker.md) 登记一行」→「任务登记 = tasks/_index.md §2 逐任务永久行（三件套路径列，真源）+ tracker.md §2 当前任务行（收口后并入分组行，D31）」
   5. **F0.3② 标签改指 C3a**（D32）：移植清单「marketing app 层」行「settings 含生图凭证链（F0.3②）」→「（C3a 生成环组件，D32）」；「生图凭证 UI」行「F0.3② 的一部分」→「C3a 生成环组件（凭证与工具同阶段开发，D32）」
 - **task 文档**：[tasks/T30-plan.md](../../tasks/T30-plan.md)
+
+## T32 修正-N（2026-08-26） · §5「owned/follow/tarball 三态边界判定」新增
+
+- 改动：`docs/rebuild/04-porting-discipline.md` 在 §4「移植操作约定」后新增 §5 整段，含 5.1 判定规则 / 5.2 tarball 与本地改动互斥规则 / 5.3 上游改名处理 / 5.4 反例警示。
+- 理由：T31 上游合并第二轮的 zones.json 登记存在 24+18=42 处 byte 一致错位 + 5 处自有 ownedFile 缺 patch 溯源——根因是 check.ts 框架没有结构化的三态判定文档。T32 把"owned/follow/tarball 三态边界"提升为永久纪律。
+- 详见：[tasks/T32-plan.md §3 S6](../../tasks/T32-plan.md)
+
+## T32 修正-N（2026-08-26） · §3 次序引用号同步
+
+- 改动：04 §3 次序段 4 处 01-target-state.md 引用改号同步（§2 层 0 → §3 / §3 → §4 / §4 → §5 / §7 → §8），与 D30/D31 整合一致。
+- 备注：本档案前次已记录的「§3 次序改号」与本次 T32 一并覆盖；详见 [records/narrative/04-porting-discipline.md 之前 ROT 条目](../../records/narrative/04-porting-discipline.md)。

@@ -50,3 +50,42 @@
 - 落位按 [02-phase-0.md §3.5 基础设施纪律](02-phase-0.md) 目录约定；core 工具一律新文件，注册走缝合缝（[02-phase-0.md §3.4](02-phase-0.md)）。
 - 每完成一个能力块，zone registry 里对应「待重分类」项按仪式摘除。
 - 每合并一次 upstream，当场刷新 registry 与补丁清单，tracker 记合并记录。
+
+## 5. owned/follow/tarball 三态边界判定（T32，2026-08-26 owner 拍板）
+
+`tools/zone-registry/src/check.ts` 的判红框架把仓内路径划入三种状态：
+
+| 状态 | 含义 | 登记位置 | 处置 |
+|---|---|---|---|
+| **owned** | 我们的纯自有资产（上游不存在或我们分叉了） | `ownedRoots` / `ownedFiles` / `stubs` | 未来上游若引入同名/同语义资产，按"再发现+再决策"流程处理 |
+| **follow + patch** | 我们改了上游某 commit 的版本（base 锚点 + 本地 hunk） | `patches[*]` | 上游未来改动：自动三方合并；冲突时人工 merge |
+| **tarball** | 通过 tarball/tarball 替换式合并引入的 follow 子集——byte 与上游 base 一致 | `upstreamMergeTarball[*].paths` + `deletedPaths` | 结构化白名单；等价于 follow 但有审计钩子 |
+
+### 5.1 判定规则
+
+- 与上游某 commit 字节一致 → **tarball**（首选）或 follow + patch（手动调整语义时）；
+- 纯自有资产（上游不存在或被我们彻底替换）→ **owned**（owner 拍板）；
+- 上游已不存在对应 commit 或我们做了结构性偏离 → **owned**（owner 拍板）；
+- 我们改了上游某版本（byte 不一致）→ **follow + patch**，patch reason 写明"在 base=X 之上叠加哪些本地 hunk"；
+- **过渡态 owned**：上游已删某文件（base 不再提供）但本地 importer 仍在用、下一轮 chat/settings 迭代改用替代品 → 登记为 **ownedFile**，patch 标签不适用。例：T32 时 `src/components/ui/AppTextButton.vue`（上游 5f8a373b 删，4 个 follow 区 importer 在用）。
+
+### 5.2 tarball 与本地改动的互斥规则
+
+tarball 字段收录的是 byte 一致的拷贝。**若该文件在登记 tarball 之后本地又发生改动**，必须从 `tarball.paths` 移除并按改动幅度分诊：
+
+- **小改**（行级 / hunk 级） → 改走 patch 模式（保留 base 锚点 + 描述本地 hunk）；
+- **大改**（功能级 / 与上游分叉） → 改走 ownedFile（owner 拍板 + 删除 tarball 条目）。
+
+`check.ts` 的 `checkDriftTarball` 函数在本地文件 byte 与 `tarball.paths` 收录的版本不一致时**主动 warn**（stderr 提示 `TARBALL_DRIFT: <path>`），不阻断——给主 agent 一次改判机会。
+
+### 5.3 上游"既改名又动代码"的处理
+
+- 改名 → 旧路径进 `upstreamMergeTarball[*].deletedPaths`（或 zones.json `deletedPaths`），新路径进 `paths`（或 `patches` / `ownedFiles`）；
+- 改代码 → 上游代码变化在未来 tarball 轮次体现；当前 `paths` 字段锚定的是**该 tarball base 时刻**的字节快照，与后续上游改动无关；
+- `checkGhostDeleted`（[tools/zone-registry/src/check.ts](../tools/zone-registry/src/check.ts)）兜底：若上游已删某 follow 文件、本地仍残留，报警 `GHOST deleted file from upstream: <path>`——根治 T10 留 vector-edit 死目录的历史债。
+
+### 5.4 反例警示
+
+- T31 vector 树 15 文件是"byte 一致却误归 ownedFile"的反例——T32 即为此纠偏；
+- T31 P62-P82 21 枚 patch 中 18 枚是"byte 一致却误归 patch"的反例——T32 同为此纠偏；
+- T31 残留 12 个上游已删的 snapshot / AppTextButton.vue 是"check.ts 缺 ghost 检测"的反例——T32 新增 `checkGhostDeleted` 一并根治。

@@ -17,32 +17,11 @@
     "src/components/settings/models/PiModelsPanel.vue",
     "src/app/settings/credentials/stock-photo-keys.ts",
     "src/app/settings/credentials/media-credentials.ts",
-    "packages/core/src/vector/handle-selection.ts",
-    "packages/vue/src/canvas/vector-input/bend.ts",
-    "packages/vue/src/canvas/vector-input/input.ts",
-    "packages/vue/src/shared/input/vector/hit-test.ts",
-    "packages/vue/src/shared/input/vector/index.ts",
-    "packages/vue/src/shared/input/vector/snap.ts",
-    "src/app/document/recovery/preferences.ts",
-    "src/app/editor/clipboard/memory.ts",
-    "src/app/editor/vector/create.ts",
-    "src/app/editor/vector/handle-actions.ts",
-    "src/app/editor/vector/handles.ts",
-    "src/app/editor/vector/history.ts",
-    "src/app/editor/vector/index.ts",
-    "src/app/editor/vector/lifecycle.ts",
-    "src/app/editor/vector/network.ts",
-    "src/app/editor/vector/selection.ts",
-    "src/app/editor/vector/types.ts",
-    "src/components/chat/tool-state.ts",
-    "src/components/ui/AppButton.stories.ts",
-    "src/components/ui/AppButton.vue",
-    "src/theme/button.ts",
-    "tests/engine/app/chat/tool-state.test.ts",
-    "tests/engine/app/clipboard/keyboard.test.ts",
-    "tests/engine/app/clipboard/memory.test.ts"
+    "src/components/ui/AppTextButton.vue"
   ],
-  "stubs": ["src/app/collab/use.ts"],
+  "stubs": [
+    "src/app/collab/use.ts"
+  ],
   "pendingReclass": [
     "src/app/ai/chat/",
     "src/app/ai/debug/index.ts",
@@ -196,13 +175,6 @@
       "lastReviewed": "2026-08-25"
     },
     {
-      "id": "P25",
-      "file": ".github/workflows/ci.yml",
-      "reason": "add push trigger scoped to rebuild/** branches (upstream CI is PR-only; we need push CI on the long-lived rebuild branch)",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
       "id": "P21",
       "file": ".lfsconfig",
       "reason": "REVOKED 2026-08-19: kept at upstream gateway (anonymous read verified working; fork's own GitHub LFS budget exceeded). Revisit when adding LFS files (e.g. fonts) — own hosting required for push",
@@ -227,6 +199,13 @@
       "id": "P24",
       "file": "src/app/i18n/notifications/index.ts",
       "reason": "trim localeLoaders to zh-CN (locale policy); added by upstream #557 during merge rehearsal",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-25"
+    },
+    {
+      "id": "P25",
+      "file": ".github/workflows/ci.yml",
+      "reason": "add push trigger scoped to rebuild/** branches (upstream CI is PR-only; we need push CI on the long-lived rebuild branch)",
       "disposition": "permanent",
       "lastReviewed": "2026-08-25"
     },
@@ -492,90 +471,6 @@
       "lastReviewed": "2026-08-25"
     },
     {
-      "id": "P62",
-      "file": "packages/core/src/canvas/node-edit-overlay.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P63",
-      "file": "packages/core/src/canvas/overlays/index.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P64",
-      "file": "packages/core/src/canvas/renderer/types.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P65",
-      "file": "packages/core/src/vector/index.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P66",
-      "file": "packages/vue/src/canvas/pen/input.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P67",
-      "file": "packages/vue/src/canvas/useCanvasInput.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P68",
-      "file": "packages/vue/src/shared/input/select.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P69",
-      "file": "packages/vue/src/shared/input/select/hover.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P70",
-      "file": "src/app/document/io/source.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P71",
-      "file": "src/app/document/recovery/controller.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P72",
-      "file": "src/app/editor/canvas/menu/actions.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P73",
-      "file": "src/app/editor/clipboard/paste-to-replace.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
       "id": "P74",
       "file": "src/app/editor/clipboard/system.ts",
       "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
@@ -583,60 +478,44 @@
       "lastReviewed": "2026-08-25"
     },
     {
-      "id": "P75",
-      "file": "src/app/editor/session/create.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
+      "id": "P98",
+      "file": "src/components/chat/ChatModeSelect.vue",
+      "reason": "T24(4ce51816): chatMode 双模式切换薄 UI——AgentMode 注册表 + 流式禁用 + T24 D8",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "lastReviewed": "2026-08-26",
+      "task": "T32"
     },
     {
-      "id": "P76",
-      "file": "src/app/editor/session/modules.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
+      "id": "P99",
+      "file": "src/components/chat/ChatStyleProfileSelect.vue",
+      "reason": "T24(4ce51816): style profile 下拉薄 UI——仅 marketing 模式渲染 + manifest 降级 + T24 D8",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "lastReviewed": "2026-08-26",
+      "task": "T32"
     },
     {
-      "id": "P77",
-      "file": "src/app/editor/session/types.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
+      "id": "P100",
+      "file": "src/components/settings/models/PiModelsPanel.vue",
+      "reason": "T21(bc7c9551): pi 模式设置面板——provider 目录 + 凭据管理 + 自定义 provider + 模型指派",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "lastReviewed": "2026-08-26",
+      "task": "T32"
     },
     {
-      "id": "P78",
-      "file": "src/app/settings/preferences/store.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
+      "id": "P101",
+      "file": "src/app/settings/credentials/stock-photo-keys.ts",
+      "reason": "T25(8cbbb1d0): stock-photo 凭证面（pexels/unsplash）+ 持久化开关——从已删除的 ai/chat/storage.ts 手术拆分（T25-plan D2）",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "lastReviewed": "2026-08-26",
+      "task": "T32"
     },
     {
-      "id": "P79",
-      "file": "src/app/shell/keyboard/clipboard.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
+      "id": "P102",
+      "file": "src/app/settings/credentials/media-credentials.ts",
+      "reason": "T25(8cbbb1d0): 媒体类 credential ref 叶子模块——独立成叶避开 persistence.ts 与 stock-photo-keys.ts 成环",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P80",
-      "file": "src/components/recovery/RecoveryDialog.vue",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P81",
-      "file": "src/components/settings/general/GeneralSettingsPanel.vue",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P82",
-      "file": "tests/engine/app/document/recovery/controller.test.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "lastReviewed": "2026-08-26",
+      "task": "T32"
     }
   ],
   "deletedPaths": [
@@ -742,6 +621,75 @@
     "src/app/editor/vector-edit/lifecycle.ts",
     "src/app/editor/vector-edit/network.ts",
     "src/app/editor/vector-edit/selection.ts",
-    "src/app/editor/vector-edit/types.ts"
+    "src/app/editor/vector-edit/types.ts",
+    "tests/e2e/canvas/vector/editing.spec.ts-snapshots/vector-edit-snap-guide-openpencil-darwin.png",
+    "tests/e2e/editor/create-shapes.spec.ts-snapshots/draw-and-delete-openpencil-darwin.png",
+    "tests/e2e/editor/create-shapes.spec.ts-snapshots/draw-and-undo-openpencil-darwin.png",
+    "tests/e2e/editor/create-shapes.spec.ts-snapshots/draw-ellipse-openpencil-darwin.png",
+    "tests/e2e/editor/create-shapes.spec.ts-snapshots/draw-rectangle-openpencil-darwin.png",
+    "tests/e2e/editor/create-shapes.spec.ts-snapshots/draw-rectangle-then-move-it-openpencil-darwin.png",
+    "tests/e2e/editor/create-shapes.spec.ts-snapshots/empty-canvas-openpencil-darwin.png",
+    "tests/e2e/scene/cache.spec.ts-snapshots/text-after-hover-cycle-openpencil-darwin.png",
+    "tests/e2e/scene/cache.spec.ts-snapshots/text-after-multiple-hover-cycles-openpencil-darwin.png",
+    "tests/e2e/scene/cache.spec.ts-snapshots/text-after-real-hover-cycle-openpencil-darwin.png",
+    "tests/e2e/scene/cache.spec.ts-snapshots/text-after-scene-change-hover-openpencil-darwin.png"
+  ],
+  "upstreamMergeTarball": [
+    {
+      "base": "88c1077071328b8df68f282543f16e20e97930b4",
+      "task": "T31 retro-T32",
+      "lastReviewed": "2026-08-26",
+      "paths": [
+        "packages/core/src/canvas/node-edit-overlay.ts",
+        "packages/core/src/canvas/overlays/index.ts",
+        "packages/core/src/canvas/renderer/types.ts",
+        "packages/core/src/vector/handle-selection.ts",
+        "packages/core/src/vector/index.ts",
+        "packages/vue/src/canvas/pen/input.ts",
+        "packages/vue/src/canvas/useCanvasInput.ts",
+        "packages/vue/src/canvas/vector-input/bend.ts",
+        "packages/vue/src/canvas/vector-input/input.ts",
+        "packages/vue/src/shared/input/select.ts",
+        "packages/vue/src/shared/input/select/hover.ts",
+        "packages/vue/src/shared/input/vector/hit-test.ts",
+        "packages/vue/src/shared/input/vector/index.ts",
+        "packages/vue/src/shared/input/vector/snap.ts",
+        "src/app/document/io/source.ts",
+        "src/app/document/recovery/controller.ts",
+        "src/app/document/recovery/preferences.ts",
+        "src/app/editor/canvas/menu/actions.ts",
+        "src/app/editor/clipboard/memory.ts",
+        "src/app/editor/clipboard/paste-to-replace.ts",
+        "src/app/editor/session/create.ts",
+        "src/app/editor/session/modules.ts",
+        "src/app/editor/session/types.ts",
+        "src/app/editor/vector/create.ts",
+        "src/app/editor/vector/handle-actions.ts",
+        "src/app/editor/vector/handles.ts",
+        "src/app/editor/vector/history.ts",
+        "src/app/editor/vector/index.ts",
+        "src/app/editor/vector/lifecycle.ts",
+        "src/app/editor/vector/network.ts",
+        "src/app/editor/vector/selection.ts",
+        "src/app/editor/vector/types.ts",
+        "src/app/settings/preferences/store.ts",
+        "src/app/shell/keyboard/clipboard.ts",
+        "src/components/chat/tool-state.ts",
+        "src/components/recovery/RecoveryDialog.vue",
+        "src/components/settings/general/GeneralSettingsPanel.vue",
+        "src/components/ui/AppButton.stories.ts",
+        "src/components/ui/AppButton.vue",
+        "src/theme/button.ts",
+        "tests/engine/app/chat/tool-state.test.ts",
+        "tests/engine/app/clipboard/keyboard.test.ts",
+        "tests/engine/app/clipboard/memory.test.ts",
+        "tests/engine/app/document/recovery/controller.test.ts"
+      ],
+      "deletedPaths": [
+        "src/app/editor/vector-edit/",
+        "packages/vue/src/canvas/node-edit/",
+        "packages/vue/src/shared/input/node-edit/"
+      ]
+    }
   ]
 }

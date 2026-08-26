@@ -46,6 +46,21 @@ interface Zones {
     lastReviewed?: string
   }[]
   deletedPaths: string[]
+  /** T32：tarball/tarball 替换式合并的结构化登记——byte 一致的拷贝走此字段
+   *  而非 ownedFile 兜底，机器可解析；每条记录锚定上游 base SHA + paths +
+   *  deletedPaths + 登记任务号 + 上次过堂日期。 */
+  upstreamMergeTarball?: Array<{
+    base: string
+    paths: string[]
+    deletedPaths: string[]
+    task: string
+    lastReviewed: string
+  }>
+}
+
+interface Rename {
+  oldPath: string
+  newPath: string
 }
 
 interface Changes {
@@ -83,7 +98,8 @@ function resolveBase(): string {
 // Working tree vs base (covers staged + unstaged; untracked handled separately)
 function collectChanges(base: string): Changes {
   const changes: Changes = { modified: [], added: [], deleted: [], violations: [] }
-  const diff = git(['diff', '--name-status', base, '--'])
+  // T32：-M 启用 rename detection，让 collectRenames 能捕到 R 行
+  const diff = git(['diff', '--name-status', '-M', base, '--'])
   for (const line of diff ? diff.split('\n') : []) {
     const parts = line.split('\t')
     const status = parts[0]
@@ -91,6 +107,9 @@ function collectChanges(base: string): Changes {
     else if (status === 'A') changes.added.push(parts[1])
     else if (status === 'D') changes.deleted.push(parts[1])
     else if (status.startsWith('R')) {
+      // T32：rename 仍送 D+A 给原规则（checkDeletedRegistered 已能识别 deletedPaths
+      //   或 tarball.deletedPaths；checkAdded 已能识别 tarball.paths 或 ownedFile），
+      //   同时由 collectRenames 单独捕获供 checkRenames 做交叉一致性判定。
       changes.deleted.push(parts[1])
       changes.added.push(parts[2])
     } else {
@@ -104,16 +123,169 @@ function collectChanges(base: string): Changes {
   return changes
 }
 
+/**
+ * T32：抽取 rename 记录供 checkRenames 做交叉一致性判定。
+ *  - 与 collectChanges 共享 `git diff --name-status -M` 输出，重复执行可接受（只读）；
+ *  - 返回 [{oldPath, newPath}] 数组。
+ */
+function collectRenames(base: string): Rename[] {
+  const diff = git(['diff', '--name-status', '-M', base, '--'])
+  const renames: Rename[] = []
+  for (const line of diff ? diff.split('\n') : []) {
+    const parts = line.split('\t')
+    if (parts[0].startsWith('R')) renames.push({ oldPath: parts[1], newPath: parts[2] })
+  }
+  return renames
+}
+
+/**
+ * T32 L1：tarball/tarball 替换式合并的结构化白名单——
+ *  凡 added/deleted 命中 upstreamMergeTarball[*].paths/deletedPaths ，
+ *  视为已合规登记；同时校验各 tarball 的 base SHA 本地可达。
+ */
+function checkUpstreamMergeTarball(zones: Zones): string[] {
+  const tarballs = zones.upstreamMergeTarball ?? []
+  const violations: string[] = []
+  for (const t of tarballs) {
+    // 校验 base SHA 本地可达
+    try {
+      git(['rev-parse', '-q', '--verify', t.base])
+    } catch {
+      violations.push(
+        `upstreamMergeTarball base "${t.base}" (task ${t.task}) not reachable locally`
+      )
+    }
+  }
+  return violations
+}
+
+/**
+ * T32 L2：rename 交叉一致性——每对 (oldPath, newPath) 须满足：
+ *   - oldPath 命中 zones.deletedPaths（含子目录）或某 tarball.deletedPaths
+ *   - newPath 命中 zones.ownedRoots/ownedFiles/stubs 或某 patches.file 或某 tarball.paths
+ *   两端都缺则报 RENAME but not registered。
+ */
+function checkRenames(zones: Zones, renames: Rename[]): string[] {
+  if (renames.length === 0) return []
+  const tarballs = zones.upstreamMergeTarball ?? []
+  const tarballDeleted = new Set(tarballs.flatMap((t) => t.deletedPaths))
+  const tarballPaths = new Set(tarballs.flatMap((t) => t.paths))
+  const patchedFiles = new Set(
+    zones.patches.filter((p) => p.disposition !== 'revoked').map((p) => p.file)
+  )
+  const owned = new Set([...zones.ownedFiles, ...zones.stubs])
+  return renames
+    .filter(({ oldPath, newPath }) => {
+      const oldOk =
+        tarballDeleted.has(oldPath) ||
+        zones.deletedPaths.some(
+          (d) => oldPath === d || oldPath.startsWith(d.endsWith('/') ? d : `${d}/`)
+        )
+      const newOk =
+        tarballPaths.has(newPath) ||
+        owned.has(newPath) ||
+        zones.ownedRoots.some((r) => newPath.startsWith(r)) ||
+        patchedFiles.has(newPath)
+      return !oldOk || !newOk
+    })
+    .map(
+      ({ oldPath, newPath }) =>
+        `RENAME but not registered: ${oldPath} → ${newPath} (register old in deletedPaths/tarball.deletedPaths AND new in patches/ownedFiles/tarball.paths)`
+    )
+}
+
+/**
+ * T32 L3：上游已删的 follow 文件本地若仍残留，视为 GHOST——根治 T10 留 vector-edit
+ *  死目录这类历史遗留。用 upstream/master..upstreamBase log 列出上游自上次合并以来
+ *  所有 deleted 文件，磁盘上仍存在且不属于我们自有的，报警。
+ */
+function checkGhostDeleted(zones: Zones, base: string): string[] {
+  // upstreamBase = 我们本地与上游的 merge-base（base 是它或 MERGE_HEAD）
+  let upstreamBase = base
+  try {
+    upstreamBase = git(['merge-base', 'HEAD', 'upstream/master'])
+    // oxlint-disable-next-line open-pencil/no-silent-catch
+  } catch {
+    // 没有 upstream/master 配置（CI 上游 fetch 后必有，本机可能没有）——降级用 base
+  }
+  // 列出 upstream 自 upstreamBase 以来的所有 deleted 文件（不论我们在不在 base）
+  let deletedByUpstream = ''
+  try {
+    deletedByUpstream = git([
+      'log',
+      '--diff-filter=D',
+      '--name-only',
+      '--pretty=format:',
+      `${upstreamBase}..upstream/master`
+    ])
+    // oxlint-disable-next-line open-pencil/no-silent-catch
+  } catch {
+    // upstream/master 不可达——跳过本次核查
+    return []
+  }
+  // T32 P103：patch 登记的文件有合法理由保留本地（如 AppTextButton.vue 上游删但
+  // 本地 4 个 importer 仍在用）；豁免 ghost 检测。tarball.paths 是结构化白名单，
+  // 也应豁免。ownedFiles 同样豁免（我们自有）。
+  const patchedFiles = new Set(
+    zones.patches.filter((p) => p.disposition !== 'revoked').map((p) => p.file)
+  )
+  const owned = new Set([...zones.ownedFiles, ...zones.stubs])
+  const tarballPaths = new Set((zones.upstreamMergeTarball ?? []).flatMap((t) => t.paths))
+  const candidates = (deletedByUpstream ? deletedByUpstream.split('\n') : []).filter(Boolean)
+  return candidates
+    .filter((p) => existsSync(resolve(root, p)))
+    .filter((p) => !zones.ownedRoots.some((r) => p.startsWith(r)))
+    .filter((p) => !patchedFiles.has(p))
+    .filter((p) => !owned.has(p))
+    .filter((p) => !tarballPaths.has(p))
+    .map(
+      (p) =>
+        `GHOST deleted file from upstream: ${p} still exists locally (remove or move under ownedRoots, or register a patch if importer-dependent)`
+    )
+}
+
+/**
+ * T32 L4：tarball drift——本地文件 byte 与 tarball.paths 收录的版本不一致时
+ *  warn（不阻断）。合法的处置路径见 04-porting-discipline.md §3.x：
+ *  小改 → 转 patch；大改 → 转 ownedFile（owner 拍板）。
+ *  本函数输出 warn 到 stderr，不进 violations 列表。
+ */
+function checkDriftTarball(zones: Zones): string[] {
+  const tarballs = zones.upstreamMergeTarball ?? []
+  if (tarballs.length === 0) return []
+  const warnings: string[] = []
+  for (const t of tarballs) {
+    for (const path of t.paths) {
+      try {
+        const localSha = git(['hash-object', path])
+        const upstreamSha = git(['ls-tree', t.base, path]).split(/\s+/)[2]
+        if (localSha && upstreamSha && localSha !== upstreamSha) {
+          warnings.push(
+            `TARBALL_DRIFT: ${path} (task ${t.task}) drifted from base ${t.base.slice(0, 8)} — reclassify to patch or ownedFile`
+          )
+        }
+        // oxlint-disable-next-line open-pencil/no-silent-catch
+      } catch {
+        // 文件不存在或 base 不可达——跳过
+      }
+    }
+  }
+  return warnings
+}
+
 function checkModified(zones: Zones, modified: string[]): string[] {
   const patchedFiles = new Set(
     zones.patches.filter((p) => p.disposition !== 'revoked').map((p) => p.file)
   )
   const owned = new Set([...zones.ownedFiles, ...zones.stubs])
+  // T32：tarball.paths 也是 follow 区合法登记，视为已承认的"接受基线版本"
+  const tarballPaths = new Set((zones.upstreamMergeTarball ?? []).flatMap((t) => t.paths))
   return modified
     .filter(
       (file) =>
         !patchedFiles.has(file) &&
         !owned.has(file) &&
+        !tarballPaths.has(file) &&
         // Merge-base is MERGE_HEAD during any in-progress merge, including merges
         // of our own branches (spike/*, merge/*) — files under ownedRoots are ours
         // (never upstream), so conflict-resolution edits there are not patches.
@@ -146,8 +318,15 @@ function checkDeletedAbsent(zones: Zones): string[] {
 
 function checkAdded(zones: Zones, added: string[]): string[] {
   const owned = new Set([...zones.ownedFiles, ...zones.stubs])
+  // T32：tarball.paths 是 byte 一致拷贝的结构化登记，命中即视为合规（无需 ownedFile 兜底）
+  const tarballPaths = new Set((zones.upstreamMergeTarball ?? []).flatMap((t) => t.paths))
   return added
-    .filter((file) => !owned.has(file) && !zones.ownedRoots.some((r) => file.startsWith(r)))
+    .filter(
+      (file) =>
+        !owned.has(file) &&
+        !tarballPaths.has(file) &&
+        !zones.ownedRoots.some((r) => file.startsWith(r))
+    )
     .map((file) => `ADDED outside ownedRoots: ${file} (add an owned root or move the file)`)
 }
 
@@ -202,11 +381,22 @@ function main() {
     process.exit(0)
   }
   const changes = collectChanges(base)
+  // T32：rename 交叉一致性 + drift warn（drift 不进 violations，仅 stderr 提示）
+  const renames = collectRenames(base)
+  const driftWarns = checkDriftTarball(zones)
+  if (driftWarns.length > 0) {
+    console.error(`[zones] ${driftWarns.length} tarball drift warning(s) (informational):`)
+    for (const w of driftWarns) console.error(`  - ${w}`)
+  }
+  // T32：装配顺序——violations 在前、Renames/Ghost 在中、Tarball 白名单在后兜底 ADDED
   const violations = [
     ...changes.violations,
+    ...checkRenames(zones, renames),
     ...checkModified(zones, changes.modified),
     ...checkDeletedRegistered(zones, changes.deleted),
     ...checkDeletedAbsent(zones),
+    ...checkGhostDeleted(zones, base),
+    ...checkUpstreamMergeTarball(zones),
     ...checkAdded(zones, changes.added)
   ]
 
@@ -216,7 +406,7 @@ function main() {
     process.exit(1)
   }
   console.log(
-    `[zones] clean: ${changes.modified.length} modified (all registered), ${changes.added.length} added (owned), ${changes.deleted.length} deleted (all registered), base ${base.slice(0, 8)}`
+    `[zones] clean: ${changes.modified.length} modified (all registered), ${changes.added.length} added (owned), ${changes.deleted.length} deleted (all registered), ${renames.length} renamed (cross-checked), base ${base.slice(0, 8)}`
   )
 }
 

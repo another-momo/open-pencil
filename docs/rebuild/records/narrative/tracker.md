@@ -537,3 +537,9 @@
 - **依据**：T31 独立核验 subagent 结论「可以收口」（[tasks/T31-verify.md](../../tasks/T31-verify.md) V1-V5 全过）；远端 CI 四 run 链全 success（staging 32861755654 + 32863770126 + rebuild/pi 32864065492 + verify 32918297304）
 - **内容**：§2 任务表 T31 行状态 🔄 → ✅，验收列填收口实录（C1-C5 全过 + CI 链 + 核验结论）
 - **task 文档**：[tasks/T31-plan.md](../../tasks/T31-plan.md)
+
+## T32 修正-N（2026-08-26） · T32 行追加
+
+- 改动：`docs/rebuild/tracker.md` §2 任务表追加 T32 当前行（zones 边界纠正 + check.ts 机制改造）。
+- 理由：zones.json 登记模式纠偏 + check.ts 三漏洞根治是本次主线交付，需在 tracker 当前任务行登记以备 CI / owner 可见。
+- 详见：[tasks/T32-plan.md §3](../../tasks/T32-plan.md)

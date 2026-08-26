@@ -63,6 +63,8 @@ Phase 0 不加任何产品功能，验收通过前不得进入 Phase 1。
 
 **重分类仪式**：① registry 改 owned；② 记录当时 upstream hash 打 tag（`reclass/<路径>/<hash>`）；③ 需同时裁剪的（如 mcp 砍对外功能）在重分类时刻做，不提前。
 
+**§3.x 补充（T32，2026-08-26）**：tarball/tarball 替换式合并的 path 登记走 zones.json 新增 `upstreamMergeTarball` 顶层字段（机器可解析），不走 ownedFile 也不走 patch——边界判定规则（含 tarball 与本地改动互斥、上游改名处理、ghost 检测）详见 [04-porting-discipline.md §5](04-porting-discipline.md)。
+
 ### 3.4 两条缝合缝（已落地）
 
 - 【决策】**工具注册缝**（主 agent 设计、Phase 0 落地，2026-08-19）：已落地为补丁 P22——`registry.ts` 加 import + spread 两行，owned 工具落 `packages/core/src/tools/fork/`（当前空数组占位）。上游 `component-catalog.ts` 的 `registerComponentCatalog` 是同构先例。

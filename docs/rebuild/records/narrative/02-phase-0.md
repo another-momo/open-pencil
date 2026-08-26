@@ -117,3 +117,9 @@
 - **依据**：三方 review 发现——§3.3 清单仍列 `src/app/ai/providers/`、`src/app/ai/models/`、`src/app/ai/attachment/`、`src/app/ai/vision-runtime.ts`，实测均已随 T25 删除出仓（`ls src/app/ai/` 仅剩 chat/debug/pi-backend/tools；对照 zones.json pendingReclass 实测，2026-08-25）
 - **内容**：§3.3 清单按 zones.json pendingReclass 当前态重写（chat/、tools/、debug/index.ts、components/chat/、ChatPanel.vue、automation/、mcp/、browser-bridge.ts、cli/、workflows 4 个）；§3.4 两条缝合缝补【决策】标注；正文「见 §3 机制建设」裸引用补全文件名；头部时间刷新为 2026-08-25（原头部时间停在 T09 修正 2026-08-21，T09 后状态字段未刷新问题一并处理——原时间信息移入「原验收时间」行保留）
 - **task 文档**：无独立 task（T26 统一登记）
+
+## T32 修正-N（2026-08-26） · §3.3 末尾追加 §3.x 补充段
+
+- 改动：`docs/rebuild/02-phase-0.md` §3.3「重分类仪式」段后追加 §3.x 补充段，指向 04-porting-discipline.md §5「owned/follow/tarball 三态边界判定」。
+- 理由：tarball/tarball 替换式合并的 path 登记走 zones.json 新增 `upstreamMergeTarball` 顶层字段（机器可解析），不走 ownedFile 也不走 patch——边界判定规则集中维护在 04 §5。
+- 详见：[tasks/T32-plan.md §3 S7](../../tasks/T32-plan.md)

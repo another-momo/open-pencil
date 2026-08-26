@@ -543,3 +543,8 @@
 - 改动：`docs/rebuild/tracker.md` §2 任务表追加 T32 当前行（zones 边界纠正 + check.ts 机制改造）。
 - 理由：zones.json 登记模式纠偏 + check.ts 三漏洞根治是本次主线交付，需在 tracker 当前任务行登记以备 CI / owner 可见。
 - 详见：[tasks/T32-plan.md §3](../../tasks/T32-plan.md)
+
+## T32 修正-N（2026-08-26） · T32 行翻 ✅
+
+- 改动：tracker §2 T32 当前行状态 🔄 → ✅（C1-C13 全过 + subagent V1-V5「可以收口」+ 远端 CI 414d37d8 双链 success）；_index §2 同步。
+- 详见：[tasks/T32-verify.md](../../tasks/T32-verify.md)

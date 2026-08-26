@@ -39,3 +39,9 @@ P62-P82 21 枚 patch 字节核对：
 - L3：上游已删本地残留 → `checkGhostDeleted` 新增
 - L4：tarball drift 检测 → `checkDriftTarball` warn 模式新增
 
+
+## T32 收口（2026-08-26） · 行翻 ✅ + 收口评审 F1-F3
+
+- **收口评审三发现**（owner 要求一次性 review 后修复）：F1 tarball drift 初版 warn 不阻断=门禁削弱，升红（`checkDriftTarball` 并入 violations，实测零 drift 无副作用）；F2 checkGhostDeleted 注释残留已废弃 P103 方案引用，订正指向 04 §5；F3 zones.json $comment 补 upstreamMergeTarball 语义与 P62-P82/P83-P97 缺号说明（前者转 tarball 移除、后者 plan 被 tarball 方案取代未启用）。
+- **独立核验**：subagent V1-V5 全 ✅「可以收口」（V1 字节一致 8/8 空 diff；V2 zones.json 实体全对；V3 五函数+drift 升红确认；V4 文档四点全过；V5 门禁 exit 0 全套 + smoke:pi 80 断言 + CI 414d37d8 双链 success）。
+- **commit 链**：0fbfd65e（首推，staging 红两处：zones.json 格式 + self-check 占位符）→ 414d37d8（修复，双链 success）→ 73b82c55（收口评审 F1-F3）→ 本 commit（verify 填报 + tracker/_index 行翻 ✅）。

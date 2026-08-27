@@ -109,3 +109,47 @@ T32 阶段我把「上游删除但我们已删除」类 5 个文件标为「zone
 4. `git push origin rebuild/upstream-merge-2:rebuild/pi`（同 SHA 推到 rebuild/pi）
 5. `gh run list --branch rebuild/pi` 复验 CI 双链 success @ 同 SHA
 6. cleanup：`git push origin --delete rebuild/upstream-merge-2 staging`
+
+## 9. CI 红修复（2026-08-27 后续）
+
+CI run 33051249610（head=e6d53beb）报 failure：13 个 job success，仅 **Code quality / Verify formatting** 失败——`vite.config.ts` import 顺序问题。
+
+**根因**：T34 merge 手工解冲突时保留了 HEAD 的 import 顺序（`piBackendPlugin` 在前），oxfmt 期望按字母序（`AUTOMATION_HTTP_PORT` / `devAutomationRoute` 在前）。**lint 不抓 import 顺序，`format:check` 抓**——本机 `bun run format:check` 也没跑（self-check §2 列了但漏执行）。
+
+**修复**：commit `c5a2ab1d` `fix: T34 merge 后 vite.config.ts import 顺序回 oxfmt 期望（format:check CI 红修复）`。本机 `bun run format:check` 重跑绿。
+
+**T34 教训补记**：
+- merge 后应主动跑 `bunx oxfmt --write` 兜底 import 顺序，不只是 lint
+- format:check 与 lint 是两套规则，lint 绿 ≠ format:check 绿
+- self-check §2 应该把 format:check 列入必跑项
+
+CI rerun 33052623880（head=c5a2ab1d）in_progress，等结果。
+
+## 10. CI 双链红修复（2026-08-27 后续）
+
+CI run 33052623880（head=c5a2ab1d，rebuild/upstream-merge-2）**success**（13/14 job pass）——format:check 修复确认有效。
+
+推 `rebuild/upstream-merge-2 → rebuild/pi` 后，CI run 33052862364（head=c5a2ab1d）**failure**——但 13/14 job pass，仅 **Rebuild discipline / Narrative bindings and task three-piece** 红：
+
+```
+check-tasks: 1 处违规
+  [big-change-task-pointer] 检测到大改动（R1 文件数 119 >= 10 / R2 变更行数 2763 >= 200 / R3 命中 docs/rebuild/*.md 叙事文档 / R4 命中 docs/rebuild/records/*.md），但 commit message 无 `task: T<NN>` 指针。
+```
+
+**根因**：CI workflow 的 Rebuild discipline job 用 `BASE=${{ github.event.before || ... }}` 决定 base——rebuild/pi 从 `36ad5c17`（旧 HEAD）推到 `c5a2ab1d` 时，`before=36ad5c17`，diff 范围 = T34 全部 5 commit（119 files / 2763 lines），累计命中 R1/R2/R3/R4 四个大改动条件。但 fix commit `c5a2ab1d` 的 message 不含 `task: T<NN>` 抬头——`check-tasks` 报红。
+
+**修复**：amend `c5a2ab1d` 的 commit message 加 `task: T34` 抬头。新 SHA = `42e2e327`。本机已 amend 完成，但 force push 三次因网络间歇断（github.com timeout + api.github.com TLS `SEC_E_INVALID_TOKEN`）失败。
+
+**后续步骤**（网络恢复时）：
+1. `git push --force-with-lease origin rebuild/upstream-merge-2:rebuild/upstream-merge-2`
+2. `git push --force-with-lease origin rebuild/upstream-merge-2:rebuild/pi`
+3. `git push --force-with-lease origin rebuild/upstream-merge-2:staging`
+4. `gh run watch <new-run-id>` 等 rebuild/pi CI 绿（amend 后 diff base=c5a2ab1d, diff 应空, check-tasks 跳过）
+5. cleanup：`git push origin --delete staging`
+
+**T34 教训补记（追加）**：
+- `commit:fix` 类的红修复 commit 命中大改动阈值（累计 docs 改动）→ 必须用 `task: T<NN>` 抬头
+- CI workflow `BASE=github.event.before` 对 `36ad5c17 → c5a2ab1d` 这种「跨多 commit」首次 push 会把整段历史算进来——后续 fix commit 必然触发 R3/R4
+- 防御措施：merge commit 收尾后**先** amend 加上 docs/records/narrative 改动一并入，再 push；或 push 前用 `git commit --amend` 合并 docs 收尾 commit
+- pre-commit hook 跑 check-tasks 时已经报「跳过 check-docs/bindings/tasks」，但 CI 的 Rebuild discipline job 跑得更激进（用 `before` 而非 `HEAD~1`），两边不对称——05-process.md 应记一条「Rebuild discipline job base 语义」
+

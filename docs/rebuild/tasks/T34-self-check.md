@@ -88,3 +88,24 @@ T32 阶段我把「上游删除但我们已删除」类 5 个文件标为「zone
 - plan：[T34-plan.md](T34-plan.md)
 - verify：[T34-verify.md](T34-verify.md)
 - 索引：[tasks/_index.md §2](../tasks/_index.md)
+
+## 8. Push 实测状态（2026-08-27 后续）
+
+| 操作 | 结果 |
+|---|---|
+| `git push origin rebuild/upstream-merge-2:staging` | ✅ success（new branch → staging，SHA=e6d53beb） |
+| `git push origin rebuild/upstream-merge-2` | ✅ success（new branch → rebuild/upstream-merge-2） |
+| `gh run list --branch rebuild/upstream-merge-2` | ⏸ 空（CI 未触发，原因排查中） |
+| `git ls-remote origin staging rebuild/upstream-merge-2 rebuild/pi` | ❌ Recv failure（网络间歇断） |
+| `curl https://github.com` | 200 OK → ❌ timeout（间歇） |
+| `curl https://www.baidu.com` | ✅ 200 OK（持续） |
+
+**判定**：网络间歇断。push 操作本身已成功（SOP 步骤 1 完成），CI 触发与后续步骤需网络稳定后由 agent 或 owner 接力完成。
+
+**后续步骤**（网络恢复时）：
+1. `gh run list --branch rebuild/upstream-merge-2` 检查 CI
+2. 若 CI 未自动触发：`gh workflow run ci.yml --ref rebuild/upstream-merge-2`
+3. `gh run watch <id>` 等 CI 绿
+4. `git push origin rebuild/upstream-merge-2:rebuild/pi`（同 SHA 推到 rebuild/pi）
+5. `gh run list --branch rebuild/pi` 复验 CI 双链 success @ 同 SHA
+6. cleanup：`git push origin --delete rebuild/upstream-merge-2 staging`

@@ -558,3 +558,13 @@
 
 - 改动：tracker §2 / _index §2 T33 行状态 🔄 → ✅（C1-C6 全过 + subagent V1-V5「可以收口」+ CI 7886a8f3 success；C7 CI 双链复验随本 commit 推送后完成）。
 - 详见：[tasks/T33-verify.md](../../tasks/T33-verify.md)
+
+## T34 修正-N（2026-08-27） · T34 行追加
+
+- 改动：`docs/rebuild/tracker.md` §2 任务表追加 T34 当前行（上游合并第三轮——octopus 8 commits / 24 冲突三类解 / host.ts 决策注记）。
+- 详见：[tasks/T34-plan.md](../../tasks/T34-plan.md)
+
+## T34 修正-N（2026-08-27） · T34 行翻 ✅
+
+- 改动：tracker §2 / _index §2 T34 行状态 🔄 → ✅（C1-C10 全过 + subagent V1-V8「可以收口」+ 11 项门禁绿 + smoke:pi 80 passed；远端推送阻塞——环境网络层 github.com 不通，待 owner 协助；本机 HEAD=`9a22d276`）。
+- 详见：[tasks/T34-verify.md](../../tasks/T34-verify.md)

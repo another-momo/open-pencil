@@ -95,3 +95,18 @@
   - 04-porting-discipline.md 新增 §5「owned/follow/tarball 三态边界判定」（含 tarball 与本地改动互斥规则 + ghost 检测 + 反例警示）
   - 02-phase-0.md §3.3 末尾追加指向 04 §5 的一句话
 - **验收**：见 [tasks/T32-plan.md §6](../../tasks/T32-plan.md) C1-C13；自检 [tasks/T32-self-check.md](../../tasks/T32-self-check.md)；独立核验 [tasks/T32-verify.md](../../tasks/T32-verify.md)
+
+## T34 追写（2026-08-27） · 上游合并第三轮（octopus 8 commits）
+
+- **背景**：T31 第二轮合并（`c0c1f117`，base=88c10770）之后上游又发了 8 个 commit（截止 88c10770→0f981ff2）。owner 拍板 2026-08-27「整体一起拉个合并分支推进合并，不要单独拆开」——一次性 octopus 8 commit 同步到 `rebuild/upstream-merge-2`。
+- **方法**：从 `rebuild/pi (36ad5c17)` 拉 `rebuild/upstream-merge-2` → `git merge --no-ff upstream/HEAD`（octopus 形态）→ 23→24 个冲突三类解（实际是 6+8+10=24，commit message 与 plan §1 自报「23」已追勘）→ 3 笔 commit 落地（merge / 三件套 / verify+追勘）
+- **冲突分类与处置**：
+  1. **modify/delete 6 个**：acp/transport.ts（5ed5cfe3 T25 soft-cut 删）/ tools/index.ts（39ce06a8 T27 三方 review 删）/ integrations/mcp/{pi,runtime}.ts（8cbbb1d0 T25 三路径收敛删）/ settings/mcp/MCPConnectionsSection.vue + settings/models/ProfileEditor.vue（同 T25 旧设置面切删）。**全部取我们删除侧**——保留 T25/T27 产品决策；6 个文件物理删除 0 命中（`git ls-files` 实测）。
+  2. **i18n dialogs.json 8 个**：zh-cn 保留 HEAD（在 diagnosticsCopyFailed 后追加 26 条 pi 相关 key `piCatalogRefresh`/`piKeyPlaceholderConfigured` 等）+ 7 个 de/es/fr/it/ja/pl/ru 语种删除（T25 主动收敛——check:i18n 实测 "All locale files are in sync"）。
+  3. **content 冲突 10 个**：vite.config.ts / vite/automation.ts / vite-plugin.ts（0f981ff2 改动 + git 自动合）+ spawn.ts（0f981ff2 + 我们 P104 + 三方手合）+ chat/transports.ts / debug/index.ts / clipboard/system.ts / SettingsDialog.vue / ChatPanel.vue（`git checkout HEAD`——保留 T25/T27/T31 决策）+ settings/dialog.ts / ChatMessage.vue（保留 HEAD import 段 + P-num 注释）。
+- **机制发现（重要）**：
+  1. **AppTextButton.vue 误删纠正**：merge 阶段把它当 modify/delete 一刀 `git rm`，事后 `git show HEAD:src/components/ui/AppTextButton.vue` 确认存在（T32 owner 拍板的「保留存在 ownedFile」）——`git checkout HEAD --` 恢复 + check:deps 从报错（Unresolved imports）转 exit 0。**教训**：modify/delete 冲突解前**必须**先 `git show HEAD:<path>` 确认 HEAD 是否真有此路径，不能仅凭 DU 标识一刀切。
+  2. **zones 误判纠正**：T32 时把「上游删但我们已删」类 5 个文件标为「zones 机制漏洞、需手动登记 deletedPaths」。T34 实测 `check:zones` exit 0 报 `[zones] clean: ... 1014 deleted (all registered)`——`checkDeletedAbsent` 已覆盖删除方向。**纠正**：T32 文档（[04-porting-discipline.md §5](../../04-porting-discipline.md)）无需补登记条款；T35+ 不要再误判。
+  3. **host.ts DISCOVERY_PATH 决策**：0f981ff2 给 vite plugin 加临时目录隔离（worktree 间抢 `~/.openpencil/mcp.json`），host.ts 是否跟？**决策：不跟**。理由：host.ts 生产形态端口独占（7600/7700），多实例被 EADDRINUSE 拦截，不存在 dev-plugin 同款 worktree 隔离场景。已在 spawnBridge 函数顶部加 5 行决策注记（未来多 host 实例时再复用 vite-plugin 的 sha256(runtimeId) 方案）。
+- **验收**：见 [tasks/T34-plan.md §5](../../tasks/T34-plan.md) C1-C10；自检 [tasks/T34-self-check.md](../../tasks/T34-self-check.md)；独立核验 [tasks/T34-verify.md](../../tasks/T34-verify.md)（subagent V1-V8 全 ✅「可以收口」）。
+- **推送状态**：本机 HEAD=`9a22d276`；远端推送阻塞——环境网络层 github.com 不通（实测：github/google TCP timeout、api.github.com TLS SEC_E_INVALID_TOKEN、baidu 200 OK；gh auth status 已登录；无 http(s).proxy 配置）。**等 owner 协助执行 SOP**：staging 先行 → CI 绿 → rebuild/pi 同 SHA → gh run view 复验。

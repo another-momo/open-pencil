@@ -19,6 +19,25 @@
 
 > **T34 追勘**（2026-08-27 subagent V8）：merge commit message 与 plan §1 自报「23 个冲突」实测为 24 个（6+8+10）。plan §1 与 §2.1 已修正为 24 / 6；commit message 不动（避免 amend 改 SHA）。
 
+## 7. Push 阻塞（待 owner 协助，2026-08-27）
+
+**症状**：
+- `git push origin rebuild/upstream-merge-2:staging` 三次均 `Failed to connect to github.com port 443 after 21xxx ms`
+- `curl -sSI https://github.com` 同样 TCP timeout
+- `curl -sSI https://api.github.com` TLS handshake `SEC_E_INVALID_TOKEN`
+- `curl -sSI https://google.com` 同样超时；`curl -sSI https://www.baidu.com` 200 OK
+- `gh auth status` 显示已登录（`Logged in to github.com account another-momo`，scopes 含 repo）
+- 无 http(s).proxy 配置（`git config --get http.proxy` 空）
+
+**判定**：环境网络层问题（github/google 全连不通，仅国内站点通），非工具/凭证/配置问题。3 笔 commit 在本地全部就绪（HEAD=`9a22d276`），推送动作需 owner 在网络恢复后协助执行 SOP：
+
+1. `git push origin rebuild/upstream-merge-2:staging`（staging 先行）
+2. 等 CI 绿（gh run view 复验 status）
+3. `git push origin rebuild/upstream-merge-2:rebuild/pi`（rebuild/pi 同 SHA）
+4. `gh run view <run-id> --log` 复验 CI 双链 success @ 同 SHA
+5. 推 origin/rebuild/pi → staging + rebuild/pi 双链稳定
+6. cleanup：`git push origin --delete rebuild/upstream-merge-2`
+
 ## 2. 门禁（S 实测，2026-08-27）
 
 | 命令 | exit | 关键输出 |

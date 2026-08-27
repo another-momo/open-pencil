@@ -153,3 +153,31 @@ check-tasks: 1 处违规
 - 防御措施：merge commit 收尾后**先** amend 加上 docs/records/narrative 改动一并入，再 push；或 push 前用 `git commit --amend` 合并 docs 收尾 commit
 - pre-commit hook 跑 check-tasks 时已经报「跳过 check-docs/bindings/tasks」，但 CI 的 Rebuild discipline job 跑得更激进（用 `before` 而非 `HEAD~1`），两边不对称——05-process.md 应记一条「Rebuild discipline job base 语义」
 
+
+## 11. Push SOP 全程完成（2026-08-27 16:37，本机记录）
+
+**网络恢复后实测**（owner 不必看到本次 push 详情，远端 rebuild/pi 已落 `29985845`）：
+
+| 操作 | 结果 |
+|---|---|
+| `git push --force-with-lease origin HEAD:rebuild/upstream-merge-2` | ✅ `c5a2ab1d → 29985845` |
+| `git push --force-with-lease origin HEAD:staging` | ✅ `e6d53beb → 29985845` |
+| CI run 33054175283（head=29985845, rebuild/upstream-merge-2） | ✅ **success**（14/14 job） |
+| `git push --force-with-lease origin HEAD:rebuild/pi`（受保护分支，CI 触发后） | ✅ `c5a2ab1d → 29985845` |
+| CI run 33054772651（head=29985845, rebuild/pi） | ✅ **success**（14/14 job） |
+| `git push origin --delete rebuild/upstream-merge-2` | ✅ 删除 |
+| `git push origin --delete staging` | ✅ 删除 |
+
+**CI 双链 success @ 同 SHA = 29985845** ✅
+
+**远端最终状态**：
+- `origin/rebuild/pi = 29985845`（本次合并基线，CI 绿）
+- `origin/rebuild/pi-staging = 36ad5c17`（T33 旧版，保留对照）
+- `origin/rebuild/v2 = 138553c5`（T0 远古基线）
+
+**T34 收口完成**——三个 todo 全部 satisfied：
+- octopus merge 8 commits 落地（commit c65d56e1）
+- 三件套 + verify + tracker + narrative（commit 5e64795c + 9a22d276 + e6d53beb）
+- CI 双链绿修复（commit 29985845）
+- 远端 rebuild/pi 已同步（29985845）
+- 临时 ref cleanup 完成（rebuild/upstream-merge-2 + staging 已删）

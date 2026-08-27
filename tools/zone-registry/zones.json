@@ -294,9 +294,9 @@
     {
       "id": "P38",
       "file": "packages/vue/src/i18n/messages/dialogs.ts",
-      "reason": "T21: PiModelsPanel 的 en 源文案键（pi* 前缀一组）；zh 翻译随附 locales/zh-cn/dialogs.json T25: 删旧面专属键 106 个（connectionTest*/mcp*/model 编辑器族/harness 权限族等） T27(2026-08-25): harnessThinking* 7 键改名 piThinking*（harness 死标识清理，PiModelsPanel 活 UI 在用）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "reason": "T21: PiModelsPanel 的 en 源文案键（pi* 前缀一组）；zh 翻译随附 locales/zh-cn/dialogs.json T25: 删旧面专属键 106 个 T27: harnessThinking* → piThinking* 改名 T35: **撤销**——pi 段迁回 fork seam（src/app/i18n/fork/），不再寄生 packages/vue 区",
+      "disposition": "revoked",
+      "lastReviewed": "2026-08-27"
     },
     {
       "id": "P39",
@@ -308,9 +308,9 @@
     {
       "id": "P40",
       "file": "packages/vue/src/i18n/locales/zh-cn/dialogs.json",
-      "reason": "T21: PiModelsPanel 的 zh 翻译（pi* 键组，随 P38 en 源） T25: 随 P38 同步删键 T27(2026-08-25): 随 P38 同步改名 piThinking*（无尾随换行保持）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "reason": "T21: PiModelsPanel 的 zh 翻译（pi* 键组，随 P38 en 源） T25: 随 P38 同步删键 T27: 随 P38 同步改名 piThinking* T35: **撤销**——pi 段迁回 fork seam；zh-cn/dialogs.json 还原到上游 88c10770 截止状态（仅保留通用段：models / connected / modelNeedsCredential 等）",
+      "disposition": "revoked",
+      "lastReviewed": "2026-08-27"
     },
     {
       "id": "P41",

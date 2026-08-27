@@ -18,8 +18,11 @@ import {
   upsertPiProvider
 } from '@/app/ai/pi-backend/client'
 import type { PiThinkingLevel } from '@/app/ai/pi-backend/client'
+// T35：27 条 pi 段 i18n 迁回 fork seam——本面板 pi 段用 useForkPi()，通用段（models/connected/modelNeedsCredential）仍走 useI18n()
+import { useForkPi } from '@/app/i18n/fork'
 
-const { dialogs } = useI18n()
+const dialogs = useForkPi()
+const { dialogs: uiDialogs } = useI18n()
 
 const expandedProviderId = ref<string | null>(null)
 const keyDrafts = ref<Record<string, string>>({})
@@ -52,12 +55,12 @@ const designCredentialMissing = computed(() => {
 
 function thinkingLabel(level: PiThinkingLevel): string {
   const labels: Record<PiThinkingLevel, string> = {
-    off: dialogs.value.piThinkingOff,
-    minimal: dialogs.value.piThinkingMinimal,
-    low: dialogs.value.piThinkingLow,
-    medium: dialogs.value.piThinkingMedium,
-    high: dialogs.value.piThinkingHigh,
-    xhigh: dialogs.value.piThinkingExtraHigh
+    off: dialogs.thinkingOff,
+    minimal: dialogs.thinkingMinimal,
+    low: dialogs.thinkingLow,
+    medium: dialogs.thinkingMedium,
+    high: dialogs.thinkingHigh,
+    xhigh: dialogs.thinkingExtraHigh
   }
   return labels[level]
 }
@@ -145,8 +148,8 @@ onMounted(() => void refreshPiCatalog())
     <section data-test-id="pi-providers-panel">
       <div class="mb-2 flex items-center justify-between">
         <div>
-          <h3 class="text-xs font-semibold text-surface">{{ dialogs.models }}</h3>
-          <p class="text-[10px] text-muted">{{ dialogs.piModelsDescription }}</p>
+          <h3 class="text-xs font-semibold text-surface">{{ uiDialogs.models }}</h3>
+          <p class="text-[10px] text-muted">{{ dialogs.modelsDescription }}</p>
         </div>
         <button
           type="button"
@@ -156,7 +159,7 @@ onMounted(() => void refreshPiCatalog())
           @click="refreshPiCatalog"
         >
           <icon-lucide-refresh-cw class="size-3" :class="{ 'animate-spin': piCatalogLoading }" />
-          {{ dialogs.piCatalogRefresh }}
+          {{ dialogs.catalogRefresh }}
         </button>
       </div>
 
@@ -165,7 +168,7 @@ onMounted(() => void refreshPiCatalog())
         class="rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] text-red-400"
         data-test-id="pi-catalog-offline"
       >
-        {{ dialogs.piCatalogOffline }} ({{ piCatalogError }})
+        {{ dialogs.catalogOffline }} ({{ piCatalogError }})
       </p>
       <p v-if="actionError" class="mt-1 text-[10px] text-red-400" data-test-id="pi-action-error">
         {{ actionError }}
@@ -193,7 +196,7 @@ onMounted(() => void refreshPiCatalog())
               <p class="truncate text-[11px] font-medium text-surface">{{ provider.name }}</p>
               <p class="truncate text-[10px] text-muted">
                 {{ provider.id }} ·
-                {{ dialogs.piProviderModels({ count: provider.models.length }) }}
+                {{ dialogs.providerModels({ count: provider.models.length }) }}
               </p>
             </div>
             <span
@@ -204,7 +207,7 @@ onMounted(() => void refreshPiCatalog())
                 class="size-1.5 rounded-full bg-muted data-[state=configured]:bg-[var(--color-success)]"
                 :data-state="provider.auth.configured ? 'configured' : 'missing'"
               />
-              {{ provider.auth.configured ? dialogs.connected : dialogs.modelNeedsCredential }}
+              {{ provider.auth.configured ? uiDialogs.connected : uiDialogs.modelNeedsCredential }}
             </span>
             <icon-lucide-chevron-right
               class="size-3.5 shrink-0 text-muted transition-transform"
@@ -220,8 +223,8 @@ onMounted(() => void refreshPiCatalog())
                 class="min-w-0 flex-1 rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none focus:border-panel-focus"
                 :placeholder="
                   provider.auth.configured
-                    ? dialogs.piKeyPlaceholderConfigured
-                    : dialogs.piKeyPlaceholderMissing
+                    ? dialogs.keyPlaceholderConfigured
+                    : dialogs.keyPlaceholderMissing
                 "
                 data-test-id="pi-key-input"
                 @keydown.enter="saveKey(provider.id)"
@@ -233,7 +236,7 @@ onMounted(() => void refreshPiCatalog())
                 :disabled="busyProviderId === provider.id"
                 @click="saveKey(provider.id)"
               >
-                {{ dialogs.piKeySave }}
+                {{ dialogs.keySave }}
               </button>
               <button
                 v-if="provider.auth.configured"
@@ -243,7 +246,7 @@ onMounted(() => void refreshPiCatalog())
                 :disabled="busyProviderId === provider.id"
                 @click="clearKey(provider.id)"
               >
-                {{ dialogs.piKeyClear }}
+                {{ dialogs.keyClear }}
               </button>
             </div>
 
@@ -273,7 +276,7 @@ onMounted(() => void refreshPiCatalog())
         @click="showAddProvider = !showAddProvider"
       >
         <icon-lucide-plus class="size-3" />
-        {{ dialogs.piAddProvider }}
+        {{ dialogs.addProvider }}
       </button>
 
       <div
@@ -285,14 +288,14 @@ onMounted(() => void refreshPiCatalog())
           v-model="customId"
           type="text"
           class="rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none focus:border-panel-focus"
-          :placeholder="dialogs.piProviderId"
+          :placeholder="dialogs.providerId"
           data-test-id="pi-provider-id-input"
         />
         <input
           v-model="customBaseURL"
           type="text"
           class="rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none focus:border-panel-focus"
-          :placeholder="dialogs.piProviderBaseUrl"
+          :placeholder="dialogs.providerBaseUrl"
           data-test-id="pi-provider-baseurl-input"
         />
         <select
@@ -306,7 +309,7 @@ onMounted(() => void refreshPiCatalog())
           v-model="customModelIds"
           rows="3"
           class="rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none focus:border-panel-focus"
-          :placeholder="dialogs.piProviderModelIds"
+          :placeholder="dialogs.providerModelIds"
           data-test-id="pi-provider-models-input"
         />
         <button
@@ -316,33 +319,33 @@ onMounted(() => void refreshPiCatalog())
           :disabled="busyProviderId === '__custom__'"
           @click="saveCustomProvider"
         >
-          {{ dialogs.piProviderSave }}
+          {{ dialogs.providerSave }}
         </button>
       </div>
     </section>
 
     <section class="mt-5 border-t border-border pt-4">
       <div class="mb-3">
-        <h3 class="text-xs font-semibold text-surface">{{ dialogs.piDesignModel }}</h3>
-        <p class="text-[10px] text-muted">{{ dialogs.piDesignModelDescription }}</p>
+        <h3 class="text-xs font-semibold text-surface">{{ dialogs.designModel }}</h3>
+        <p class="text-[10px] text-muted">{{ dialogs.designModelDescription }}</p>
       </div>
 
       <div class="flex flex-col gap-1.5" data-test-id="pi-design-model">
-        <label class="text-[10px] text-muted">{{ dialogs.piDesignProvider }}</label>
+        <label class="text-[10px] text-muted">{{ dialogs.designProvider }}</label>
         <select
           :value="designProviderId"
           class="rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none"
           data-test-id="pi-design-provider-select"
           @change="selectDesignProvider(($event.target as HTMLSelectElement).value)"
         >
-          <option value="">{{ dialogs.piDesignModelDefault }}</option>
+          <option value="">{{ dialogs.designModelDefault }}</option>
           <option v-for="provider in providers" :key="provider.id" :value="provider.id">
             {{ provider.name }} ({{ provider.id }})
           </option>
         </select>
 
         <template v-if="designProviderId">
-          <label class="mt-1 text-[10px] text-muted">{{ dialogs.piDesignModelField }}</label>
+          <label class="mt-1 text-[10px] text-muted">{{ dialogs.designModelField }}</label>
           <select
             v-model="designModelId"
             class="rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none"
@@ -353,7 +356,7 @@ onMounted(() => void refreshPiCatalog())
             </option>
           </select>
 
-          <label class="mt-1 text-[10px] text-muted">{{ dialogs.piThinkingLevel }}</label>
+          <label class="mt-1 text-[10px] text-muted">{{ dialogs.thinkingLevel }}</label>
           <select
             v-model="designThinking"
             class="rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none"
@@ -372,7 +375,7 @@ onMounted(() => void refreshPiCatalog())
             class="text-[10px] text-amber-400"
             data-test-id="pi-design-credential-missing"
           >
-            {{ dialogs.modelNeedsCredential }}
+            {{ uiDialogs.modelNeedsCredential }}
           </p>
         </template>
 
@@ -382,7 +385,7 @@ onMounted(() => void refreshPiCatalog())
           data-test-id="pi-design-save"
           @click="saveDesignModel"
         >
-          {{ dialogs.piDesignModelSave }}
+          {{ dialogs.designModelSave }}
         </button>
       </div>
     </section>

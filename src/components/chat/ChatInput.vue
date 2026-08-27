@@ -11,7 +11,9 @@ import { ensurePiBrandManifest, piChatMode } from '@/app/ai/pi-backend/mode-sele
 import { openSettingsDialog } from '@/app/settings/dialog'
 import { useI18n } from '@open-pencil/vue'
 
+import { useForkPi } from '@/app/i18n/fork'
 const { dialogs } = useI18n()
+const piDialogs = useForkPi()
 
 const { status, disabled = false } = defineProps<{
   status: 'ready' | 'submitted' | 'streaming' | 'error'
@@ -37,7 +39,7 @@ onMounted(() => {
   void ensurePiBrandManifest()
 })
 const piModelLabel = computed(
-  () => piDesignAssignment.value?.modelId ?? dialogs.value.piDesignModelDefault
+  () => piDesignAssignment.value?.modelId ?? piDialogs.designModelDefault
 )
 
 function handleInputKeydown(event: KeyboardEvent) {

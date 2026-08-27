@@ -18,12 +18,15 @@ import { useStore } from '@nanostores/vue'
 import { locale, type Locale } from '@open-pencil/vue'
 
 import { piMessageDefaults } from './locales/en'
-import zhCN, { type PiNamespace } from './locales/zh-cn'
+import type { PiNamespace } from './locales/zh-cn'
 
 export const forkI18n = createI18n<Locale, 'en'>(locale, {
   baseLocale: 'en',
   async get(code): Promise<ComponentsJSON> {
-    if (code === 'zh-CN') return { pi: zhCN.pi }
+    if (code === 'zh-CN') {
+      const mod = await import('./locales/zh-cn')
+      return { rebuild: mod.default.rebuild, pi: mod.default.pi }
+    }
     return {}
   }
 })

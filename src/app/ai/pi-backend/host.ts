@@ -89,6 +89,13 @@ async function stopChild(child: ChildProcess | null, label: string): Promise<voi
 async function spawnBridge(): Promise<void> {
   // env 语义复制自 automation/bridge/vite-plugin.ts createAutomationEnvironment
   // （默认 configuration：鉴权开、root=cwd、无禁用工具）
+  //
+  // T34 评估：跟不跟 OPENPENCIL_MCP_DISCOVERY_PATH 隔离（0f981ff2）？
+  // 不跟——host.ts 自身是生产形态，7600 端口独占（serveOrigin 也固定），
+  // 多实例会被端口 EADDRINUSE 拦截，不存在 dev-plugin 同款「worktree 隔离」
+  // 场景。discovery 默认路径 `~/.openpencil/mcp.json` 在 host.ts 单实例下不
+  // 构成冲突；若未来扩成同主机多 host.ts 实例，再补 OPENPENCIL_MCP_DISCOVERY_PATH
+  // 临时目录隔离——届时复用 vite-plugin 的 sha256(runtimeId) 方案即可。
   const socketPath = platformHasUnixSockets() ? await getSocketPath() : null
   bridge = spawn('bun', ['run', 'packages/mcp/src/index.ts'], {
     stdio: ['ignore', 'inherit', 'pipe'],

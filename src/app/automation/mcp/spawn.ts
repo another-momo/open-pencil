@@ -47,6 +47,9 @@ const RUNTIME_AUTOMATION_AUTH_TOKEN =
     ? window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__
     : null
 
+const DEV_AUTOMATION_HTTP_URL = import.meta.env.DEV
+  ? __OPENPENCIL_LOCAL_AUTOMATION_HTTP_URL__
+  : `http://127.0.0.1:${AUTOMATION_HTTP_PORT}`
 const DEV_AUTOMATION_AUTH_TOKEN =
   RUNTIME_AUTOMATION_AUTH_TOKEN ??
   (import.meta.env.DEV && typeof __OPENPENCIL_LOCAL_AUTOMATION_TOKEN__ === 'string'
@@ -248,7 +251,7 @@ export async function readAutomationHealth(
 ): Promise<AutomationHealth | null> {
   try {
     const headers = authToken ? { Authorization: `Bearer ${authToken}` } : undefined
-    const res = await fetch(`http://127.0.0.1:${AUTOMATION_HTTP_PORT}/health`, {
+    const res = await fetch(`${DEV_AUTOMATION_HTTP_URL}/health`, {
       headers,
       signal: AbortSignal.timeout(1000)
     })

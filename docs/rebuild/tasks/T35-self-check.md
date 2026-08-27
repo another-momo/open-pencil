@@ -91,3 +91,26 @@ T34 merge 时上游 0f981ff2/5f8a373b 等 commit 引入了若干 package.json �
 - 索引：[tasks/_index.md §2](../tasks/_index.md)
 - 上游 dialogs.ts 形态参考：`packages/vue/src/i18n/messages/dialogs.ts`（不含 pi 段后）
 - fork seam 设计参考：`src/app/i18n/notifications/index.ts`（notificationMessages 模式）
+
+## 5. CI 红修复（2026-08-27 后续）
+
+CI run 33062559416（head=8ae675a6）报 failure——`Engine tests — app` job 3 个测试 fail：
+
+1. **fork i18n seam: zh-CN pack loads lazily** —— `setLocale('zh-CN')` 后 50ms 内 rebuildMessages.get() 仍返回英文（"Fork i18n seam works"），期望中文「fork i18n 缝已接通」
+2. **clipboard image notifications: warns web users when pasted images cannot be fetched** —— 期望英文 message，实际中文
+3. **clipboard image notifications: shows an actionable desktop error for partial failures** —— 期望英文 message，实际中文
+
+**根因**：T35 把 fork seam 的 zh-cn **lazy import** 改成了**顶层 import**（`import zhCN from './locales/zh-cn'`）——破坏「zh-CN 只在 setLocale 后才加载」的 lazy 语义：
+- rebuildMessages 是 forkI18n 的派生 store，依赖 lazy import 在 locale 切换后才生效
+- 顶层 import 让 zh-cn.ts 在 fork seam 模块加载时就同步执行，subsequent lazy import 直接返回 cached module
+- 但 `forkI18n('rebuild', ...)` 的**派生 store 行为**未变——setLocale('zh-CN') 后内部 lazy load 时机变了，导致测试 50ms 内仍读到 en 默认值
+
+同时 zh-CN pack 加载**没立即完成**让 fork seam 维持 en 默认值——但 packages/vue 的 i18n seam 的 zh-CN 加载完成——dialogMessages 立刻切到 zh-CN——clipboard 测试收到中文。
+
+**修复**：fork seam get 函数恢复 `(await import('./locales/zh-cn'))` 动态导入 + 顶层 import 只保留 type + en.ts 默认值。
+
+**commit `61476bd7`** —— 本机测试两批全过（fork seam 2 + clipboard notifications 2），CI 待 push 后复验。
+
+**T35 教训补记**：
+- fork seam 的 lazy import 是**功能性的**——它让 zh-CN pack 在 setLocale 后才加载；顶层 import 会破坏这个语义
+- 测试 50ms 等待窗口对 CI 速度敏感——本机 63ms 通过，CI 53ms 通过，但这次 fail 说明加载链路破坏后回退到 en 默认值

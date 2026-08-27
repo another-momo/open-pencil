@@ -568,3 +568,8 @@
 
 - 改动：tracker §2 / _index §2 T34 行状态 🔄 → ✅（C1-C10 全过 + subagent V1-V8「可以收口」+ 11 项门禁绿 + smoke:pi 80 passed；远端推送阻塞——环境网络层 github.com 不通，待 owner 协助；本机 HEAD=`9a22d276`）。
 - 详见：[tasks/T34-verify.md](../../tasks/T34-verify.md)
+
+## T35 修正-N（2026-08-27） · T34 行状态订正 + T35 行追加
+
+- 改动：tracker.md §2 T34 行从「远端推送阻塞——环境网络层 github.com 不通，待 owner 协助」改为「CI 双链 success @ 29985845 已同步」（网络恢复后 SOP 走完，分支 cleanup 完成）；tracker.md §2 追加 T35 行（pi 段迁回 fork seam + i18n 卫生整顿）。
+- 详见：[tasks/T35-plan.md](../../tasks/T35-plan.md) + [tasks/T35-verify.md](../../tasks/T35-verify.md)

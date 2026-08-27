@@ -187,11 +187,11 @@ plan + self-check + verify（V1-V5）+ push SOP（staging → CI 绿 → rebuild
 
 ## 7. 关联文档
 
-- self-check：[T35-self-check.md](T35-self-check.md)（待建）
-- verify：[T35-verify.md](T35-verify.md)（待建）
-- 索引：[tasks/_index.md §2](../tasks/_index.md)（待翻 🔄）
-- 上游 dialogs.ts 形态参考：`packages/vue/src/i18n/messages/dialogs.ts`
-- fork seam 设计参考：[docs/rebuild/03-phase-1-runtime.md §？](../03-phase-1-runtime.md)（待补引用）
+- self-check：[T35-self-check.md](T35-self-check.md)
+- verify：[T35-verify.md](T35-verify.md)
+- 索引：[tasks/_index.md §2](../tasks/_index.md)
+- 上游 dialogs.ts 形态参考：`packages/vue/src/i18n/messages/dialogs.ts`（不含 pi 段后）
+- fork seam 设计参考：[src/app/i18n/notifications/index.ts](../../../src/app/i18n/notifications/index.ts)（notificationMessages 模式）
 
 ## 8. 备查
 

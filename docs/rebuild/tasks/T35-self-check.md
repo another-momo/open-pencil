@@ -87,7 +87,7 @@ T34 merge 时上游 0f981ff2/5f8a373b 等 commit 引入了若干 package.json �
 ## 5. 关联文档
 
 - plan：[T35-plan.md](T35-plan.md)
-- verify：[T35-verify.md](T35-verify.md)（待 subagent 完成后写）
-- 索引：[tasks/_index.md §2](../tasks/_index.md)（待翻 ✅）
+- verify：[T35-verify.md](T35-verify.md)（subagent V1-V5 核验完成后已就绪）
+- 索引：[tasks/_index.md §2](../tasks/_index.md)
 - 上游 dialogs.ts 形态参考：`packages/vue/src/i18n/messages/dialogs.ts`（不含 pi 段后）
 - fork seam 设计参考：`src/app/i18n/notifications/index.ts`（notificationMessages 模式）

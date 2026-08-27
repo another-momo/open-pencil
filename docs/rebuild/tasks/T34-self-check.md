@@ -14,8 +14,10 @@
 ## 1. 交付物
 
 - merge commit（1 个）：`rebuild/upstream-merge-2` 分支一次性 octopus 8 个上游 commit
-- 解冲突后的源码：10 个 content 冲突 + 6 个 modify/delete + 8 个 dialogs.json i18n
+- 解冲突后的源码：10 个 content 冲突 + 6 个 modify/delete + 8 个 dialogs.json i18n（合计 24 个冲突，详见 T34-plan §2）
 - `src/app/ai/pi-backend/host.ts` 决策注记（spawnBridge 函数顶部 5 行）
+
+> **T34 追勘**（2026-08-27 subagent V8）：merge commit message 与 plan §1 自报「23 个冲突」实测为 24 个（6+8+10）。plan §1 与 §2.1 已修正为 24 / 6；commit message 不动（避免 amend 改 SHA）。
 
 ## 2. 门禁（S 实测，2026-08-27）
 
@@ -24,9 +26,9 @@
 | `bun run check:zones` | 0 | `[zones] clean: 55 modified (all registered), 283 added (owned), 1014 deleted (all registered), 0 renamed (cross-checked), base 88c10770` |
 | `bun run check:deps` | 0 | exit 0（恢复 AppTextButton 后） |
 | `bun run typecheck`（tsgo + vue-tsc ×2） | 0 | 全绿 |
-| `bun run lint` | 0 | **0 errors**，3 warnings 均为存量 max-lines（场景图/types.ts 617 / 核心/variants/index.ts 704 / 核心/design-jsx/props-overrides.ts 608，上限 600；本轮未触碰） |
+| `bun run lint` | 0 | **0 errors**，4 warnings 均为存量 max-lines（场景图/types.ts 617 / 核心/variants/index.ts 704 / 核心/design-jsx/props-overrides.ts 608 / tests/engine/mcp/server/index.test.ts 609，上限 600；本轮均未触碰） |
 | `bun run check:docs` | 0 | 40/40 通过（R1-R5） |
-| `bun run check:bindings` | 0 | 112 文件变更，binding 全绿 |
+| `bun run check:bindings` | 0 | 本轮 0 文件变更，binding 全绿 |
 | `bun run check:i18n` | 0 | All locale files are in sync |
 | `bun run check:monorepo` | 0 | sherif No issues found |
 | `bun run check:arch` | 0 | steiger No problems found |

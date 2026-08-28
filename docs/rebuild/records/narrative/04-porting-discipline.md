@@ -74,3 +74,8 @@
 - 改动：`docs/rebuild/04-porting-discipline.md` 新增 §6 整段——12 条上游合并 SOP（裁定对账表 / modify-delete 先证存在 / UI 入口完整路由链 / merge 收尾格式化 / 外壳类查调用方 / 登记健康三规则 / 上游已删双向扫描 / e2e 僵尸断言扫描 / CI 红修复 task 指针 + base 语义 / verify 断言级复核 + 裁定对账 / CI run 链当日入档 / tarball 态纪律），每条带实证出处括注；头部时间刷新 2026-08-28。
 - 理由：T31/T34 两轮合并的质量事故（四条裁定静默反转、AppTextButton 误删、mcp 僵尸 nav、format 红、usage 壳空数据、e2e 僵尸断言、T34 五 run 缺总账）需要清单化防复发；owner 2026-08-28 拍板（T36-plan §2）。
 - 详见：[tasks/T36-plan.md §3 W3](../../tasks/T36-plan.md)
+
+## T38 修正-N（2026-08-28） · §6 增补第 13 条（dev 进程拓扑复核）
+
+- 改动：`docs/rebuild/04-porting-discipline.md` §6 清单 12 → 13 条——新增「上游动 dev 进程拓扑（spawn/env/discovery/端口）必复核 fork 自建进程读取侧」。
+- 理由：2026-08-28 owner 报告工具调用报「工具桥没连上」，实测定位为 T34 带入的上游 0f981ff2 把 dev 桥 discovery 从平台默认路径隔离到 tmpdir，而 fork 自建 pi-backend 的 `readDiscoveryFile()` 仍读默认路径（默认路径残留文件指向已死 pid 16584）；T34 的 host.ts 决策注记只评了 host 拓扑，漏评 dev 拓扑。smoke:pi 自含不连活桥，门禁拦不住此类断链。修复与钉扎测试见 [tasks/T38-plan.md](../../tasks/T38-plan.md)。

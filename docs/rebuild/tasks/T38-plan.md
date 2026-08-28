@@ -9,7 +9,7 @@
 
 # T38 计划 · 三症状回归修复（fork i18n Ref 类型谎报 + dev 桥 discovery 断链）
 
-> **状态**：进行中 | **时间**：2026-08-28 | **负责人**：主 agent
+> **状态**：已完成 | **时间**：2026-08-28 | **负责人**：主 agent
 > **分支**：`rebuild/t35-i18n-fork`（pi 线）
 > **基线**：`aabacb0a`（T37 收口后 HEAD）
 
@@ -54,13 +54,13 @@
 
 ## 3. 验收标准
 
-| # | 验收 |
-|---|---|
-| C1 | `tsgo --noEmit` + `check:vue` 绿——`.value` 缺失由类型系统判红（防复发证据） |
-| C2 | 浏览器实证三症状消失：模型名标签渲染非空 / 设置面板 thinking 六项有字 / 工具调用不再报 discovery 断链 |
-| C3 | `test:unit`（含新钉扎测试）+ `smoke:pi` 80/80 绿 |
-| C4 | `check:zones` / `check:docs` / `check:bindings` / `check:tasks` / `format:check` / lint 全绿；zones.json 零变更（全部改动落在已登记区） |
-| C5 | 三件套齐 + tracker/_index T38 行 + 04 §6 第 13 条与 narrative 追加 |
+| # | 验收 | 结果 |
+|---|---|---|
+| C1 | `tsgo --noEmit` + `check:vue` 绿——`.value` 缺失由类型系统判红（防复发证据） | ✅ 通过（2026-08-28 实测双门静默绿） |
+| C2 | 浏览器实证三症状消失：模型名标签渲染非空 / 设置面板 thinking 六项有字 / 工具调用不再报 discovery 断链 | ✅ 通过（2026-08-28 实测，见 [T38-verify](T38-verify.md) V1-V3） |
+| C3 | `test:unit`（含新钉扎测试）+ `smoke:pi` 80/80 绿 | ✅ 通过（rebuild 测试 3/3；smoke:pi 6+12+14+29+19=80/80，2026-08-28 实测） |
+| C4 | `check:zones` / `check:docs` / `check:bindings` / `check:tasks` / `format:check` / lint 全绿；zones.json 零变更（全部改动落在已登记区） | ✅ 通过（2026-08-28 实测，lint 4 warnings 全为上游文件既有 max-lines） |
+| C5 | 三件套齐 + tracker/_index T38 行 + [04-porting-discipline.md §6 上游合并 SOP 清单](../04-porting-discipline.md) 第 13 条与 narrative 追加 | ✅ 通过（2026-08-28 收口 commit） |
 
 ## 4. 出栈（明确不做）
 

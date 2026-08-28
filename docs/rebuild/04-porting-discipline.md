@@ -106,3 +106,4 @@ T31/T34 两轮合并的质量事故沉淀为可勾检清单。每条都必须能
 10. **verify 含断言级复核 + 裁定对账**：plan 的用户可见行为断言必须由核验人实证（不接受推理式断言）；核验项必须含「上轮裁定维持/反转对账」（实证：T34 plan/verify 双双错误通过——mcp nav 断言从未被实测）。
 11. **CI run 链当日入档**：当轮全部 CI run（含中间红 run）必须 append 进 `records/topics/ci-infra.md`（实证：T34 五 run 缺总账，T36 补记）。
 12. **tarball 态纪律**：tarball/内容裁定式合并仅诞生于无网应急合并；网络恢复后下轮必须真 merge 收口；merge-base 已超过某条 tarball.base 的记录应归档（实证：T31 tarball → T34 真 merge 收口后，T31 的 tarball 登记已部分冗余）。
+13. **上游动 dev 进程拓扑必复核 fork 自建进程读取侧**：合并引入上游对 dev spawn/env/discovery/端口拓扑的改动时，逐项核对 fork 自建进程（pi-backend 等）的对应读取假设（实证：T34 带入 0f981ff2 把 dev 桥 discovery 从平台默认路径隔离到 tmpdir，pi-backend `readDiscoveryFile()` 仍盲读默认路径，工具调用全灭——smoke:pi 自含不连活桥拦不住；T38 修复 + `tests/engine/rebuild/pi-dev-discovery.test.ts` 钉扎算法）。

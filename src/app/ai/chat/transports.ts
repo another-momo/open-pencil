@@ -7,6 +7,7 @@ import {
   classifyAIChatFinish,
   type AIChatFailure
 } from '@/app/ai/chat/failure'
+import { recordChatCompleted, recordChatFailed } from '@/app/diagnostics'
 import type { getActiveEditorStore } from '@/app/editor/active-store'
 
 type EditorStore = ReturnType<typeof getActiveEditorStore>
@@ -50,7 +51,13 @@ export function createChatSessionManager({
     isAbort: boolean
     isError: boolean
   }): void {
-    if (!isAbort && !isError) failure.value = classifyAIChatFinish(finishReason)
+    if (!isAbort && !isError) {
+      failure.value = classifyAIChatFinish(finishReason)
+      // T36：chat 级 diagnostics 接线（owner 拍板①，对 T31「不采纳」的追认反转）——
+      // 语义对齐上游 88c10770 版（上游另有 isDisconnect 参，fork 面无此信号）；
+      // token 级 recordModelStepCompleted 经 pi 后端采数不在本任务范围（登记排期）
+      recordChatCompleted({ finishReason: finishReason ?? null })
+    }
   }
 
   function clearFailure(): void {
@@ -96,6 +103,8 @@ export function createChatSessionManager({
         messages,
         onError: (error) => {
           failure.value = classifyAIChatError(error)
+          // T36：chat 级 diagnostics 接线（owner 拍板①）——对齐上游 88c10770 版语义
+          recordChatFailed({ errorName: error instanceof Error ? error.name : 'unknown' })
         },
         onFinish: handleChatFinish
       })

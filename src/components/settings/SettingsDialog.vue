@@ -104,16 +104,6 @@ const navigationClass =
         <button
           type="button"
           :class="navigationClass"
-          :data-state="settingsDialogSection === 'mcp' ? 'active' : 'inactive'"
-          data-test-id="settings-section-mcp"
-          @click="settingsDialogSection = 'mcp'"
-        >
-          <icon-lucide-plug class="size-3.5" />
-          {{ dialogs.settingsMCP }}
-        </button>
-        <button
-          type="button"
-          :class="navigationClass"
           :data-state="settingsDialogSection === 'media' ? 'active' : 'inactive'"
           data-test-id="settings-section-media"
           @click="settingsDialogSection = 'media'"
@@ -158,7 +148,11 @@ const navigationClass =
           <VectorizeSettingsSection />
         </section>
 
-        <StorageSettingsPanel v-else />
+        <StorageSettingsPanel v-else-if="settingsDialogSection === 'storage'" />
+
+        <!-- T36（owner 拍板③）：裸 v-else 收窄——SettingsSection 全体成员的落点必须显式，
+             未知/未来成员落显式空态而非静默落到 Storage（mcp 僵尸 nav 曾借裸 v-else 落 Storage） -->
+        <div v-else class="text-xs text-muted" data-test-id="settings-unknown-section" />
       </div>
     </div>
 

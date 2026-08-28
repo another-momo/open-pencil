@@ -9,7 +9,7 @@
 
 # records · 子文档索引（两层结构）
 
-> **状态**：D15 重组（横向档案独立为 topics/） | **时间**：2026-08-25（§2 绑定表补 runbook/proposals 行 + §3 类型列修正；§1 D 编号规则改口——决策批 #7：全局 D 仅跨任务、任务内 Tk-Dn） | **核验人**：主 agent
+> **状态**：D15 重组（横向档案独立为 topics/） | **时间**：2026-08-28（§2 绑定表补 zones.json 自愿绑定期行 + 计数 15→16 修正——T36 大扫除；前次 2026-08-25：§2 绑定表补 runbook/proposals 行 + §3 类型列修正；§1 D 编号规则改口——决策批 #7：全局 D 仅跨任务、任务内 Tk-Dn） | **核验人**：主 agent
 > **身份**：变更/核验/腐烂记录的索引入口。**两层结构**——`narrative/` 物理绑定层（与文件 1:1）+ `topics/` 主题聚合层（跨文件横向档案）。**禁止混用**：横向档案不替代物理绑定层；物理绑定层不替代横向档案。详见 [05-process.md §4.10 D14](05-process.md)。
 > **tracker.md 通过本文档找到具体记录**。
 
@@ -42,8 +42,9 @@
 | `docs/rebuild/runbook-github-push.md` | `records/narrative/runbook-github-push.md` |
 | `docs/rebuild/proposals/*.md` | `records/narrative/proposals/<file>.md`（现仅 governance-v1.md） |
 | `docs/rebuild/spikes/*.zh.md` | `records/narrative/spikes/<file>.zh.md` |
+| `tools/zone-registry/zones.json` | `records/narrative/zones.json.md`（自愿绑定，超出 bindings.ts 强制口径——zones.json 是登记信任根，T32 起为其单独立档） |
 
-> 计数（2026-08-25 `find docs/rebuild/records/narrative -type f | wc -l` 实测 = **15**）：6 个核心叙事（00-05）+ README + tracker + runbook-github-push + 5 个 spike + 1 个 proposal。
+> 计数（2026-08-28 `find docs/rebuild/records/narrative -type f | wc -l` 实测 = **16**）：6 个核心叙事（00-05）+ README + tracker + runbook-github-push + zones.json + 5 个 spike + 1 个 proposal。（2026-08-25 口径 15 漏记 zones.json.md——T36 大扫除时发现并修正。）
 
 ## 3. topics/ 主题聚合层（横向档案）
 

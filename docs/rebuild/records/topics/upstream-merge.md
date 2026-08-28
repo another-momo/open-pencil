@@ -110,3 +110,20 @@
   3. **host.ts DISCOVERY_PATH 决策**：0f981ff2 给 vite plugin 加临时目录隔离（worktree 间抢 `~/.openpencil/mcp.json`），host.ts 是否跟？**决策：不跟**。理由：host.ts 生产形态端口独占（7600/7700），多实例被 EADDRINUSE 拦截，不存在 dev-plugin 同款 worktree 隔离场景。已在 spawnBridge 函数顶部加 5 行决策注记（未来多 host 实例时再复用 vite-plugin 的 sha256(runtimeId) 方案）。
 - **验收**：见 [tasks/T34-plan.md §5](../../tasks/T34-plan.md) C1-C10；自检 [tasks/T34-self-check.md](../../tasks/T34-self-check.md)；独立核验 [tasks/T34-verify.md](../../tasks/T34-verify.md)（subagent V1-V8 全 ✅「可以收口」）。
 - **推送状态**：本机 HEAD=`9a22d276`；远端推送阻塞——环境网络层 github.com 不通（实测：github/google TCP timeout、api.github.com TLS SEC_E_INVALID_TOKEN、baidu 200 OK；gh auth status 已登录；无 http(s).proxy 配置）。**等 owner 协助执行 SOP**：staging 先行 → CI 绿 → rebuild/pi 同 SHA → gh run view 复验。
+
+## T36 追写（2026-08-28） · T31/T34 合并质量整改——静默反转追认 + 登记大扫除
+
+- **类型**：决策追认 + 合并质量整改登记
+- **拍板**：owner（2026-08-28，四项拍板，原文登记于 [tasks/T36-plan.md §2](../../tasks/T36-plan.md)）
+- **背景机制**：T31 用「内容裁定替代 git 三路合并」（无 ancestry 链接）；T34 用真实 git merge（`c65d56e1`，parents = `36ad5c17` + `88c10770`）把 88c10770 树的 ancestry 与内容一并并入——**无冲突面自动落地**，T31 裁掉的四块随之静默进仓，直到 T36 大扫除才发现并登记。
+- **静默反转清单与追认**（对「合并-2」段「维持删除 4」裁定的正式反转登记）：
+  1. **diagnostics/usage 外壳（5f8a373b）——追认合入（D-拍板①）**。现状：`src/app/diagnostics/` 全家 + `src/components/settings/{diagnostics,usage}/` 面板 + `src/app/usage/summarize.ts` 均已在仓且与 base 字节一致；document/io、storage/sync 等上游调用点随之生效。**T36 完成 chat 级接线**：fork 版 `src/app/ai/chat/transports.ts`（P6）`handleChatFinish` 接 `recordChatCompleted`、`onError` 接 `recordChatFailed`（语义对齐上游 88c10770 版 L150/L255）。**已知后果**：usage 面板 token 列恒显「Not reported」（`usageNotReported`）——token 级接线（`recordModelStepCompleted` 经 pi 后端采数）**不在 T36 范围，登记排期**（后续 pi 后端任务携带）。
+  2. **changelog（a0a71c34）——追认（D-拍板②）**。CHANGELOG.md 的上游审计条目随 merge 落地，与 02-phase-0.md §3.5「CHANGELOG.md 永久保持上游原样」一致，无需动作。
+  3. **cli import（88c10770）——追认（D-拍板②）**。packages/cli 的 Node fs import 改动落地（packages/cli 在 pendingReclass 区，重分类仪式另案）。
+  4. **portless（0f981ff2，vite 侧）——追认（D-拍板②）**。vite.config.ts / vite/automation.ts / vite-plugin.ts / spawn.ts 的 Portless 隔离改动落地；host.ts 不跟 DISCOVERY_PATH 隔离的决策维持（T34 已注记）。
+- **mcp 僵尸 nav 清除（D-拍板③）**：T34 merge 把 base 的 mcp nav button 带回 `SettingsDialog.vue`（面板未回——点击落裸 `v-else` 的 Storage 面板）；`src/app/settings/dialog.ts` 的 `'mcp'` 成员同步复活（P45 成幻影 patch，与 base 字节一致）。T36 处置：删 nav button + 删 `'mcp'` 成员 + 裸 `v-else` 收窄为 `v-else-if storage` + 显式空态 fallback + `tests/e2e/settings/credentials.spec.ts` 两个 mcp 测试（五处僵尸断言宿主）删除（新 patch P106）。**i18n 死键 `settingsMCP` 保留不删**——packages/vue 两文件经 T35 还原与上游字节一致，删键徒增下轮合并冲突面，死文案无害（取舍注记于 P44 reason）。
+- **zones.json 登记大扫除**（每条 `$comment` 已记缺口/去向）：P8 删（目标已删且在 deletedPaths，双重记账）；P60/P61 删（与 base 字节一致，T32 迁移漏网的幻影 patch）；P74 理由改写（实为 T31 eslint-complexity helper 抽取重构，61+/47- 行为不变）；P98-P102 删（5 对象为 fork 新建文件，已在 ownedFiles，双重记账且无 base 可补）；P45 改写为真实理由并随 W2 实做成为活 patch。
+- **check.ts 登记健康三规则上线（D-拍板④）**：R-exist（patch 目标必须存在）/ R-diff（patch 相对 base 必须有 diff）/ R-mutex（patch 不得与 ownedFiles/stubs/deletedPaths 重叠）——直接判红，机器化防本轮发现的全部错位类型复发。
+- **SOP 沉淀**：12 条上游合并 SOP 写入 [04-porting-discipline.md §6](../../04-porting-discipline.md)（本轮全部事故的清单化）。
+- **顺带勘误**（append-only 不改原文）：本文件「T32 追写」段「物理清理 12 个 ghost 文件：AppTextButton.vue + 11 个 e2e snapshot png」 overstated——实证 `git show 0fbfd65e --name-status` = 11 个 D 行全为 snapshot png；AppTextButton.vue 未物理清理（同 commit 入 ownedFiles，过渡态 owned）。
+- **验收**：见 [tasks/T36-plan.md §4](../../tasks/T36-plan.md)；自检 [tasks/T36-self-check.md](../../tasks/T36-self-check.md)；独立核验 [tasks/T36-verify.md](../../tasks/T36-verify.md)

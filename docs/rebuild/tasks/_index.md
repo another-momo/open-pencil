@@ -9,7 +9,7 @@
 
 # tasks · 任务档案索引
 
-> **状态**：已核验 | **时间**：2026-08-25 | **核验人**：主 agent
+> **状态**：已核验 | **时间**：2026-08-28 | **核验人**：主 agent
 > **身份**：task 维度档案的入口。**每个 task 三件套物理拆分**——`tasks/T<NN>-plan.md` / `tasks/T<NN>-self-check.md` / `tasks/T<NN>-verify.md`，CI 用 `existsSync` 逐个检查。
 > **与 [tracker.md §2 任务表](../tracker.md) 的关系**：本文 §2 任务清单是**逐任务索引真源**（每任务一行含三件套路径，永久保留——D31，2026-08-25）；tracker.md §2 是阶段门视角摘要（当前任务行 + 已收口分组行）。如有不一致以本文为准。
 > **与 records/narrative/ 的关系**：task 维度 vs 文件维度，**严格分离**——task 自检/核验不进 records/，文件腐烂/修正也不进 tasks/。详见 [05-process.md §3.2 + §4.11](05-process.md)。
@@ -67,6 +67,7 @@
 | [T33](../tasks/T33-plan.md) | localhost 分发骨架 | 生产编排器 host.ts + P103-P105（serve script / 运行时 token hook / canConnect 放行）——build+serve 一条链全栈，浏览器建矩形全链实测通过 | ✅ 已完成（V1-V5 全过「可以收口」+ CI 7886a8f3 success） | [T33-plan](../tasks/T33-plan.md) | [T33-self-check](../tasks/T33-self-check.md) | [T33-verify](../tasks/T33-verify.md) |
 | [T34](../tasks/T34-plan.md) | 上游合并第三轮 | octopus 8 commits（`88c10770`→`0f981ff2`，含 diagnostics + crash recovery + Portless 隔离）；24 冲突三类解（modify/delete 6 取我们删侧 + dialogs.json 8 [zh-cn 保留 pi 段 / 7 个语种删] + content 10）；host.ts spawnBridge 决策注记（不跟 DISCOVERY_PATH 隔离）；AppTextButton 误删纠正 + zones 误判纠正（checkDeletedAbsent 已覆盖） | ✅ 已完成（V1-V8 全过「可以收口」+ CI 双链 success @ 29985845） | [T34-plan](../tasks/T34-plan.md) | [T34-self-check](../tasks/T34-self-check.md) | [T34-verify](../tasks/T34-verify.md) |
 | [T35](../tasks/T35-plan.md) | pi 段迁回 fork seam + i18n 卫生整顿 | 27 条 pi 段 i18n 从 packages/vue 迁回 src/app/i18n/fork/（zh-cn.ts + en.ts 新建 piMessageDefaults）；撤销 P38/P40；PiModelsPanel.vue + ChatInput.vue 22 处调用改键；forkPiMessages + useForkPi hook 仿 useNotificationMessages | ✅ 已完成（V1-V4 全过，V5 占位字样清理后过 subagent 复验） | [T35-plan](../tasks/T35-plan.md) | [T35-self-check](../tasks/T35-self-check.md) | [T35-verify](../tasks/T35-verify.md) |
+| [T36](../tasks/T36-plan.md) | T31/T34 合并质量整改 | 登记大扫除（zones.json P8/P60/P61/P98-P102 移除 + P74/P45 理由改写）+ diagnostics chat 级接线（transports.ts，owner 拍板①）+ changelog/cli import/portless 三静默反转追认（拍板②）+ mcp 僵尸 nav 清除（拍板③）+ 上游合并 SOP 12 条入 04 + check.ts 三条登记健康规则判红（拍板④） | 🔄 进行中 | [T36-plan](../tasks/T36-plan.md) | [T36-self-check](../tasks/T36-self-check.md) | [T36-verify](../tasks/T36-verify.md) |
 | (后续 task 按顺序登记)      | —                          | —                                                                                                                       | —                                                                                                                                            | —                                | —                                            | —                                    |
 
 ## 3. 三件套结构（强制）

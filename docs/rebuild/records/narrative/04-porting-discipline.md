@@ -68,3 +68,9 @@
 - 改动：`docs/rebuild/04-porting-discipline.md` §5.2 与 `tools/zone-registry/src/check.ts` `checkDriftTarball` 同步——tarball 文件本地 byte 与 base 不一致时**判红**（violation），不再 warn。
 - 理由：初版 warn 不阻断等于把 tarball 文件的未登记修改从 T31 前的红灯降成警告、削弱门禁；实测升红时 44 个 tarball path 零 drift，无副作用。单一职责：tarball 文件的修改由 drift 检查判红，checkModified 不再重复报。
 - 同批订正：checkGhostDeleted 注释去除已废弃的 P103 引用、zones.json $comment 补 upstreamMergeTarball 语义与 P62-P82/P83-P97 缺号说明。
+
+## T36 修正-N（2026-08-28） · §6「上游合并 SOP 清单（T36 增补）」新增
+
+- 改动：`docs/rebuild/04-porting-discipline.md` 新增 §6 整段——12 条上游合并 SOP（裁定对账表 / modify-delete 先证存在 / UI 入口完整路由链 / merge 收尾格式化 / 外壳类查调用方 / 登记健康三规则 / 上游已删双向扫描 / e2e 僵尸断言扫描 / CI 红修复 task 指针 + base 语义 / verify 断言级复核 + 裁定对账 / CI run 链当日入档 / tarball 态纪律），每条带实证出处括注；头部时间刷新 2026-08-28。
+- 理由：T31/T34 两轮合并的质量事故（四条裁定静默反转、AppTextButton 误删、mcp 僵尸 nav、format 红、usage 壳空数据、e2e 僵尸断言、T34 五 run 缺总账）需要清单化防复发；owner 2026-08-28 拍板（T36-plan §2）。
+- 详见：[tasks/T36-plan.md §3 W3](../../tasks/T36-plan.md)

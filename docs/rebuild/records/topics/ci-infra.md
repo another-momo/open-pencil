@@ -235,3 +235,24 @@
 - **实况（实证）**：同日 T28/T29 收口推送时，API push 被 `HTTP 422 "4 of 4 required status checks are expected."` 硬拒——required checks 开启后，**头部 commit 无已通过检查结果的直接 push 被拦截**（检查未跑 ↔ 推送被拒之 deadlock）。复验：`PUSH_BRANCH=rebuild/pi node .gh-api-push.mjs <commits>` 返回 422（2026-08-25）
 - **破解路径（实证可行）**：同 SHA 先推 staging 分支（`rebuild/pi-staging`，ci.yml 触发器 `rebuild/**` 覆盖）→ CI 在该 SHA 上跑绿 → 同 SHA 再推 rebuild/pi 时保护见检查结果已绿即放行——「staging 先行 + 受保护分支快进」成为保护开启后的标准推送 SOP
 - **影响面修正**：分支保护的增量价值从 CI-14 的「防误删 + 未来 PR 自动生效」上修为「**直接 push 也被 required checks 硬门**」——B.3 + pre-commit + check:tasks 三件套之上再加一道服务端门。代价 = 推送链路多一步 staging 中转（runbook-github-push.md 待补此 SOP，随下一 task 顺手改）
+
+## CI-16 · T34 五 run 总账补记（2026-08-28，T36 大扫除）
+
+- **类型**：核验（补录）
+- **时间**：2026-08-28
+- **背景**：T34 收口时五笔 CI run 未留总账（SOP-11 的反面实证）；T36 立项时 owner 拍板补记
+- **run 链**（逐 id `gh run view <id> -R another-momo/open-pencil --json conclusion,headSha,displayTitle` 复验，2026-08-28）：
+  1. run **33051249610** —— **failure** @ `e6d53beb`（T34 收口尾款 narrative 同步）
+  2. run **33052623880** —— **success** @ `c5a2ab1d`（vite.config.ts import 顺序修复，format:check 转绿）
+  3. run **33052862364** —— **failure** @ `c5a2ab1d`（同 SHA 另一 push 区间——**Rebuild discipline job 的 base=github.event.before 语义**：区间不同 → 该 job 看到的 diff 不同 → 判红；教训已写入 [04-porting-discipline.md §6](../../04-porting-discipline.md) SOP-9）
+  4. run **33054175283** —— **success** @ `29985845`（T34 CI 整改收口）
+  5. run **33054772651** —— **success** @ `29985845`（同 SHA 双链第二路）
+- **结论**：T34 以 29985845 双链 success 收口；中间红 run（33051249610 / 33052862364）为真实历史，本条目补记为总账
+
+## CI-17 · T35 分支 CI 链（2026-08-28 补记）
+
+- **类型**：核验（补录）
+- **时间**：2026-08-28
+- **方法**：`gh run list -R another-momo/open-pencil --branch rebuild/t35-i18n-fork --json databaseId,conclusion,headSha`
+- **run 链**：run **33062559416** failure @ `8ae675a6`（fork seam 改顶层 import 破坏 lazy 语义——fork i18n seam + clipboard notifications 三测试红，根因与修复实录见 [T35-self-check.md §5](../../tasks/T35-self-check.md)）→ `61476bd7` 恢复 lazy import → run **33064601680** **success** @ `3f85a3e9`
+- **结论**：T35 以分支链 success 收口；rebuild/pi 同 SHA 归并随后续推送完成

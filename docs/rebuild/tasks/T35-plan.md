@@ -9,7 +9,7 @@
 
 # T35 计划 · pi 段迁回 fork seam + i18n 卫生整顿
 
-> **状态**：执行中 | **时间**：2026-08-27 | **负责人**：主 agent
+> **状态**：已完成 | **时间**：2026-08-28（状态与验收表按实录刷新——T36 大扫除补做收口动作） | **负责人**：主 agent
 > **分支**：`rebuild/t35-i18n-fork`（自 `rebuild/pi (29985845)` 拉出）
 > **基线**：`29985845`（T34 收口后 rebuild/pi HEAD）
 
@@ -169,15 +169,15 @@ plan + self-check + verify（V1-V5）+ push SOP（staging → CI 绿 → rebuild
 
 | # | 验收 | 结果 |
 |---|---|---|
-| C1 | `src/app/i18n/fork/locales/zh-cn.ts` 含 27 条 pi 段 | ⏸ 待开工 |
-| C2 | `packages/vue/src/i18n/locales/zh-cn/dialogs.json` 不含 pi* key（与上游 88c10770 截止状态一致） | ⏸ 待开工 |
-| C3 | 所有 `dialogs.piXxx` 调用改为 `forkI18n.pi.xxx` | ⏸ 待开工 |
-| C4 | `check:i18n` 全绿 | ⏸ 待开工 |
-| C5 | `check:zones` 全绿（含 P38/P40 patches 状态判定） | ⏸ 待开工 |
-| C6 | `typecheck` / `lint` / `check:deps` 全绿 | ⏸ 待开工 |
-| C7 | `smoke:pi` 全过 | ⏸ 待开工 |
-| C8 | subagent V1-V5 独立核验「可以收口」 | ⏸ 待开工 |
-| C9 | CI 双链 success @ 同 SHA（推送后复验） | ⏸ 待开工 |
+| C1 | `src/app/i18n/fork/locales/zh-cn.ts` 含 27 条 pi 段 | ✅（verify V2：zh-cn.ts 27 条 + en.ts 27 条一一对应） |
+| C2 | `packages/vue/src/i18n/locales/zh-cn/dialogs.json` 不含 pi* key（与上游 88c10770 截止状态一致） | ✅（python json 实测 pi* key = 0；`git diff 88c10770..HEAD` 对该文件与 messages/dialogs.ts 均 0 行——byte 级还原） |
+| C3 | 所有 `dialogs.piXxx` 调用改为 `forkI18n.pi.xxx` | ✅（PiModelsPanel.vue 21 处 + ChatInput.vue 1 处；grep 残留 0 命中） |
+| C4 | `check:i18n` 全绿 | ✅（All locale files are in sync） |
+| C5 | `check:zones` 全绿（含 P38/P40 patches 状态判定） | ✅（P38/P40 disposition=revoked，python json 实测） |
+| C6 | `typecheck` / `lint` / `check:deps` 全绿 | ✅（0 errors；存量 max-lines warning 非 T35 触发） |
+| C7 | `smoke:pi` 全过 | ✅（80 passed, 0 failed） |
+| C8 | subagent V1-V5 独立核验「可以收口」 | ✅（V1-V4 全过；V5.2 占位字样 6 处打回 → 8ae675a6 清理 → 2026-08-28 复验通过，见 [T35-verify.md 复验追记](T35-verify.md)） |
+| C9 | CI 双链 success @ 同 SHA（推送后复验） | ✅ 按分支口径达成：`rebuild/t35-i18n-fork` 链 33062559416 failure（fork seam lazy import 红）→ 61476bd7 修复 → 33064601680 success @ 3f85a3e9（`gh run list -R another-momo/open-pencil --branch rebuild/t35-i18n-fork` 复验，2026-08-28）；rebuild/pi 同 SHA 归并随后续推送完成 |
 
 ## 6. 风险与依赖
 

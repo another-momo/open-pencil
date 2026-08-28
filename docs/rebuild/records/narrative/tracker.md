@@ -573,3 +573,19 @@
 
 - 改动：tracker.md §2 T34 行从「远端推送阻塞——环境网络层 github.com 不通，待 owner 协助」改为「CI 双链 success @ 29985845 已同步」（网络恢复后 SOP 走完，分支 cleanup 完成）；tracker.md §2 追加 T35 行（pi 段迁回 fork seam + i18n 卫生整顿）。
 - 详见：[tasks/T35-plan.md](../../tasks/T35-plan.md) + [tasks/T35-verify.md](../../tasks/T35-verify.md)
+
+## T36 修正-N（2026-08-28） · 订正：上条「T35 行追加」自述与实际 diff 不符
+
+- **类型**：订正（append-only，不改上条原文）
+- **错的内容**：上条（T35 修正-N，2026-08-27）自述「tracker.md §2 追加 T35 行」——**实际未落盘**（T36 开工时 `grep -c "^| T35" docs/rebuild/tracker.md` = 0，2026-08-28 实测）；T35 行只落进了 [tasks/_index.md §2](../../tasks/_index.md)（L69）
+- **处置**：本次由 T36 补上 tracker.md §2 的 T35 行（口径与 _index.md T35 行一致）
+- **教训**：收口 SOP 的「tracker 行追加/翻状态」动作完成后必须 `grep` 实证落盘——自述 ≠ 事实（与 ROT-15/ROT-16 同族：声称做过的事必须有命令输出佐证）
+
+## T36 修正-N（2026-08-28） · T36 行追加 + T32 行笔误修正 + narrative 计数 15→16
+
+- **改动**：
+  1. tracker.md §2 追加 T36 当前任务行（T31/T34 合并质量整改——登记大扫除 + diagnostics chat 级接线 + mcp 僵尸 nav 清除 + SOP 12 条 + check.ts 三规则）
+  2. T32 行笔误修正：「12 个上游已删 ghost 文件物理清理（11 个 e2e snapshot + 1 个 AppButton.vue）」→「11 个上游已删 ghost 文件物理清理（全为 e2e snapshot png）」——实证：`git show 0fbfd65e --name-status` = 11 个 D 行全为 snapshot png；AppTextButton.vue 未被物理清理（同 commit 入 ownedFiles），原表述与该行后半句「AppTextButton.vue 改 ownedFile」自相矛盾
+  3. §3.1 narrative 计数 15 → 16（`find docs/rebuild/records/narrative -type f | wc -l` 实测 = 16，2026-08-28；此前口径漏记 zones.json.md 自愿绑定档案）
+  4. 头部时间字段刷新 2026-08-25 → 2026-08-28
+- **详见**：[tasks/T36-plan.md](../../tasks/T36-plan.md)

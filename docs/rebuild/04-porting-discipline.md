@@ -9,7 +9,7 @@
 
 # 04 · 移植纪律（Phase 2+）
 
-> **状态**：已核验 | **时间**：2026-08-25 | **核验人**：主 agent
+> **状态**：已核验 | **时间**：2026-08-28 | **核验人**：主 agent
 > **身份**：Phase 2+ 移植操作的过程纪律；每条规则都必须能被 CI 或核验命令检查。
 > **基线**：供货方 = 旧分支 `feature/agent-backend` @ `a1c33881`。移植不是搬家，是带验收的复审。
 
@@ -89,3 +89,20 @@ tarball 字段收录的是 byte 一致的拷贝。**若该文件在登记 tarbal
 - T31 vector 树 15 文件是"byte 一致却误归 ownedFile"的反例——T32 即为此纠偏；
 - T31 P62-P82 21 枚 patch 中 18 枚是"byte 一致却误归 patch"的反例——T32 同为此纠偏；
 - T31 残留 12 个上游已删的 snapshot / AppTextButton.vue 是"check.ts 缺 ghost 检测"的反例——T32 新增 `checkGhostDeleted` 一并根治。
+
+## 6. 上游合并 SOP 清单（T36 增补，2026-08-28）
+
+T31/T34 两轮合并的质量事故沉淀为可勾检清单。每条都必须能在合并任务的 plan/verify 里被逐项核对——写法保持「规则 + 实证出处」。
+
+1. **裁定对账表开工**：启动合并时先过上轮裁定对账表——上次合并 plan 的每条裁定标「维持/反转+理由+owner 拍板」写入本轮 plan；无冲突静默合入的文件也要过表（实证：T34 真实 git merge 把 T31 裁掉的 diagnostics/portless/changelog/cli-import 四条裁定静默反转，无人登记，T36 才追认）。
+2. **modify/delete 冲突先证存在**：解 modify/delete 冲突前必须 `git show HEAD:<path>` 确认 HEAD 是否真有此路径，禁止凭 DU 标识一刀切 `git rm`（实证：T34 把 AppTextButton.vue 当 modify/delete 误删，事后 `git checkout HEAD --` 恢复）。
+3. **UI 入口保留裁定核对完整路由链**：冲突解法含「保留上游 UI 入口」时，核对 nav→panel 路由完整链（含 v-else 兜底落点）；plan 的行为断言必须引用具体文件行号版本（实证：T34 后 mcp nav 落 Storage——面板已删、nav 复活、裸 v-else 兜底；T34 plan 断言对两个版本均不成立）。
+4. **merge 收尾固定格式化**：`bunx oxfmt --write` + `bun run format:check` 全绿才算 merge 收尾（实证：T34 曾 lint 绿但 format 红——两条独立门禁，lint 绿 ≠ format 绿）。
+5. **外壳类功能逐 export 查调用方**：合入「外壳类」功能（面板/登记层就绪但无数据产线）时，对每个新增 export `git grep` 生产调用方；零调用方的必须在 plan 显式登记「壳合入 + 空数据后果 + 接线排期」（实证：T34 合入 diagnostics/usage 外壳未接线，usage 面板 token 列恒「Not reported」直到 T36 chat 级接线）。
+6. **合并后跑登记健康三规则**：`bun run check:zones` 的 R-exist（patch 目标必须存在）/ R-diff（patch 相对 base 必须有 diff）/ R-mutex（patch 不得与 ownedFiles/stubs/deletedPaths 重叠）必须全绿——T36 已机器化进 `tools/zone-registry/src/check.ts`，直接判红。
+7. **上游已删文件双向扫描**：`checkGhostDeleted`（上游已删 ∩ 本地残留）之外，加反向扫描「现存 import × 上游已删文件」（实证：T34 的 AppTextButton.vue——上游 5f8a373b 已删、本地 4 个 importer 在用，过渡态 owned 登记）。
+8. **e2e 僵尸断言扫描**：merge 后 `git grep` tests/e2e 中指向已删 UI 面的 test-id（实证：credentials.spec.ts 五处 settings-section-mcp 断言从 T25 活到 T36 才清）。
+9. **CI 红修复挂 task 指针 + 知晓 base 语义**：CI 红修复 commit 一律 `task: T<NN>` 抬头；注意 Rebuild discipline job 的 base=github.event.before 语义——同 SHA 不同 push 区间 base 不同（实证：run 33052862364 红于此）。
+10. **verify 含断言级复核 + 裁定对账**：plan 的用户可见行为断言必须由核验人实证（不接受推理式断言）；核验项必须含「上轮裁定维持/反转对账」（实证：T34 plan/verify 双双错误通过——mcp nav 断言从未被实测）。
+11. **CI run 链当日入档**：当轮全部 CI run（含中间红 run）必须 append 进 `records/topics/ci-infra.md`（实证：T34 五 run 缺总账，T36 补记）。
+12. **tarball 态纪律**：tarball/内容裁定式合并仅诞生于无网应急合并；网络恢复后下轮必须真 merge 收口；merge-base 已超过某条 tarball.base 的记录应归档（实证：T31 tarball → T34 真 merge 收口后，T31 的 tarball 登记已部分冗余）。

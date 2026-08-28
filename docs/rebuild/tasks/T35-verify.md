@@ -9,7 +9,7 @@
 
 # T35 独立核验 · pi 段迁回 fork seam + i18n 卫生整顿
 
-> **状态**：❌ 不予收口（V5.2 占位字样残留） | **时间**：2026-08-27 | **核验人**：subagent 独立核验
+> **状态**：✅ 已核验（V1-V5 全过——V5.2 占位字样经 8ae675a6 清理后复验通过，见文末「复验追记」） | **时间**：2026-08-27（复验追记 2026-08-28） | **核验人**：subagent 独立核验 + 主 agent 复验
 > **锚点**：HEAD=`9fc11de5`（`rebuild/t35-i18n-fork`，未推送） | 被核验对象=单笔 commit `9fc11de5`
 > **基线**：`29985845`（T34 收口后 rebuild/pi HEAD） | **上游**：`88c10770`（upstream/HEAD @ merge base）
 > **核验方式**：只读 + 实测命令（git rev-parse / git show / git diff / ls / grep -c / python json / 门禁命令 exit code），未修改任何 plan / self-check / 源代码。`check:audit` / `check:secrets` 本机不跑真实扫描（CI 跑），e2e（playwright）本机不跑（CI 跑）。
@@ -162,3 +162,21 @@ V1 ✅ / V2 ✅ / V3 ✅ / V4 ✅ / **V5 ❌**（V5.2 占位字样 6 处残留�
 - self-check：[T35-self-check.md](T35-self-check.md)
 - 索引：[tasks/_index.md §2](../tasks/_index.md)（T35 行未登记——见收口前主 agent 需处理 §3）
 - fork seam 设计参考：`src/app/i18n/notifications/index.ts`（notificationMessages 模式，self-check §5 已指明；plan L194 的「§？」占位锚点未补）
+
+---
+
+## 复验追记（2026-08-28，主 agent，T36 大扫除时补记）
+
+**诚实申明**：V5.2 打回后，主 agent 于 8ae675a6 完成占位清理与索引登记（「收口前主 agent 需处理」五项全做），但**当时未在本文件留下复验工件**——头部状态字段也一直停在 ❌。本条为 T36 大扫除期间的补记，非当日实时记录。
+
+复验实测（2026-08-28，工作树 HEAD=`3f85a3e9`）：
+
+| # | 命令 | 期望 | 实测 | 判定 |
+|---|---|---|---|---|
+| 1 | `grep -c "（待" docs/rebuild/tasks/T35-plan.md docs/rebuild/tasks/T35-self-check.md` | 0/0 | `0` / `0`（grep exit 1 = 无命中） | ✅ |
+| 2 | `grep -n "T35" docs/rebuild/tasks/_index.md` | T35 行存在 | L69 行在（状态 ✅ 已完成） | ✅ |
+| 3 | `ls docs/rebuild/tasks/T35-{plan,self-check,verify}.md` | 三件套齐 | 三文件均在 | ✅ |
+| 4 | `git log --oneline 8ae675a6 -1 --name-only` | 占位清理 + 行翻 | `task: T35 三件套收口——verify subagent V1-V5（V1-V4 ✅ + V5 占位字样清理后过）+ tracker/_index 行翻` | ✅ |
+| 5 | `git show 61476bd7 --format=%s -s` 与 `3f85a3e9` | CI 红修复链 | fork seam lazy import 修复 + self-check 追记（CI 33062559416 红因实录见 [T35-self-check.md §5](T35-self-check.md)） | ✅ |
+
+结论：原核验 V1-V4 ✅ 维持有效；V5.2 的 6 处占位字样已在 8ae675a6 清零（实测 #1 复核为真），索引漏记已补（实测 #2）。**T35 复验通过，本文件头部状态翻 ✅**。

@@ -211,3 +211,10 @@
   6. **附录 B.1 登记规则两行**（登记主场互换）：「同时在 tracker.md §2 新增一行（仅一行）…同步 _index.md §2 镜像任务表」→「同时在 tasks/_index.md §2 新增逐任务永久行（仅一行）——逐任务索引真源…同步在 tracker.md §2 登记当前任务行（任务收口满一个阶段后并入分组行，D31）」
 - **事故备记**：首轮编辑脚本因 CRLF 行尾在附录 B.1 多行 old_string 匹配处 assert 失败整脚本未写入；改用「按内容定位行号 + 单行替换」重做落地。教训：repo docs 为 CRLF，python 多行 \n 匹配不可靠
 - **task 文档**：[tasks/T30-plan.md](../../tasks/T30-plan.md)
+
+## T37 修正-N（2026-08-28） · §4.10 D14 增补 D36 豁免条款
+
+- **改动**：§4.10 第 10 条（文件↔record 一一对应，D14）新增「高频活文档豁免」子弹——tracker.md 从「修改触发」强制口径豁免（owner 拍板 2026-08-28，D36）；头部时间字段 2026-08-25 → 2026-08-28
+- **配套**：`tools/zone-registry/src/check/bindings.ts` isNarrative 加 tracker.md 豁免分支（D36 注释）；[records/_index.md](../_index.md) §2 绑定表 tracker 行标注 D36 豁免 + §1 D 编号延展至 D37；[topics/docs-governance.md](../topics/docs-governance.md) D36/D37 登记
+- **豁免理由**：narrative/tracker.md 已 575 行（活文档 57 行的 10 倍），与 git 历史冗余；T35/T36 两轮收口均出现 tracker 行/状态字段漏翻靠人工兜底，绑定纪律对高频活文档成本超过收益
+- **task 文档**：[tasks/T37-plan.md](../../tasks/T37-plan.md)

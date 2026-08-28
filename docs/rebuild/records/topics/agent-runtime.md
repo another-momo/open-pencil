@@ -266,3 +266,14 @@
   - **D28 · prompt 装配四层抽象体系（AgentMode 建会话烘焙 base prompt/工具集 → per-run 工作流段注入 → per-run profile overlay）+ chatMode 请求级 + 切换即驱逐重建**——owner 三轮评审拍板 2026-08-24；出处 [tasks/T24-plan.md §1.2 D1-D9](../../tasks/T24-plan.md)；chatMode 双模式去留本身的闭环见 [records/topics/chat-ui.md](chat-ui.md) D5 补签条目
   - **D29 · 浏览器旧路径切除四决策（T25-plan D1-D4）：harness 路径切除（含 packages/harness 整包）/ 旧模型与凭证设置面切除（analyze 贴图分析知情退化，C4a 恢复）/ VITE_PI_BACKEND 门退役 / 一键启动（server.open + key-env 自助注入）**——owner 拍板 2026-08-24；出处 [tasks/T25-plan.md §1.2 D1-D4](../../tasks/T25-plan.md)
 - **后续口径**：自 2026-08-25 起任务内设计决策一律 Tk-Dn 命名、全局 D 仅用于跨任务决策（决策批 #7，规则文见 [records/_index.md §1](../_index.md)）；本组补登是全局 D 最后一次批量回填
+
+---
+
+## D4 · 产品形态，owner 正式拍板（2026-08-28）
+
+- **类型**：决策
+- **时间**：2026-08-28
+- **拍板**：owner
+- **状态**：已拍板（D4 从 open 正式闭环）
+- **内容**：**短期 localhost serve，中长期转 Electron，不考虑 Tauri**——T33 建成的 host.ts 生产编排器（`bun run build && bun run serve` 一条链）形态获确认；Phase 0 删除 tauri/desktop 整块的减法获最终背书；Electron 为未来独立立项事项。
+- **影响**：B4（cli → serve 入口）与 packages/cli 处置解锁；[01-target-state.md §7 决策表](../../01-target-state.md) D4 行已同步「已拍板」

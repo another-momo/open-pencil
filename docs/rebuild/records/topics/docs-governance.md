@@ -518,3 +518,28 @@
 - **内容**：T31 立项时 f75d67ad（crash recovery 可配置）误判为「新功能面报送 owner」；实测 `document/recovery`、`settings/preferences`、`RecoveryDialog` 存量基础设施已在仓（T10 上游合并带入），本 commit 仅给存量加可配置开关，且与我们 5201404f..2014c81a 改动面（1338 文件）零交叠——按「存量加固快进」处理，不构成需 owner 拍板的新功能引入。
 - **依据**：`grep -E 'document/recovery|settings/preferences' our-changed-files` 零命中（2026-08-25）；快进后 `bun test tests/engine/app/document/recovery/` 11→14 全绿
 - **执行**：[tasks/T31-plan.md](../../tasks/T31-plan.md)
+
+---
+
+## D36 · narrative D14 绑定豁免高频活文档，owner 拍板（2026-08-28）
+
+- **类型**：决策
+- **时间**：2026-08-28
+- **拍板**：owner
+- **状态**：已拍板
+- **内容**：`tracker.md` 从 D14「改动必须同 commit 追加 narrative 档案」的强制口径中**豁免**——其 narrative 档案已 575 行（活文档本身 57 行的 10 倍），与 git 历史高度冗余，边际收益不抵维护成本。其余绑定文件（00-05 / README / runbook-github-push / proposals / spikes / zones.json 自愿绑定）维持 D14 不变。
+- **配套落地**：05-process.md §4.10 修订（本条款）+ `tools/zone-registry/src/check/bindings.ts` 豁免清单（机器口径）+ records/_index.md §2 绑定表标注；narrative/tracker.md 以一条停更说明归档（档案保留不删，此后不再强制逐 commit 追加）。
+- **背景**：本决策属治理 overhead 削减——T35/T36 两轮收口均出现 tracker 行/状态字段漏翻靠人工兜底，绑定纪律对高频活文档的成本已超过其防伪收益。
+
+## D37 · 外部预研集（docs/202608251637-migration-proposal）处置口径，owner 拍板（2026-08-28）
+
+- **类型**：决策
+- **时间**：2026-08-28
+- **拍板**：owner
+- **状态**：已拍板
+- **内容**：**事实层采信、决策层视为未拍板、决策项逐条过会当场拍**——
+  1. 事实层（代码考据 / 上游三册 05-07 / 字体分析 13-14 等）经多轮 subagent 抽查与官方 records 互证，大部可采信使用；
+  2. 决策层一律视为未拍板：该集所有标「owner 裁决/定稿」的内容（01 册 §B.3/§C/§A.0、03 册 §二、04 册 §D.3、18 册 R-16~R-22 等）均未在官方 records 登记，按 05-process.md §1「owner = D 类决策唯一拍板人 + 决策必须登记 records」纪律不成立；
+  3. 与官方口径冲突项（01 册「owner 实测决定搁置 derive_palette/sample_hero_color」vs 官方 01 §5 层 2 C3b「移植」）：在逐条过会拍板前**维持官方 C3b 移植口径**；
+  4. 使用该集的两条防误读警示：编号撞车（预研 D1-D6 与官方 D1-D6 同号不同义）；config.yaml 行数 264 为错值（官方实测 303 行，本仓 brand-config.md 核验条与 records/narrative/00-why-rebuild.md 均有实证）。
+- **执行**：逐条过会（O1-O8 + 预研 D1-D6）自 2026-08-28 起进行，拍板结果逐条回流官方 records

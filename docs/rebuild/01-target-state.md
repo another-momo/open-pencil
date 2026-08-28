@@ -9,7 +9,7 @@
 
 # 01 · 目标态定义
 
-> **状态**：已核验 | **时间**：2026-08-25 | **核验人**：主 agent
+> **状态**：已核验 | **时间**：2026-08-28 | **核验人**：主 agent
 > **身份**：**本文是「做哪些加法」与「按什么顺序推进」的决策依据**——目标态分层（§3-§6）+ 推进规划（§2）。02-phase-0.md / 03-phase-1-runtime.md 是 Phase 0/1 的执行与验收记录；spikes/*.md 是调研证据层，不直接驱动 Phase gate。
 > **结构原则**：按依赖排序，不按价值排序。没有支撑底座，闭环跑不起来。
 
@@ -91,14 +91,14 @@
 
 | # | 决策 | 影响 | 状态 | 登记档案 |
 |---|---|---|---|---|
-| D1 | 参考图机制形态（参考区 page / 收编 brand config） | C2/C3 边界 | open | [records/topics/brand-config.md](records/topics/brand-config.md) |
+| D1 | 参考图机制形态（参考区 page / 收编 brand config） | C2/C3 边界 | **已拍板**（owner，2026-08-28：不设专门参考图/参考区机制；需要参考时由用户指定画布节点作为 ref） | [records/topics/brand-config.md](records/topics/brand-config.md) |
 | D2 | **vision 通道 B 为默认**（look 截图不进主 agent 上下文→成本优势 + 可换视觉模型；A 直送为备选，仅在 B 失败或 vision 模型质量不达标时降级） | C4 + F0.3 | **已拍板**（owner，2026-08-20） | [records/topics/brand-config.md](records/topics/brand-config.md) D2 |
 | D3 | session 模型（一文件一个 / 多个） | F0.5 + C5b | **已拍板**（owner，2026-08-25：一文件多会话 + 族谱形态；落地 = T22/T23） | [records/topics/agent-runtime.md](records/topics/agent-runtime.md) |
-| D4 | 产品形态（localhost serve 是否定论） | B4 + cli 处置 | open | [records/topics/agent-runtime.md](records/topics/agent-runtime.md) |
+| D4 | 产品形态（localhost serve 是否定论） | B4 + cli 处置 | **已拍板**（owner，2026-08-28：短期 localhost serve，中长期转 Electron，不考虑 Tauri） | [records/topics/agent-runtime.md](records/topics/agent-runtime.md) |
 | D5 | chatMode 双模式去留 | C5 与 prompt 装配范围 | **已拍板**（owner，2026-08-25：双模式保留；落地 = T24 chatMode 请求级） | [records/topics/chat-ui.md](records/topics/chat-ui.md) |
-| D6 | 中文字体策略（62MB 全量 / 子集化 / 系统字体） | E1 | open | [records/topics/brand-config.md](records/topics/brand-config.md) |
+| D6 | 中文字体策略（62MB 全量 / 子集化 / 系统字体） | E1 | **已拍板**（owner，2026-08-28：S3 混合——CDN 按需子集 + bundled 子集兜底；O3 字重匹配放宽另议） | [records/topics/brand-config.md](records/topics/brand-config.md) |
 | D7 | runtime 选型（pi sdk / dsh） | Phase 1 spike 后定，见 03 | **已拍板 = D24**（owner，2026-08-23：pi SDK 升主线，dsh-X 搁置） | [records/topics/agent-runtime.md](records/topics/agent-runtime.md) D22/D24 |
-| D8 | 「素材图理解」是否新建立项 | C1 增强范围 | open | [records/topics/chat-ui.md](records/topics/chat-ui.md) D8 条目 |
+| D8 | 「素材图理解」是否新建立项 | C1 增强范围 | **已拍板**（owner，2026-08-28：确认放弃——旧分支声称能力全仓无代码，不从零新建） | [records/topics/chat-ui.md](records/topics/chat-ui.md) D8 条目 |
 
 ## 8. parity 线（新旧分支切换标准）
 

@@ -115,3 +115,10 @@
   5. 头部状态字段刷新
 - **事故备记**：本轮 edits 曾因主 agent 误执行 `git checkout -- docs/rebuild/`（回滚 oxfmt 白空间散弹）全量丢失一次，凭上下文内容全量重写恢复；教训——格式化命令必须用精确文件名单独跑，不用目录通配
 - **task 文档**：[tasks/T30-plan.md](../../tasks/T30-plan.md)
+
+## T37 修正-N（2026-08-28） · §7 决策表 D1/D4/D6/D8 四行翻「已拍板」
+
+- **改动**：§7 待拍板决策表 D1 / D4 / D6 / D8 四行状态 open → 已拍板（owner，2026-08-28），口径摘要随行注明；头部时间字段 2026-08-25 → 2026-08-28
+- **拍板内容**：D1 不设专门参考图/参考区机制（需要参考时由用户指定画布节点作为 ref）；D4 短期 localhost serve、中长期转 Electron、不考虑 Tauri；D6 S3 混合（CDN 按需子集 + bundled 兜底，O3 字重另议）；D8 素材图理解确认放弃
+- **登记处**：[topics/brand-config.md](../topics/brand-config.md)（D1/D6）、[topics/agent-runtime.md](../topics/agent-runtime.md)（D4）、[topics/chat-ui.md](../topics/chat-ui.md)（D8）；同批新全局决策 D34-D37 见 [topics/ci-infra.md](../topics/ci-infra.md) 与 [topics/docs-governance.md](../topics/docs-governance.md)
+- **task 文档**：[tasks/T37-plan.md](../../tasks/T37-plan.md)

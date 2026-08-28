@@ -9,7 +9,7 @@
 
 # 05 · 工作方式与文档纪律
 
-> **状态**：已核验 | **时间**：2026-08-25 | **核验人**：主 agent
+> **状态**：已核验 | **时间**：2026-08-28 | **核验人**：主 agent
 > **身份**：本文是迁移改造全过程的过程定义：怎么干活、怎么跟踪、文档怎么写怎么管。优先级最高——与其他文档冲突时，以本文的过程裁决为准；事实冲突时，以代码与核验记录为准。
 
 ## 1. 角色与决策权
@@ -172,6 +172,7 @@ docs/rebuild/
       - 误区 1：以为 `records/topics/<对象>.md` 里写了某文件就算绑定了——错。`records/topics/<对象>.md` 是主题聚类（覆盖多文件），**不构成**与单文件的绑定关系，必须有独立的 `records/narrative/<file>.md`。
       - 误区 2（T07 新增）：为横向档案创建 `narrative/<topic>.md`——错。横向档案不需要 narrative 绑定（见上面"横向档案不需要 narrative 绑定"条目）。修正案例：T06 一开始误创建 `records/narrative/ci-infra.md`——已撤回。
     - **暂不绑定**：纯转瞬文件（CI 临时产物、构建产物、缓存）不属于治理范围，不要求一一对应。
+    - **高频活文档豁免（owner 拍板 2026-08-28 · D36）**：`tracker.md` 从本条「修改触发」强制口径中豁免——其 narrative 档案（575 行，为活文档本身的 10 倍）与 git 历史高度冗余，维护成本超过防伪收益。豁免后 `records/narrative/tracker.md` 档案保留、停更不删；其余绑定文件维持本条全部约束不变。机器口径见 `tools/zone-registry/src/check/bindings.ts` 豁免清单；决策登记见 [records/topics/docs-governance.md](records/topics/docs-governance.md) D36。
 11. **task 三件套物理拆分纪律（owner 触发 · D15 决策）**：
     - **核心约束**：每个 task 由**三个独立物理文件**承载——`tasks/T<NN>-plan.md` / `tasks/T<NN>-self-check.md` / `tasks/T<NN>-verify.md`（D15 决策）。**禁止**把三件套装回单文档 `tasks/T<id>-<slug>.md` 然后用章节正则识别——章节可以是占位（如「待 owner 触发」），CI 识别为通过但实际三件套不齐。
     - **任务表路径列**：逐任务索引真源 = [tasks/_index.md §2 任务清单](../tasks/_index.md)（每任务一行：T 编号 + 块 + 标题 + 状态 + plan / self-check / verify 三列路径，T08 起无 PR 列——`docs/rebuild/` 范围不采用 PR 管理）；[tracker.md §2 任务表](../tracker.md) 同步登记当前任务行，任务收口满一个阶段后并入分组行（D31 合并压缩）。

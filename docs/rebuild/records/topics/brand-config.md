@@ -9,7 +9,7 @@
 
 # records/topics/brand-config.md · brand config / type / profile
 
-> **状态**：已建立 | **时间**：2026-08-20 18:30 | **核验人**：主 agent
+> **状态**：已建立 | **时间**：2026-08-28 | **核验人**：主 agent
 > **身份**：brand config 相关决策与核验记录。
 
 ---
@@ -19,8 +19,8 @@
 ## D1 · 参考图机制形态
 
 - **类型**：决策
-- **状态**：open
-- **候选**：a) 文档内参考区 page b) 收编 brand config
+- **状态**：**已拍板**（owner，2026-08-28）
+- **拍板内容**：不设专门参考图/参考区机制（原候选 a) 文档内参考区 page 与 b) 收编 brand config 均不建）——需要参考时由用户指定画布节点作为 ref 传入。C2/C3 边界压力解除；C3a 生图工具的参考输入形态 = 画布节点引用。
 - **归属**：C2/C3 边界
 
 ## D2 · vision 通道 B 去留
@@ -51,3 +51,15 @@
 - **方法**：`bun test ./tests/engine/tools/marketing ./tests/engine/tools/image-gen`
 - **结论**：16 文件全绿，运行时报告 224 通过
 - **brand config 实测（核验人：subagent B R2）**：7 type + 8 profile，config.yaml 303 行
+
+---
+
+## D6 · 中文字体策略
+
+- **类型**：决策
+- **时间**：2026-08-28
+- **拍板**：owner
+- **状态**：已拍板
+- **内容**：**S3 混合路线**——CDN 按需子集 + bundled 子集兜底（预研集 `docs/202608251637-migration-proposal/13-font-subset-loading-proposal.md` 的 Phase 0-5 管线可作 CDN 路线的实施蓝图参考；fork 自带 tools/font-subset bundled 管线作离线兜底）。**公共前置**（无论后续实施细节）：font-subset 工具链 + 字体授权 tier 登记。
+- **未决另议**：O3 本地字体字重匹配放宽与否（行为变更）不在本次拍板范围，保持 open。
+- **归属**：E1

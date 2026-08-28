@@ -256,3 +256,22 @@
 - **方法**：`gh run list -R another-momo/open-pencil --branch rebuild/t35-i18n-fork --json databaseId,conclusion,headSha`
 - **run 链**：run **33062559416** failure @ `8ae675a6`（fork seam 改顶层 import 破坏 lazy 语义——fork i18n seam + clipboard notifications 三测试红，根因与修复实录见 [T35-self-check.md §5](../../tasks/T35-self-check.md)）→ `61476bd7` 恢复 lazy import → run **33064601680** **success** @ `3f85a3e9`
 - **结论**：T35 以分支链 success 收口；rebuild/pi 同 SHA 归并随后续推送完成
+
+---
+
+## D34 · C3a 真实生图凭证链测试口径，owner 拍板（2026-08-28）
+
+- **类型**：决策
+- **时间**：2026-08-28
+- **拍板**：owner
+- **状态**：已拍板
+- **内容**：**mock 进 CI + 真实走 live**——C3a 生图闭环的 CI 冒烟用「假桥 + 假生图服务」双 mock 自含套件（延续 smoke:pi 五套件「无需 LLM key / 无需真实桥」模式）；真实凭证链走 live 手动探针（t21 admin-smoke 先例），不在 CI 管 secret、不产生真实生图成本。
+- **归属**：C3a 冒烟设计前置口径
+
+## D35 · t21 admin-smoke CI 化，owner 拍板（2026-08-28）
+
+- **类型**：决策
+- **时间**：2026-08-28
+- **拍板**：owner
+- **状态**：已拍板
+- **内容**：provider/凭据管理冒烟（`spikes/s-pi/backend-smoke/t21/admin-smoke.mjs`）用 dummy key + auth 预检探针（t24 已证明可行模式）改造成自含套件，纳入 `smoke:pi` 批次与 CI `pi-backend-contract` job——消除凭据管理面的 CI 盲区（此前仅 live 手动覆盖）。

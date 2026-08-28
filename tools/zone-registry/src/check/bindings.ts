@@ -88,6 +88,12 @@ function isNarrative(file: string): { counterpart: string | null; isNew: boolean
   if (file.startsWith('docs/rebuild/tasks/')) {
     return { counterpart: null, isNew: false }
   }
+  // D36（2026-08-28 owner 拍板）：高频活文档豁免——tracker.md 不再强制
+  // narrative 同 commit 追加；档案 records/narrative/tracker.md 保留停更不删。
+  // 规则文见 docs/rebuild/05-process.md §4.10 豁免条款
+  if (file === 'docs/rebuild/tracker.md') {
+    return { counterpart: null, isNew: false }
+  }
   // 排除 check-docs.ts / check-bindings.ts / check-tasks.ts / package.json 等基础设施
   if (
     file.startsWith('tools/zone-registry/') ||

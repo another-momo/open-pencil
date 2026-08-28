@@ -9,7 +9,7 @@
 
 # records · 子文档索引（两层结构）
 
-> **状态**：D15 重组（横向档案独立为 topics/） | **时间**：2026-08-28（§2 绑定表补 zones.json 自愿绑定期行 + 计数 15→16 修正——T36 大扫除；前次 2026-08-25：§2 绑定表补 runbook/proposals 行 + §3 类型列修正；§1 D 编号规则改口——决策批 #7：全局 D 仅跨任务、任务内 Tk-Dn） | **核验人**：主 agent
+> **状态**：D15 重组（横向档案独立为 topics/） | **时间**：2026-08-28（§1 D 编号延展至 D37 + §2 tracker 行标注 D36 豁免——T37 决策批次登记；前次 2026-08-28：§2 绑定表补 zones.json 自愿绑定期行 + 计数 15→16 修正——T36 大扫除；前次 2026-08-25：§2 绑定表补 runbook/proposals 行 + §3 类型列修正；§1 D 编号规则改口——决策批 #7：全局 D 仅跨任务、任务内 Tk-Dn） | **核验人**：主 agent
 > **身份**：变更/核验/腐烂记录的索引入口。**两层结构**——`narrative/` 物理绑定层（与文件 1:1）+ `topics/` 主题聚合层（跨文件横向档案）。**禁止混用**：横向档案不替代物理绑定层；物理绑定层不替代横向档案。详见 [05-process.md §4.10 D14](05-process.md)。
 > **tracker.md 通过本文档找到具体记录**。
 
@@ -17,7 +17,7 @@
 
 | 类型 | 前缀 | 规则 | 示例 |
 |---|---|---|---|
-| 决策 | `D`（全局）/ `T<k>-D<n>`（任务级） | 全局 D 唯一递增，**仅用于跨任务决策**；**任务内设计决策自 2026-08-25 起一律 Tk-Dn 命名**（如 T28-D1）——2026-08-25 owner 决策批 #7 拍板改口，解决任务级 D 与全局 D 撞名检索歧义（如 T24-plan D5 vs 全局 D5）。历史文档（T19-T25 plan 内的局部 D）**不回改**，自然触及时顺手改 | 全局：D1-D29（D16 已关闭；D25-D29 为 2026-08-25 补登，见 [topics/agent-runtime.md](topics/agent-runtime.md)）；任务级：T22-D1、T24-D1、T25-D1 等（历史，不回改） |
+| 决策 | `D`（全局）/ `T<k>-D<n>`（任务级） | 全局 D 唯一递增，**仅用于跨任务决策**；**任务内设计决策自 2026-08-25 起一律 Tk-Dn 命名**（如 T28-D1）——2026-08-25 owner 决策批 #7 拍板改口，解决任务级 D 与全局 D 撞名检索歧义（如 T24-plan D5 vs 全局 D5）。历史文档（T19-T25 plan 内的局部 D）**不回改**，自然触及时顺手改 | 全局：D1-D37（D16 已关闭；D25-D29 为 2026-08-25 补登，见 [topics/agent-runtime.md](topics/agent-runtime.md)；D30-D33 散见各 topics；**D34-D37 为 2026-08-28 owner 两批拍板**——D34/D35 见 [topics/ci-infra.md](topics/ci-infra.md)，D36/D37 见 [topics/docs-governance.md](topics/docs-governance.md)）；任务级：T22-D1、T24-D1、T25-D1 等（历史，不回改） |
 | 核验 | `V` / `P0` / `SP` / `CI` | 按来源分前缀 | V1-V4, P0-1~P0-10, SP-1~SP-3 |
 | 修正 | `修正-N` | 按被修正的记录编号或全局递增 | 修正-1, 修正-2 |
 | 腐烂 | `ROT-N` | 全局递增 | ROT-1, ROT-2 |
@@ -38,7 +38,7 @@
 | `docs/rebuild/04-porting-discipline.md` | `records/narrative/04-porting-discipline.md` |
 | `docs/rebuild/05-process.md` | `records/narrative/05-process.md` |
 | `docs/rebuild/README.md` | `records/narrative/README.md` |
-| `docs/rebuild/tracker.md` | `records/narrative/tracker.md` |
+| `docs/rebuild/tracker.md` | `records/narrative/tracker.md`（**D36 豁免**：2026-08-28 owner 拍板——高频活文档不再强制同 commit 追加，档案保留停更；bindings.ts 已配套） |
 | `docs/rebuild/runbook-github-push.md` | `records/narrative/runbook-github-push.md` |
 | `docs/rebuild/proposals/*.md` | `records/narrative/proposals/<file>.md`（现仅 governance-v1.md） |
 | `docs/rebuild/spikes/*.zh.md` | `records/narrative/spikes/<file>.zh.md` |

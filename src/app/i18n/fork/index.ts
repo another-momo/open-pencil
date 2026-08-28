@@ -18,7 +18,6 @@ import { useStore } from '@nanostores/vue'
 import { locale, type Locale } from '@open-pencil/vue'
 
 import { piMessageDefaults } from './locales/en'
-import type { PiNamespace } from './locales/zh-cn'
 
 export const forkI18n = createI18n<Locale, 'en'>(locale, {
   baseLocale: 'en',
@@ -33,7 +32,11 @@ export const forkI18n = createI18n<Locale, 'en'>(locale, {
 
 export const forkPiMessages = forkI18n('pi', piMessageDefaults)
 
-export function useForkPi(): PiNamespace {
-  // oxlint-disable-next-line @typescript-eslint/no-explicit-any -- nanostores/i18n store 形状对齐 zh-CN locale 结构
-  return useStore(forkPiMessages) as any as PiNamespace
+// T38 修：返回诚实 Ref（照抄上游 useNotificationMessages 形态，类型推断保留
+// pi 段全键含 params 函数）——script 内访问必须写 .value（同上游
+// notifications.value.xxx 惯例，见 ChatPanel.vue）；T35 的 `as any` 把 Ref 谎报成
+// 已解包值对象，script 侧 computed/函数中转访问静默 undefined（模板插值因 Vue
+// 顶层 ref 自动解包反而正常）——回归实证见 docs/rebuild/tasks/T38-plan.md §1
+export function useForkPi() {
+  return useStore(forkPiMessages)
 }

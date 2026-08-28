@@ -16,10 +16,18 @@
  * 传给后端子进程（崩溃复活沿用同一枚）；config() hook 的 server.proxy 给
  * /api/pi 转发统一注入 Authorization: Bearer 头——后端除 /health 外全端点鉴权，
  * 前端同源调用零改动，token 不落盘不打印。
+ *
+ * T38：dev 拓扑下 7600 桥的 discovery 文件已被上游 0f981ff2（经 T34 合入）隔离到
+ * tmpdir 路径（桥插件 startChild 的 OPENPENCIL_MCP_DISCOVERY_PATH），不再是平台
+ * 默认路径；本插件经 mcpRuntimeId 选项同源推导该路径并注入后端子进程 env，
+ * 后端 tools.ts 的 readDiscoveryFile()（getDiscoveryPath 吃同一 env）才能找到
+ * 活桥。算法漂移由 tests/engine/rebuild/pi-dev-discovery.test.ts 钉扎。
  */
 
 import { spawn } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 import type { Plugin } from 'vite'
 
@@ -32,10 +40,34 @@ const HEALTH_INTERVAL_MS = 150
 const MAX_AUTO_RESTARTS = 3
 const RESTART_BACKOFF_MS = [500, 1_500, 4_000]
 
-export function piBackendPlugin(): Plugin {
+export interface PiBackendPluginOptions {
+  /**
+   * T38：dev 桥（automation vite 插件）的 runtimeId（vite.config 里
+   * devAutomationRoute() 的返回值，单源）。给定时把同源推导的桥 discovery
+   * 路径注入后端子进程 env OPENPENCIL_MCP_DISCOVERY_PATH。
+   */
+  mcpRuntimeId?: string
+}
+
+/**
+ * T38：与桥 vite 插件 startChild 同源的 discovery 路径推导——
+ * tmpdir()/open-pencil-mcp/sha256(runtimeId)[:16]/mcp.json。
+ * 算法必须与 src/app/automation/bridge/vite-plugin.ts 保持一致；
+ * 一致性由 pi-dev-discovery.test.ts 的硬编码 digest 钉扎（上游改算法即红）。
+ */
+export function devMCPDiscoveryPath(runtimeId: string): string {
+  const hash = createHash('sha256').update(runtimeId).digest('hex').slice(0, 16)
+  return join(tmpdir(), 'open-pencil-mcp', hash, 'mcp.json')
+}
+
+export function piBackendPlugin(options: PiBackendPluginOptions = {}): Plugin {
   const port = Number(process.env.OPENPENCIL_PI_BACKEND_PORT ?? PI_BACKEND_DEFAULT_PORT)
   // T28：每 vite 进程一枚鉴权 token（子进程 env 注入 + proxy 补头，两侧共享）
   const authToken = randomBytes(16).toString('hex')
+  // T38：dev 桥 discovery 路径（同源推导；无 runtimeId 时不注入，后端落平台默认路径）
+  const mcpDiscoveryPath = options.mcpRuntimeId
+    ? devMCPDiscoveryPath(options.mcpRuntimeId)
+    : undefined
   let child: ReturnType<typeof spawn> | null = null
   let restartCount = 0
   let restartTimer: ReturnType<typeof setTimeout> | null = null
@@ -110,7 +142,10 @@ export function piBackendPlugin(): Plugin {
         ...process.env,
         OPENPENCIL_PI_BACKEND_PORT: String(port),
         // T28：鉴权 token 经 env 注入（后端见 token 即不走 standalone 落盘路径）
-        OPENPENCIL_PI_TOKEN: authToken
+        OPENPENCIL_PI_TOKEN: authToken,
+        // T38：dev 桥 discovery 隔离路径注入（后端 readDiscoveryFile 经
+        // getDiscoveryPath 吃该 env；不注入则盲读平台默认路径找不到活桥）
+        ...(mcpDiscoveryPath ? { OPENPENCIL_MCP_DISCOVERY_PATH: mcpDiscoveryPath } : {})
       }
     })
     child = spawned

@@ -54,13 +54,14 @@ const designCredentialMissing = computed(() => {
 })
 
 function thinkingLabel(level: PiThinkingLevel): string {
+  // T38：useForkPi() 返回 Ref，script 内访问必须 .value（模板插值不在此列）
   const labels: Record<PiThinkingLevel, string> = {
-    off: dialogs.thinkingOff,
-    minimal: dialogs.thinkingMinimal,
-    low: dialogs.thinkingLow,
-    medium: dialogs.thinkingMedium,
-    high: dialogs.thinkingHigh,
-    xhigh: dialogs.thinkingExtraHigh
+    off: dialogs.value.thinkingOff,
+    minimal: dialogs.value.thinkingMinimal,
+    low: dialogs.value.thinkingLow,
+    medium: dialogs.value.thinkingMedium,
+    high: dialogs.value.thinkingHigh,
+    xhigh: dialogs.value.thinkingExtraHigh
   }
   return labels[level]
 }

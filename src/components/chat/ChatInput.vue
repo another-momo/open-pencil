@@ -39,7 +39,8 @@ onMounted(() => {
   void ensurePiBrandManifest()
 })
 const piModelLabel = computed(
-  () => piDesignAssignment.value?.modelId ?? piDialogs.designModelDefault
+  // T38：useForkPi() 返回 Ref——script 内访问必须 .value（T35 曾丢 .value 致标签空白）
+  () => piDesignAssignment.value?.modelId ?? piDialogs.value.designModelDefault
 )
 
 function handleInputKeydown(event: KeyboardEvent) {

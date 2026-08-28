@@ -1,5 +1,5 @@
 {
-  "$comment": "Zone registry for rebuild/v2 (docs/rebuild/02-phase-0.md). Truth for path ownership; CI-enforced via tools/zone-registry/src/check.ts (check:zones). Rules: modified upstream files must be registered patches; new files only under ownedRoots (or upstreamMergeTarball.paths for byte-identical tarball merges); deletedPaths must not exist. upstreamMergeTarball (T32): structured whitelist for byte-identical tarball-merge copies, one entry per merge with base SHA; any local drift from base is a violation — see docs/rebuild/04-porting-discipline.md §5. Patch id gaps P62-P73/P75-P82: migrated to upstreamMergeTarball by T32; P83-P97: reserved by T32 plan but superseded by the tarball field, never issued. pendingReclass is planning metadata (files stay follow-pure until the reclassification ritual; note: a file may carry a deletion-cut patch while still pending reclassification).",
+  "$comment": "Zone registry for rebuild/v2 (docs/rebuild/02-phase-0.md). Truth for path ownership; CI-enforced via tools/zone-registry/src/check.ts (check:zones). Rules: modified upstream files must be registered patches; new files only under ownedRoots (or upstreamMergeTarball.paths for byte-identical tarball merges); deletedPaths must not exist. upstreamMergeTarball (T32): structured whitelist for byte-identical tarball-merge copies, one entry per merge with base SHA; any local drift from base is a violation — see docs/rebuild/04-porting-discipline.md §5. Patch id gaps P62-P73/P75-P82: migrated to upstreamMergeTarball by T32; P83-P97: reserved by T32 plan but superseded by the tarball field, never issued. P8: removed by T36 — target src/app/ai/chat/storage.ts already deleted and in deletedPaths (double accounting). P60/P61: removed by T36 — both test files byte-identical to base 88c10770 (T32 migration miss; phantom patches). P98-P102: removed by T36 — the five objects are fork-new files already in ownedFiles (double accounting, no base to anchor); ownership truth stays in ownedFiles. pendingReclass is planning metadata (files stay follow-pure until the reclassification ritual; note: a file may carry a deletion-cut patch while still pending reclassification).",
   "ownedRoots": [
     "docs/",
     "tools/zone-registry/",
@@ -70,21 +70,14 @@
     {
       "id": "P6",
       "file": "src/app/ai/chat/transports.ts",
-      "reason": "remove ACP transport path (createACPTransport and session wiring) T10 重涂：上游本轮把 ACP transport 重构进 createChatSessionManager 并新增 harness(pi) 路径——维持裁 ACP（createACPTransport/createActiveACPTransport/isACPProvider），保 harness T25: 收敛单 pi——createToolLoopTransport/createActiveHarnessTransport 切除，无 override 即报错 T27(2026-08-25): ensureChat 加调用序号防跨 tab await 竞态（过期结果丢弃）；onSessionReset 可返回 Promise、resetChat await 它",
+      "reason": "remove ACP transport path (createACPTransport and session wiring) T10 重涂：上游本轮把 ACP transport 重构进 createChatSessionManager 并新增 harness(pi) 路径——维持裁 ACP（createACPTransport/createActiveACPTransport/isACPProvider），保 harness T25: 收敛单 pi——createToolLoopTransport/createActiveHarnessTransport 切除，无 override 即报错 T27(2026-08-25): ensureChat 加调用序号防跨 tab await 竞态（过期结果丢弃）；onSessionReset 可返回 Promise、resetChat await 它 T36(2026-08-28): chat 级 diagnostics 接线——handleChatFinish 非 abort/error 分支接 recordChatCompleted、onError 接 recordChatFailed（owner 拍板①，对 T31「不采纳」裁定的追认反转；语义对齐上游 88c10770 版 L150/L255；token 级 recordModelStepCompleted 经 pi 后端采数另案排期）",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "lastReviewed": "2026-08-28"
     },
     {
       "id": "P7",
       "file": "src/app/ai/chat/use.ts",
       "reason": "remove ACP session options plumbing T25: 旧凭证面切除，stock-photo/remember 转由 stock-photo-keys.ts 供给；VITE_PI_BACKEND 门退役恒挂会话钩子 T27(2026-08-25): onSessionReset 改返回 mintPiSessionId Promise（配 P6 resetChat await）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P8",
-      "file": "src/app/ai/chat/storage.ts",
-      "reason": "remove isACPProvider and ACP branch of isConfigured T19: isConfigured 增加 VITE_PI_BACKEND==='1' 直通分支（pi 后端持 key，浏览器免配置）",
       "disposition": "permanent",
       "lastReviewed": "2026-08-25"
     },
@@ -336,16 +329,16 @@
     {
       "id": "P44",
       "file": "src/components/settings/SettingsDialog.vue",
-      "reason": "T25: MCP 导航/区块/导入切除（settings-mcp 面随 integrations/mcp 删除）",
+      "reason": "T25: MCP 导航/区块/导入切除（settings-mcp 面随 integrations/mcp 删除） T34: git merge 把 base 88c10770 的 mcp nav button 带回（面板未回——点击落裸 v-else 的 Storage，僵尸 nav） T36(2026-08-28): 删 mcp nav button + 裸 v-else 收窄为 v-else-if storage + 显式空态 fallback（owner 拍板③）；i18n 死键 settingsMCP 保留不删——packages/vue 的 messages/dialogs.ts 与 zh-cn/dialogs.json 经 T35 还原与上游字节一致，删键会制造新 patch 徒增下轮合并冲突面，死文案无害（取舍注记，owner 拍板③附带评估）",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "lastReviewed": "2026-08-28"
     },
     {
       "id": "P45",
       "file": "src/app/settings/dialog.ts",
-      "reason": "T25: SettingsSection 去 mcp",
+      "reason": "T25: SettingsSection 去 mcp（登记后未实做或被 T34 git merge 把 base 的 'mcp' 成员带回——T36 实测与 base 字节一致，成幻影 patch） T36(2026-08-28): 实做删除 'mcp' 成员（owner 拍板③），本 patch 自此有真实 diff",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "lastReviewed": "2026-08-28"
     },
     {
       "id": "P46",
@@ -455,65 +448,11 @@
       "task": "T29"
     },
     {
-      "id": "P60",
-      "file": "tests/engine/vue/input/node-edit-snap.test.ts",
-      "reason": "T31 上游合并 bb8c5c18：node-edit → vector rename，import 路径随之修正",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P61",
-      "file": "tests/engine/app/vector-edit-transforms.test.ts",
-      "reason": "T31 上游合并 bb8c5c18：editor/vector-edit → editor/vector rename，import 路径随之修正",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
       "id": "P74",
       "file": "src/app/editor/clipboard/system.ts",
-      "reason": "T31 上游合并 88c10770 快进（vector/clipboard/recovery/tool-state 四 commit）",
+      "reason": "T31: eslint(complexity) 21>20 重构——上游 7a311677 引入的 clipboard 降级链单函数超仓内 lint 阈值，按纯度最小重构抽 helper tryModernClipboardWrite（61+/47-，行为不变，system.ts L97-98 有注记；上游本体未做此拆分时我们维护此补丁）。纠正此前误记的「上游合并快进」理由（T36 大扫除，2026-08-28）",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P98",
-      "file": "src/components/chat/ChatModeSelect.vue",
-      "reason": "T24(4ce51816): chatMode 双模式切换薄 UI——AgentMode 注册表 + 流式禁用 + T24 D8",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-26",
-      "task": "T32"
-    },
-    {
-      "id": "P99",
-      "file": "src/components/chat/ChatStyleProfileSelect.vue",
-      "reason": "T24(4ce51816): style profile 下拉薄 UI——仅 marketing 模式渲染 + manifest 降级 + T24 D8",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-26",
-      "task": "T32"
-    },
-    {
-      "id": "P100",
-      "file": "src/components/settings/models/PiModelsPanel.vue",
-      "reason": "T21(bc7c9551): pi 模式设置面板——provider 目录 + 凭据管理 + 自定义 provider + 模型指派",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-26",
-      "task": "T32"
-    },
-    {
-      "id": "P101",
-      "file": "src/app/settings/credentials/stock-photo-keys.ts",
-      "reason": "T25(8cbbb1d0): stock-photo 凭证面（pexels/unsplash）+ 持久化开关——从已删除的 ai/chat/storage.ts 手术拆分（T25-plan D2）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-26",
-      "task": "T32"
-    },
-    {
-      "id": "P102",
-      "file": "src/app/settings/credentials/media-credentials.ts",
-      "reason": "T25(8cbbb1d0): 媒体类 credential ref 叶子模块——独立成叶避开 persistence.ts 与 stock-photo-keys.ts 成环",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-26",
-      "task": "T32"
+      "lastReviewed": "2026-08-28"
     },
     {
       "id": "P103",
@@ -538,6 +477,14 @@
       "disposition": "permanent",
       "lastReviewed": "2026-08-26",
       "task": "T33"
+    },
+    {
+      "id": "P106",
+      "file": "tests/e2e/settings/credentials.spec.ts",
+      "reason": "T36(2026-08-28): 删两个 mcp 测试（MCP connections / MCP automation settings——五处僵尸断言 settings-section-mcp/[data-mcp-connections]/settings-mcp-* 指向 T25 已删 UI 面，owner 拍板③）；其余三条测试保持原样（其中 model library / remembered credentials 两条引用的旧模型面 test-id 亦已失联——登记遗留，下轮 e2e 卫生任务处理）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-28",
+      "task": "T36"
     }
   ],
   "deletedPaths": [

@@ -11,6 +11,12 @@
  *  5. Renames are decomposed (old path = deletion, new path = addition);
  *     typechanges (T, e.g. symlink→file) count as modifications;
  *     other unexpected git statuses (C/U/…) fail loudly.
+ *  6. T36 registry-health rules (owner 拍板④, hard-fail):
+ *     R-exist — every non-revoked patch's file must exist on disk;
+ *     R-diff  — every non-revoked patch's file must differ from base
+ *               (phantom patches on byte-identical files are violations);
+ *     R-mutex — a non-revoked patch's file must not overlap
+ *               ownedFiles/stubs/deletedPaths (no double accounting).
  *
  * pendingReclass is planning metadata only (see zones.json $comment):
  * modifications there are governed by rule 1 like everywhere else.
@@ -274,6 +280,76 @@ function checkDriftTarball(zones: Zones): string[] {
   return violations
 }
 
+/**
+ * T36 R-exist（owner 拍板④）：非 revoked patch 的 file 必须在磁盘存在。
+ *  杀 P8 类——目标文件已删（甚至在 deletedPaths 里）仍挂活 patch 的僵尸登记。
+ */
+function checkPatchFilesExist(zones: Zones): string[] {
+  return zones.patches
+    .filter((p) => p.disposition !== 'revoked')
+    .filter((p) => !existsSync(resolve(root, p.file)))
+    .map(
+      (p) =>
+        `PATCH file missing on disk: ${p.id} ${p.file} (remove the patch entry or restore the file)`
+    )
+}
+
+/**
+ * T36 R-diff（owner 拍板④）：非 revoked patch 的 file 相对 base 必须有 diff。
+ *  杀 P45/P60/P61 类幻影/空挂——与 base 字节一致的 patch 没有登记意义（无本地 hunk）。
+ *  豁免：revoked 条目（墓碑无 diff 要求）；tarball.paths 内路径（byte 一致是 tarball
+ *  的登记语义，不归 patch 管）。文件不存在时跳过（由 R-exist 单点报告，避免双报）。
+ *  基线沿用 resolveBase（含 MERGE_HEAD 合并中情形）。
+ *  实现：分批 git diff --name-only（Windows 命令行长度兜底），一次拿有 diff 的文件集。
+ */
+function checkPatchRealDiff(zones: Zones, base: string): string[] {
+  const tarballPaths = new Set((zones.upstreamMergeTarball ?? []).flatMap((t) => t.paths))
+  const active = zones.patches.filter((p) => p.disposition !== 'revoked')
+  const targets = active
+    .map((p) => p.file)
+    .filter((f) => !tarballPaths.has(f))
+    .filter((f) => existsSync(resolve(root, f)))
+  if (targets.length === 0) return []
+  const withDiff = new Set<string>()
+  for (let i = 0; i < targets.length; i += 40) {
+    const out = git(['diff', '--name-only', base, '--', ...targets.slice(i, i + 40)])
+    for (const line of out ? out.split('\n') : []) {
+      if (line) withDiff.add(line)
+    }
+  }
+  return active
+    .filter(
+      (p) => !tarballPaths.has(p.file) && existsSync(resolve(root, p.file)) && !withDiff.has(p.file)
+    )
+    .map(
+      (p) =>
+        `PATCH has no diff vs base: ${p.id} ${p.file} (byte-identical to base — remove the phantom patch or make the change it claims)`
+    )
+}
+
+/**
+ * T36 R-mutex（owner 拍板④）：非 revoked patch 的 file 不得与 ownedFiles/stubs/
+ *  deletedPaths 重叠。杀 P98-P102 类双重记账（fork 新文件同时挂 ownedFile + patch）
+ *  与 P8 类「已删仍挂 patch」。patch 语义 = 上游内容的本地 hunk；owned/deleted 语义
+ *  与之互斥——同一文件只能居其一。
+ */
+function checkPatchMutex(zones: Zones): string[] {
+  const owned = new Set([...zones.ownedFiles, ...zones.stubs])
+  return zones.patches
+    .filter((p) => p.disposition !== 'revoked')
+    .filter(
+      (p) =>
+        owned.has(p.file) ||
+        zones.deletedPaths.some(
+          (d) => p.file === d || p.file.startsWith(d.endsWith('/') ? d : `${d}/`)
+        )
+    )
+    .map(
+      (p) =>
+        `PATCH overlaps owned/deleted registration: ${p.id} ${p.file} (a file is either a patch on upstream content or owned/deleted — never both)`
+    )
+}
+
 function checkModified(zones: Zones, modified: string[]): string[] {
   const patchedFiles = new Set(
     zones.patches.filter((p) => p.disposition !== 'revoked').map((p) => p.file)
@@ -384,7 +460,8 @@ function main() {
   const changes = collectChanges(base)
   // T32：rename 交叉一致性 + tarball drift（F1 收口评审：drift 判红，不 warn）
   const renames = collectRenames(base)
-  // 装配顺序——violations 在前、Renames/Ghost/Drift 在中、Tarball 白名单在后兜底 ADDED
+  // 装配顺序——violations 在前、Renames/Ghost/Drift 在中、Tarball 白名单在后兜底 ADDED；
+  // T36 登记健康三规则（R-exist/R-diff/R-mutex）殿后——它们审的是 zones.json 自身质量
   const violations = [
     ...changes.violations,
     ...checkRenames(zones, renames),
@@ -394,7 +471,10 @@ function main() {
     ...checkGhostDeleted(zones, base),
     ...checkDriftTarball(zones),
     ...checkUpstreamMergeTarball(zones),
-    ...checkAdded(zones, changes.added)
+    ...checkAdded(zones, changes.added),
+    ...checkPatchFilesExist(zones),
+    ...checkPatchRealDiff(zones, base),
+    ...checkPatchMutex(zones)
   ]
 
   if (violations.length > 0) {

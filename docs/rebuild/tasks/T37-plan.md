@@ -9,7 +9,7 @@
 
 # T37 计划 · 决策批次登记（D1/D4/D6/D8 闭环 + D34-D37 新登）
 
-> **状态**：执行中 | **时间**：2026-08-28 | **负责人**：主 agent
+> **状态**：已完成 | **时间**：2026-08-28 | **负责人**：主 agent
 > **分支**：`rebuild/t35-i18n-fork`（pi 线）
 > **基线**：`abc5f1b5`（T36 收口后 HEAD）
 
@@ -55,12 +55,12 @@
 
 | # | 验收 | 结果 |
 |---|---|---|
-| C1 | 8 项拍板全部登记进对应 topics 档案，每条附拍板人（owner）+ 日期（2026-08-28）+ 理由 | ⏸ 待开工 |
-| C2 | 01 §7 表 D1/D4/D6/D8 四行翻「已拍板」，口径与本表 §2 一致 | ⏸ 待开工 |
-| C3 | D36 三配套（05 §4.10 修订 + bindings.ts 豁免 + records/_index §2 表）落地，改 tracker.md 不再触发 bindings 红（实测） | ⏸ 待开工 |
-| C4 | check:zones / check:docs / check:bindings / check:tasks / format:check 全绿 | ⏸ 待开工 |
-| C5 | subagent 独立核验「可以收口」 | ⏸ 待开工 |
-| C6 | 三件套齐 + 收口 SOP 全做（verify 状态翻转 / _index 行翻 ✅ / tracker 行翻 ✅ / plan 状态刷新 / 绑定 narrative 追加） | ⏸ 待开工 |
+| C1 | 8 项拍板全部登记进对应 topics 档案，每条附拍板人（owner）+ 日期（2026-08-28）+ 理由 | ✅ 通过（2026-08-28 实测） |
+| C2 | 01 §7 表 D1/D4/D6/D8 四行翻「已拍板」，口径与本表 §2 一致 | ✅ 通过（2026-08-28 实测） |
+| C3 | D36 三配套（05 §4.10 修订 + bindings.ts 豁免 + records/_index §2 表）落地，改 tracker.md 不再触发 bindings 红（实测） | ✅ 通过（2026-08-28 实测） |
+| C4 | check:zones / check:docs / check:bindings / check:tasks / format:check 全绿 | ✅ 通过（2026-08-28 实测） |
+| C5 | subagent 独立核验「可以收口」 | ✅ 通过（V1-V8 全绿零打回，见 [T37-verify](T37-verify.md)） |
+| C6 | 三件套齐 + 收口 SOP 全做（verify 状态翻转 / _index 行翻 ✅ / tracker 行翻 ✅ / plan 状态刷新 / 绑定 narrative 追加） | ✅ 通过（2026-08-28 收口 commit） |
 
 ## 5. 出栈（明确不做）
 

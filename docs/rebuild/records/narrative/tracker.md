@@ -589,3 +589,13 @@
   3. §3.1 narrative 计数 15 → 16（`find docs/rebuild/records/narrative -type f | wc -l` 实测 = 16，2026-08-28；此前口径漏记 zones.json.md 自愿绑定档案）
   4. 头部时间字段刷新 2026-08-25 → 2026-08-28
 - **详见**：[tasks/T36-plan.md](../../tasks/T36-plan.md)
+
+## T36 修正-N+1（2026-08-28） · T36 收口：行翻 ✅ + verify 复核追记
+
+- **改动**：
+  1. tracker.md §2 T36 行状态 🔄 → ✅ 已完成（C1-C10 全过注记）
+  2. [tasks/T36-verify.md](../../tasks/T36-verify.md) 头部 ❌ 打回 → ✅ 已核验 + 追加「复核追记」：V7 打回项（T32 行残留「AppButton.vue」字面）经复核为核验标准过宽——该字样语境为前瞻注记且 AppButton.vue 实存于仓（`ls src/components/ui/` 实测，2026-08-28），非勘误目标；tracker.md 该语句保留不改
+  3. [tasks/_index.md](../../tasks/_index.md) T36 行 🔄 进行中 → ✅ 已完成
+  4. [tasks/T36-plan.md](../../tasks/T36-plan.md) 状态「执行中」→「已完成」+ §4 C1-C10 验收表刷新为实测结果
+- **独立核验**：verify subagent V1-V6/V8/V9 实测全绿（zones 63 patches / 接线三处逐字命中 / mcp 清除 / 三规则探针判红 / SOP 12 条 / records 追认 / 九门禁 / 提交纪律），报告落盘 T36-verify.md
+- **教训**：核验标准的「字面零命中」类条款需区分语境（误记 vs 前瞻注记），否则会产生标准过宽型假打回；复核追记须留工件（本条即 T35「复验无工件」教训的正向应用）

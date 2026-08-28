@@ -9,7 +9,7 @@
 
 # T36 计划 · T31/T34 合并质量整改
 
-> **状态**：执行中 | **时间**：2026-08-28 | **负责人**：主 agent
+> **状态**：已完成 | **时间**：2026-08-28 | **负责人**：主 agent
 > **分支**：`rebuild/t35-i18n-fork`（pi 线，自 T35 收口 HEAD 继续）
 > **基线**：`3f85a3e9`（T35 收口后 HEAD）；zone 基线 = `88c10770`（merge-base HEAD upstream/master，2026-08-28 实测）
 
@@ -79,16 +79,16 @@ zones.json（每条改动在 `$comment` 按 P62-P82 先例记编号缺口/去向
 
 | # | 验收 | 结果 |
 |---|---|---|
-| C1 | zones.json 大扫除五项落地 + `$comment` 缺口注记 + lastReviewed 刷新，`bun run check:zones` 绿 | ⏸ 待开工 |
-| C2 | transports.ts 接线 recordChatCompleted/recordChatFailed（语义对齐上游 L150/L255），typecheck/lint 绿 | ⏸ 待开工 |
-| C3 | mcp nav/type/e2e 五处僵尸清除 + v-else 收窄 + fallback；i18n 键保留取舍注记入 P44 reason | ⏸ 待开工 |
-| C4 | check.ts 三规则上线 + 人为构造违规实测判红证据（exit 1 + violation 文案）入 self-check | ⏸ 待开工 |
-| C5 | 04-porting-discipline.md SOP 12 条落盘（每条带实证出处括注） | ⏸ 待开工 |
-| C6 | records 追认：upstream-merge.md 追认条目（拍板①②③④ + 静默反转清单 + token 列后果）+ ci-infra.md T34 五 run 链 + narrative/tracker.md 订正条目 | ⏸ 待开工 |
-| C7 | tracker.md 四项修正（T35 行 / T36 行 / T32 行笔误 / 计数 16）+ T35-verify/T35-plan 状态翻正 | ⏸ 待开工 |
-| C8 | 门禁全套绿：check:zones / check:docs / check:bindings / check:tasks / typecheck / lint / format:check / smoke:pi（80 断言） | ⏸ 待开工 |
-| C9 | subagent 独立核验「可以收口」（含断言级复核 + 上轮裁定对账核验项，SOP-10） | ⏸ 待开工 |
-| C10 | 三件套齐 + 收口 SOP 五步全做（verify 状态翻转 / _index 行翻 ✅ / tracker 行翻 ✅ / plan 状态刷新 / narrative 绑定追加） | ⏸ 待开工 |
+| C1 | zones.json 大扫除五项落地 + `$comment` 缺口注记 + lastReviewed 刷新，`bun run check:zones` 绿 | ✅ 通过（2026-08-28 实测） |
+| C2 | transports.ts 接线 recordChatCompleted/recordChatFailed（语义对齐上游 L150/L255），typecheck/lint 绿 | ✅ 通过（2026-08-28 实测） |
+| C3 | mcp nav/type/e2e 五处僵尸清除 + v-else 收窄 + fallback；i18n 键保留取舍注记入 P44 reason | ✅ 通过（2026-08-28 实测） |
+| C4 | check.ts 三规则上线 + 人为构造违规实测判红证据（exit 1 + violation 文案）入 self-check | ✅ 通过（P998/P997/P996 三探针判红实测，2026-08-28） |
+| C5 | 04-porting-discipline.md SOP 12 条落盘（每条带实证出处括注） | ✅ 通过（04 §6，2026-08-28） |
+| C6 | records 追认：upstream-merge.md 追认条目（拍板①②③④ + 静默反转清单 + token 列后果）+ ci-infra.md T34 五 run 链 + narrative/tracker.md 订正条目 | ✅ 通过（2026-08-28） |
+| C7 | tracker.md 四项修正（T35 行 / T36 行 / T32 行笔误 / 计数 16）+ T35-verify/T35-plan 状态翻正 | ✅ 通过（2026-08-28） |
+| C8 | 门禁全套绿：check:zones / check:docs / check:bindings / check:tasks / typecheck / lint / format:check / smoke:pi（80 断言） | ✅ 通过（check:audit 为 bun audit 404 环境项，lockfile 零 diff，豁免登记） |
+| C9 | subagent 独立核验「可以收口」（含断言级复核 + 上轮裁定对账核验项，SOP-10） | ✅ 通过（V1-V6/V8/V9 绿；V7 打回 1 项经复核为标准过宽翻正，见 T36-verify 复核追记） |
+| C10 | 三件套齐 + 收口 SOP 五步全做（verify 状态翻转 / _index 行翻 ✅ / tracker 行翻 ✅ / plan 状态刷新 / narrative 绑定追加） | ✅ 通过（2026-08-28 收口 commit） |
 
 ## 5. 出栈（明确不做）
 

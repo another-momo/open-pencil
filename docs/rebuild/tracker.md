@@ -9,7 +9,7 @@
 
 # tracker · 重建跟踪表（活文档·精简索引）
 
-> **状态**：已核验 | **时间**：2026-08-28 | **核验人**：主 agent
+> **状态**：已核验 | **时间**：2026-08-30 | **核验人**：主 agent
 > **身份**：阶段门 + 任务表（当前任务行 + 已收口分组行，D31；逐任务索引真源 = [tasks/_index.md §2](tasks/_index.md)）+ 记录索引三块合一（≤80 行预算）。详细记录见 `records/` 子文档。更新纪律见 `05-process.md §4`。
 > **状态值**：⬜未开始 / 🔄进行中 / ✅完成 / ❌阻塞 / 🪦放弃
 
@@ -47,6 +47,7 @@
 | T36 | T31/T34 合并质量整改 | 登记大扫除（zones.json：P8/P60/P61/P98-P102 移除 + P74/P45 理由改写 + $comment 缺口注记）+ diagnostics chat 级接线（transports.ts 接 recordChatCompleted/recordChatFailed，owner 拍板①）+ mcp 僵尸 nav 清除（拍板③）+ 上游合并 SOP 12 条入 [04-porting-discipline.md](04-porting-discipline.md) + check.ts 三条登记健康规则判红（拍板④） | [T36-plan.md 验收标准](tasks/T36-plan.md) | ✅ 已完成（C1-C10 全过；独立核验 V1-V6/V8/V9 绿，V7 初判打回 1 项经主 agent 复核为标准过宽翻正，见 [T36-verify](tasks/T36-verify.md) 复核追记） | ✅ | [T36-plan](tasks/T36-plan.md) | [T36-self-check](tasks/T36-self-check.md) | [T36-verify](tasks/T36-verify.md) |
 | T37 | 决策批次登记 | owner 两批 8 项拍板（2026-08-28）登记入 records：D1/D4/D6/D8 闭环（参考图不设专门机制/localhost 短期+Electron 中长期/S3 字体/素材图理解放弃）+ D34-D37 新登（C3a 凭证链 mock 进 CI / t21 CI 化 / narrative 豁免高频活文档 / 预研集处置口径） | [T37-plan.md 验收标准](tasks/T37-plan.md) | ✅ 已完成（C1-C6 全过；独立核验 V1-V8 全绿零打回） | ✅ | [T37-plan](tasks/T37-plan.md) | [T37-self-check](tasks/T37-self-check.md) | [T37-verify](tasks/T37-verify.md) |
 | T38 | 三症状回归修复 | useForkPi 去 `as any` Ref 类型谎报（T35 引入——script 侧 computed/函数中转访问静默 undefined：模型名 + thinking 等级空白）+ pi-backend vite 插件注入同源 `OPENPENCIL_MCP_DISCOVERY_PATH`（T34 带入的上游 0f981ff2 把 dev 桥 discovery 隔离到 tmpdir，pi-backend 盲读默认路径致工具调用全灭）+ 钉扎测试 + [04-porting-discipline.md §6 上游合并 SOP 清单](04-porting-discipline.md) 第 13 条 | [T38-plan.md 验收标准](tasks/T38-plan.md) | ✅ 已完成（门禁全绿 + smoke:pi 80/80；浏览器实证三症状消失：模型名渲染恢复 / thinking 六项有字 / Create Shape+Get Node 活链路成功，见 [T38-verify](tasks/T38-verify.md) V1-V4） | ✅ | [T38-plan](tasks/T38-plan.md) | [T38-self-check](tasks/T38-self-check.md) | [T38-verify](tasks/T38-verify.md) |
+| T39 | 字体能力建设 | 字体注册表白名单（tier 授权登记：Inter T0 / Alibaba PuHuiTi T1 厂商保留收回 / NotoNaskh T0）+ PuHuiTi 9 字重子集产物入仓（每字重 ~2.2MB 共 ~20MB，普通 git 对象——D-e：LFS 化+push 托管推延，fork LFS 预算超 + GitHub 直连不通）+ 加载链三修（systemFontDataCache 会话缓存 05 册 T1 / pending 态 textPicture 缓存沿用 14 册方案 B / local-fonts 权限挂起解偶 P110+P111——queryLocalFonts "prompt" 态永久 pending 曾致选择器全空白）+ patch P107-P112 + font-subset 管线迁入 tools/ | [T39-plan.md 验收标准](tasks/T39-plan.md) | ✅ 已完成（C1-C6 全过：注册表 6 单测 + pending 缓存 2 单测 + 字体 83/83 + smoke:pi 80/80 + 门禁全绿；浏览器实证 PuHuiTi 渲染「普惠设计字体测试 2026」+ Regular→Bold 切换无闪现，截图 doc/t39-c2-*.png） | ✅ | [T39-plan](tasks/T39-plan.md) | [T39-self-check](tasks/T39-self-check.md) | [T39-verify](tasks/T39-verify.md) |
 
 ## 3. 记录索引
 

@@ -65,3 +65,14 @@ P62-P82 21 枚 patch 字节核对：
 - **R-mutex** `checkPatchMutex`：非 revoked patch 的 file 不得与 ownedFiles/stubs/deletedPaths 重叠（杀 P98-P102 类双重记账）。
 - 实测证据（人为构造违规→判红→还原）：P998 不存在文件 → `PATCH file missing on disk` exit 1；P997 byte 一致文件 → `PATCH has no diff vs base` exit 1；P996 ownedFile 重叠 → `PATCH overlaps owned/deleted registration` exit 1；还原后全绿 exit 0（2026-08-28，逐条命令输出见 [tasks/T36-self-check.md](../../tasks/T36-self-check.md)）。
 - 预检全集：改动前扫全部 67 条非 revoked patch，违规恰为 P8/P45/P60/P61/P98-P102 八条——与立项口径一致，无额外意外。
+
+## T39（2026-08-30） · 字体能力建设登记批（P107-P112 + 23 ownedFiles）
+
+- **ownedFiles +23**：`packages/core/src/text/font/registry.ts`（字体注册表白名单新建）、`tests/engine/text/fonts/registry.test.ts`（6 用例）、`tools/font-subset/` ×3（subset-fonts.py / charset-cjk.txt / package.json 子集化管线存档）、AlibabaPuHuiTi 9 字重 ttf ×18（`packages/core/assets/` + `public/` 双份，每字重 ~2.2MB 子集产物；普通 git 对象入仓——D-e：LFS 化推延，fork LFS 预算超额 + GitHub 直连不通，见 zones $comment 既有预警）。
+- **P107**（fonts.ts）：BUNDLED_FONTS 由注册表派生 PuHuiTi 映射 + bundled 加载白名单拦截 + listFamilyOptions 枚举源改 FONT_REGISTRY。
+- **P108**（scene.ts）：renderText 非 ready 态沿用旧 textPicture 缓存（14 册 §2.1 现象 B 方案 B）。
+- **P109**（src/app/editor/fonts/index.ts）：systemFontDataCache 会话缓存 + 浏览器 local-fonts 权限启动同步。
+- **P110**（fonts.ts）：listFamilyOptions 不再隐式 await requestLocalFontAccess——'prompt' 态 queryLocalFonts 永久挂起实测（Playwright race 4000ms 无响应）会卡住整个家族列表；浏览器实证挖出。
+- **P111**（packages/vue FontPicker useFontPicker.ts）：picker 打开先 loadFamilies（bundled/web 无需权限），'prompt' 态 requestAccess 改非阻塞——与 P110 同链的第二条卡死点。
+- **P112**（tests/engine/render/canvas/text.test.ts）：+2 pending 态 textPicture 缓存回归用例（钉 P108 行为）。
+- 门禁实测（2026-08-30）：check:zones clean（60 modified 全登记）+ format:check 绿（zones.json 走 prettier 规范化消行尾抖动）+ lint 0 error + tsgo 绿。

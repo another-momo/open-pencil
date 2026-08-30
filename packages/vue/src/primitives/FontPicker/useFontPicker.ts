@@ -60,11 +60,11 @@ export function useFontPicker(options: UseFontPickerOptions) {
     if (!isOpen) return
     searchTerm.value = ''
     accessState.value = options.localFontAccess?.state() ?? accessState.value
-    if (accessState.value === 'prompt') {
-      await requestAccess()
-      return
-    }
+    // bundled/web families need no permission — load them first. The local-font
+    // prompt stays pending forever when nobody answers it (automation, ignored
+    // dialog), and awaiting it here would keep the whole list empty.
     await loadFamilies()
+    if (accessState.value === 'prompt') void requestAccess()
   })
 
   async function requestAccess() {

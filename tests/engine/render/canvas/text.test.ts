@@ -151,6 +151,33 @@ describe('renderText', () => {
     expect(canvas.drawText).not.toHaveBeenCalled()
   })
 
+  test('draws the cached picture while a newly requested face is pending', () => {
+    const r = createMockRenderer({ nodeFontReadiness: mock(() => 'pending') })
+    const canvas = createMockCanvas()
+    const node = textNode({ textPicture: new Uint8Array([1, 2, 3]) })
+
+    renderText(r, canvas as never, node)
+
+    expect(r.ck.MakePicture).toHaveBeenCalledWith(node.textPicture)
+    expect(canvas.drawPicture).toHaveBeenCalledTimes(1)
+    expect(r.buildParagraph).not.toHaveBeenCalled()
+    expect(canvas.restore).toHaveBeenCalled()
+  })
+
+  test('skips text when the cached picture is stale for the pending node', () => {
+    const r = createMockRenderer({
+      nodeFontReadiness: mock(() => 'pending'),
+      isTextPictureCurrent: mock(() => false)
+    })
+    const canvas = createMockCanvas()
+
+    renderText(r, canvas as never, textNode({ textPicture: new Uint8Array([1]) }))
+
+    expect(r.ck.MakePicture).not.toHaveBeenCalled()
+    expect(canvas.drawPicture).not.toHaveBeenCalled()
+    expect(canvas.drawParagraph).not.toHaveBeenCalled()
+  })
+
   test('renders gradient text through a paragraph mask without outline font data', () => {
     const r = createMockRenderer()
     const canvas = createMockCanvas()

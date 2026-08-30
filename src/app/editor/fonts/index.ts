@@ -1,6 +1,7 @@
 import { useLocalStorage } from '@vueuse/core'
 import { watch } from 'vue'
 
+import { IS_BROWSER } from '@open-pencil/core/constants'
 import {
   DEFAULT_WEB_FONT_PROVIDER_SETTINGS,
   WEB_FONT_PROVIDER_IDS,
@@ -72,6 +73,26 @@ function configureTauriFontCache() {
 }
 
 configureTauriFontCache()
+
+// The browser's local-fonts permission persists across sessions, but
+// fontManager's access state is in-memory ('prompt' on every load). Sync it
+// on startup so previously granted local fonts actually resolve — without
+// this, granted users still get no local fonts (and no CJK fallback).
+if (!isTauri() && IS_BROWSER && window.queryLocalFonts) {
+  void (async () => {
+    try {
+      const status = await navigator.permissions.query({
+        name: 'local-fonts' as PermissionName
+      })
+      if (status.state === 'granted') await fontManager.requestLocalFontAccess()
+      status.addEventListener('change', () => {
+        if (status.state === 'granted') void fontManager.requestLocalFontAccess()
+      })
+    } catch (error) {
+      console.warn('Local font access sync skipped:', error)
+    }
+  })()
+}
 
 interface TauriFontFamily {
   family: string
@@ -206,14 +227,27 @@ function clearTextPictures(graph: SceneGraph, nodeIds: string[]): void {
   for (const id of nodeIds) clear(id)
 }
 
+// Session cache for system font bytes. The CJK fallback loop in fontManager
+// calls the host loader directly (bypassing its own loadedFamilies cache), so
+// without this every text/font operation re-fetches up to 7 full CJK system
+// fonts (~100MB) over IPC and re-registers them in CanvasKit — leaking WASM
+// memory each time until the webview OOMs. Returning the same ArrayBuffer
+// reference lets registerAndCache dedupe and skips re-registration.
+const systemFontDataCache = new Map<string, ArrayBuffer | null>()
+
 async function loadSystemFont(family: string, style = 'Regular'): Promise<ArrayBuffer | null> {
   if (!isTauri()) return null
+  const key = `${family}|${style}`
+  const cached = systemFontDataCache.get(key)
+  if (cached !== undefined) return cached
   try {
     const { invoke } = await import('@tauri-apps/api/core')
     const data = await invoke<ArrayBuffer>('load_system_font', { family, style })
-    if (data.byteLength === 0) return null
-    return data
+    const buffer = data.byteLength === 0 ? null : data
+    systemFontDataCache.set(key, buffer)
+    return buffer
   } catch {
+    systemFontDataCache.set(key, null)
     return null
   }
 }

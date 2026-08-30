@@ -2,7 +2,8 @@ import type { CanvasKit, TypefaceFontProvider } from 'canvaskit-wasm'
 
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
-import { DEFAULT_FONT_FAMILY, IS_BROWSER } from '#core/constants'
+import { IS_BROWSER } from '#core/constants'
+import { FONT_REGISTRY, isBundledFamilyAllowed } from '#core/text/font/registry'
 import {
   chooseLocalFontMatch,
   isVariableFont,
@@ -29,6 +30,7 @@ import type { WebFontFetch, WebFontProviderId } from '#core/text/web-fonts'
 
 type FindLocalFontOptions = { allowVariable?: boolean }
 
+/** bundled 字体清单：键 = 'Family|Style'，值 = public/ 与 assets/ 双份同名路径。 */
 const BUNDLED_FONTS: Record<string, string> = {
   'Inter|Regular': '/Inter-Regular.ttf',
   'Inter|Medium': '/Inter-Medium.ttf',
@@ -36,6 +38,11 @@ const BUNDLED_FONTS: Record<string, string> = {
   'Inter|Bold': '/Inter-Bold.ttf',
   'Inter|ExtraBold': '/Inter-ExtraBold.ttf',
   'Noto Naskh Arabic|Regular': '/NotoNaskhArabic-Regular.ttf'
+}
+
+// Alibaba PuHuiTi 9 字重（T39，CJK 骨干）：从注册表派生避免双源漂移。
+for (const weight of FONT_REGISTRY.find((e) => e.family === 'Alibaba PuHuiTi')?.weights ?? []) {
+  BUNDLED_FONTS[`Alibaba PuHuiTi|${weight}`] = `/AlibabaPuHuiTi-${weight}.ttf`
 }
 
 export class FontManager {
@@ -183,7 +190,10 @@ export class FontManager {
   }
 
   async listFamilyOptions(): Promise<FontFamilyOption[]> {
-    const fonts = this.localFonts ?? (await this.requestLocalFontAccess())
+    // 不隐式触发本地字体权限请求：'prompt' 状态下 queryLocalFonts 会一直挂起
+    // （自动化/无头环境无人响应权限弹窗），bundled/web 家族列表会被一并卡住。
+    // 本地字体由字体选择器的“允许访问”按钮显式调 requestLocalFontAccess 载入。
+    const fonts = this.localFonts ?? []
     const webFontFamilies = await Promise.all(
       this.enabledOnlineFontProviders().map(async (provider) => ({
         provider,
@@ -191,7 +201,11 @@ export class FontManager {
       }))
     )
     const byFamily = new Map<string, FontFamilyOption>()
-    byFamily.set(DEFAULT_FONT_FAMILY, { family: DEFAULT_FONT_FAMILY, source: 'bundled' })
+    // 字体注册表（白名单）枚举 bundled 家族：'Inter' 等字面值避免对
+    // #core/constants 的循环 import（constants ← fonts 经 FontManager 消费）。
+    for (const entry of FONT_REGISTRY) {
+      byFamily.set(entry.family, { family: entry.family, source: 'bundled' })
+    }
     for (const { provider, families } of webFontFamilies) {
       for (const family of families) {
         if (!byFamily.has(family)) byFamily.set(family, { family, source: provider })
@@ -235,6 +249,10 @@ export class FontManager {
 
     const bundledURL = BUNDLED_FONTS[cacheKey]
     if (!bundledURL) return null
+    if (!isBundledFamilyAllowed(family)) {
+      console.warn(`Bundled font "${family}" is not in the font registry allowlist`)
+      return null
+    }
     try {
       const buffer = await this.fetchBundledFont(bundledURL)
       return buffer && !isVariableFont(buffer)

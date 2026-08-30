@@ -17,7 +17,30 @@
     "src/components/settings/models/PiModelsPanel.vue",
     "src/app/settings/credentials/stock-photo-keys.ts",
     "src/app/settings/credentials/media-credentials.ts",
-    "src/components/ui/AppTextButton.vue"
+    "src/components/ui/AppTextButton.vue",
+    "tests/engine/text/fonts/registry.test.ts",
+    "tools/font-subset/subset-fonts.py",
+    "tools/font-subset/charset-cjk.txt",
+    "tools/font-subset/package.json",
+    "packages/core/assets/AlibabaPuHuiTi-Thin.ttf",
+    "public/AlibabaPuHuiTi-Thin.ttf",
+    "packages/core/assets/AlibabaPuHuiTi-Light.ttf",
+    "public/AlibabaPuHuiTi-Light.ttf",
+    "packages/core/assets/AlibabaPuHuiTi-Regular.ttf",
+    "public/AlibabaPuHuiTi-Regular.ttf",
+    "packages/core/assets/AlibabaPuHuiTi-Medium.ttf",
+    "public/AlibabaPuHuiTi-Medium.ttf",
+    "packages/core/assets/AlibabaPuHuiTi-SemiBold.ttf",
+    "public/AlibabaPuHuiTi-SemiBold.ttf",
+    "packages/core/assets/AlibabaPuHuiTi-Bold.ttf",
+    "public/AlibabaPuHuiTi-Bold.ttf",
+    "packages/core/assets/AlibabaPuHuiTi-ExtraBold.ttf",
+    "public/AlibabaPuHuiTi-ExtraBold.ttf",
+    "packages/core/assets/AlibabaPuHuiTi-Heavy.ttf",
+    "public/AlibabaPuHuiTi-Heavy.ttf",
+    "packages/core/assets/AlibabaPuHuiTi-Black.ttf",
+    "public/AlibabaPuHuiTi-Black.ttf",
+    "packages/core/src/text/font/registry.ts"
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
@@ -485,6 +508,48 @@
       "disposition": "permanent",
       "lastReviewed": "2026-08-28",
       "task": "T36"
+    },
+    {
+      "id": "P107",
+      "file": "packages/core/src/text/fonts.ts",
+      "reason": "T39 字体栈：BUNDLED_FONTS 注册 PuHuiTi 9 字重 + listFamilyOptions 枚举源改 FONT_REGISTRY（font/registry.ts）+ bundled 加载白名单拦截（isBundledFamilyAllowed）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-29"
+    },
+    {
+      "id": "P108",
+      "file": "packages/core/src/canvas/scene.ts",
+      "reason": "T39 字重切换时序竞争修复（14 册方案 B）：pending 态沿用旧 textPicture 缓存，文字不再消失-闪现",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-29"
+    },
+    {
+      "id": "P109",
+      "file": "src/app/editor/fonts/index.ts",
+      "reason": "T39 加载链修复（05 册 T1）：systemFontDataCache 会话缓存（CJK fallback 循环不再每次 IPC 拉 ~100MB）+ 浏览器 local-fonts 权限启动同步",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-29"
+    },
+    {
+      "id": "P110",
+      "file": "packages/core/src/text/fonts.ts",
+      "reason": "T39 listFamilyOptions 不再隐式 await requestLocalFontAccess：'prompt' 态下 queryLocalFonts 永久挂起会卡住整个家族列表（bundled/web 也出不来）；本地字体改由选择器显式按钮载入",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-30"
+    },
+    {
+      "id": "P111",
+      "file": "packages/vue/src/primitives/FontPicker/useFontPicker.ts",
+      "reason": "T39 字体选择器打开时先 loadFamilies（bundled/web 无需权限），local-fonts 'prompt' 态的 requestAccess 改为非阻塞——权限弹窗无人应答时家族列表不再空白",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-30"
+    },
+    {
+      "id": "P112",
+      "file": "tests/engine/render/canvas/text.test.ts",
+      "reason": "T39 新增 2 个 pending 态 textPicture 缓存回归用例（缓存命中画旧图 / 缓存失效跳过渲染，钉 P108 行为）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-30"
     }
   ],
   "deletedPaths": [

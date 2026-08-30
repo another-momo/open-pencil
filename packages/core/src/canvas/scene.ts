@@ -765,20 +765,21 @@ export function renderText(r: SkiaRenderer, canvas: Canvas, node: SceneNode, fil
 
   const fontReadiness = r.nodeFontReadiness(node)
   if (fontReadiness !== 'ready') {
-    if (fontReadiness === 'exhausted') {
-      if (node.textPicture && r.isTextPictureCurrent(node)) {
-        const pic = r.ck.MakePicture(node.textPicture)
-        if (pic) {
-          canvas.drawPicture(pic)
-          pic.delete()
-          canvas.restore()
-          return
-        }
-      }
-      if (drawDerivedText(r, canvas, node)) {
+    // Keep showing the last rendered picture while a newly requested face
+    // (e.g. a weight switch) is still loading — without this the text
+    // vanishes for the duration of the font fetch (14 册 §2.1 现象 B).
+    if (node.textPicture && r.isTextPictureCurrent(node)) {
+      const pic = r.ck.MakePicture(node.textPicture)
+      if (pic) {
+        canvas.drawPicture(pic)
+        pic.delete()
         canvas.restore()
         return
       }
+    }
+    if (fontReadiness === 'exhausted' && drawDerivedText(r, canvas, node)) {
+      canvas.restore()
+      return
     }
     canvas.restore()
     return

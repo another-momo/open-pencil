@@ -9,7 +9,8 @@
     "tests/engine/rebuild/",
     "spikes/",
     "workbench/",
-    "src/app/ai/pi-backend/"
+    "src/app/ai/pi-backend/",
+    "tools/cn-font-catalog/"
   ],
   "ownedFiles": [
     "src/components/chat/ChatModeSelect.vue",
@@ -52,7 +53,9 @@
     "packages/core/src/text/font/variable.ts",
     "src/components/settings/fonts/FontsSettingsPanel.vue",
     "tests/engine/text/fonts/allowlist.test.ts",
-    "tests/engine/text/fonts/variable-fonts.test.ts"
+    "tests/engine/text/fonts/variable-fonts.test.ts",
+    "packages/core/src/text/font/cn-catalog.ts",
+    "tests/engine/text/fonts/cn-catalog.test.ts"
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
@@ -524,7 +527,7 @@
     {
       "id": "P107",
       "file": "packages/core/src/text/fonts.ts",
-      "reason": "T39 字体栈：BUNDLED_FONTS 注册 PuHuiTi 9 字重 + listFamilyOptions 枚举源改 FONT_REGISTRY（font/registry.ts）+ bundled 加载白名单拦截（isBundledFamilyAllowed）；T41：四加载门禁接入 FontFamilyAllowlist + findLocalFont VF 宽松匹配 + VF 跟踪/逐出联动 + registerFontInBrowser VF 字重区间描述符 + ensureFallbackFamilies 停用跳过 + listFamilyOptions includeDisabled（面板用不过滤枚举）",
+      "reason": "T39 字体栈：BUNDLED_FONTS 注册 PuHuiTi 9 字重 + listFamilyOptions 枚举源改 FONT_REGISTRY（font/registry.ts）+ bundled 加载白名单拦截（isBundledFamilyAllowed）；T41：四加载门禁接入 FontFamilyAllowlist + findLocalFont VF 宽松匹配 + VF 跟踪/逐出联动 + registerFontInBrowser VF 字重区间描述符 + ensureFallbackFamilies 停用跳过 + listFamilyOptions includeDisabled（面板用不过滤枚举）；T42：cnFontsEnabled 独立开关（D-a，CDN 枚举/加载与在线 provider 解耦）+ cnFontDescriptor registry 优先 catalog 兜底 + CN_FONT_CATALOG 枚举循环 + setEnabledCatalogFamilies/enabledCatalogFamilies 委托",
       "disposition": "permanent",
       "lastReviewed": "2026-08-30"
     },
@@ -538,7 +541,7 @@
     {
       "id": "P109",
       "file": "src/app/editor/fonts/index.ts",
-      "reason": "T39 加载链修复（05 册 T1）：systemFontDataCache 会话缓存（CJK fallback 循环不再每次 IPC 拉 ~100MB）+ 浏览器 local-fonts 权限启动同步；T41：disabledFontFamilies localStorage 持久化 + fontListRevision 同步（picker 失效信号）+ listAllFamilies 不过滤枚举（面板数据源，listFamilies 仍过滤供 picker）",
+      "reason": "T39 加载链修复（05 册 T1）：systemFontDataCache 会话缓存（CJK fallback 循环不再每次 IPC 拉 ~100MB）+ 浏览器 local-fonts 权限启动同步；T41：disabledFontFamilies localStorage 持久化 + fontListRevision 同步（picker 失效信号）+ listAllFamilies 不过滤枚举（面板数据源，listFamilies 仍过滤供 picker）；T42：cnFontsEnabled（op-cn-fonts-enabled）+ enabledCatalogFamilies（op-font-enabled-catalog:v1）持久化接线 + cnSwitchEpoch（CDN 开关绕过白名单 revision 的 picker 失效补偿）",
       "disposition": "permanent",
       "lastReviewed": "2026-08-30"
     },
@@ -580,7 +583,7 @@
     {
       "id": "P115",
       "file": "packages/core/src/text/font/sources.ts",
-      "reason": "T40 S4：FontFamilySource 联合型加 'cdn'（中文网字计划家族枚举/加载来源标识）",
+      "reason": "T40 S4：FontFamilySource 联合型加 'cdn'（中文网字计划家族枚举/加载来源标识）；T42：FontFamilyOption 加 catalog?: boolean（cn-catalog 全量目录族标识，面板分组/授权提示用）",
       "disposition": "permanent",
       "lastReviewed": "2026-08-30"
     },

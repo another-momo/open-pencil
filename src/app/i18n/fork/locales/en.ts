@@ -41,7 +41,7 @@ export const piMessageDefaults = {
   thinkingExtraHigh: 'Extra high'
 } as const
 
-/** T41：字体白名单设置面板（SettingsDialog fonts 分区）英文默认值 */
+/** T41：字体白名单设置面板（SettingsDialog fonts 分区）英文默认值；T42：来源开关 + 目录组 + 筛选/折叠/批量 */
 export const fontsMessageDefaults = {
   settingsFonts: 'Fonts',
   fontsPanelTitle: 'Font allowlist',
@@ -52,11 +52,25 @@ export const fontsMessageDefaults = {
   fontsEmpty: 'No fonts match your search.',
   fontsEnabledSummary: params('{enabled} of {total} families enabled'),
   fontsSourceBundled: 'Built-in',
-  fontsSourceCdn: 'CDN',
+  fontsSourceCdn: 'CDN featured',
+  fontsSourceCatalog: 'CDN catalog',
   fontsSourceLocal: 'System',
   fontsSourceOnline: 'Online',
   fontsLockedHint: 'Built-in fonts stay always on — they are the rendering fallback.',
   fontsLocalAccessPrompt: 'Allow access to system fonts to manage them here.',
   fontsLocalAllow: 'Allow system fonts',
-  fontsVariableBadge: 'Variable'
+  fontsVariableBadge: 'Variable',
+  fontsFilterAll: 'All',
+  fontsFilterEnabled: 'Enabled',
+  fontsFilterDisabled: 'Disabled',
+  fontsEnableAll: 'Enable all',
+  fontsDisableAll: 'Disable all',
+  fontsShowMore: params('Show more ({count} remaining)'),
+  fontsOnlineMaster: 'Online font libraries',
+  fontsCnMaster: 'Chinese Fonts CDN (中文网字计划)',
+  fontsCnMasterHint: 'Independent switch — not affected by the online font libraries toggle.',
+  fontsSourceOffHint: 'This source is off — its families are hidden from the list and picker.',
+  fontsUnauditedLicense: params('License: {license} (per package notice, unaudited)'),
+  fontsCatalogHint:
+    'Full Chinese Fonts CDN catalog. Off by default — enabled families appear in the picker and load subset pieces on demand.'
 } as const

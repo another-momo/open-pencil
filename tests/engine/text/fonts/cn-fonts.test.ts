@@ -250,7 +250,7 @@ describe('CnFontSubsetResolver', () => {
   })
 })
 
-describe('FontManager cn-font routing (T40 S4)', () => {
+describe('FontManager cn-font routing (T40 S4 / T42 D-a 独立开关)', () => {
   test('registry CDN family loads through cn-font resolver with cdn source and coverage', async () => {
     const manager = new FontManager()
     const mock = createMockFetch({ packages: ['@chinese-fonts/lxgwwenkai'] })
@@ -313,13 +313,15 @@ describe('FontManager cn-font routing (T40 S4)', () => {
     ).toBe(true)
   })
 
-  test('non-registry families keep the unifont path; CDN hidden when providers disabled', async () => {
+  test('T42 D-a：CDN 枚举/加载改判独立开关 cnFontsEnabled，与在线 provider 解耦', async () => {
     const manager = new FontManager()
-    const mock = createMockFetch()
+    const mock = createMockFetch({ packages: ['@chinese-fonts/lxgwwenkai'] })
     manager.setWebFontFetch(mock.fetcher)
     // 隔离应用侧 P117 接线可能装进单例 resolver 的磁盘缓存：网络行为断言只认 mock
     manager.setCnFontPieceCache(null)
 
+    // providers 全关 + cnFontsEnabled 默认开 → CDN 家族照常枚举（T40 旧语义下会隐藏）
+    manager.setOnlineFontProviders({ google: false, fontsource: false })
     const options = await manager.listFamilyOptions()
     const cdn = options.filter((option) => option.source === 'cdn').map((option) => option.family)
     expect(cdn).toEqual(
@@ -333,17 +335,61 @@ describe('FontManager cn-font routing (T40 S4)', () => {
     )
     expect(options.find((option) => option.family === 'Inter')?.source).toBe('bundled')
 
-    // 关停全部在线 provider → CDN 家族从枚举隐藏（在线能力同一隐私开关）
-    manager.setOnlineFontProviders({ google: false, fontsource: false })
+    // providers 全关下 CDN 家族加载仍走 cn 路由（不经 unifont 链）
+    const loaded = await manager.loadRemoteFont('LXGW WenKai', 'Regular', '你')
+    expect(loaded).not.toBeNull()
+    expect(manager.loadedFontSource('LXGW WenKai', 'Regular')).toBe('cdn')
+    manager.evictFont('LXGW WenKai', 'Regular')
+
+    // cnFontsEnabled=false → CDN 家族枚举隐藏（面板 includeDisabled 路径同样隐藏：
+    // 源级开关优先于行级状态），bundled 不受影响
+    manager.setCnFontsEnabled(false)
     const offline = await manager.listFamilyOptions()
     expect(offline.some((option) => option.source === 'cdn')).toBe(false)
     expect(offline.some((option) => option.family === 'Inter')).toBe(true)
+    const panelAll = await manager.listFamilyOptions({ includeDisabled: true })
+    expect(panelAll.some((option) => option.source === 'cdn')).toBe(false)
 
-    // 在线全关时 CDN 家族 loadRemoteFont 不触网
+    // CDN 开关关停时 CDN 家族 loadRemoteFont 零触网（不管 providers 状态）
     const before = mock.calls.length
     expect(await manager.loadRemoteFont('LXGW WenKai', 'Regular', '你')).toBeNull()
     expect(mock.calls.slice(before).some((url) => url.includes('lxgwwenkai'))).toBe(false)
-    manager.setOnlineFontProviders({ google: true, fontsource: true })
+  })
+
+  test('T42 D-c：catalog 族默认停用（opt-in），开启后经 loadCnFontSubset 端到端加载', async () => {
+    const manager = new FontManager()
+    // 快看世界体 = catalog 收录族（@chinese-fonts/kksjt@3.0.0，无 unpkg 回退 base）
+    const mock = createMockFetch({ packages: ['@chinese-fonts/kksjt'] })
+    manager.setWebFontFetch(mock.fetcher)
+    // 隔离应用侧 P117 接线可能装进单例 resolver 的磁盘缓存：网络行为断言只认 mock
+    manager.setCnFontPieceCache(null)
+
+    // 默认停用：picker 枚举不见；面板路径（includeDisabled）可见且带 catalog 标识
+    expect(manager.isFontFamilyEnabled('快看世界体')).toBe(false)
+    const picker = await manager.listFamilyOptions()
+    expect(picker.some((option) => option.family === '快看世界体')).toBe(false)
+    const panel = await manager.listFamilyOptions({ includeDisabled: true })
+    const row = panel.find((option) => option.family === '快看世界体')
+    expect(row?.source).toBe('cdn')
+    expect(row?.catalog).toBe(true)
+
+    // 默认停用时加载被白名单门禁短路（零触网）
+    const before = mock.calls.length
+    expect(await manager.loadRemoteFont('快看世界体', 'Regular', '你')).toBeNull()
+    expect(mock.calls.slice(before).some((url) => url.includes('kksjt'))).toBe(false)
+
+    // opt-in 开启 → picker 枚举出现 + 经 cn 路由加载（descriptor 来自 catalog，
+    // 版本钉扎 @3.0.0 —— D-g 构建时实解）
+    manager.setFontFamilyEnabled('快看世界体', true)
+    const enabled = await manager.listFamilyOptions()
+    expect(
+      enabled.some((option) => option.family === '快看世界体' && option.catalog === true)
+    ).toBe(true)
+    const loaded = await manager.loadRemoteFont('快看世界体', 'Regular', '你')
+    expect(loaded).not.toBeNull()
+    expect(manager.loadedFontSource('快看世界体', 'Regular')).toBe('cdn')
+    expect(mock.calls.some((url) => url.includes('/npm/@chinese-fonts/kksjt@3.0.0/'))).toBe(true)
+    manager.evictFont('快看世界体', 'Regular')
   })
 })
 
@@ -483,7 +529,8 @@ describe('可变字体（VF）包支持（T41 S2，syst 形态）', () => {
     manager.setWebFontFetch(mock.fetcher)
     // 隔离应用侧 P117 接线可能装进单例 resolver 的磁盘缓存：网络行为断言只认 mock
     manager.setCnFontPieceCache(null)
-    manager.setOnlineFontProviders({ google: true })
+    // T42 D-a：cn 路由不读 provider 开关——providers 全关照样经 CDN 链加载
+    manager.setOnlineFontProviders({ google: false, fontsource: false })
 
     const loaded = await manager.loadRemoteFont('Source Han Serif CN VF', 'Bold', '中')
     expect(loaded).not.toBeNull()

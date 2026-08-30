@@ -25,6 +25,11 @@ export interface CnFontCdnDescriptor {
   indexPath?: string
   /** 显式 result.css 路径（单字重包可直接指定） */
   cssPath?: string
+  /**
+   * CDN base 覆盖（T42）：缺省 jsdelivr。非 ASCII 子族目录名的包在
+   * jsdelivr 全边缘 404（2026-08-30 实测），catalog 条目带 base=unpkg 回退。
+   */
+  baseURL?: string
 }
 
 export interface FontRegistryEntry {

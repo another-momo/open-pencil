@@ -5,9 +5,11 @@ import type { SceneGraph } from '@open-pencil/scene-graph'
 import { hasWindowGlobal, IS_BROWSER } from '#core/constants'
 import { parseFontStyle } from '#core/text/face'
 import { FontFamilyAllowlist } from '#core/text/font/allowlist'
+import { CN_FONT_CATALOG, cnCatalogEntry } from '#core/text/font/cn-catalog'
 import { FontMemoryLedger } from '#core/text/font/memory'
 import type { FontMemoryStats } from '#core/text/font/memory'
 import { cdnFontEntry, FONT_REGISTRY, isBundledFamilyAllowed } from '#core/text/font/registry'
+import type { CnFontCdnDescriptor } from '#core/text/font/registry'
 import {
   chooseLocalFontMatch,
   normalizeFontFamily,
@@ -17,6 +19,7 @@ import {
 import { FULL_WEIGHT_RANGE, sniffVariableFont } from '#core/text/font/variable'
 
 export * from '#core/text/font/allowlist'
+export * from '#core/text/font/cn-catalog'
 export * from '#core/text/font/sources'
 export * from '#core/text/font/style'
 export * from '#core/text/font/memory'
@@ -211,6 +214,21 @@ export class FontManager {
     this.webFonts.setEnabled(settings)
   }
 
+  /**
+   * CDN 中文网字计划独立开关（T42 D-a，owner /goal）：与四家在线 provider
+   * 开关零耦合——T40 时 CDN 枚举/加载跟随 provider 全关而关，现独立门禁。
+   * 默认开；关停后 CDN 家族不枚举、loadCnFontSubset 零触网。
+   */
+  private cnFontsEnabled = true
+
+  setCnFontsEnabled(enabled: boolean): void {
+    this.cnFontsEnabled = enabled
+  }
+
+  isCnFontsEnabled(): boolean {
+    return this.cnFontsEnabled
+  }
+
   setWebFontFetch(fetcher: WebFontFetch | null): void {
     this.webFonts.setRemoteFetch(fetcher)
     if (fetcher) cnFontSubsetResolver.setFetcher(fetcher)
@@ -225,6 +243,11 @@ export class FontManager {
 
   setDisabledFontFamilies(families: Iterable<string>): void {
     this.allowlist.replaceDisabled(families)
+  }
+
+  /** catalog 族启用集合持久化恢复（T42 D-c opt-in）；非 catalog 族自动滤除 */
+  setEnabledCatalogFamilies(families: Iterable<string>): void {
+    this.allowlist.replaceEnabledCatalog(families)
   }
 
   /** 返回 false = bundled 锁定族，操作未生效（D-d 恒开） */
@@ -242,6 +265,11 @@ export class FontManager {
 
   disabledFontFamilies(): string[] {
     return this.allowlist.listDisabled()
+  }
+
+  /** catalog 族已启用清单（T42 D-c，面板回写持久化用） */
+  enabledCatalogFamilies(): string[] {
+    return this.allowlist.listEnabledCatalog()
   }
 
   /** picker 失效信号：白名单变更计数（D-h） */
@@ -338,20 +366,7 @@ export class FontManager {
       }))
     )
     const byFamily = new Map<string, FontFamilyOption>()
-    // 字体注册表（白名单）枚举 bundled 家族：'Inter' 等字面值避免对
-    // #core/constants 的循环 import（constants ← fonts 经 FontManager 消费）。
-    // CDN 家族（T40 S4）同属在线能力：用户关停全部在线 provider 时一并隐藏。
-    // T41 S4：disabled 家族全来源过滤（bundled 锁定族 isEnabled 恒 true，不受影响）；
-    // includeDisabled（T41 S5 管理面板）不过滤——面板要列出关停行才能重开。
-    const onlineEnabled = this.enabledOnlineFontProviders().length > 0
-    for (const entry of FONT_REGISTRY) {
-      if (!includeDisabled && !this.allowlist.isEnabled(entry.family)) continue
-      if (entry.source === 'cdn') {
-        if (onlineEnabled) byFamily.set(entry.family, { family: entry.family, source: 'cdn' })
-        continue
-      }
-      byFamily.set(entry.family, { family: entry.family, source: 'bundled' })
-    }
+    this.collectRegistryAndCatalogOptions(byFamily, includeDisabled)
     for (const { provider, families } of webFontFamilies) {
       for (const family of families) {
         if (!includeDisabled && !this.allowlist.isEnabled(family)) continue
@@ -363,6 +378,34 @@ export class FontManager {
       byFamily.set(font.family, { family: font.family, source: 'local' })
     }
     return [...byFamily.values()].sort((a, b) => a.family.localeCompare(b.family))
+  }
+
+  /**
+   * 字体注册表（白名单）枚举 bundled 家族 + CDN 两组（registry 精选 / catalog 全量目录）。
+   * T42 D-a：CDN 家族枚举改判独立开关 cnFontsEnabled，与在线 provider 解耦
+   * （T40 时跟随 provider 全关而隐藏）。catalog 族（cn-catalog.ts，D-b 生成物）
+   * 同属 CDN：默认停用（opt-in D-c），allowlist 过滤后仅启用族进 picker；
+   * includeDisabled（T41 S5 管理面板）不过滤——面板要列出关停行才能重开。
+   * （complexity 治理：从 listFamilyOptions 抽出，2026-08-30 lint 实录 22>20）
+   */
+  private collectRegistryAndCatalogOptions(
+    byFamily: Map<string, FontFamilyOption>,
+    includeDisabled: boolean
+  ): void {
+    for (const entry of FONT_REGISTRY) {
+      if (!includeDisabled && !this.allowlist.isEnabled(entry.family)) continue
+      if (entry.source === 'cdn') {
+        if (this.cnFontsEnabled) byFamily.set(entry.family, { family: entry.family, source: 'cdn' })
+        continue
+      }
+      byFamily.set(entry.family, { family: entry.family, source: 'bundled' })
+    }
+    if (!this.cnFontsEnabled) return
+    for (const entry of CN_FONT_CATALOG) {
+      if (byFamily.has(entry.family)) continue
+      if (!includeDisabled && !this.allowlist.isEnabled(entry.family)) continue
+      byFamily.set(entry.family, { family: entry.family, source: 'cdn', catalog: true })
+    }
   }
 
   preloadWebFontFamilies(): void {
@@ -676,16 +719,31 @@ export class FontManager {
    * typeface（互斥 unicode-range 下只有一片出字形），alias 经 renderFamilyAliases →
    * 段落 fontFamilies 回退链合流。增量请求会重选已注册片，按 url 去重。
    */
+  /** CDN 描述符解析：registry 精选层优先，catalog 全量目录兜底（T42 S2） */
+  private cnFontDescriptor(family: string): CnFontCdnDescriptor | undefined {
+    const registryDescriptor = cdnFontEntry(family)?.cdn
+    if (registryDescriptor) return registryDescriptor
+    const catalog = cnCatalogEntry(family)
+    if (!catalog) return undefined
+    return {
+      package: catalog.package,
+      version: catalog.version,
+      ...(catalog.base ? { baseURL: catalog.base } : {})
+    }
+  }
+
   private async loadCnFontSubset(
     family: string,
     normalized: string,
     style: string,
     requestedCharacters: string
   ): Promise<ArrayBuffer | null> {
+    // T42：描述符解析 registry 优先（精选层），catalog 全量目录兜底；
+    // 门禁改判独立开关 cnFontsEnabled（D-a，与在线 provider 解耦）。
     const descriptor =
-      cdnFontEntry(family)?.cdn ??
-      (normalized !== family ? cdnFontEntry(normalized)?.cdn : undefined)
-    if (!descriptor || this.enabledOnlineFontProviders().length === 0) return null
+      this.cnFontDescriptor(family) ??
+      (normalized !== family ? this.cnFontDescriptor(normalized) : undefined)
+    if (!descriptor || !this.cnFontsEnabled) return null
 
     const result = await cnFontSubsetResolver.fetch(family, descriptor, style, requestedCharacters)
     if (!result || result.pieces.length === 0) return null

@@ -14,6 +14,8 @@ export type FontLoadedSource = FontFamilySource | 'cache' | 'registered'
 export interface FontFamilyOption {
   family: string
   source: FontFamilySource
+  /** T42：中文网字计划全量目录族（cn-catalog.ts，默认停用 opt-in；区别于 registry 精选 CDN 族） */
+  catalog?: boolean
 }
 
 export interface DownloadedFontCache {

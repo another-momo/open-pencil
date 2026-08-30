@@ -2,6 +2,7 @@
  * T41 S4 白名单运行时管控单测（owner /goal：覆盖全来源 + bundled 恒开锁定）。
  * 覆盖：枚举过滤（bundled/cdn/local）/ 四加载门禁 / 锁定拒关 / re-enable 恢复 /
  * fallback 链跳过 / revision 失效信号 / normalize 归一。
+ * T42 D-c 扩展：catalog 族（中文网字计划全量目录）opt-in 双集合语义。
  */
 import { afterEach, describe, expect, test } from 'bun:test'
 
@@ -159,6 +160,60 @@ describe('FontFamilyAllowlist 语义', () => {
     manager.setFontFamilyEnabled('Roboto Flex', false)
     expect(manager.isFontFamilyEnabled('Roboto Flex Variable')).toBe(false)
     expect(manager.isFontFamilyEnabled('Roboto Flex')).toBe(false)
+  })
+})
+
+describe('catalog 族 opt-in 语义（T42 D-c 双集合）', () => {
+  // 快看世界体 = cn-catalog 收录族；LXGW WenKai = registry 精选 cdn 族（默认开，对照组）
+  test('默认停用且不入 disabled 集合；开启后计入 enabledCatalog 并推进 revision', () => {
+    const manager = new FontManager()
+    expect(manager.isFontFamilyEnabled('快看世界体')).toBe(false)
+    expect(manager.disabledFontFamilies()).toEqual([])
+    expect(manager.enabledCatalogFamilies()).toEqual([])
+    // 对照：registry cdn 族维持默认开
+    expect(manager.isFontFamilyEnabled('LXGW WenKai')).toBe(true)
+
+    const base = manager.fontAllowlistRevision()
+    expect(manager.setFontFamilyEnabled('快看世界体', true)).toBe(true)
+    expect(manager.isFontFamilyEnabled('快看世界体')).toBe(true)
+    expect(manager.enabledCatalogFamilies()).toEqual(['快看世界体'])
+    // 双集合隔离：catalog 启用不碰 disabled
+    expect(manager.disabledFontFamilies()).toEqual([])
+    expect(manager.fontAllowlistRevision()).toBeGreaterThan(base)
+  })
+
+  test('setEnabled(false) 回收 enabledCatalog；重复同态 revision 不空转', () => {
+    const manager = new FontManager()
+    manager.setFontFamilyEnabled('快看世界体', true)
+    const afterEnable = manager.fontAllowlistRevision()
+    manager.setFontFamilyEnabled('快看世界体', true) // 重复同态
+    expect(manager.fontAllowlistRevision()).toBe(afterEnable)
+
+    manager.setFontFamilyEnabled('快看世界体', false)
+    expect(manager.isFontFamilyEnabled('快看世界体')).toBe(false)
+    expect(manager.enabledCatalogFamilies()).toEqual([])
+    expect(manager.fontAllowlistRevision()).toBeGreaterThan(afterEnable)
+  })
+
+  test('replaceEnabledCatalog 全量替换并滤除非 catalog 族；与 replaceDisabled 互不干扰', () => {
+    const manager = new FontManager()
+    manager.setEnabledCatalogFamilies(['快看世界体', 'Inter', 'LXGW WenKai'])
+    // Inter（bundled）与 LXGW WenKai（registry cdn）非 catalog → 滤除
+    expect(manager.enabledCatalogFamilies()).toEqual(['快看世界体'])
+
+    manager.setDisabledFontFamilies(['Fam B'])
+    expect(manager.enabledCatalogFamilies()).toEqual(['快看世界体'])
+    expect(manager.isFontFamilyEnabled('快看世界体')).toBe(true)
+    expect(manager.isFontFamilyEnabled('Fam B')).toBe(false)
+  })
+
+  test('disabled 集合对 catalog 族无否决权（opt-in 判定独立于默认开集合）', () => {
+    const manager = new FontManager()
+    // 持久化脏数据场景：catalog 族名混入 disabled——不改变 opt-in 判定
+    manager.setDisabledFontFamilies(['快看世界体'])
+    expect(manager.isFontFamilyEnabled('快看世界体')).toBe(false)
+    manager.setEnabledCatalogFamilies(['快看世界体'])
+    expect(manager.isFontFamilyEnabled('快看世界体')).toBe(true)
   })
 })
 

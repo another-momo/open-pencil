@@ -42,15 +42,26 @@ export const fontProviderSettings = useLocalStorage<FontProviderSettings>(
  * T41 S4/S5：字体白名单运行时开关——存「被关停」清单（默认全启用，D-c），
  * 覆盖 bundled/cdn/provider/local 全来源；bundled 兜底族由 core 锁定恒开（D-d）。
  * fontListRevision 是 picker 一次性缓存的失效信号（D-h：FontPicker.vue 以 :key 重挂载）。
+ * T42：catalog 族（中文网字计划全量目录）默认停用（opt-in）——存「已启用」清单；
+ * cnFontsEnabled 是 CDN 独立总开关（D-a，与四家在线 provider 解耦）。
  */
 export const disabledFontFamilies = useLocalStorage<string[]>('op-font-disabled-families:v1', [])
+export const enabledCatalogFamilies = useLocalStorage<string[]>('op-font-enabled-catalog:v1', [])
+export const cnFontsEnabled = useLocalStorage('op-cn-fonts-enabled', true)
 export const fontListRevision = ref(0)
 
+// CDN 主开关不经 allowlist revision（枚举门禁在 fonts.ts 而不在白名单），
+// picker 失效信号需叠加本地 epoch 手动 bump
+let cnSwitchEpoch = 0
+
 watch(
-  disabledFontFamilies,
-  (families) => {
-    fontManager.setDisabledFontFamilies(families)
-    fontListRevision.value = fontManager.fontAllowlistRevision()
+  [disabledFontFamilies, enabledCatalogFamilies, cnFontsEnabled],
+  ([disabled, enabledCatalog, cnEnabled]) => {
+    fontManager.setDisabledFontFamilies(disabled)
+    fontManager.setEnabledCatalogFamilies(enabledCatalog)
+    if (cnEnabled !== fontManager.isCnFontsEnabled()) cnSwitchEpoch++
+    fontManager.setCnFontsEnabled(cnEnabled)
+    fontListRevision.value = fontManager.fontAllowlistRevision() + cnSwitchEpoch
   },
   { deep: true, immediate: true }
 )

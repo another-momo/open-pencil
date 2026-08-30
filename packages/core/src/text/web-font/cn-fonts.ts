@@ -307,7 +307,10 @@ export class CnFontSubsetResolver {
   }
 
   private packageBase(descriptor: CnFontCdnDescriptor): string {
-    return `${this.baseURL}/${descriptor.package}@${descriptor.version ?? 'latest'}`
+    // T42：非 ASCII 子族目录名的包在 jsdelivr 全边缘 404，catalog 探针记录
+    // base=unpkg 回退（unpkg 支持非 ASCII 路径且 CORS *）；缺省 jsdelivr。
+    const base = descriptor.baseURL ?? this.baseURL
+    return `${base}/${descriptor.package}@${descriptor.version ?? 'latest'}`
   }
 
   private async resolveCSSURL(

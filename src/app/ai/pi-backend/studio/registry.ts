@@ -33,7 +33,7 @@ interface Candidate {
   id: string
   origin: StudioOrigin
   path: string
-  /** 相对 origin 目录的相对路径（failures 数据面用——绝对路径不进注册表，T45） */
+  /** 相对 origin 目录的相对路径，统一正斜杠（failures 数据面用——绝对路径不进注册表，T45；跨平台渲染口径一致） */
   relPath: string
 }
 
@@ -58,7 +58,12 @@ function collectCandidates(builtinDir: string, userDir: string, subdir: string):
   ] as const) {
     for (const name of listMarkdownFiles(dir)) {
       const id = name.slice(0, -'.md'.length)
-      byId.set(id, { id, origin, path: join(dir, name), relPath: join(subdir, name) })
+      byId.set(id, {
+        id,
+        origin,
+        path: join(dir, name),
+        relPath: join(subdir, name).replaceAll('\\', '/')
+      })
     }
   }
   return [...byId.values()]

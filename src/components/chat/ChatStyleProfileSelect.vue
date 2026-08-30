@@ -4,7 +4,7 @@
  * （ui 模式注册表 acceptsProfile=false，overlay 不存在）。
  *
  * 数据源 = piStudioManifest（GET /api/pi/studio/manifest，T45 更名；正文不下发）。
- * 降级：manifest 拉取失败或种子无 profiles → 触发器禁用空态（后端 overlay
+ * 降级：manifest 拉取失败或注册表无 profiles → 触发器禁用空态（后端 overlay
  * 同步走 fallback 段，C5）。「No style profile」项清除选择（sentinel 映射 null，
  * reka Select 不收 null 值）。
  */

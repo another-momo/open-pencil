@@ -25,6 +25,8 @@ export type StudioStyleProfileEntry = {
  * studio 注册表 → overlay 输入适配（纯函数，T45 D-c）：
  * types = 各注册 workflow 的 types 展平（'none' 与 general 无贡献）；
  * profiles = { id, markdown: body }（正文只进 prompt，不出本模块服务端边界）。
+ * profiles 不过滤 deprecated（与 manifest 投影不同）：已被选中的 profile 遭废弃后
+ * 仍注入 prompt（前端下拉已隐藏，会话内选择保持有效）——语义决策挂 S2 §5 / T-B10 成文。
  */
 export function studioOverlayInput(registry: StudioRegistry): {
   types: StudioWorkflowType[]

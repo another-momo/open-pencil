@@ -191,7 +191,7 @@ function userMessage(text) {
 }
 
 try {
-  check('后端就绪（种子后端 + 无种子后端）', (await waitHealth(BASE, () => backendExited)) && (await waitHealth(BASE2, () => backend2Exited)))
+  check('后端就绪（注册表后端 + 无资产后端）', (await waitHealth(BASE, () => backendExited)) && (await waitHealth(BASE2, () => backend2Exited)))
 
   // T28：两个 standalone 后端各自的 token（只进请求头，不打印）
   const token = readBackendToken(tempRoot)
@@ -263,7 +263,7 @@ try {
     headers: { 'content-type': 'application/json', ...authHeaders(token2) },
     body: JSON.stringify({ providerId: 'openrouter', apiKey: 'sk-or-test-key-12345' })
   })
-  check('前置：无种子后端 dummy 凭据写入', cred2.ok)
+  check('前置：无资产后端 dummy 凭据写入', cred2.ok)
 
   // ── C1a：ui 模式 → 探针 == system-prompt.md byte 级原样
   await sendPrompt(BASE, { sessionId: 't24-probe-ui', messages: userMessage('probe ui'), chatMode: 'ui' }, token)
@@ -284,7 +284,7 @@ try {
   check('C1 marketing：不含 ui 基底独有句式', !mktProbe.includes(UI_ONLY_MARKER))
   check('C2 marketing 未 picked：无 Active style profile 段', !mktProbe.includes(PROFILE_MARKER))
 
-  // ── C2：picked profile → profile 段 + 种子 markdown 注入
+  // ── C2：picked profile → profile 段 + 注册表 profile 正文注入
   await sendPrompt(BASE, {
     sessionId: 't24-probe-mkt',
     messages: userMessage('probe picked'),
@@ -352,8 +352,8 @@ try {
   const uiProfileProbe = probeText(tempRoot) ?? ''
   check('C2 ui 模式忽略 pickedProfileId：仍与基底 byte 级一致', uiProfileProbe === uiBaseWithCwd)
 
-  // ── C2：无种子后端 → fallback 引导段
-  await sendPrompt(BASE2, { sessionId: 't24-probe-empty', messages: userMessage('probe empty seed'), chatMode: 'marketing' }, token2)
+  // ── C2：无资产后端 → fallback 引导段
+  await sendPrompt(BASE2, { sessionId: 't24-probe-empty', messages: userMessage('probe empty assets'), chatMode: 'marketing' }, token2)
   const emptyProbe = probeText(emptyAssetsRoot) ?? ''
   check('C2 无资产：overlay 输出 fallback 引导段', emptyProbe.includes('No material types available'))
   check('C2 无资产：工作流段仍在（资产缺失只降级 overlay）', emptyProbe.includes(MARKETING_MARKER))

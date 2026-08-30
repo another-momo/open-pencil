@@ -9,7 +9,7 @@
 
 # T45 自检 · manifest 投影改源 + brand 链退役（S4 W1 / T-A3）
 
-> **状态**：✅ 实现段自检完成（待独立核验） | **时间**：2026-08-31 立项；2026-08-31 实现 | **负责人**：主 agent
+> **状态**：✅ 收口（独立核验通过——[T45-verify.md](T45-verify.md)；核验发现 6 项轻微问题已随收口修复） | **时间**：2026-08-31 立项；2026-08-31 实现并收口 | **负责人**：主 agent
 > **关联**：[T45-plan.md](T45-plan.md)（验收标准 C1-C6 以其 §4 为准）
 
 ## 1. 立项段自检（2026-08-31）
@@ -72,3 +72,16 @@
 - **failures 相对化在源头做**（registry.ts `fail()` 直接产相对路径 + `origin` 字段，候选带 `relPath`），而非投影层剥前缀——注册表全程不持绝对路径，投影零加工。plan §6 风险表预案「顺手改 T43 类型并同步钉扎测试」已执行：T43 注册表测试仅对 path 做 substring 断言（`includes('no-frontmatter')` 等），相对化后零回归（25/25）。
 - **整体态 failure 投影**：`{path: '.', origin: 'builtin', kind: 'studio'}`——`.` 表「整个 studio 目录」语义，manifest 测试钉扎。
 - **C4 双证据口径**：plan S8 写的是 Playwright 截图法；实现段以脚本冒烟（含请求体/持久化/降级断言，强于像素证据）+ MCP 截图双证据覆盖，截图按纪律存仓外 doc/。
+
+## 5. 核验后尾巴修正（2026-08-31，随收口 commit 合入）
+
+独立核验（结论「可以收口」）发现 7 项轻微问题，1-6 已修复、7 为有意保留说明（详见 [T45-verify.md](T45-verify.md) §3）：
+
+1. system-prompt-marketing.md 两处「brand config」prose → studio registry 措辞（LLM 面向，防引导查不存在的配置）。
+2. service.ts 启动快照处补注释（reloadStudio 触发面接入后须改请求时取值）。
+3. studioOverlayInput 头注成文 deprecated 不过滤语义（挂 S2 §5 / T-B10）。
+4. overlay 测试扩 types:none fixture（creative.md）钉扎零贡献 + 投影 `types: []`；failures 断言改正斜杠字面量。
+5. 冒烟 check 标签与 Vue 注释 5 处「种子」残留 → 注册表/无资产口径。
+6. registry relPath 统一正斜杠（跨平台渲染口径）。
+
+修正后复跑（2026-08-31）：rebuild 测试 25/25、assembly smoke 29/29、format/lint/tsgo/vue/i18n 全绿。修正过程中两处初版失误（fixture 正则截断 YAML、断言撞 Windows 反斜杠）当场由测试红灯拦下并改正——门禁有效性实例。

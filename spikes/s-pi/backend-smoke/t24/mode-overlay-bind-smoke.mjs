@@ -173,7 +173,7 @@ try {
     JSON.stringify({ chatMode: first?.chatMode, pickedProfileId: first?.pickedProfileId })
   )
 
-  // ── ② 切 marketing：profile 下拉出现且列出种子
+  // ── ② 切 marketing：profile 下拉出现且列出注册表 profiles
   await page.getByTestId('chat-mode-select').click()
   await page.getByRole('option', { name: 'Marketing' }).click()
   check('② 切 marketing 后模式标签更新', (await modeSelectLabel()) === 'Marketing')

@@ -119,7 +119,9 @@ export function createPiChatService({
   const sessionMaxAgeDays = Number(process.env.OPENPENCIL_SESSION_MAX_AGE_DAYS ?? 30)
 
   // T45（S4 W1 / T-A3）：studio 注册表启动加载（T43 机制；base.md 未落位前
-  // failures 恒含 base 缺失一条——显式暴露数据面，非阻断态）
+  // failures 恒含 base 缺失一条——显式暴露数据面，非阻断态）。
+  // 快照语义：本引用在启动期固定——将来 reloadStudio 接上触发面后，此处须改为
+  // 请求时取值（getStudioRegistry()），否则 manifest/overlay 会持续投影旧快照而无信号
   const studio: StudioRegistry = getStudioRegistry(rootDir)
 
   const sessions = new Map<string, SessionEntry>()

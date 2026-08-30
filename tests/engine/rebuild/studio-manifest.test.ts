@@ -173,7 +173,7 @@ test('投影：failures 相对路径 + origin；整体缺失态 path=.', () => {
   const m = toStudioManifest(loadStudioFromDirs(builtinDir, userDir))
   const fileFailure = m.failures.find((f) => f.kind === 'profile')
   if (!fileFailure) throw new Error('缺 profile 失败条目')
-  expect(fileFailure.path).toBe(join('profiles', 'broken.md'))
+  expect(fileFailure.path).toBe('profiles/broken.md') // 统一正斜杠（跨平台口径）
   expect(fileFailure.origin).toBe('builtin')
   expect(fileFailure.path).not.toContain(builtinDir) // 绝对路径不下发
 
@@ -203,10 +203,25 @@ test('整体缺失态：零注册且有失败 → studio 级 failure 入投影',
 test('overlay 适配：types 展平（none 无贡献）、profiles markdown=body', () => {
   put(builtinDir, 'base.md', BASE_MD)
   put(builtinDir, join('workflows', 'longform.md'), LONGFORM_MD)
+  put(
+    builtinDir,
+    join('workflows', 'creative.md'),
+    LONGFORM_MD.replace('id: longform', 'id: creative').replace(
+      /types:[\s\S]*?\n---/,
+      'types: none\n---'
+    )
+  )
   put(builtinDir, join('profiles', 'watercolor_poster_v3.md'), PROFILE_MD)
-  const input = studioOverlayInput(loadStudioFromDirs(builtinDir, userDir))
+  const registry = loadStudioFromDirs(builtinDir, userDir)
+  const input = studioOverlayInput(registry)
 
+  // types:none 的 creative 注册成功但对 overlay types 零贡献
+  expect(registry.workflows.has('creative')).toBe(true)
   expect(input.types.map((t) => t.id)).toEqual(['ecommerce_detail', 'product_long'])
   expect(input.profiles.map((p) => p.id)).toEqual(['watercolor_poster_v3'])
   expect(input.profiles[0].markdown).toContain('配方正文')
+
+  // 投影侧：creative mode 在列且 types=[]（'none' → [] 分支钉扎）
+  const creativeMode = toStudioManifest(registry).modes.find((m) => m.id === 'creative')
+  expect(creativeMode?.types).toEqual([])
 })

@@ -21,7 +21,7 @@
  * T22：GET /api/pi/history?docKey=<族谱前缀>（或 ?sessionId=<完整 id>）→
  * { sessionId, messages }——会话族谱解析 + 历史回填（T22-plan D2/D3）。
  *
- * T24：GET /api/pi/brand/manifest → PiBrandManifest（种子脱敏投影，
+ * T45：GET /api/pi/studio/manifest → PiStudioManifest（注册表脱敏投影，
  * 无 markdown 正文）——前端 profile 选择器数据源（T24-plan D6）。
  *
  * 仅运行于独立 bun/node 进程（main.ts 入口或 vite 插件 spawn 的子进程），
@@ -228,7 +228,7 @@ async function handleAdminRequest(
 }
 
 /**
- * T27：只读 GET 路由（history/sessions/brand manifest）统一收编——
+ * T27：只读 GET 路由（history/sessions/studio manifest）统一收编——
  * ① fs 读取异常不应打穿进程（500 而非崩溃/悬挂）；② 从 createServer 回调
  * 抽出控制复杂度（oxlint complexity 上限）。返回是否已处理。
  * 必须在 /api/pi/ 管理面前缀之前匹配（调用方保证顺序）。
@@ -243,7 +243,7 @@ function handleReadonlyPiRequest(
   if (
     pathname !== '/api/pi/history' &&
     pathname !== '/api/pi/sessions' &&
-    pathname !== '/api/pi/brand/manifest'
+    pathname !== '/api/pi/studio/manifest'
   ) {
     return false
   }
@@ -270,8 +270,8 @@ function handleReadonlyPiRequest(
       sendJSON(res, 200, { sessions: docKey ? service.listSessionFamily(docKey) : [] })
       return true
     }
-    // T24：brand manifest（D6）——种子脱敏投影供前端 profile 选择器
-    sendJSON(res, 200, service.getBrandManifest())
+    // T45：studio manifest——注册表脱敏投影供前端选择器（modes/profiles/failures）
+    sendJSON(res, 200, service.getStudioManifest())
   } catch (error) {
     sendJSON(res, 500, { error: error instanceof Error ? error.message : String(error) })
   }

@@ -1,7 +1,7 @@
 /**
  * T43 studio 机制——frontmatter 切分与正文小节索引。
  *
- * 不引 gray-matter：手写 `---` 块切分 + yaml 包 parse（brand/index.ts 同款依赖）。
+ * 不引 gray-matter：手写 `---` 块切分 + yaml 包 parse（根依赖 ^2.9.0，零新增依赖）。
  * 切分/解析失败不抛出——返回 error 判别联合，由 registry 记入 failures（S2 §8：
  * 单文件失败不影响其余文件）。
  */

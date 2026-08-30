@@ -42,16 +42,17 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import type { UIMessage, UIMessageChunk } from 'ai'
 
-import { loadBrandSeed, toBrandManifest, type PiBrandConfig } from './brand'
-import type { PiBrandManifest } from './brand/manifest'
 import type { PiChatMode } from './chat-mode'
 import { readPiHistoryFile } from './history'
 import { createPiEventMapper } from './mapping'
 import { isPiChatMode, loadModeSegment, PI_CHAT_MODES } from './modes'
-import { buildMarketingOverlay } from './prompt-overlay'
+import { buildMarketingOverlay, studioOverlayInput } from './prompt-overlay'
 import type { ModelSpec, ProviderAdmin } from './provider-admin'
 import { runSessionGc } from './session-gc'
 import type { PiSessionSummary } from './session-summary'
+import { getStudioRegistry } from './studio'
+import { toStudioManifest, type PiStudioManifest } from './studio/manifest'
+import type { StudioRegistry } from './studio/types'
 import { createOpenPencilTools } from './tools'
 
 export type { PiSessionSummary }
@@ -78,8 +79,8 @@ export type PiChatService = {
   readHistory(sessionId: string): UIMessage[]
   /** T23：族内全部会话摘要，按创建后缀倒序（最新在前）；零副作用纯读 */
   listSessionFamily(docKeyPrefix: string): PiSessionSummary[]
-  /** T24：brand manifest（种子脱敏投影，无 markdown 正文；种子缺失 → 空 manifest） */
-  getBrandManifest(): PiBrandManifest
+  /** T45：studio manifest（注册表脱敏投影，无 profile 正文/绝对路径；S2 §8 failures 数据面） */
+  getStudioManifest(): PiStudioManifest
   /** T27：取消该 session 进行中的 run（SSE 断连锁停后端烧 token）；无活跃 run 时 no-op */
   abort(sessionId: string): Promise<void>
 }
@@ -117,8 +118,9 @@ export function createPiChatService({
   const maxSessions = Number(process.env.OPENPENCIL_MAX_SESSIONS ?? 200)
   const sessionMaxAgeDays = Number(process.env.OPENPENCIL_SESSION_MAX_AGE_DAYS ?? 30)
 
-  // T24 D6：brand 种子启动加载（缺失 → null 合法降级，overlay 走 fallback）
-  const brand: PiBrandConfig | null = loadBrandSeed(rootDir)
+  // T45（S4 W1 / T-A3）：studio 注册表启动加载（T43 机制；base.md 未落位前
+  // failures 恒含 base 缺失一条——显式暴露数据面，非阻断态）
+  const studio: StudioRegistry = getStudioRegistry(rootDir)
 
   const sessions = new Map<string, SessionEntry>()
 
@@ -206,8 +208,7 @@ export function createPiChatService({
         }
         if (mode.acceptsProfile) {
           assembled += buildMarketingOverlay({
-            types: brand?.types ?? [],
-            profiles: brand?.profiles ?? [],
+            ...studioOverlayInput(studio),
             pickedProfileId: overlay.pickedProfileId
           })
         }
@@ -404,8 +405,8 @@ export function createPiChatService({
       .map((sessionId) => summarizeSession(sessionId, index[sessionId]?.file))
   }
 
-  function getBrandManifest(): PiBrandManifest {
-    return toBrandManifest(brand)
+  function getStudioManifest(): PiStudioManifest {
+    return toStudioManifest(studio)
   }
 
   async function abort(sessionId: string): Promise<void> {
@@ -430,7 +431,7 @@ export function createPiChatService({
     resolveLatestSessionId,
     readHistory,
     listSessionFamily,
-    getBrandManifest,
+    getStudioManifest,
     abort
   }
 }

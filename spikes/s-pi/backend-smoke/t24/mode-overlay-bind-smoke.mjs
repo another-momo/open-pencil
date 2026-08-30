@@ -4,8 +4,11 @@
  * 不需要 LLM key：
  *  - /api/pi-chat 用 playwright route 拦截——捕获请求体（chatMode/pickedProfileId
  *    断言，C4 载荷最小）并回灌固定 SSE 流，不经真实 LLM
- *  - manifest 走真实后端（GET /api/pi/brand/manifest，种子 YAML 加载）——
- *    profile 下拉内容即种子投影
+ *  - manifest 走真实后端（GET /api/pi/studio/manifest，T45 改源 studio 文件
+ *    注册表）——profile 下拉内容即注册表投影
+ *
+ * T45 连带：种子 config.yaml 退役——休闲活泼（casual_v1）未迁入 studio 集，
+ * 本冒烟的选中项改为水彩海报 v3（watercolor_poster_v3）。
  *
  * 实证流程要点沿用 t23 sessions-bind-smoke 头注释（恢复对话框/AI tab 复位/
  * openFile vite 路径/clear 异步等），勿回退。
@@ -13,12 +16,12 @@
  * 覆盖：
  *  ① 默认 ui 模式：模式选择器显示 "UI design"、profile 下拉不渲染；
  *    发送体 chatMode='ui' + pickedProfileId=null（C4/C5 默认态）
- *  ② 切 marketing：profile 下拉出现；打开列出种子 profiles（休闲活泼等）
- *    与 "No style profile" 项（C5 manifest 投影真实可见）
- *  ③ 选 casual_v1 后发送：请求体 chatMode='marketing' + pickedProfileId=
- *    'casual_v1'，且体不含任何 manifest/overlay 内容（C4 最小载荷）；
- *    SSE 延迟期间两个选择器均禁用（C5 流式中禁用）
- *  ④ 刷新恢复后选择态保留（Marketing + 休闲活泼，localStorage 持久化，C5）
+ *  ② 切 marketing：profile 下拉出现；打开列出注册表 profiles（水彩海报 v3
+ *    等三精品）与 "No style profile" 项（C5 manifest 投影真实可见）
+ *  ③ 选 watercolor_poster_v3 后发送：请求体 chatMode='marketing' +
+ *    pickedProfileId='watercolor_poster_v3'，且体不含任何 manifest/overlay
+ *    内容（C4 最小载荷）；SSE 延迟期间两个选择器均禁用（C5 流式中禁用）
+ *  ④ 刷新恢复后选择态保留（Marketing + 水彩海报 v3，localStorage 持久化，C5）
  *  ⑤ 切回 ui：profile 下拉消失；发送体 chatMode='ui'（注册表 acceptsProfile
  *    语义由后端兜底忽略 profile，浏览器只断言模式字段）
  *  ⑥ 第二页面拦死 manifest 路由（abort）：profile 下拉禁用空态降级、
@@ -177,27 +180,30 @@ try {
   await page.getByTestId('chat-style-profile-select').waitFor({ timeout: 10000 })
   check('② marketing 模式渲染 profile 下拉', await profileSelectPresent())
   await page.getByTestId('chat-style-profile-select').click()
-  const casualOption = page.getByRole('option', { name: '休闲活泼' })
+  const editorialOption = page.getByRole('option', { name: '杂志封面海报' })
   const watercolorOption = page.getByRole('option', { name: '水彩海报 v3' })
-  await casualOption.waitFor({ timeout: 10000 })
+  const solidOption = page.getByRole('option', { name: '扁平几何海报' })
+  await watercolorOption.waitFor({ timeout: 10000 })
   check(
-    '② profile 下拉列出种子 profiles（休闲活泼 / 水彩海报 v3）',
-    (await casualOption.count()) === 1 && (await watercolorOption.count()) === 1
+    '② profile 下拉列出注册表三精品（杂志封面海报 / 水彩海报 v3 / 扁平几何海报）',
+    (await editorialOption.count()) === 1 &&
+      (await watercolorOption.count()) === 1 &&
+      (await solidOption.count()) === 1
   )
   check(
     '② profile 下拉含 "No style profile" 清除项',
     (await page.getByRole('option', { name: 'No style profile' }).count()) === 1
   )
 
-  // ── ③ 选 casual_v1 → 延迟 SSE 发送：载荷断言 + 流式中禁用
-  await casualOption.click()
+  // ── ③ 选 watercolor_poster_v3 → 延迟 SSE 发送：载荷断言 + 流式中禁用
+  await watercolorOption.click()
   check(
-    '③ 选中后触发器标签 = 休闲活泼',
+    '③ 选中后触发器标签 = 水彩海报 v3',
     await page.evaluate(
       () =>
         document
           .querySelector('[data-test-id="chat-style-profile-select"]')
-          ?.textContent?.includes('休闲活泼') ?? false
+          ?.textContent?.includes('水彩海报 v3') ?? false
     )
   )
   delayNextFulfillMs = 1500
@@ -219,8 +225,9 @@ try {
   )
   await waitEcho()
   check(
-    '③ 发送体：chatMode=marketing + pickedProfileId=casual_v1',
-    marketingSend?.chatMode === 'marketing' && marketingSend?.pickedProfileId === 'casual_v1',
+    '③ 发送体：chatMode=marketing + pickedProfileId=watercolor_poster_v3',
+    marketingSend?.chatMode === 'marketing' &&
+      marketingSend?.pickedProfileId === 'watercolor_poster_v3',
     JSON.stringify({
       chatMode: marketingSend?.chatMode,
       pickedProfileId: marketingSend?.pickedProfileId
@@ -228,8 +235,8 @@ try {
   )
   const rawBody = JSON.stringify(marketingSend ?? {})
   check(
-    '③ 载荷最小：体不含 manifest/overlay 内容（无 markdown 正文、无 types 段标题）',
-    !rawBody.includes('休闲活泼风格') &&
+    '③ 载荷最小：体不含 manifest/overlay 内容（无 profile 正文、无 types 段标题）',
+    !rawBody.includes('水彩海报') &&
       !rawBody.includes('Material types in the current brand') &&
       !rawBody.includes('applicableTo'),
     rawBody.slice(0, 200)
@@ -244,13 +251,13 @@ try {
   await activateAiTab()
   check('④ 刷新后模式选择保留 Marketing', (await modeSelectLabel()) === 'Marketing')
   check(
-    '④ 刷新后 profile 选择保留（休闲活泼）',
+    '④ 刷新后 profile 选择保留（水彩海报 v3）',
     (await profileSelectPresent()) &&
       (await page.evaluate(
         () =>
           document
             .querySelector('[data-test-id="chat-style-profile-select"]')
-            ?.textContent?.includes('休闲活泼') ?? false
+            ?.textContent?.includes('水彩海报 v3') ?? false
       ))
   )
 
@@ -267,7 +274,7 @@ try {
   // 本页只拦 manifest（abort），聊天路由不需要——不切模式发送
   const page2 = await browser.newPage({ viewport: { width: 1280, height: 800 } })
   page2.on('pageerror', (err) => console.error(`[page2 pageerror] ${String(err).slice(0, 200)}`))
-  await page2.route('**/api/pi/brand/manifest', (route) => route.abort())
+  await page2.route('**/api/pi/studio/manifest', (route) => route.abort())
   await page2.goto(base, { waitUntil: 'domcontentloaded' })
   await page2.getByRole('tab', { name: '设计' }).waitFor({ timeout: 20000 })
   await page2.getByTestId('properties-tab-ai').click()

@@ -13,11 +13,15 @@
  * 断言：
  *  C1 ui 模式探针 == system-prompt.md byte 级原样；marketing = base + 工作流段
  *     + overlay（含 marketing 独有句式、不含 ui 独有的 Building top-down）
- *  C2 picked profile → Active style profile 段 + 种子 markdown；bogus id →
- *     re-pick 段；无种子后端 → fallback 段；ui 模式带 pickedProfileId 仍零 overlay
+ *  C2 picked profile → Active style profile 段 + profile 正文；bogus id →
+ *     re-pick 段；无资产后端 → fallback 段；ui 模式带 pickedProfileId 仍零 overlay
  *  C3 同 session 换 profile → 下一条 probe 反映新 overlay（不重建）；同 session
  *     切模式 → 驱逐重建（probe 回 ui 基底）且 index.json 映射/JSONL 文件不动
- *  路由 GET /api/pi/brand/manifest 形状 + 脱敏（无 markdown）+ 405
+ *  路由 GET /api/pi/studio/manifest 形状 + 脱敏（无正文/无绝对路径）+ 405
+ *
+ * T45（S4 W1 / T-A3）改源：种子 config.yaml → studio 文件注册表（workflows/
+ * + profiles/ 复制进 tempRoot）；端点更名 /api/pi/studio/manifest，契约改为
+ * modes（展开 types）+ profiles（摘要）+ failures（相对路径）。
  *
  * 运行：bun spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs（仓根）
  *
@@ -32,6 +36,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync
 } from 'node:fs'
@@ -62,8 +67,8 @@ const MARKETING_MARKER = '# Marketing Design Workflow (MANDATORY)'
 const TYPES_MARKER = '## Material types in the current brand'
 const PROFILE_MARKER = '## Active style profile:'
 
-// ── fixture 布置：真实 prompt 段 + brand 种子复制进 tempRoot
-function layoutRoot(withBrandSeed) {
+// ── fixture 布置：真实 prompt 段 + studio 资产集复制进 tempRoot（T45 改源）
+function layoutRoot(withStudioAssets) {
   const tempRoot = mkdtempSync(join(tmpdir(), 't24-assembly-'))
   mkdirSync(join(tempRoot, 'src/app/ai/chat'), { recursive: true })
   mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/prompts'), { recursive: true })
@@ -77,19 +82,21 @@ function layoutRoot(withBrandSeed) {
       join(tempRoot, 'src/app/ai/pi-backend/prompts', f)
     )
   }
-  if (withBrandSeed) {
-    mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/brand'), { recursive: true })
-    copyFileSync(
-      join(repoRoot, 'src/app/ai/pi-backend/brand/config.yaml'),
-      join(tempRoot, 'src/app/ai/pi-backend/brand/config.yaml')
-    )
+  if (withStudioAssets) {
+    for (const sub of ['workflows', 'profiles']) {
+      const srcDir = join(repoRoot, 'src/app/ai/pi-backend/studio', sub)
+      mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/studio', sub), { recursive: true })
+      for (const f of readdirSync(srcDir)) {
+        copyFileSync(join(srcDir, f), join(tempRoot, 'src/app/ai/pi-backend/studio', sub, f))
+      }
+    }
   }
   mkdirSync(join(tempRoot, 'probe'), { recursive: true })
   return tempRoot
 }
 
 const tempRoot = layoutRoot(true)
-const emptySeedRoot = layoutRoot(false)
+const emptyAssetsRoot = layoutRoot(false)
 const uiBase = readFileSync(join(repoRoot, 'src/app/ai/chat/system-prompt.md'), 'utf8')
 // pi buildSystemPrompt 固有尾巴（T21 起即如此，非 T24 引入）：自定义 systemPrompt
 // 之后追加 `\nCurrent working directory: <cwd>\n`（正斜杠规范化）。
@@ -115,17 +122,17 @@ backend.on('exit', () => {
 })
 backend.stderr.on('data', (d) => process.stderr.write(`[backend] ${d}`))
 
-// 无种子后端（fallback 断言）：同仓库代码、另一端口、另一 rootDir
+// 无资产后端（fallback 断言）：同仓库代码、另一端口、另一 rootDir
 const PORT2 = PORT + 500 > 7989 ? PORT - 500 : PORT + 500
 const BASE2 = `http://127.0.0.1:${PORT2}`
 const backendEnv2 = {
   ...process.env,
   OPENPENCIL_PI_BACKEND_PORT: String(PORT2),
-  PI_PROMPT_PROBE_DIR: join(emptySeedRoot, 'probe')
+  PI_PROMPT_PROBE_DIR: join(emptyAssetsRoot, 'probe')
 }
 delete backendEnv2.OPENROUTER_API_KEY
 const backend2 = spawn('bun', ['run', join(repoRoot, 'src/app/ai/pi-backend/main.ts')], {
-  cwd: emptySeedRoot,
+  cwd: emptyAssetsRoot,
   env: backendEnv2,
   stdio: ['ignore', 'pipe', 'pipe']
 })
@@ -188,46 +195,60 @@ try {
 
   // T28：两个 standalone 后端各自的 token（只进请求头，不打印）
   const token = readBackendToken(tempRoot)
-  const token2 = readBackendToken(emptySeedRoot)
+  const token2 = readBackendToken(emptyAssetsRoot)
   check(
     'T28 前置：两后端 token 文件可读且不相同',
     token.length > 0 && token2.length > 0 && token !== token2
   )
 
   // T28 负向：未带 Authorization → 401
-  const noAuth = await fetch(`${BASE}/api/pi/brand/manifest`)
+  const noAuth = await fetch(`${BASE}/api/pi/studio/manifest`)
   check('T28 负向：未鉴权请求 → 401', noAuth.status === 401, `status=${noAuth.status}`)
 
   // ── manifest 路由
-  const manifestRes = await fetch(`${BASE}/api/pi/brand/manifest`, { headers: authHeaders(token) })
+  const manifestRes = await fetch(`${BASE}/api/pi/studio/manifest`, { headers: authHeaders(token) })
   const manifest = await manifestRes.json()
-  check('路由 manifest：200 + 种子名称', manifestRes.ok && manifest.name === '默认品牌库', JSON.stringify(manifest).slice(0, 120))
   check(
-    '路由 manifest：types 七条齐（wechat_moments 等）',
-    Array.isArray(manifest.types) && manifest.types.length === 7 &&
-      manifest.types.some((t) => t.id === 'wechat_moments' && t.label === '朋友圈广告')
+    '路由 manifest：modes = general（空 types）+ longform（三 type 展开）',
+    manifestRes.ok &&
+      Array.isArray(manifest.modes) &&
+      manifest.modes[0]?.id === 'general' && manifest.modes[0]?.types?.length === 0 &&
+      manifest.modes[1]?.id === 'longform' && manifest.modes[1]?.types?.length === 3 &&
+      manifest.modes[1].types.some((t) => t.id === 'ecommerce_detail' && t.size === '750x'),
+    JSON.stringify(manifest).slice(0, 160)
   )
   check(
-    '路由 manifest：profiles 含 casual_v1 且带 applicableTo',
+    '路由 manifest：failures 数据面——base 缺失（base.md 相对路径，无绝对路径泄漏）',
+    Array.isArray(manifest.failures) &&
+      manifest.failures.some((f) => f.kind === 'base' && f.path === 'base.md') &&
+      manifest.failures.every((f) => !f.path.includes(':') && !f.path.startsWith('/'))
+  )
+  check(
+    '路由 manifest：profiles 三精品摘要含 watercolor_poster_v3（applicableTo=[longform]）',
+    Array.isArray(manifest.profiles) && manifest.profiles.length === 3 &&
+      manifest.profiles.some((p) => p.id === 'watercolor_poster_v3' && p.label === '水彩海报 v3' &&
+        Array.isArray(p.applicableTo) && p.applicableTo[0] === 'longform')
+  )
+  check(
+    '路由 manifest：脱敏——任何 profile 不带 body/markdown 正文',
     Array.isArray(manifest.profiles) &&
-      manifest.profiles.some((p) => p.id === 'casual_v1' && p.label === '休闲活泼' && Array.isArray(p.applicableTo))
+      manifest.profiles.every((p) => !('body' in p) && !('markdown' in p))
   )
-  check(
-    '路由 manifest：脱敏——任何 profile 不带 markdown 正文',
-    Array.isArray(manifest.profiles) && manifest.profiles.every((p) => !('markdown' in p))
-  )
-  const manifest405 = await fetch(`${BASE}/api/pi/brand/manifest`, {
+  const manifest405 = await fetch(`${BASE}/api/pi/studio/manifest`, {
     method: 'POST',
     headers: authHeaders(token)
   })
   check('路由 manifest：非 GET → 405', manifest405.status === 405)
   const emptyManifest = await (
-    await fetch(`${BASE2}/api/pi/brand/manifest`, { headers: authHeaders(token2) })
+    await fetch(`${BASE2}/api/pi/studio/manifest`, { headers: authHeaders(token2) })
   ).json()
   check(
-    '路由 manifest：无种子后端 → 空 types/profiles 降级',
-    Array.isArray(emptyManifest.types) && emptyManifest.types.length === 0 &&
-      Array.isArray(emptyManifest.profiles) && emptyManifest.profiles.length === 0
+    '路由 manifest：无资产后端 → general 恒在 + 空 profiles + failures 非空（含整体态）',
+    Array.isArray(emptyManifest.modes) && emptyManifest.modes.length === 1 &&
+      emptyManifest.modes[0]?.id === 'general' &&
+      Array.isArray(emptyManifest.profiles) && emptyManifest.profiles.length === 0 &&
+      Array.isArray(emptyManifest.failures) &&
+      emptyManifest.failures.some((f) => f.kind === 'studio')
   )
 
   // ── dummy 凭据过 auth 预检（写 tempRoot 自带 agentDir，不碰真实 .openpencil）
@@ -259,7 +280,7 @@ try {
   const mktProbe = probeText(tempRoot) ?? ''
   check('C1 marketing：含工作流段独有句式', mktProbe.includes(MARKETING_MARKER))
   check('C1 marketing：含 overlay types 段（未 picked 也恒在）', mktProbe.includes(TYPES_MARKER))
-  check('C1 marketing：含种子 type 条目（wechat_moments）', mktProbe.includes('- wechat_moments (朋友圈广告)'))
+  check('C1 marketing：含注册表 type 条目（ecommerce_detail，含尺寸）', mktProbe.includes('- ecommerce_detail (电商详情页) — 750x'))
   check('C1 marketing：不含 ui 基底独有句式', !mktProbe.includes(UI_ONLY_MARKER))
   check('C2 marketing 未 picked：无 Active style profile 段', !mktProbe.includes(PROFILE_MARKER))
 
@@ -268,11 +289,11 @@ try {
     sessionId: 't24-probe-mkt',
     messages: userMessage('probe picked'),
     chatMode: 'marketing',
-    pickedProfileId: 'casual_v1'
+    pickedProfileId: 'watercolor_poster_v3'
   }, token)
   const pickedProbe = probeText(tempRoot) ?? ''
-  check('C2 picked：含 Active style profile: casual_v1 段', pickedProbe.includes(`${PROFILE_MARKER} casual_v1`))
-  check('C2 picked：含种子 profile markdown 正文（休闲活泼风格）', pickedProbe.includes('# 休闲活泼风格'))
+  check('C2 picked：含 Active style profile: watercolor_poster_v3 段', pickedProbe.includes(`${PROFILE_MARKER} watercolor_poster_v3`))
+  check('C2 picked：含 profile 正文（水彩海报）', pickedProbe.includes('# 水彩海报'))
 
   // ── C3a：同 session 换 profile（不重建）→ 下一条 probe 反映新 overlay
   await sendPrompt(BASE, {
@@ -296,8 +317,8 @@ try {
   }, token)
   const bogusProbe = probeText(tempRoot) ?? ''
   check(
-    'C2 bogus id：输出 (not in brand config) re-pick 段',
-    bogusProbe.includes(`${PROFILE_MARKER} (not in brand config)`) && bogusProbe.includes('bogus_profile')
+    'C2 bogus id：输出 (not in studio registry) re-pick 段',
+    bogusProbe.includes(`${PROFILE_MARKER} (not in studio registry)`) && bogusProbe.includes('bogus_profile')
   )
 
   // ── C3b：同 session 切模式 → 驱逐重建（probe 回 ui 基底），index/JSONL 不动
@@ -326,16 +347,16 @@ try {
     sessionId: 't24-probe-ui-profile',
     messages: userMessage('probe ui with profile'),
     chatMode: 'ui',
-    pickedProfileId: 'casual_v1'
+    pickedProfileId: 'watercolor_poster_v3'
   }, token)
   const uiProfileProbe = probeText(tempRoot) ?? ''
   check('C2 ui 模式忽略 pickedProfileId：仍与基底 byte 级一致', uiProfileProbe === uiBaseWithCwd)
 
   // ── C2：无种子后端 → fallback 引导段
   await sendPrompt(BASE2, { sessionId: 't24-probe-empty', messages: userMessage('probe empty seed'), chatMode: 'marketing' }, token2)
-  const emptyProbe = probeText(emptySeedRoot) ?? ''
-  check('C2 无种子：overlay 输出 fallback 引导段', emptyProbe.includes('No material types available'))
-  check('C2 无种子：工作流段仍在（种子缺失只降级 overlay）', emptyProbe.includes(MARKETING_MARKER))
+  const emptyProbe = probeText(emptyAssetsRoot) ?? ''
+  check('C2 无资产：overlay 输出 fallback 引导段', emptyProbe.includes('No material types available'))
+  check('C2 无资产：工作流段仍在（资产缺失只降级 overlay）', emptyProbe.includes(MARKETING_MARKER))
 } finally {
   // Windows 清理纪律：bun run 是 wrapper + 孙进程两段——SIGTERM 只杀 wrapper
   // （信号致死 exitCode 恒 null，「exitCode===null 再升级」判据事后失效），
@@ -365,7 +386,7 @@ try {
   }
   await stop(backend)
   await stop(backend2)
-  for (const dir of [tempRoot, emptySeedRoot]) {
+  for (const dir of [tempRoot, emptyAssetsRoot]) {
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
         rmSync(dir, { recursive: true, force: true })

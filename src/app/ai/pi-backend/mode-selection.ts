@@ -3,9 +3,9 @@
  *
  *  - piChatMode / piPickedProfileId：用户选择，useLocalStorage 持久化
  *    （照 aiModelSettings 的 storage.ts 先例，键 open-pencil:pi-chat-mode）。
- *  - piBrandManifest：GET /api/pi/brand/manifest 拉取缓存（失败 → null →
- *    profile 下拉降级空态、后端 overlay 走 fallback）；markdown 正文不下发
- *    （信任边界，brand/manifest.ts）。
+ *  - piStudioManifest：GET /api/pi/studio/manifest 拉取缓存（T45 更名改源；
+ *    失败 → null → profile 下拉降级空态、后端 overlay 走 fallback）；
+ *    profile 正文与文件绝对路径不下发（信任边界，studio/manifest.ts）。
  *
  * pickedProfileId 不随模式切回 ui 而清空——用户回切 marketing 时选择还在；
  * 后端按注册表 acceptsProfile 决定忽略与否。
@@ -14,8 +14,8 @@
 import { StorageSerializers, useLocalStorage } from '@vueuse/core'
 import { computed, ref } from 'vue'
 
-import type { PiBrandManifest } from '@/app/ai/pi-backend/brand/manifest'
 import type { PiChatMode } from '@/app/ai/pi-backend/chat-mode'
+import type { PiStudioManifest } from '@/app/ai/pi-backend/studio/manifest'
 
 type PiChatModeSelection = {
   mode: PiChatMode
@@ -43,19 +43,19 @@ export const piPickedProfileId = computed<string | null>({
   }
 })
 
-export const piBrandManifest = ref<PiBrandManifest | null>(null)
+export const piStudioManifest = ref<PiStudioManifest | null>(null)
 
 let manifestRequested = false
 
 /** 拉取 manifest（进程内一次；失败 → null 降级，不重试不轮询） */
-export async function ensurePiBrandManifest(): Promise<void> {
+export async function ensurePiStudioManifest(): Promise<void> {
   if (manifestRequested) return
   manifestRequested = true
   try {
-    const res = await fetch('/api/pi/brand/manifest')
+    const res = await fetch('/api/pi/studio/manifest')
     if (!res.ok) return
-    piBrandManifest.value = (await res.json()) as PiBrandManifest
+    piStudioManifest.value = (await res.json()) as PiStudioManifest
   } catch (error) {
-    console.warn('[pi-backend] brand manifest 拉取失败——profile 下拉降级为空态', error)
+    console.warn('[pi-backend] studio manifest 拉取失败——profile 下拉降级为空态', error)
   }
 }

@@ -7,7 +7,7 @@ import ChatStyleProfileSelect from '@/components/chat/ChatStyleProfileSelect.vue
 import IconButton from '@/components/ui/IconButton.vue'
 import InputGroup from '@/components/ui/InputGroup.vue'
 import { piDesignAssignment } from '@/app/ai/pi-backend/assignment'
-import { ensurePiBrandManifest, piChatMode } from '@/app/ai/pi-backend/mode-selection'
+import { ensurePiStudioManifest, piChatMode } from '@/app/ai/pi-backend/mode-selection'
 import { openSettingsDialog } from '@/app/settings/dialog'
 import { useI18n } from '@open-pencil/vue'
 
@@ -36,7 +36,7 @@ const isMarketingMode = computed(() => piChatMode.value === 'marketing')
 
 // T24：profile 下拉数据源（失败 → null → 空态降级，C5）
 onMounted(() => {
-  void ensurePiBrandManifest()
+  void ensurePiStudioManifest()
 })
 const piModelLabel = computed(
   // T38：useForkPi() 返回 Ref——script 内访问必须 .value（T35 曾丢 .value 致标签空白）

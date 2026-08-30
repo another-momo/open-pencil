@@ -63,7 +63,11 @@ export interface StudioProfile {
 
 /** 加载失败显式暴露条目（S2 §8：失败文件 + 原因 + 修复指引） */
 export interface StudioFailure {
+  /** 相对 origin 目录的相对路径（base 双源同缺时为 `base.md`、整体态为 `.`）——
+   *  绝对路径不进注册表，manifest 投影因此天然脱敏（T45，T24 D7 信任边界延伸） */
   path: string
+  /** 失败文件来源；base 双源同缺等无单一来源时缺省 */
+  origin?: StudioOrigin
   kind: StudioAssetKind | 'studio'
   reason: string
   hint: string

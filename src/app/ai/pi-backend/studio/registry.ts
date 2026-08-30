@@ -5,8 +5,9 @@
  * §8（加载失败与空态）。加载顺序：内置 → 用户目录覆盖 → 校验 → 注册表（内存）。
  * 热重载 v1 降级为显式 `reloadStudio()`（S2 §2 授权；fs.watch 不做，T43-plan D-c）。
  *
- * 路径约定与 brand/index.ts 一致：调用方注入 rootDir（仓库根），内置目录 =
- * `<rootDir>/src/app/ai/pi-backend/studio/`；用户目录 = `~/.openpencil/studio/`。
+ * 路径约定：调用方注入 rootDir（仓库根），内置目录 =
+ * `<rootDir>/src/app/ai/pi-backend/studio/`；用户目录 = `~/.openpencil/studio/`
+ * （rootDir 注入模型与 service.ts 一致，T24 起在线）。
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -32,6 +33,8 @@ interface Candidate {
   id: string
   origin: StudioOrigin
   path: string
+  /** 相对 origin 目录的相对路径（failures 数据面用——绝对路径不进注册表，T45） */
+  relPath: string
 }
 
 function listMarkdownFiles(dir: string): string[] {
@@ -55,7 +58,7 @@ function collectCandidates(builtinDir: string, userDir: string, subdir: string):
   ] as const) {
     for (const name of listMarkdownFiles(dir)) {
       const id = name.slice(0, -'.md'.length)
-      byId.set(id, { id, origin, path: join(dir, name) })
+      byId.set(id, { id, origin, path: join(dir, name), relPath: join(subdir, name) })
     }
   }
   return [...byId.values()]
@@ -82,7 +85,13 @@ function fail(
   reason: string,
   hint: string
 ): void {
-  failures.push({ path: candidate?.path ?? '(studio 目录)', kind, reason, hint })
+  failures.push({
+    path: candidate?.relPath ?? 'base.md',
+    ...(candidate ? { origin: candidate.origin } : {}),
+    kind,
+    reason,
+    hint
+  })
 }
 
 /** base 唯一槽位：用户覆盖内置；双源皆缺 → 显式缺失态（S2 §8） */
@@ -92,8 +101,13 @@ function loadBase(
   failures: StudioFailure[]
 ): StudioBase | null {
   const baseCandidates = [
-    { id: 'base', origin: 'builtin' as const, path: join(builtinDir, 'base.md') },
-    { id: 'base', origin: 'user' as const, path: join(userDir, 'base.md') }
+    {
+      id: 'base',
+      origin: 'builtin' as const,
+      path: join(builtinDir, 'base.md'),
+      relPath: 'base.md'
+    },
+    { id: 'base', origin: 'user' as const, path: join(userDir, 'base.md'), relPath: 'base.md' }
   ].filter((c) => existsSync(c.path))
   const baseCandidate = baseCandidates.at(-1) // 用户覆盖内置
   if (!baseCandidate) {
@@ -229,7 +243,8 @@ export function loadStudioFromDirs(builtinDir: string, userDir: string): StudioR
   // 默认集整体缺失/全坏（S2 §8）：零注册成功且有失败 → 记整体态供错误条消费
   if (base === null && workflows.size === 0 && profiles.size === 0 && failures.length > 0) {
     failures.push({
-      path: builtinDir,
+      path: '.',
+      origin: 'builtin',
       kind: 'studio',
       reason: 'studio 默认集整体缺失/全坏（无任何资产注册成功）',
       hint: '检查内置 studio/ 目录是否随应用分发；逐条修复上方文件级失败后重新加载'

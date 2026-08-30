@@ -14,7 +14,7 @@
 
 ## 1. 立项段自检（2026-08-31）
 
-- [x] 迁移源已通读：`brand/config.yaml` 264 行、7 type + 8 profile（`wc -l` + 全文 Read，2026-08-31）。
+- [x] 迁移源已通读：`brand/config.yaml` 303 行、7 type + 8 profile（全文 Read，2026-08-31；行数核验观察项勘误：立项时照抄 S2 §2 旧数字 264，核验 subagent 实测 `wc -l` = 303 双证，T24 引入时即 303）。
 - [x] 消费链已核对：service.ts:45/121/209/408（loadBrandSeed → overlay/manifest）、server.ts GET 路由、prompt-overlay.ts、mode-selection.ts、ChatStyleProfileSelect.vue——本任务零触碰（D-c，T-A3 范围）。
 - [x] 既有测试对 config.yaml 零依赖（`grep -rln "config.yaml\|loadBrandSeed\|brand/manifest" tests/` 无命中，2026-08-31）→ 迁移不碰既有测试。
 - [x] 校验面已逐条比对（validate.ts 实测）：

@@ -9,13 +9,13 @@
 
 # T44 计划 · config.yaml 拆解迁移 + longform.md 骨架（S4 W1 / T-A2）
 
-> **状态**：🔄 进行中 | **时间**：2026-08-31 立项 | **负责人**：主 agent
+> **状态**：✅ 已完成 | **时间**：2026-08-31 立项 / 2026-08-31 收口 | **负责人**：主 agent
 > **分支**：`rebuild/mode-arch`（worktree `open-pencil-mode`；T43 收口 a2f04d4f 之后）
 > **规格真源**：[S2 资产文件机制规格 v2](../../../doc/S2-asset-files-spec.md) §2 id 规则 / §4 workflow / §5 profile+迁移清单；[S4 Phase 3 计划 v2](../../../doc/S4-phase3-plan.md) §4 W1 T-A2 行；[S1 产品规格](../../../doc/S1-product-spec.md) §3 执行序
 
 ## 1. 背景与立项
 
-T43（T-A1）已建成 studio 文件机制内核（两源扫描/校验/注册表/失败数据面），但 `src/app/ai/pi-backend/studio/` 下还没有任何真实资产文件。本任务执行 S4 W1 第二刀：把 T24 单文件 `brand/config.yaml`（264 行，7 type + 8 profile；核验：`wc -l src/app/ai/pi-backend/brand/config.yaml`，2026-08-31）拆解迁移为 studio 文件集：
+T43（T-A1）已建成 studio 文件机制内核（两源扫描/校验/注册表/失败数据面），但 `src/app/ai/pi-backend/studio/` 下还没有任何真实资产文件。本任务执行 S4 W1 第二刀：把 T24 单文件 `brand/config.yaml`（303 行，7 type + 8 profile；核验：`wc -l src/app/ai/pi-backend/brand/config.yaml`，2026-08-31；~~264~~ 系照抄 S2 §2 旧数字，核验观察项勘误）拆解迁移为 studio 文件集：
 
 - **profiles/ 三份精品**：watercolor_poster_v3（迁移清单定为模板基准）+ editorial_poster_v1 + solid_poster_v1
 - **workflows/longform.md 骨架**：长图三 type 折叠进 frontmatter（PD-17）+ 正文结构（阶段定义 / type 蓝图 / 纪律）

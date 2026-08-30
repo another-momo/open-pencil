@@ -9,7 +9,7 @@
 
 # tasks · 任务档案索引
 
-> **状态**：已核验 | **时间**：2026-08-28 | **核验人**：主 agent
+> **状态**：已核验 | **时间**：2026-08-31 | **核验人**：主 agent
 > **身份**：task 维度档案的入口。**每个 task 三件套物理拆分**——`tasks/T<NN>-plan.md` / `tasks/T<NN>-self-check.md` / `tasks/T<NN>-verify.md`，CI 用 `existsSync` 逐个检查。
 > **与 [tracker.md §2 任务表](../tracker.md) 的关系**：本文 §2 任务清单是**逐任务索引真源**（每任务一行含三件套路径，永久保留——D31，2026-08-25）；tracker.md §2 是阶段门视角摘要（当前任务行 + 已收口分组行）。如有不一致以本文为准。
 > **与 records/narrative/ 的关系**：task 维度 vs 文件维度，**严格分离**——task 自检/核验不进 records/，文件腐烂/修正也不进 tasks/。详见 [05-process.md §3.2 + §4.11](05-process.md)。
@@ -75,6 +75,7 @@
 | [T41](../tasks/T41-plan.md) | 可变字体支持 + 字体白名单可视化管理 | 可变字体全链路放行（D-b 收口 + wght 轴排版注入 + syst 回注册表）+ 白名单运行时管控（全来源含系统字体，bundled 恒开锁定）+ SettingsDialog Fonts 分区面板 + picker reload 失效 + 面板数据源 bug 修复（includeDisabled 不过滤枚举） | ✅ 已完成（C1-C9 全过；Playwright 实证 VF 250/900 渲染差异 + 面板三态复验；test:unit:quick 两轮 77/2615、76/2626 对照基线 78/2600 零回归） | [T41-plan](../tasks/T41-plan.md) | [T41-self-check](../tasks/T41-self-check.md) | [T41-verify](../tasks/T41-verify.md) |
 | [T42](../tasks/T42-plan.md) | CDN 中文网字计划独立开关 + 全量目录支持 + 字体面板交互优化 | CDN 开关与在线 provider 解耦（cnFontsEnabled 独立门禁）+ @chinese-fonts 全量目录离线管线入仓（83 包探针 → 105 族，catalog 族默认关 opt-in）+ 面板 UX（状态筛选/折叠截断/来源开关区/批量启停） | ✅ 已完成（C1-C7 全过；Playwright 实证独立开关双向解耦 + catalog opt-in 端到端渲染；test:unit:quick 77 fail/2627/431 对照 T41 基线 76-77/2615-2626 零回归） | [T42-plan](../tasks/T42-plan.md) | [T42-self-check](../tasks/T42-self-check.md) | [T42-verify](../tasks/T42-verify.md) |
 | [T43](../tasks/T43-plan.md) | Phase 3 · studio 资产文件机制内核（S4 W1 / T-A1，分支 rebuild/mode-arch） | 三类资产统一文件机制：两源扫描+同 id 覆盖 + frontmatter 解析 + 按类加载期校验 + 失败显式暴露数据面 + general 特例 + reload API | ✅ 已完成（C1-C8 全过：单测 16/16 + 门禁全绿 + 全量回归零 T43 文件失败（+1 MCP 并发 flake 隔离复跑 22/22 绿）；subagent 独立核验 V1-V7「可以收口」） | [T43-plan](../tasks/T43-plan.md) | [T43-self-check](../tasks/T43-self-check.md) | [T43-verify](../tasks/T43-verify.md) |
+| [T44](../tasks/T44-plan.md) | Phase 3 · config.yaml 拆解迁移 + longform.md 骨架（S4 W1 / T-A2，吸收 T-A4 骨架） | 精品 profile 三份迁为 profiles/ 文件集（v3 模板基准 + editorial + solid，节名归一/applicable_to 改写/Recipe no-op 待 T-C3）+ 长图三 type 折叠进 workflows/longform.md 骨架 + 真目录钉扎测试；casual_v1 与退役集不迁；config.yaml 物理删除随 T-A3 | 🔄 进行中（2026-08-31 立项） | [T44-plan](../tasks/T44-plan.md) | [T44-self-check](../tasks/T44-self-check.md) | [T44-verify](../tasks/T44-verify.md) |
 | (后续 task 按顺序登记)      | —                          | —                                                                                                                       | —                                                                                                                                            | —                                | —                                            | —                                    |
 
 ## 3. 三件套结构（强制）

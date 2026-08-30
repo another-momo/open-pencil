@@ -40,7 +40,14 @@
     "public/AlibabaPuHuiTi-Heavy.ttf",
     "packages/core/assets/AlibabaPuHuiTi-Black.ttf",
     "public/AlibabaPuHuiTi-Black.ttf",
-    "packages/core/src/text/font/registry.ts"
+    "packages/core/src/text/font/registry.ts",
+    "packages/core/src/text/font/memory.ts",
+    "packages/core/src/text/web-font/cn-fonts.ts",
+    "packages/core/src/text/web-font/piece-cache.ts",
+    "src/app/editor/fonts/idb-cache.ts",
+    "tests/engine/text/fonts/memory.test.ts",
+    "tests/engine/text/fonts/cn-fonts.test.ts",
+    "tests/engine/text/fonts/piece-cache.test.ts"
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
@@ -548,6 +555,62 @@
       "id": "P112",
       "file": "tests/engine/render/canvas/text.test.ts",
       "reason": "T39 新增 2 个 pending 态 textPicture 缓存回归用例（缓存命中画旧图 / 缓存失效跳过渲染，钉 P108 行为）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-30"
+    },
+    {
+      "id": "P113",
+      "file": "packages/core/src/text/fonts.ts",
+      "reason": "T40 内存治理（13 册 §3 策略 A）：FontMemoryLedger 入账/touch + 50MB 默认预算 LRU 逐出（loadedFamilies/supplementalFamilyData/remoteCoverage/loadedFamilySources 同步释放 + document.fonts.delete）+ 逐出联动 onFontEvicted 挂钩（防 resolver 残留 'loaded' 快照致永不重载）+ fontMemoryStats 指标；S4 cn-font 路由（loadCnFontSubset：注册表 cdn 家族走中文网字计划子集，失败回退 unifont 链 D-g；在线 provider 全关时 CDN 不触网不枚举）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-30"
+    },
+    {
+      "id": "P114",
+      "file": "packages/core/src/text/web-fonts.ts",
+      "reason": "T40 S2（13 册 Phase 0）：删除 preloadFamilies/fetchFont/loadFamilies 三处 IS_BROWSER && !remoteFetch 门禁——浏览器裸 fetch 即可（CDN 自带 CORS），原门禁致无代理浏览器 web 字体整体禁用；barrel 导出 web-font/cn-fonts + web-font/piece-cache",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-30"
+    },
+    {
+      "id": "P115",
+      "file": "packages/core/src/text/font/sources.ts",
+      "reason": "T40 S4：FontFamilySource 联合型加 'cdn'（中文网字计划家族枚举/加载来源标识）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-30"
+    },
+    {
+      "id": "P116",
+      "file": "packages/core/src/text/resolver/index.ts",
+      "reason": "T40 S1 逐出联动：fontFaceDemandKey 提取导出（逐出/重建两侧键形一致）+ fontManager.onFontEvicted 注册 fontResolver.reset——内存逐出后渲染循环经 demand 链正常重载",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-30"
+    },
+    {
+      "id": "P117",
+      "file": "src/app/editor/fonts/index.ts",
+      "reason": "T40 S5：启动时 fontManager.setCnFontPieceCache(createCnFontPieceCache())——IndexedDB piece 级缓存（200MB LRU Blob，idb 缺失降级内存），与 Tauri 请求级缓存并存",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-30"
+    },
+    {
+      "id": "P118",
+      "file": "packages/core/package.json",
+      "reason": "T40 S3：css-tree@3.2.1 升显式依赖（cn-font result.css 解析，原仅传递依赖）+ @types/css-tree devDep",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-30"
+    },
+    {
+      "id": "P119",
+      "file": "packages/core/src/canvas/text/index.ts",
+      "reason": "T40 修复：CDN 互斥分片 alias 注入段落 fontFamilies 回退链（同名多片被 CanvasKit 塌缩成单 typeface）；alias 列表进 fontFamilyCache 键",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-30"
+    },
+    {
+      "id": "P120",
+      "file": "packages/core/src/constants.ts",
+      "reason": "T40：hasWindowGlobal() 调用期 window 探测——IS_BROWSER import 期冻结在共享进程（window mock 后建先拆）失真，window 解引用前必须调用期判断（修复单测全量跑 local 候选 ReferenceError）",
       "disposition": "permanent",
       "lastReviewed": "2026-08-30"
     }

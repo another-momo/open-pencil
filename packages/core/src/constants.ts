@@ -4,6 +4,14 @@ import type { Color } from '@open-pencil/scene-graph/primitives'
 export const IS_BROWSER = typeof window !== 'undefined'
 export const IS_TAURI = IS_BROWSER && '__TAURI_INTERNALS__' in window
 
+/**
+ * 调用期 window 探测（T40）：IS_BROWSER 在模块 import 期冻结——共享进程里 window
+ * mock 后建/先拆（单测、嵌入宿主）会让冻结值失真，解引用 window 前必须用本函数。
+ */
+export function hasWindowGlobal(): boolean {
+  return typeof window !== 'undefined'
+}
+
 export const BLACK: Color = { r: 0, g: 0, b: 0, a: 1 }
 export const TRANSPARENT: Color = { r: 0, g: 0, b: 0, a: 0 }
 export const DEFAULT_SHADOW_COLOR: Color = { r: 0, g: 0, b: 0, a: 0.25 }

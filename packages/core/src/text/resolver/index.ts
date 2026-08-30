@@ -19,13 +19,17 @@ function faceCandidate(
   return { id: `${source}:${family}:${style}`, family, style, source }
 }
 
+export function fontFaceDemandKey(family: string, style: string): string {
+  return `face:${family.trim().toLocaleLowerCase()}:${style.toLocaleLowerCase()}`
+}
+
 export function fontFaceDemand(
   family: string,
   style: string,
   characters = ''
 ): FontResolutionDemand {
   return {
-    key: `face:${family.trim().toLocaleLowerCase()}:${style.toLocaleLowerCase()}`,
+    key: fontFaceDemandKey(family, style),
     characters,
     candidates: [
       faceCandidate(family, style, 'registered'),
@@ -61,7 +65,14 @@ export function fontCoverageDemand(
   return {
     key: `coverage:${script}:${coverageKey}`,
     characters: characters.join(''),
-    candidates: [{ id: `fallback:${script}`, family: script, style: 'Regular', source: 'fallback' }]
+    candidates: [
+      {
+        id: `fallback:${script}`,
+        family: script,
+        style: 'Regular',
+        source: 'fallback'
+      }
+    ]
   }
 }
 
@@ -88,3 +99,9 @@ const productionFontLoader: FontResolutionLoader = async (candidate, demand) => 
 }
 
 export const fontResolver = new FontResolver(productionFontLoader)
+
+// T40 S1 逐出联动：FontManager 内存逐出某 family|style 时，必须同步复位 resolver
+// 条目——否则残留 'loaded' 快照使 demand 直接返回旧 promise，字体永不重载。
+fontManager.onFontEvicted((family, style) => {
+  fontResolver.reset(fontFaceDemandKey(family, style))
+})

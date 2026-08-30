@@ -1,6 +1,5 @@
 import type { FontFaceData, RemoteFontSource, ResolveFontResult } from 'unifont'
 
-import { IS_BROWSER } from '#core/constants'
 import { parseFontStyle } from '#core/text/face'
 import {
   createProviderUnifont,
@@ -94,6 +93,14 @@ export interface ResolvedWebFont {
   provider: WebFontProviderId
 }
 
+/**
+ * 在线字体解析器（unifont 四 provider）。
+ *
+ * T40 S2（13 册 Phase 0）：浏览器端不再要求 remoteFetch 代理——Google Fonts /
+ * jsdelivr 等 CDN 均自带 CORS，裸 fetch 即可；remoteFetch 仅作为桌面端
+ * （Tauri webview 受限场景）的可选代理注入。原来的三处
+ * `IS_BROWSER && !this.remoteFetch` 门禁会让浏览器无代理时 web 字体整体禁用。
+ */
 export class WebFontResolver {
   private enabled = new Set<WebFontProviderId>(
     WEB_FONT_PROVIDER_IDS.filter((provider) => DEFAULT_WEB_FONT_PROVIDER_SETTINGS[provider])
@@ -124,7 +131,6 @@ export class WebFontResolver {
   }
 
   preloadFamilies(): void {
-    if (IS_BROWSER && !this.remoteFetch) return
     for (const provider of this.enabledProviders()) void this.listFamilies(provider)
   }
 
@@ -146,7 +152,7 @@ export class WebFontResolver {
     characters = ''
   ): Promise<ResolvedWebFont | null> {
     const providers = this.enabledProviders()
-    if (providers.length === 0 || (IS_BROWSER && !this.remoteFetch)) return null
+    if (providers.length === 0) return null
 
     for (const family of families) {
       for (const provider of providers) {
@@ -202,7 +208,7 @@ export class WebFontResolver {
   }
 
   private async loadFamilies(provider: WebFontProviderId): Promise<string[]> {
-    if (typeof fetch === 'undefined' || (IS_BROWSER && !this.remoteFetch)) return []
+    if (typeof fetch === 'undefined') return []
 
     try {
       const unifont = await this.unifont(provider)
@@ -274,3 +280,6 @@ export class WebFontResolver {
     }
   }
 }
+
+export * from './web-font/cn-fonts'
+export * from './web-font/piece-cache'

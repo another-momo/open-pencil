@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import {
+  cdnFontEntry,
   FONT_REGISTRY,
   fontRegistryEntry,
   isBundledFamilyAllowed,
@@ -38,6 +39,36 @@ describe('isBundledFamilyAllowed', () => {
   test('rejects unregistered families', () => {
     expect(isBundledFamilyAllowed('Comic Sans MS')).toBe(false)
     expect(isBundledFamilyAllowed('')).toBe(false)
+  })
+})
+
+describe('CDN 家族注册（T40 S4）', () => {
+  test('registers the five verified cn-font families with descriptors', () => {
+    const cdnFamilies = FONT_REGISTRY.filter((entry) => entry.source === 'cdn').map(
+      (entry) => entry.family
+    )
+    expect(cdnFamilies).toEqual([
+      'LXGW WenKai',
+      'Xiaolai SC',
+      'Yozai',
+      'MaokenAssortedSans',
+      '寒蝉全圆体'
+    ])
+    for (const entry of FONT_REGISTRY.filter((entry) => entry.source === 'cdn')) {
+      expect(entry.cdn?.package).toMatch(/^@chinese-fonts\//)
+      expect(['T0', 'T1']).toContain(entry.tier)
+    }
+  })
+
+  test('cdnFontEntry only returns families carrying a cdn descriptor', () => {
+    expect(cdnFontEntry('LXGW WenKai')?.cdn?.package).toBe('@chinese-fonts/lxgwwenkai')
+    expect(cdnFontEntry('Inter')).toBeUndefined()
+    expect(cdnFontEntry('Comic Sans MS')).toBeUndefined()
+  })
+
+  test('CDN families are not part of the bundled allowlist', () => {
+    expect(isBundledFamilyAllowed('LXGW WenKai')).toBe(false)
+    expect(isBundledFamilyAllowed('Inter')).toBe(true)
   })
 })
 

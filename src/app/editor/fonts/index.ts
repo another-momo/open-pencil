@@ -20,6 +20,7 @@ import {
   createTauriDownloadedFontCache,
   downloadedFontCacheSummary as tauriDownloadedFontCacheSummary
 } from '@/app/editor/fonts/cache'
+import { createCnFontPieceCache } from '@/app/editor/fonts/idb-cache'
 import { toast } from '@/app/shell/ui'
 import { isTauri } from '@/app/tauri/env'
 import { tauriFetch } from '@/app/tauri/http'
@@ -73,6 +74,10 @@ function configureTauriFontCache() {
 }
 
 configureTauriFontCache()
+
+// T40 S5：cn-font piece 级磁盘缓存（IndexedDB，200MB LRU；idb 缺失自动降级内存）。
+// 与 Tauri 请求级缓存并存——前者服务 CDN 子集片（URL 键），后者服务 unifont 请求。
+fontManager.setCnFontPieceCache(createCnFontPieceCache())
 
 // The browser's local-fonts permission persists across sessions, but
 // fontManager's access state is in-memory ('prompt' on every load). Sync it
@@ -242,7 +247,10 @@ async function loadSystemFont(family: string, style = 'Regular'): Promise<ArrayB
   if (cached !== undefined) return cached
   try {
     const { invoke } = await import('@tauri-apps/api/core')
-    const data = await invoke<ArrayBuffer>('load_system_font', { family, style })
+    const data = await invoke<ArrayBuffer>('load_system_font', {
+      family,
+      style
+    })
     const buffer = data.byteLength === 0 ? null : data
     systemFontDataCache.set(key, buffer)
     return buffer

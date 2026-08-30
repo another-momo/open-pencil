@@ -12,6 +12,21 @@
 
 export type FontLicenseTier = 'T0' | 'T1' | 'T2'
 
+/**
+ * CDN 描述符（T40 S4）：中文网字计划 @chinese-fonts/* npm 包寻址信息。
+ * 字段语义与解析流程见 web-font/cn-fonts.ts 头注。
+ */
+export interface CnFontCdnDescriptor {
+  /** npm 包名，如 '@chinese-fonts/lxgwwenkai' */
+  package: string
+  /** 版本，缺省 'latest' */
+  version?: string
+  /** 子族索引路径，缺省 'dist/index.json' */
+  indexPath?: string
+  /** 显式 result.css 路径（单字重包可直接指定） */
+  cssPath?: string
+}
+
 export interface FontRegistryEntry {
   family: string
   tier: FontLicenseTier
@@ -19,6 +34,8 @@ export interface FontRegistryEntry {
   source: string
   /** bundled 字重样式名（与 BUNDLED_FONTS 键一致）；非 bundled 家族为空 */
   weights: string[]
+  /** CDN 家族的分片子集寻址信息（source='cdn' 时必填） */
+  cdn?: CnFontCdnDescriptor
   /** 授权备注（如 T1 的厂商收回权利警示） */
   note?: string
 }
@@ -55,13 +72,68 @@ export const FONT_REGISTRY: FontRegistryEntry[] = [
     license: 'OFL-1.1',
     source: 'bundled',
     weights: ['Regular']
+  },
+
+  // —— CDN 家族（T40 S4，中文网字计划 @chinese-fonts/* 按需子集）——
+  // 包名/目录结构/font-family 均经 2026-08-30 jsdelivr 实测核验（D-a，记录见 T40-self-check）：
+  // - syst（思源宋体 VF）因交付可变字体、栈不支持可变语义（D-b 挂起）而剔除；
+  // - sypxzs（思源屏显臻宋）因子族目录为中文名、jsdelivr 对非 ASCII 路径 404 而剔除。
+  {
+    family: 'LXGW WenKai',
+    tier: 'T0',
+    license: 'OFL-1.1',
+    source: 'cdn',
+    weights: ['Light', 'Regular', 'Medium'],
+    cdn: { package: '@chinese-fonts/lxgwwenkai' }
+  },
+  {
+    family: 'Xiaolai SC',
+    tier: 'T0',
+    license: 'OFL-1.1（思源宋体衍生）',
+    source: 'cdn',
+    weights: ['Regular'],
+    cdn: { package: '@chinese-fonts/xiaolai' }
+  },
+  {
+    family: 'Yozai',
+    tier: 'T0',
+    license: 'OFL-1.1（思源黑体衍生）',
+    source: 'cdn',
+    weights: ['Light', 'Regular', 'Medium', 'Bold'],
+    cdn: { package: '@chinese-fonts/yozai' }
+  },
+  {
+    family: 'MaokenAssortedSans',
+    tier: 'T1',
+    license: '猫啃免费商用声明（非 OFL，授权以包内声明为准）',
+    source: 'cdn',
+    weights: ['Regular'],
+    cdn: { package: '@chinese-fonts/mksjh' },
+    note: 'T1：厂商免费商用声明，授权存档属治理层（15 册 D.5）'
+  },
+  {
+    family: '寒蝉全圆体',
+    tier: 'T1',
+    license: '寒蝉免费商用声明（非 OFL，授权以包内声明为准）',
+    source: 'cdn',
+    weights: ['Regular', 'Bold'],
+    cdn: { package: '@chinese-fonts/hcqyt' },
+    note: 'T1：厂商免费商用声明，授权存档属治理层（15 册 D.5）'
   }
 ]
 
-const bundledAllowlist = new Set(FONT_REGISTRY.map((entry) => entry.family))
+const bundledAllowlist = new Set(
+  FONT_REGISTRY.filter((entry) => entry.source === 'bundled').map((entry) => entry.family)
+)
 
 export function fontRegistryEntry(family: string): FontRegistryEntry | undefined {
   return FONT_REGISTRY.find((entry) => entry.family === family)
+}
+
+/** CDN 家族注册条目（T40 S4）：命中即由 cn-font 子集解析器承担加载 */
+export function cdnFontEntry(family: string): FontRegistryEntry | undefined {
+  const entry = fontRegistryEntry(family)
+  return entry?.cdn ? entry : undefined
 }
 
 /**

@@ -366,7 +366,7 @@ test('C5: 双源皆无 base → failures 记缺失态；默认集全坏 → 记�
   const r = loadBoth()
   expect(r.base).toBeNull()
   expect(r.failures.some((f) => f.kind === 'base' && f.reason.includes('base.md 缺失'))).toBe(true)
-  // 空目录无任何文件 → 只有 base 缺失一条；塞一个坏文件 → 触发整体态
+  // 空双目录即产生 2 条 failure（base 缺失 + studio 整体态）；再塞坏文件，整体态仍在
   put(builtinDir, join('workflows', 'broken.md'), '无 frontmatter')
   const r2 = loadBoth()
   expect(r2.failures.some((f) => f.kind === 'studio' && f.reason.includes('整体缺失'))).toBe(true)

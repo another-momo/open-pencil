@@ -9,7 +9,7 @@
 
 # T43 计划 · studio 资产文件机制内核（S4 W1 / T-A1）
 
-> **状态**：🚧 进行中 | **时间**：2026-08-30 立项 | **负责人**：主 agent
+> **状态**：✅ 已完成 | **时间**：2026-08-30 立项 / 2026-08-30 收口 | **负责人**：主 agent
 > **分支**：`rebuild/mode-arch`（worktree `open-pencil-mode`，从 `rebuild/pi` 83a9687d 拉出；spike 批 e57edd94 后）
 > **规格真源**：[S2 资产文件机制规格 v2](../../../doc/S2-asset-files-spec.md) §1/§2/§8（仓外 doc/ 系列）；[S4 Phase 3 计划 v2](../../../doc/S4-phase3-plan.md) §4 W1 T-A1 行；PD-7/PD-16/PD-17（[19-product-design-decisions.md](../../../doc/202608251637-migration-proposal/19-product-design-decisions.md)）
 

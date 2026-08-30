@@ -122,3 +122,16 @@
 - **拍板内容**：D1 不设专门参考图/参考区机制（需要参考时由用户指定画布节点作为 ref）；D4 短期 localhost serve、中长期转 Electron、不考虑 Tauri；D6 S3 混合（CDN 按需子集 + bundled 兜底，O3 字重另议）；D8 素材图理解确认放弃
 - **登记处**：[topics/brand-config.md](../topics/brand-config.md)（D1/D6）、[topics/agent-runtime.md](../topics/agent-runtime.md)（D4）、[topics/chat-ui.md](../topics/chat-ui.md)（D8）；同批新全局决策 D34-D37 见 [topics/ci-infra.md](../topics/ci-infra.md) 与 [topics/docs-governance.md](../topics/docs-governance.md)
 - **task 文档**：[tasks/T37-plan.md](../../tasks/T37-plan.md)
+
+## 修正-N · Phase 3 重定义回写（§2 行 + §4 层 1 验收口径，S4 §8 回写动作）
+
+- **类型**：修正（按对象：01-target-state.md）
+- **时间**：2026-08-30
+- **依据**：PD-15（Phase 3 定序：长图薄闭环，KV 降级纸面 dry-run）+ PD-16~PD-20（多 mode 架构：base + workflow，UI/marketing 双模式废弃）——预研 19 册第五组；实施规格真源移至仓外 doc/ 系列（S1/S2/S3/S4 v2，2026-08-30 重写）；S4 §8 回写动作明文
+- **内容**：
+  1. §2 推进规划表 Phase 3 行：「C1a-C5a 五环建成」→「长图薄闭环（多 mode 架构：base + workflow，PD-15/PD-16~PD-20）」，验收口径指向改写
+  2. §4 头部加口径注记：五环薄切表转为历史背景，五环→新任务映射随行（C1a→T-B1 / C2a→W1+T-A3+T-B10 / C3a→T-B3/B6/B7 / C4a→T-B4 / C5a→聊天迭代）
+  3. §4 层 1 验收段改写为 S4 §6 四条（T-D1 前半链冒烟 / T-D2 全链冒烟含 S1 §10 八条断言 / smoke:pi 扩容全绿 / CI 绿）；旧五环口径原文以括注保留备查（append-only 精神——口径更替留痕）
+  4. tracker.md 阶段门 Phase 3 行同步（tracker 属 D36 豁免文档，不另立 narrative 条目）
+- **影响**：Phase 3 出口标准自此以 S4 §6 为准；T43+ 任务卡按 S4 §4 分解立项（T43 = W1 T-A1 已立项）
+- **task 文档**：[tasks/T43-plan.md](../../tasks/T43-plan.md)

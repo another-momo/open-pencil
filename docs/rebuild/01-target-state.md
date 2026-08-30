@@ -9,7 +9,7 @@
 
 # 01 · 目标态定义
 
-> **状态**：已核验 | **时间**：2026-08-28 | **核验人**：主 agent
+> **状态**：已核验 | **时间**：2026-08-30 | **核验人**：主 agent
 > **身份**：**本文是「做哪些加法」与「按什么顺序推进」的决策依据**——目标态分层（§3-§6）+ 推进规划（§2）。02-phase-0.md / 03-phase-1-runtime.md 是 Phase 0/1 的执行与验收记录；spikes/*.md 是调研证据层，不直接驱动 Phase gate。
 > **结构原则**：按依赖排序，不按价值排序。没有支撑底座，闭环跑不起来。
 
@@ -28,7 +28,7 @@
 | Phase 0 机制+减法 | 治理机制建设（zones/CI/三件套）+ 旧面删除 | — | [02-phase-0.md §5](02-phase-0.md) 七条验收 |
 | Phase 1 runtime spike | runtime 选型：Q0-Q3 有代码答案 + 拍板（D24 拍 pi，2026-08-23） | — | [03-phase-1-runtime.md](03-phase-1-runtime.md) Q0-Q3 + 选型决策 |
 | Phase 2 地基切片 | F0.1-F0.6 建成 | 层 0（本文 §3） | 本文 §3 hello-tool 验收 + F0 各块处置列全「已建成」 |
-| Phase 3 最小价值闭环 | C1a-C5a 五环建成 | 层 1（本文 §4） | 本文 §4 层 1 验收 |
+| Phase 3 最小价值闭环 | 长图薄闭环（多 mode 架构：base + workflow，PD-15/PD-16~PD-20） | 层 1（本文 §4） | 本文 §4 层 1 验收（2026-08-30 已回写为 S4 §6 口径） |
 | Phase 4 增强补齐 | 层 2 各块逐块进 | 层 2（本文 §5） | 逐块自带验收，无整段出口 |
 | parity 切换 | 新旧分支切换 | — | 本文 §8 parity 线，owner 拍板 |
 
@@ -50,6 +50,8 @@
 
 ## 4. 层 1：价值闭环薄切（全部骑在 F0 上）
 
+> **口径注记（2026-08-30 回写）**：本节 C1a-C5a 五环薄切表为**历史背景**——Phase 3 范围已经 PD-15（长图薄闭环定序，KV 降级）与 PD-16~PD-20（多 mode 架构：base + workflow，UI/marketing 双模式废弃）重定义，实施规格真源移至仓外 doc/ 系列（S1 产品行为 / S2 资产文件 / S3 工具契约 / S4 排期），决策登记见预研 19 册。五环与新任务的映射：C1a→T-B1、C2a→W1+T-A3+T-B10、C3a→T-B3/B6/B7、C4a→T-B4、C5a→聊天迭代（PD-9 无新 UI 件）。
+
 最小价值闭环：**需求单 → 选 type/profile → generate_image → look → 迭代**。每一环的支撑依赖：
 
 | 环节 | 能力块 | 内容（薄切范围） | 依赖的底座 |
@@ -60,7 +62,14 @@
 | 看 | C4a | look 图片到达模型：对新 runtime 媒体模型实现（旧语义只取一份：elision K=2 + chat-completions 改写，双份镜像取一） | F0.1 + F0.2 |
 | 迭代 | C5a | MarketingConfigBar 集成进最简 chat UI | F0.4 |
 
-**层 1 验收**（2026-08-25 owner 拍板口径，决策批 #13，登记见 [records/topics/docs-governance.md](records/topics/docs-governance.md)）：C1a-C5a 五环各配一条端到端冒烟且全绿 + `smoke:pi` 批次全绿 + CI 绿。`smoke:pi` 批次现状 = 五套件 80 断言（`grep '"smoke:pi"' package.json`，2026-08-25）；五环冒烟随各环施工逐条补入，未齐前本验收不通过。（原「16 个移植测试文件全绿」口径的宿主——packages/agent 与 tests/engine/tools/{marketing,image-gen}——已随 T10 上游合并消失（2026-08-25 实测 `find tests/engine/rebuild -type f` 仅 1 文件），该口径废止。）
+**层 1 验收**（2026-08-30 回写为 [S4-phase3-plan.md §6 验收口径](../../../doc/S4-phase3-plan.md)——PD-15/PD-16~PD-20 重定义 Phase 3，取代 2026-08-25 五环口径；旧口径原文见本段末注）：
+
+1. **T-D1 前半链冒烟绿**（需求 → brief+setup_design → CP1 表单 → 标题前置 → scaffold → hero 候选到达 → CP2 点选；不依赖 compose）；
+2. **T-D2 全链冒烟绿**（[S1-product-spec.md §10 验收](../../../doc/S1-product-spec.md)八条产品断言全过：建单建框含设计身份 / CP1 可答含修辞标注 / 候选到达可选可重生含脱困阀 / CP3 色调确认+填充自检行 / 终审落档 / 刷新恢复+撤销+快照 / mode chips 仅列真实 mode / 多设计目标解析+续作恢复+Case B 表单）；
+3. **smoke:pi 批次全绿**（新工具契约测试 + 宿主路由测试并入扩容后）；
+4. **CI 绿**（含凭证链 mock、门禁全套）。
+
+（被取代的旧口径原文：「C1a-C5a 五环各配一条端到端冒烟且全绿 + smoke:pi 批次全绿 + CI 绿」——五环是旧五阶段工作流的移植切片，随 PD-15 废止；原「16 个移植测试文件全绿」口径更早随 T10 上游合并废止。）
 
 ## 5. 层 2：增强（每块独立、自带验收、可单独进）
 

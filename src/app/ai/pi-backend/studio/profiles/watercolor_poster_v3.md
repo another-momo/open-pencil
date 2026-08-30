@@ -1,0 +1,56 @@
+---
+id: watercolor_poster_v3
+label: 水彩海报 v3
+applicable_to: [longform]
+version: 3
+---
+
+# 水彩海报
+
+水彩叠染风格的长图与活动主视觉。视觉重量来自贯穿所有 section 的连续背景，而不是每个 section 各自的色块。
+
+## Fixed system
+
+- 所有 section 共享一个连续背景。给每个 section 各自配底色块是另一种风格。
+- 极端字阶对比：750px 宽画布上 hero 标题 72–110px，2–3 行短句错落排布——每行 3–5 字、左对齐、逐行水平错位、行距收紧（1.0–1.15）——绝不用居中大通栏。section 标题 36–48，正文 20–24，注释 16–18。字重：标题 Heavy/Black，正文 Regular。
+- 标题阴影是白字特权：只有深底/饱和底上的白字可以带阴影（blur 8–16，alpha ≤ 0.3，y 偏移 0–4）。浅底上的深墨标题不带阴影——墨压水彩靠对比本身。
+- 刻意不均的疏密节奏：hero → 大留白 → 密集段 → 紧凑 → 再大留白。恒定节奏读起来像界面。
+- 标题可读性来自图像自身的影调设计：标题带必须落在 hero 图的平静低细节区，且影调明确偏浅或偏深（在生图 prompt 里写明你选了哪一种，不要中间调）。最终标题色在 Phase 2.5 由 derive_palette 的 ink 决定——浅底配深字、深底配白字，对比度由工具校验，绝不用色块/底板/蒙层事后补救。
+- hero 图按参考画框的最终尺寸生成（750 × hero高度+100）。生图 API 可能按 16px 对齐尺寸，底部 ~100px 平静带与 fade 区近似对应——无论如何保持平静。
+
+## Variable system
+
+- hero lockup：{ lower-third（默认）, center-left, upper-float }——错落标题组在 hero 槽位里的位置。行数预算：lower-third / center-left 可 2–3 行；upper-float 至多 2 行。参考画框（第 2 步）会把标题组的真实位置展示给生图 AI，prompt 必须让该区域保持平静低细节。
+- hero 高度：{ 750（默认）, 600–900 }——意象简单可取矮，意象需要空间可取高。参考画框与生成图均为 750 ×（选定值 + 100）。
+- 眉题（eyebrow）：{ 无（默认）, 标题组上方一行小字 }——18–24px、Regular、拉开字距、与标题同色系。眉题是注记（日期/地点/系列名），不是第二个标题。
+- 色彩和谐（harmony）：{ analogous, complementary, split-complementary, triadic, monochromatic }——每设计选定一种。derive_palette 用它把 hero 采样色派生成整盘色票；和谐类型即本设计的色彩风格声明。
+- section 顺序与密度：由内容决定，但保持不均节奏。
+- 意象（motif）：水彩隐喻跟随需求单（一个季节、一个地点、一种情绪）——一图一个意象，不做拼贴。
+
+## Anti-identity
+
+- hero 槽位内：标题背后不放不透明（alpha=1）底板——不用蒙层矩形、色带、模糊背卡。标题可读性来自图像影调，不来自补丁。
+- 内容 section：不用底色块或卡片布局切割共享背景——视觉重量属于背景。正文密集处若背景太花，允许 alpha < 0.5 的半透明辅助。
+- 不用单行/居中标题通栏——错落 2–3 行才是本风格的标题。
+- 深墨标题不带阴影；白字阴影不超出上方范围。
+- 不在 hero 上叠透明装饰 PNG——AI 生图的 alpha 通道不可靠，装饰元素画进 hero 图内部。
+- 不用硬销话术（"限时秒杀""最后一天"）。
+- 不用调 overlay 透明度抢救不可读的标题带——由 derive_palette 换 ink 角色，或按更平静的标题带重生 hero。
+
+## Recipe
+
+所有 section 共享一个连续背景。hero 槽位属于 Phase 2 骨架；本阶段把像素落实，并从像素派生色彩：
+
+1. （Phase 2 骨架）渲染透明 Frame `HeroContent` 作为 root 的第一个 flow 子节点（高=你的 hero 高度选择，宽=画布宽），并在其中完成标题排版——文案、字号、位置、字重现在定；**颜色先不定**，临时用深色即可（第 5 步由色票定最终色）。所有内容 section 保持透明填充。**骨架期全部用中性灰阶**（如 #1F2937 / #374151 / #6B7280）——折扣数字、步骤编号、图标等着色元素此时一律不写彩色 hex，第 5 步色票出来后统一刷色。文本类 section 用 hug 高度、靠 padding 承载留白（写死高度必然溢出）；只有图像槽位用固定高度。
+2. 调用 `prepare_hero_scaffold({ root_id, hero_bleed: 100 })`——在 root 右侧生成参考画框（750 × hero高度+100，含与真实排版同位置的幽灵文字）。画框留在画布上，不要删除或移动——它是本次生成的现场记录，重生 hero 时复用。
+3. 调用 `generate_image`：目标 = 画框 id，`references: [{"id": 画框id, "composite": true}]`。参考图与成品同尺寸、幽灵文字在真实位置——**但生图模型不会自动理会参考图，prompt 必须显式点破它的用法，否则参考图会被忽视**。prompt 必须包含以下语义（措辞可改写，一条都不能少）：① "参考图展示了标题文字在成品画面中的确切位置和大小"；② "围绕文字构图——文字覆盖区保持平静、低细节、影调明确偏浅（或偏深，写明你选了哪种，不要中间调）"；③ "底部 ~100px 为平静淡出区"；④ "画面内不得出现任何文字——参考图中的文字仅是位置参照，不要绘制、不要模仿"。水彩风格：柔和叠染、单一意象、大量留白。
+4. 调用 `compose_backdrop({ root_id, canvas_width: 750, hero_image_from: 画框id })`——一次调用。画框图像被收进 BackgroundLayer 的 HeroImg（向下探出 100px，fade 接缝藏进下一个 section），槽位自动 = 画框高 − 100；工具自动采样 hero 底部 100px 作为 overlay 中间 stop，并向画布底部淡出为白。返回的 `hero_color` 即采样色。
+5. 调用 `derive_palette({ seed: <第 4 步返回的 hero_color>, harmony: <本设计选定的 harmony> })`——把返回色票落实：hero 标题设为 `ink.onLight`（标题带偏浅时）或 `ink.onDark`（偏深时），以 checks 中对比度过关者为准；**把骨架期的中性灰占位强调元素（折扣数字、步骤编号、图标等）统一刷成色票角色色**——正文 ink.onLight、安静的底 ground/neutrals、accent 克制使用。**配对纪律（违反即隐形字事故）**：浅色底（ground、neutrals[0]）上的文字只用 ink.onLight；深色底（wash、accent、neutrals[2]、hero 图深区）上的文字只用 ink.onDark；绝不要把 ink.onDark 放在浅底上（它与 ground 明度几乎相同），也不要把文字和它的底板刷成同一角色。合法配对以返回的 pairings 表为准，表外不自行组合。note 里的警告必须遵守。
+   刷色工具模板（**不要用 eval 裸改 fills**——eval 写 fill 有陷阱且计数不代表落地）：文字色/强调色 → `set_fill` 逐节点；字号微调 → `update_node` 的 font_size（**batch_update 不支持 font_size**，不要试）；批量换字体 → `batch_update` 的 font_family，单点换字体三件套 → `set_font`；标题阴影 → `set_effects`，**永远最后做**（阴影改 bounding box、可能动布局）。刷完抽样 `describe` 几个节点验证 fill 真正落地。
+6. `look` 验收：hero 底部无可见接缝、图中无文字、标题带对影调清晰可读。hero 重生时重跑第 2→5 步（画框会刷新幽灵文字，compose 会重新采样，色票随之更新）。全部 section 渲染完成后可再调一次 `compose_backdrop`（省略 canvas_height）让底部淡出落在真实画布底。
+
+不要给标准配方传 `hero_color`——自动采样就是意义所在。不要编造几何：100px overlap、bleed 延伸、绝对定位、渐变 transform 都由工具内部处理。
+
+## Tone
+
+克制、有氛围感。短句。标题文案偏好名词性意象（一个季节、一个地点、一种质感）而非动宾口号；6–15 字拆进 2–3 行错落标题。

@@ -44,7 +44,7 @@
 | `docs/rebuild/spikes/*.zh.md` | `records/narrative/spikes/<file>.zh.md` |
 | `tools/zone-registry/zones.json` | `records/narrative/zones.json.md`（自愿绑定，超出 bindings.ts 强制口径——zones.json 是登记信任根，T32 起为其单独立档） |
 
-> 计数（2026-08-28 `find docs/rebuild/records/narrative -type f | wc -l` 实测 = **16**）：6 个核心叙事（00-05）+ README + tracker + runbook-github-push + zones.json + 5 个 spike + 1 个 proposal。（2026-08-25 口径 15 漏记 zones.json.md——T36 大扫除时发现并修正。）
+> 计数（2026-08-30 `find docs/rebuild/records/narrative -type f | wc -l` 实测 = **17**）：6 个核心叙事（00-05）+ README + tracker + runbook-github-push + zones.json + 6 个 spike + 1 个 proposal。（2026-08-30 Phase 3 探针批 spike 06 入库 +1；2026-08-25 口径 15 漏记 zones.json.md——T36 大扫除时发现并修正。）
 
 ## 3. topics/ 主题聚合层（横向档案）
 
@@ -60,7 +60,7 @@
 | 生图管线 | `topics/tools-image-gen.md` | 生图独立凭证链（原 F0.3②，D32 归并 C3a） |
 | upstream 合并 | `topics/upstream-merge.md` | MERGE-1、合并演习、合并 SOP |
 | CI / workflows / zone registry | `topics/ci-infra.md` | CI-1~CI-13、P0-9/P0-10、D18 |
-| spike 文档的核验与修正 | `topics/spikes.md` | SP-1~SP-3、修正-1 |
+| spike 文档的核验与修正 | `topics/spikes.md` | SP-1~SP-3、修正-1、核验-2（Phase 3 探针批 SP-a1/SP-b/SP-c） |
 | 文档体系本身的修改 | `topics/docs-governance.md` | D10~D17、D19、P0-8、修正-N、ROT-N、治理冻结期提案 |
 
 ## 4. 子文档使用纪律

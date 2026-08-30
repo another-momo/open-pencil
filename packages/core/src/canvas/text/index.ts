@@ -292,6 +292,24 @@ export function textFontVariations(
   return variations.map((variation) => ({ axis: variation.axis, value: variation.value }))
 }
 
+/**
+ * T41（D-b 收口）：VF 家族的 wght 轴自动注入。家族已加载可变字体且调用方未显式
+ * 给 wght 轴时，按 fontWeight 合流一个 wght variation（clamp 到 fvar 区间）；
+ * 显式 variations（FIG 导入语义）优先，不被覆盖。
+ * 机制实证：workbench/probe-t41-variable-font.mjs（0.41.1，墨量 ×2.81）。
+ */
+export function withWeightAxisVariation(
+  family: string,
+  weight: number,
+  variations: TextFontVariations[] | undefined
+): TextFontVariations[] | undefined {
+  if (variations?.some((variation) => variation.axis === 'wght')) return variations
+  if (!fontManager.isVariableFamily(family)) return variations
+  const range = fontManager.variableWeightRange(family)
+  const value = range ? Math.min(range.max, Math.max(range.min, weight)) : weight
+  return [...(variations ?? []), { axis: 'wght', value }]
+}
+
 export function textFontFeatures(
   features: SceneNode['fontFeatures'] | undefined
 ): TextFontFeatures[] | undefined {
@@ -377,22 +395,25 @@ function pushStyleRun(
   const style = run.style
   const runLineHeight = style.lineHeight !== undefined ? style.lineHeight : node.lineHeight
   const runFontSize = style.fontSize ?? baseFontSize
+  const runFamily = style.fontFamily ?? (node.fontFamily || DEFAULT_FONT_FAMILY)
+  const runWeight = style.fontWeight ?? node.fontWeight
+  const runItalic = style.italic ?? node.italic
 
   builder.pushStyle(
     new ck.TextStyle({
       color: styleRunColor(ck, style, baseColor),
-      fontFamilies: fontFamilies(
-        style.fontFamily ?? (node.fontFamily || DEFAULT_FONT_FAMILY),
-        style.fontWeight ?? node.fontWeight,
-        style.italic ?? node.italic
-      ),
+      fontFamilies: fontFamilies(runFamily, runWeight, runItalic),
       fontSize: runFontSize,
       locale: styleRunLanguage(style, node),
       fontStyle: {
-        weight: { value: style.fontWeight ?? node.fontWeight } as FontWeight,
-        slant: (style.italic ?? node.italic) ? ck.FontSlant.Italic : ck.FontSlant.Upright
+        weight: { value: runWeight } as FontWeight,
+        slant: runItalic ? ck.FontSlant.Italic : ck.FontSlant.Upright
       },
-      fontVariations: textFontVariations(style.fontVariations ?? node.fontVariations),
+      fontVariations: withWeightAxisVariation(
+        runFamily,
+        runWeight,
+        textFontVariations(style.fontVariations ?? node.fontVariations)
+      ),
       fontFeatures: textFontFeatures(style.fontFeatures ?? node.fontFeatures),
       letterSpacing: style.letterSpacing ?? (node.letterSpacing || 0),
       decoration: textDecorationValue(ck, style.textDecoration ?? node.textDecoration),
@@ -485,7 +506,11 @@ export function buildParagraph(
         weight: { value: node.fontWeight } as FontWeight,
         slant: node.italic ? ck.FontSlant.Italic : ck.FontSlant.Upright
       },
-      fontVariations: textFontVariations(node.fontVariations),
+      fontVariations: withWeightAxisVariation(
+        node.fontFamily || DEFAULT_FONT_FAMILY,
+        node.fontWeight,
+        textFontVariations(node.fontVariations)
+      ),
       fontFeatures: textFontFeatures(node.fontFeatures),
       letterSpacing: node.letterSpacing || 0,
       decoration: textDecorationValue(ck, node.textDecoration),

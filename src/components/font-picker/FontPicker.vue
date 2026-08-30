@@ -5,6 +5,7 @@ import { FontPickerRoot, useI18n } from '@open-pencil/vue'
 import { useSelectUI } from '@/components/ui/select'
 import { usePopoverUI } from '@/components/ui/popover'
 import {
+  fontListRevision,
   listFamilies,
   loadFont,
   localFontAccessState,
@@ -55,7 +56,11 @@ function loadPreviewFont(family: string, source: string) {
 </script>
 
 <template>
+  <!-- T41（D-h）：白名单运行时开关后重挂载——useFontPicker 的 families 一次性缓存
+       无失效机制，:key 变更重建 picker 使关停的家族即时消失（picker 此时必然处于
+       关闭态——开关操作发生在设置面板，重挂载不损失任何打开态 UI 状态） -->
   <FontPickerRoot
+    :key="fontListRevision"
     v-model="modelValue"
     data-test-id="font-picker-root"
     :list-families="listFamilies"

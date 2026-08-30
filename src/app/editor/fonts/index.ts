@@ -1,5 +1,5 @@
 import { useLocalStorage } from '@vueuse/core'
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 
 import { IS_BROWSER } from '@open-pencil/core/constants'
 import {
@@ -36,6 +36,23 @@ export const onlineFontsEnabled = useLocalStorage('op-online-fonts-enabled', tru
 export const fontProviderSettings = useLocalStorage<FontProviderSettings>(
   'op-font-providers',
   DEFAULT_WEB_FONT_PROVIDER_SETTINGS
+)
+
+/**
+ * T41 S4/S5：字体白名单运行时开关——存「被关停」清单（默认全启用，D-c），
+ * 覆盖 bundled/cdn/provider/local 全来源；bundled 兜底族由 core 锁定恒开（D-d）。
+ * fontListRevision 是 picker 一次性缓存的失效信号（D-h：FontPicker.vue 以 :key 重挂载）。
+ */
+export const disabledFontFamilies = useLocalStorage<string[]>('op-font-disabled-families:v1', [])
+export const fontListRevision = ref(0)
+
+watch(
+  disabledFontFamilies,
+  (families) => {
+    fontManager.setDisabledFontFamilies(families)
+    fontListRevision.value = fontManager.fontAllowlistRevision()
+  },
+  { deep: true, immediate: true }
 )
 
 watch(
@@ -178,6 +195,25 @@ export async function listFamilies(): Promise<FontFamilyOption[]> {
   }
   showWebFontUnavailableToast()
   return fontManager.listFamilyOptions()
+}
+
+/**
+ * T41 S5：白名单管理面板专用枚举——不过滤 disabled 家族，面板要列出
+ * 关停行（含其开关状态）才能重开；picker 仍走 listFamilies（过滤版）。
+ */
+export async function listAllFamilies(): Promise<FontFamilyOption[]> {
+  configureTauriFontCache()
+  if (isTauri()) {
+    const [systemFonts, webFonts] = await Promise.all([
+      getTauriFonts(),
+      fontManager.listFamilyOptions({ includeDisabled: true })
+    ])
+    const byFamily = new Map(webFonts.map((font) => [font.family, font]))
+    for (const font of systemFonts)
+      byFamily.set(font.family, { family: font.family, source: 'local' })
+    return [...byFamily.values()].sort((a, b) => a.family.localeCompare(b.family))
+  }
+  return fontManager.listFamilyOptions({ includeDisabled: true })
 }
 
 export async function listFonts(): Promise<TauriFontFamily[]> {

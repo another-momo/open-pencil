@@ -30,6 +30,8 @@ export interface CnFontPieceCache {
 export interface CnFontFacePiece {
   url: string
   weight: number
+  /** 可变字体分片的字重区间上限（T41）：`font-weight: 250 900` 区间形态；静态片缺省 */
+  weightMax?: number
   italic: boolean
   ranges: Array<[number, number]>
 }
@@ -122,9 +124,10 @@ export function parseCnFontResultCSS(css: string, baseURL: string): CnFontFacePi
       const face: {
         url: string | null
         weight: number
+        weightMax: number | undefined
         italic: boolean
         ranges: Array<[number, number]>
-      } = { url: null, weight: 400, italic: false, ranges: [] }
+      } = { url: null, weight: 400, weightMax: undefined, italic: false, ranges: [] }
       walk(node.block, {
         visit: 'Declaration',
         enter(declaration) {
@@ -133,8 +136,18 @@ export function parseCnFontResultCSS(css: string, baseURL: string): CnFontFacePi
             const match = /url\(\s*["']?([^"')]+)["']?\s*\)/i.exec(value.value)
             if (match) face.url = new URL(match[1], baseURL).toString()
           } else if (declaration.property === 'font-weight' && value.type === 'Raw') {
-            const parsed = Number.parseInt(value.value.trim(), 10)
-            if (Number.isFinite(parsed)) face.weight = parsed
+            // 单值（400）与可变区间（250 900）双形态（T41 syst 实测）
+            const numbers = value.value
+              .trim()
+              .split(/\s+/)
+              .map((token) => Number.parseInt(token, 10))
+              .filter((n) => Number.isFinite(n))
+            if (numbers.length >= 2) {
+              face.weight = numbers[0]
+              face.weightMax = numbers[1]
+            } else if (numbers.length === 1) {
+              face.weight = numbers[0]
+            }
           } else if (declaration.property === 'font-style' && value.type === 'Raw') {
             face.italic = value.value.trim().toLowerCase() === 'italic'
           } else if (declaration.property === 'unicode-range' && value.type === 'Raw') {
@@ -146,6 +159,7 @@ export function parseCnFontResultCSS(css: string, baseURL: string): CnFontFacePi
         pieces.push({
           url: face.url,
           weight: face.weight,
+          weightMax: face.weightMax,
           italic: face.italic,
           ranges: face.ranges
         })
@@ -166,7 +180,12 @@ export function selectCnFontPieces(
   weight: number,
   italic: boolean
 ): CnFontFacePiece[] {
-  const weighted = pieces.filter((piece) => piece.weight === weight && piece.italic === italic)
+  // 字重匹配：静态片单值相等；可变片（weightMax）区间包含（T41）
+  const weightMatches = (piece: CnFontFacePiece) =>
+    piece.weightMax !== undefined
+      ? piece.weight <= weight && weight <= piece.weightMax
+      : piece.weight === weight
+  const weighted = pieces.filter((piece) => weightMatches(piece) && piece.italic === italic)
   const pool = weighted.length > 0 ? weighted : pieces
   const selected = new Map<string, CnFontFacePiece>()
   for (const character of new Set(characters)) {

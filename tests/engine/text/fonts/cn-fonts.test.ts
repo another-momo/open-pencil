@@ -124,11 +124,12 @@ interface MockFetch {
  * mock 直接回空清单让其快速初始化成功；其余未知 URL 一律 404。
  */
 function createMockFetch(
-  options: { failWoff2?: boolean; css?: string; packages?: string[] } = {}
+  options: { failWoff2?: boolean; css?: string; packages?: string[]; dirs?: string[] } = {}
 ): MockFetch {
   const calls: string[] = []
   const css = options.css ?? FIXTURE_CSS
   const packages = options.packages ?? ['@chinese-fonts/mock']
+  const dirs = options.dirs ?? ['Mock-Regular']
   return {
     calls,
     fetcher: async (url: string) => {
@@ -146,7 +147,7 @@ function createMockFetch(
       if (url.includes('api.fontsource.org')) return new Response('{}', { status: 200 })
       if (packages.some((name) => url.includes(`/npm/${name}@`))) {
         if (url.endsWith('/dist/index.json')) {
-          return new Response(JSON.stringify(['Mock-Regular']), {
+          return new Response(JSON.stringify(dirs), {
             status: 200
           })
         }
@@ -423,5 +424,71 @@ describe('FontManager cn-font render aliases (T40 同名塌缩修复)', () => {
 
     manager.evictFont('LXGW WenKai', 'Regular')
     expect(manager.renderFamilyAliases('LXGW WenKai', 'Regular')).toEqual([])
+  })
+})
+
+describe('可变字体（VF）包支持（T41 S2，syst 形态）', () => {
+  const VF_CSS = `
+@font-face{font-family:"Source Han Serif CN VF";src:local("Source Han Serif CN VF"),url("./vf-aaaa.woff2")format("woff2");font-style:normal;font-display:swap;font-weight:250 900;unicode-range:U+4E00-4E7F;}
+@font-face{font-family:"Source Han Serif CN VF";src:url("./vf-bbbb.woff2")format("woff2");font-style:normal;font-weight:250 900;unicode-range:U+4E80-4FFF;}
+`
+
+  test('parseCnFontResultCSS 解析 font-weight 区间形态（250 900）', () => {
+    const pieces = parseCnFontResultCSS(VF_CSS, 'https://cdn.example/dist/SourceHanSerifCN/')
+    expect(pieces).toHaveLength(2)
+    expect(pieces[0].weight).toBe(250)
+    expect(pieces[0].weightMax).toBe(900)
+    // 静态单值形态不产出 weightMax
+    const staticPieces = parseCnFontResultCSS(FIXTURE_CSS, 'https://cdn.example/dist/Mock/')
+    expect(staticPieces[0].weightMax).toBeUndefined()
+  })
+
+  test('selectCnFontPieces 区间包含匹配：任意请求字重命中 VF 片', () => {
+    const pieces = parseCnFontResultCSS(VF_CSS, 'https://cdn.example/dist/SourceHanSerifCN/')
+    // 你 U+4F60 在 4E80-4FFF 片；400/650/900 均应命中同一 VF 片（区间包含）
+    for (const weight of [250, 400, 650, 900]) {
+      expect(selectCnFontPieces(pieces, '你', weight, false).map((p) => p.url)).toEqual([
+        'https://cdn.example/dist/SourceHanSerifCN/vf-bbbb.woff2'
+      ])
+    }
+  })
+
+  test('syst 形态端到端：单目录索引 + 区间 css + 按需取片', async () => {
+    const mock = createMockFetch({
+      packages: ['@chinese-fonts/syst'],
+      dirs: ['SourceHanSerifCN'],
+      css: VF_CSS
+    })
+    const resolver = new CnFontSubsetResolver({ fetcher: mock.fetcher })
+    // Bold（700）请求：区间 250-900 包含命中
+    const result = await resolver.fetch(
+      'Source Han Serif CN VF',
+      { package: '@chinese-fonts/syst' },
+      'Bold',
+      '中你'
+    )
+    expect(result).not.toBeNull()
+    expect(result?.pieces).toHaveLength(2)
+    expect(result?.coveredCharacters.sort()).toEqual(['中', '你'])
+    expect(mock.calls.some((url) => url.includes('/dist/SourceHanSerifCN/result.css'))).toBe(true)
+  })
+
+  test('FontManager 路由：syst 注册表家族经 CDN 链加载', async () => {
+    const manager = new FontManager()
+    const mock = createMockFetch({
+      packages: ['@chinese-fonts/syst'],
+      dirs: ['SourceHanSerifCN'],
+      css: VF_CSS
+    })
+    manager.setWebFontFetch(mock.fetcher)
+    // 隔离应用侧 P117 接线可能装进单例 resolver 的磁盘缓存：网络行为断言只认 mock
+    manager.setCnFontPieceCache(null)
+    manager.setOnlineFontProviders({ google: true })
+
+    const loaded = await manager.loadRemoteFont('Source Han Serif CN VF', 'Bold', '中')
+    expect(loaded).not.toBeNull()
+    expect(manager.loadedFontSource('Source Han Serif CN VF', 'Bold')).toBe('cdn')
+    expect(manager.renderFamilyAliases('Source Han Serif CN VF', 'Bold')).toHaveLength(1)
+    manager.evictFont('Source Han Serif CN VF', 'Bold')
   })
 })

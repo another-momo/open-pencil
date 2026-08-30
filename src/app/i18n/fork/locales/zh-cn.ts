@@ -13,11 +13,29 @@
  */
 import type { ComponentsJSON } from '@nanostores/i18n'
 
-import type { piMessageDefaults } from './en'
+import type { fontsMessageDefaults, piMessageDefaults } from './en'
 
 const zhCN = {
   rebuild: {
     seamProbe: 'fork i18n 缝已接通'
+  },
+  fonts: {
+    settingsFonts: '字体',
+    fontsPanelTitle: '字体白名单',
+    fontsPanelDescription:
+      '按来源开关字体家族。被关闭的字体视为未安装：从字体选择器消失，文档自动回退到下一可用字体。',
+    fontsSearchPlaceholder: '搜索字体…',
+    fontsLoading: '字体加载中…',
+    fontsEmpty: '没有匹配的字体。',
+    fontsEnabledSummary: '已启用 {enabled}/{total} 个家族',
+    fontsSourceBundled: '内置',
+    fontsSourceCdn: 'CDN',
+    fontsSourceLocal: '系统',
+    fontsSourceOnline: '在线',
+    fontsLockedHint: '内置字体始终启用——它们是渲染兜底。',
+    fontsLocalAccessPrompt: '允许访问系统字体后可在此管理。',
+    fontsLocalAllow: '允许访问系统字体',
+    fontsVariableBadge: '可变'
   },
   pi: {
     modelsDescription: 'Provider、凭据和设计模型由本地 pi 后端管理。',
@@ -55,3 +73,4 @@ export default zhCN
 // T35：PiNamespace 类型基于 en defaults（含 params），与 zh-cn.ts 的 string 字面量解耦——
 // 参数化 key（如 providerModels）在 useForkPi() 消费端保留 callable 形态。
 export type PiNamespace = typeof piMessageDefaults
+export type FontsNamespace = typeof fontsMessageDefaults

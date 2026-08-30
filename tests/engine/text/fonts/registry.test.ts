@@ -43,11 +43,12 @@ describe('isBundledFamilyAllowed', () => {
 })
 
 describe('CDN 家族注册（T40 S4）', () => {
-  test('registers the five verified cn-font families with descriptors', () => {
+  test('registers the six verified cn-font families with descriptors', () => {
     const cdnFamilies = FONT_REGISTRY.filter((entry) => entry.source === 'cdn').map(
       (entry) => entry.family
     )
     expect(cdnFamilies).toEqual([
+      'Source Han Serif CN VF',
       'LXGW WenKai',
       'Xiaolai SC',
       'Yozai',
@@ -57,6 +58,23 @@ describe('CDN 家族注册（T40 S4）', () => {
     for (const entry of FONT_REGISTRY.filter((entry) => entry.source === 'cdn')) {
       expect(entry.cdn?.package).toMatch(/^@chinese-fonts\//)
       expect(['T0', 'T1']).toContain(entry.tier)
+    }
+  })
+
+  test('syst registers as the single variable CDN family (T41)', () => {
+    const syst = FONT_REGISTRY.find((entry) => entry.family === 'Source Han Serif CN VF')
+    expect(syst).toMatchObject({
+      tier: 'T0',
+      license: 'OFL-1.1',
+      source: 'cdn',
+      variable: true,
+      weights: [],
+      cdn: { package: '@chinese-fonts/syst' }
+    })
+    for (const entry of FONT_REGISTRY.filter(
+      (item) => item.source === 'cdn' && item.family !== 'Source Han Serif CN VF'
+    )) {
+      expect(entry.variable ?? false).toBe(false)
     }
   })
 

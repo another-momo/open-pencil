@@ -36,6 +36,8 @@ export interface FontRegistryEntry {
   weights: string[]
   /** CDN 家族的分片子集寻址信息（source='cdn' 时必填） */
   cdn?: CnFontCdnDescriptor
+  /** 可变字体家族（T41）：渲染期 wght 轴按 fontWeight 注入，weights 列静态档为空 */
+  variable?: boolean
   /** 授权备注（如 T1 的厂商收回权利警示） */
   note?: string
 }
@@ -76,8 +78,18 @@ export const FONT_REGISTRY: FontRegistryEntry[] = [
 
   // —— CDN 家族（T40 S4，中文网字计划 @chinese-fonts/* 按需子集）——
   // 包名/目录结构/font-family 均经 2026-08-30 jsdelivr 实测核验（D-a，记录见 T40-self-check）：
-  // - syst（思源宋体 VF）因交付可变字体、栈不支持可变语义（D-b 挂起）而剔除；
+  // - syst（思源宋体 CN VF）T41 收录（D-b 收口）：dist/index.json 单目录 ["SourceHanSerifCN"]，
+  //   result.css `font-weight:250 900` 区间形态 + font-family "Source Han Serif CN VF"，OFL-1.1；
   // - sypxzs（思源屏显臻宋）因子族目录为中文名、jsdelivr 对非 ASCII 路径 404 而剔除。
+  {
+    family: 'Source Han Serif CN VF',
+    tier: 'T0',
+    license: 'OFL-1.1',
+    source: 'cdn',
+    variable: true,
+    weights: [],
+    cdn: { package: '@chinese-fonts/syst' }
+  },
   {
     family: 'LXGW WenKai',
     tier: 'T0',

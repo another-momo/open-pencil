@@ -17,20 +17,27 @@ import { useStore } from '@nanostores/vue'
 
 import { locale, type Locale } from '@open-pencil/vue'
 
-import { piMessageDefaults } from './locales/en'
+import { fontsMessageDefaults, piMessageDefaults } from './locales/en'
 
 export const forkI18n = createI18n<Locale, 'en'>(locale, {
   baseLocale: 'en',
   async get(code): Promise<ComponentsJSON> {
     if (code === 'zh-CN') {
       const mod = await import('./locales/zh-cn')
-      return { rebuild: mod.default.rebuild, pi: mod.default.pi }
+      return { rebuild: mod.default.rebuild, pi: mod.default.pi, fonts: mod.default.fonts }
     }
     return {}
   }
 })
 
 export const forkPiMessages = forkI18n('pi', piMessageDefaults)
+
+/** T41：字体白名单面板文案域（SettingsDialog fonts 分区） */
+export const forkFontsMessages = forkI18n('fonts', fontsMessageDefaults)
+
+export function useForkFonts() {
+  return useStore(forkFontsMessages)
+}
 
 // T38 修：返回诚实 Ref（照抄上游 useNotificationMessages 形态，类型推断保留
 // pi 段全键含 params 函数）——script 内访问必须写 .value（同上游

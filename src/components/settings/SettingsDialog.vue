@@ -5,9 +5,11 @@ import { useI18n } from '@open-pencil/vue'
 import { IS_TAURI } from '@open-pencil/core/constants'
 
 import { useAIChat } from '@/app/ai/chat/use'
+import { useForkFonts } from '@/app/i18n/fork'
 import { appCredentialServices } from '@/app/settings/credentials/app'
 import { settingsDialogOpen, settingsDialogSection } from '@/app/settings/dialog'
 import DiagnosticsSettingsPanel from '@/components/settings/diagnostics/DiagnosticsSettingsPanel.vue'
+import FontsSettingsPanel from '@/components/settings/fonts/FontsSettingsPanel.vue'
 import GeneralSettingsPanel from '@/components/settings/general/GeneralSettingsPanel.vue'
 import ModelsPanel from '@/components/settings/models/ModelsPanel.vue'
 import StockPhotoKeysSection from '@/components/settings/provider/StockPhotoKeysSection.vue'
@@ -18,6 +20,7 @@ import AppSwitch from '@/components/ui/AppSwitch.vue'
 import { AppDialogFooter, AppDialogHeader, AppDialogRoot } from '@/components/ui/dialog'
 
 const { dialogs } = useI18n()
+const fontsMsgs = useForkFonts()
 const { browserCredentialsRemembered, setRememberCredentials } = useAIChat()
 function onOpenChange(open: boolean): void {
   settingsDialogOpen.value = open
@@ -114,6 +117,16 @@ const navigationClass =
         <button
           type="button"
           :class="navigationClass"
+          :data-state="settingsDialogSection === 'fonts' ? 'active' : 'inactive'"
+          data-test-id="settings-section-fonts"
+          @click="settingsDialogSection = 'fonts'"
+        >
+          <icon-lucide-type class="size-3.5" />
+          {{ fontsMsgs.settingsFonts }}
+        </button>
+        <button
+          type="button"
+          :class="navigationClass"
           :data-state="settingsDialogSection === 'storage' ? 'active' : 'inactive'"
           data-test-id="settings-section-storage"
           @click="settingsDialogSection = 'storage'"
@@ -149,6 +162,8 @@ const navigationClass =
         </section>
 
         <StorageSettingsPanel v-else-if="settingsDialogSection === 'storage'" />
+
+        <FontsSettingsPanel v-else-if="settingsDialogSection === 'fonts'" />
 
         <!-- T36（owner 拍板③）：裸 v-else 收窄——SettingsSection 全体成员的落点必须显式，
              未知/未来成员落显式空态而非静默落到 Storage（mcp 僵尸 nav 曾借裸 v-else 落 Storage） -->

@@ -3,20 +3,25 @@ import type { CanvasKit, TypefaceFontProvider } from 'canvaskit-wasm'
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
 import { hasWindowGlobal, IS_BROWSER } from '#core/constants'
+import { parseFontStyle } from '#core/text/face'
+import { FontFamilyAllowlist } from '#core/text/font/allowlist'
 import { FontMemoryLedger } from '#core/text/font/memory'
 import type { FontMemoryStats } from '#core/text/font/memory'
 import { cdnFontEntry, FONT_REGISTRY, isBundledFamilyAllowed } from '#core/text/font/registry'
 import {
   chooseLocalFontMatch,
-  isVariableFont,
   normalizeFontFamily,
   styleToWeight,
   weightToStyle
 } from '#core/text/font/style'
+import { FULL_WEIGHT_RANGE, sniffVariableFont } from '#core/text/font/variable'
 
+export * from '#core/text/font/allowlist'
 export * from '#core/text/font/sources'
 export * from '#core/text/font/style'
 export * from '#core/text/font/memory'
+export * from '#core/text/font/variable'
+export { fontRegistryEntry } from '#core/text/font/registry'
 import { fontFallbackEntry } from '#core/text/fallbacks'
 import type { FontFallbackScript } from '#core/text/fallbacks'
 import type {
@@ -33,7 +38,7 @@ import type { CnFontPieceCache } from '#core/text/web-font/cn-fonts'
 import { normalizedCoverageText, WebFontResolver } from '#core/text/web-fonts'
 import type { WebFontFetch, WebFontProviderId } from '#core/text/web-fonts'
 
-type FindLocalFontOptions = { allowVariable?: boolean }
+type WeightRange = { min: number; max: number }
 
 /** bundled 字体清单：键 = 'Family|Style'，值 = public/ 与 assets/ 双份同名路径。 */
 const BUNDLED_FONTS: Record<string, string> = {
@@ -97,6 +102,11 @@ export class FontManager {
   private fontEvictListener: ((family: string, style: string) => void) | null = null
   /** CDN 键的分片 alias 注册表：键 = 'Family|Style'，条目按注册顺序（alias 序即回退链序） */
   private renderAliasFamilies = new Map<string, RenderAliasEntry[]>()
+  /** T41：VF 入账跟踪——键级 fvar 嗅探（woff2 压缩流读不出区间时记 null，用全区间兜底） */
+  private variableFontKeys = new Set<string>()
+  private variableWeightRanges = new Map<string, WeightRange | null>()
+  /** T41 S4：白名单运行时管控（全来源；bundled 锁定恒开） */
+  private readonly allowlist = new FontFamilyAllowlist()
 
   attachProvider(_canvasKit: CanvasKit, provider: TypefaceFontProvider): void {
     this.fontProviders.add(provider)
@@ -211,6 +221,59 @@ export class FontManager {
     cnFontSubsetResolver.setCache(cache)
   }
 
+  // —— T41 S4 白名单运行时管控（委托 FontFamilyAllowlist，语义见 allowlist.ts）——
+
+  setDisabledFontFamilies(families: Iterable<string>): void {
+    this.allowlist.replaceDisabled(families)
+  }
+
+  /** 返回 false = bundled 锁定族，操作未生效（D-d 恒开） */
+  setFontFamilyEnabled(family: string, enabled: boolean): boolean {
+    return this.allowlist.setEnabled(family, enabled)
+  }
+
+  isFontFamilyEnabled(family: string): boolean {
+    return this.allowlist.isEnabled(family)
+  }
+
+  isFontFamilyLocked(family: string): boolean {
+    return this.allowlist.isLocked(family)
+  }
+
+  disabledFontFamilies(): string[] {
+    return this.allowlist.listDisabled()
+  }
+
+  /** picker 失效信号：白名单变更计数（D-h） */
+  fontAllowlistRevision(): number {
+    return this.allowlist.getRevision()
+  }
+
+  // —— T41 可变字体（D-b 收口）——
+
+  /** 家族是否已加载可变字体（canvas/text 排版期 wght 轴注入的判定依据） */
+  isVariableFamily(family: string): boolean {
+    for (const key of this.variableFontKeys) {
+      if (key.startsWith(`${family}|`)) return true
+    }
+    return false
+  }
+
+  /** VF 家族 wght 轴区间；非 VF 返回 null；fvar 读不出区间（woff2 压缩流）回全区间 */
+  variableWeightRange(family: string): WeightRange | null {
+    if (!this.isVariableFamily(family)) return null
+    for (const key of this.variableFontKeys) {
+      if (!key.startsWith(`${family}|`)) continue
+      return (
+        this.variableWeightRanges.get(key) ?? {
+          min: FULL_WEIGHT_RANGE.min,
+          max: FULL_WEIGHT_RANGE.max
+        }
+      )
+    }
+    return { min: FULL_WEIGHT_RANGE.min, max: FULL_WEIGHT_RANGE.max }
+  }
+
   enabledOnlineFontProviders(): WebFontProviderId[] {
     return this.webFonts.enabledProviders()
   }
@@ -220,6 +283,7 @@ export class FontManager {
     style = 'Regular',
     characters = ''
   ): Promise<ArrayBuffer | null> {
+    if (!this.allowlist.isEnabled(family)) return null
     const cached = await this.readDownloadedFont(family, style, characters)
     if (!cached) return null
     return this.registerAndCache(family, style, cached, 'cache')
@@ -261,7 +325,8 @@ export class FontManager {
     return options.map((option) => option.family)
   }
 
-  async listFamilyOptions(): Promise<FontFamilyOption[]> {
+  async listFamilyOptions(options?: { includeDisabled?: boolean }): Promise<FontFamilyOption[]> {
+    const includeDisabled = options?.includeDisabled ?? false
     // 不隐式触发本地字体权限请求：'prompt' 状态下 queryLocalFonts 会一直挂起
     // （自动化/无头环境无人响应权限弹窗），bundled/web 家族列表会被一并卡住。
     // 本地字体由字体选择器的“允许访问”按钮显式调 requestLocalFontAccess 载入。
@@ -276,8 +341,11 @@ export class FontManager {
     // 字体注册表（白名单）枚举 bundled 家族：'Inter' 等字面值避免对
     // #core/constants 的循环 import（constants ← fonts 经 FontManager 消费）。
     // CDN 家族（T40 S4）同属在线能力：用户关停全部在线 provider 时一并隐藏。
+    // T41 S4：disabled 家族全来源过滤（bundled 锁定族 isEnabled 恒 true，不受影响）；
+    // includeDisabled（T41 S5 管理面板）不过滤——面板要列出关停行才能重开。
     const onlineEnabled = this.enabledOnlineFontProviders().length > 0
     for (const entry of FONT_REGISTRY) {
+      if (!includeDisabled && !this.allowlist.isEnabled(entry.family)) continue
       if (entry.source === 'cdn') {
         if (onlineEnabled) byFamily.set(entry.family, { family: entry.family, source: 'cdn' })
         continue
@@ -286,10 +354,14 @@ export class FontManager {
     }
     for (const { provider, families } of webFontFamilies) {
       for (const family of families) {
+        if (!includeDisabled && !this.allowlist.isEnabled(family)) continue
         if (!byFamily.has(family)) byFamily.set(family, { family, source: provider })
       }
     }
-    for (const font of fonts) byFamily.set(font.family, { family: font.family, source: 'local' })
+    for (const font of fonts) {
+      if (!includeDisabled && !this.allowlist.isEnabled(font.family)) continue
+      byFamily.set(font.family, { family: font.family, source: 'local' })
+    }
     return [...byFamily.values()].sort((a, b) => a.family.localeCompare(b.family))
   }
 
@@ -344,6 +416,7 @@ export class FontManager {
   }
 
   async loadLocalFont(family: string, style = 'Regular'): Promise<ArrayBuffer | null> {
+    if (!this.allowlist.isEnabled(family)) return null
     const cacheKey = `${family}|${style}`
     const loaded = this.loadedFamilies.get(cacheKey)
     if (loaded) {
@@ -363,10 +436,9 @@ export class FontManager {
       return null
     }
     try {
+      // T41 D-b：bundled 不再排除可变字体（fvar 嗅探在 registerAndCache 入账时完成）
       const buffer = await this.fetchBundledFont(bundledURL)
-      return buffer && !isVariableFont(buffer)
-        ? this.registerAndCache(family, style, buffer, 'bundled')
-        : null
+      return buffer ? this.registerAndCache(family, style, buffer, 'bundled') : null
     } catch (e) {
       console.warn(`Bundled font load failed for "${family}" ${style}:`, e)
       return null
@@ -379,6 +451,7 @@ export class FontManager {
     characters = ''
   ): Promise<ArrayBuffer | null> {
     if (typeof fetch === 'undefined') return null
+    if (!this.allowlist.isEnabled(family)) return null
     const coverage = this.remoteCoverage.get(`${family}|${style}`)
     if (
       characters &&
@@ -417,6 +490,7 @@ export class FontManager {
   }
 
   async loadFont(family: string, style = 'Regular', characters = ''): Promise<ArrayBuffer | null> {
+    if (!this.allowlist.isEnabled(family)) return null
     const loaded = this.loadedData(family, style)
     if (loaded) {
       this.registerFontInCanvasKit(family, loaded)
@@ -495,9 +569,7 @@ export class FontManager {
     if (this.cjkFallbackFamilies.length > 0) return this.cjkFallbackFamilies
     if (this.cjkFallbackPromise) return this.cjkFallbackPromise
 
-    this.cjkFallbackPromise = this.ensureFallbackFamilies('cjk', this.cjkFallbackFamilies, {
-      allowVariableLocalFonts: true
-    })
+    this.cjkFallbackPromise = this.ensureFallbackFamilies('cjk', this.cjkFallbackFamilies)
     return this.cjkFallbackPromise
   }
 
@@ -531,7 +603,7 @@ export class FontManager {
         else {
           const target =
             script === 'arabic' ? this.arabicFallbackFamilies : this.cjkFallbackFamilies
-          result[script] = await this.ensureFallbackFamilies(script, target, {}, characters)
+          result[script] = await this.ensureFallbackFamilies(script, target, characters)
         }
       })
     )
@@ -551,17 +623,16 @@ export class FontManager {
   private async ensureFallbackFamilies(
     script: FontFallbackScript,
     targetFamilies: string[],
-    options: { allowVariableLocalFonts?: boolean } = {},
     characters = ''
   ): Promise<string[]> {
     const manifest = fontFallbackEntry(script, this.fallbackUserAgent)
 
     for (const family of manifest.localFamilies) {
+      // T41 S4：白名单关停的家族连回退链也不可用（语义 = 视为未安装）
+      if (!this.allowlist.isEnabled(family)) continue
       const buffer =
         (await this.loadHostFont(family, 'Regular')) ??
-        (await this.findLocalFont(family, undefined, {
-          allowVariable: options.allowVariableLocalFonts
-        }))
+        (await this.findLocalFont(family, undefined))
       if (
         buffer &&
         this.registerAndCache(family, 'Regular', buffer, 'fallback') &&
@@ -572,8 +643,11 @@ export class FontManager {
     }
 
     if (targetFamilies.length === 0 || characters) {
+      const remoteFamilies = manifest.remoteFamilies.filter((family) =>
+        this.allowlist.isEnabled(family)
+      )
       const results = await Promise.allSettled(
-        manifest.remoteFamilies.map(async (family) => {
+        remoteFamilies.map(async (family) => {
           const data = await this.loadRemoteFont(family, 'Regular', characters)
           return data ? family : null
         })
@@ -686,21 +760,37 @@ export class FontManager {
     }
   }
 
-  private async findLocalFont(
-    family: string,
-    style?: string,
-    options: FindLocalFontOptions = {}
-  ): Promise<ArrayBuffer | null> {
+  private async findLocalFont(family: string, style?: string): Promise<ArrayBuffer | null> {
     if (!hasWindowGlobal() || !window.queryLocalFonts) return null
     if (this.localFontAccessState !== 'granted') return null
     try {
       const fonts = await window.queryLocalFonts()
       const match = chooseLocalFontMatch(fonts, family, style)
-      if (!match) return null
-      const blob: Blob = await match.blob()
-      const buffer = await blob.arrayBuffer()
-      if (!options.allowVariable && isVariableFont(buffer)) return null
-      return buffer
+      if (match) {
+        const blob: Blob = await match.blob()
+        return await blob.arrayBuffer()
+      }
+      if (!style) return null
+      // T41 D-b 收口：显式 style 静态匹配未命中时放宽给可变字体——同族斜体一致候选
+      // 按字重距离升序逐个下载嗅探 fvar，VF 一族覆盖全字重；静态字体严格契约不变
+      const requested = parseFontStyle(style)
+      const normalized = normalizeFontFamily(family)
+      const families = normalized === family ? [family] : [family, normalized]
+      const candidates = fonts
+        .filter(
+          (font) =>
+            families.includes(font.family) && parseFontStyle(font.style).italic === requested.italic
+        )
+        .sort(
+          (a, b) =>
+            Math.abs(parseFontStyle(a.style).weight - requested.weight) -
+            Math.abs(parseFontStyle(b.style).weight - requested.weight)
+        )
+      for (const candidate of candidates) {
+        const buffer = await (await candidate.blob()).arrayBuffer()
+        if (sniffVariableFont(buffer).variable) return buffer
+      }
+      return null
     } catch (e) {
       console.warn(`Local font access failed for "${family}" ${style ?? ''}:`, e)
       return null
@@ -714,9 +804,21 @@ export class FontManager {
     if (supplemental.includes(buffer)) return false
     supplemental.push(buffer)
     this.supplementalFamilyData.set(key, supplemental)
+    this.trackVariableFont(key, buffer)
     this.recountFontMemory(key)
     this.enforceFontMemoryBudget(key)
     return true
+  }
+
+  /** T41：入账时嗅探 fvar（三容器，见 font/variable.ts），登记键级 VF 身份与 wght 区间 */
+  private trackVariableFont(key: string, buffer: ArrayBuffer): void {
+    const info = sniffVariableFont(buffer)
+    if (!info.variable) return
+    this.variableFontKeys.add(key)
+    this.variableWeightRanges.set(
+      key,
+      info.wght ? { min: info.wght.min, max: info.wght.max } : null
+    )
   }
 
   private registerSupplemental(family: string, style: string, buffer: ArrayBuffer): void {
@@ -764,6 +866,8 @@ export class FontManager {
     this.remoteCoverage.delete(key)
     this.loadedFamilySources.delete(key)
     this.renderAliasFamilies.delete(key)
+    this.variableFontKeys.delete(key)
+    this.variableWeightRanges.delete(key)
     const faces = this.browserFontFaces.get(key)
     if (faces) {
       for (const face of faces) {
@@ -800,6 +904,7 @@ export class FontManager {
     if (source) this.loadedFamilySources.set(key, source)
     this.registerFontInCanvasKit(family, buffer)
     this.registerFontInBrowser(family, style, buffer, unicodeRange)
+    this.trackVariableFont(key, buffer)
     this.recountFontMemory(key)
     this.enforceFontMemoryBudget(key)
     return buffer
@@ -843,10 +948,15 @@ export class FontManager {
   ) {
     // 以真实能力为准：测试环境可能 mock window（IS_BROWSER 为真）却无 FontFace 实现
     if (!IS_BROWSER || typeof FontFace === 'undefined') return
-    const weight = styleToWeight(style)
     const italic = style.toLowerCase().includes('italic') ? 'italic' : 'normal'
+    // T41：可变字体的 weight descriptor 必须是区间（CSS 字重匹配才能命中全档）；
+    // fvar 直读失败（woff2 压缩流）按 CSS 合法全区间兜底
+    const info = sniffVariableFont(data)
+    const weight = info.variable
+      ? `${info.wght?.min ?? FULL_WEIGHT_RANGE.min} ${info.wght?.max ?? FULL_WEIGHT_RANGE.max}`
+      : String(styleToWeight(style))
     const face = new FontFace(family, data, {
-      weight: String(weight),
+      weight,
       style: italic,
       ...(unicodeRange ? { unicodeRange } : {})
     })

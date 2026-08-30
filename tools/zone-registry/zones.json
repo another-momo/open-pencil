@@ -47,7 +47,12 @@
     "src/app/editor/fonts/idb-cache.ts",
     "tests/engine/text/fonts/memory.test.ts",
     "tests/engine/text/fonts/cn-fonts.test.ts",
-    "tests/engine/text/fonts/piece-cache.test.ts"
+    "tests/engine/text/fonts/piece-cache.test.ts",
+    "packages/core/src/text/font/allowlist.ts",
+    "packages/core/src/text/font/variable.ts",
+    "src/components/settings/fonts/FontsSettingsPanel.vue",
+    "tests/engine/text/fonts/allowlist.test.ts",
+    "tests/engine/text/fonts/variable-fonts.test.ts"
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
@@ -359,16 +364,16 @@
     {
       "id": "P44",
       "file": "src/components/settings/SettingsDialog.vue",
-      "reason": "T25: MCP 导航/区块/导入切除（settings-mcp 面随 integrations/mcp 删除） T34: git merge 把 base 88c10770 的 mcp nav button 带回（面板未回——点击落裸 v-else 的 Storage，僵尸 nav） T36(2026-08-28): 删 mcp nav button + 裸 v-else 收窄为 v-else-if storage + 显式空态 fallback（owner 拍板③）；i18n 死键 settingsMCP 保留不删——packages/vue 的 messages/dialogs.ts 与 zh-cn/dialogs.json 经 T35 还原与上游字节一致，删键会制造新 patch 徒增下轮合并冲突面，死文案无害（取舍注记，owner 拍板③附带评估）",
+      "reason": "T25: MCP 导航/区块/导入切除（settings-mcp 面随 integrations/mcp 删除） T34: git merge 把 base 88c10770 的 mcp nav button 带回（面板未回——点击落裸 v-else 的 Storage，僵尸 nav） T36(2026-08-28): 删 mcp nav button + 裸 v-else 收窄为 v-else-if storage + 显式空态 fallback（owner 拍板③）；i18n 死键 settingsMCP 保留不删——packages/vue 的 messages/dialogs.ts 与 zh-cn/dialogs.json 经 T35 还原与上游字节一致，删键会制造新 patch 徒增下轮合并冲突面，死文案无害（取舍注记，owner 拍板③附带评估）；T41：设置对话框接入字体分区（FontsSettingsPanel 分支 + 导航按钮）",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-28"
+      "lastReviewed": "2026-08-30"
     },
     {
       "id": "P45",
       "file": "src/app/settings/dialog.ts",
-      "reason": "T25: SettingsSection 去 mcp（登记后未实做或被 T34 git merge 把 base 的 'mcp' 成员带回——T36 实测与 base 字节一致，成幻影 patch） T36(2026-08-28): 实做删除 'mcp' 成员（owner 拍板③），本 patch 自此有真实 diff",
+      "reason": "T25: SettingsSection 去 mcp（登记后未实做或被 T34 git merge 把 base 的 'mcp' 成员带回——T36 实测与 base 字节一致，成幻影 patch） T36(2026-08-28): 实做删除 'mcp' 成员（owner 拍板③），本 patch 自此有真实 diff；T41：SettingsSection 增加 fonts 分区",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-28"
+      "lastReviewed": "2026-08-30"
     },
     {
       "id": "P46",
@@ -519,9 +524,9 @@
     {
       "id": "P107",
       "file": "packages/core/src/text/fonts.ts",
-      "reason": "T39 字体栈：BUNDLED_FONTS 注册 PuHuiTi 9 字重 + listFamilyOptions 枚举源改 FONT_REGISTRY（font/registry.ts）+ bundled 加载白名单拦截（isBundledFamilyAllowed）",
+      "reason": "T39 字体栈：BUNDLED_FONTS 注册 PuHuiTi 9 字重 + listFamilyOptions 枚举源改 FONT_REGISTRY（font/registry.ts）+ bundled 加载白名单拦截（isBundledFamilyAllowed）；T41：四加载门禁接入 FontFamilyAllowlist + findLocalFont VF 宽松匹配 + VF 跟踪/逐出联动 + registerFontInBrowser VF 字重区间描述符 + ensureFallbackFamilies 停用跳过 + listFamilyOptions includeDisabled（面板用不过滤枚举）",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-29"
+      "lastReviewed": "2026-08-30"
     },
     {
       "id": "P108",
@@ -533,9 +538,9 @@
     {
       "id": "P109",
       "file": "src/app/editor/fonts/index.ts",
-      "reason": "T39 加载链修复（05 册 T1）：systemFontDataCache 会话缓存（CJK fallback 循环不再每次 IPC 拉 ~100MB）+ 浏览器 local-fonts 权限启动同步",
+      "reason": "T39 加载链修复（05 册 T1）：systemFontDataCache 会话缓存（CJK fallback 循环不再每次 IPC 拉 ~100MB）+ 浏览器 local-fonts 权限启动同步；T41：disabledFontFamilies localStorage 持久化 + fontListRevision 同步（picker 失效信号）+ listAllFamilies 不过滤枚举（面板数据源，listFamilies 仍过滤供 picker）",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-29"
+      "lastReviewed": "2026-08-30"
     },
     {
       "id": "P110",
@@ -603,7 +608,7 @@
     {
       "id": "P119",
       "file": "packages/core/src/canvas/text/index.ts",
-      "reason": "T40 修复：CDN 互斥分片 alias 注入段落 fontFamilies 回退链（同名多片被 CanvasKit 塌缩成单 typeface）；alias 列表进 fontFamilyCache 键",
+      "reason": "T40 修复：CDN 互斥分片 alias 注入段落 fontFamilies 回退链（同名多片被 CanvasKit 塌缩成单 typeface）；alias 列表进 fontFamilyCache 键；T41：withWeightAxisVariation——VF 家族按 fontWeight 自动注入 wght 轴（显式 fontVariations 优先，clamp 至 fvar 区间）",
       "disposition": "permanent",
       "lastReviewed": "2026-08-30"
     },
@@ -611,6 +616,20 @@
       "id": "P120",
       "file": "packages/core/src/constants.ts",
       "reason": "T40：hasWindowGlobal() 调用期 window 探测——IS_BROWSER import 期冻结在共享进程（window mock 后建先拆）失真，window 解引用前必须调用期判断（修复单测全量跑 local 候选 ReferenceError）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-30"
+    },
+    {
+      "id": "P121",
+      "file": "src/components/font-picker/FontPicker.vue",
+      "reason": "T41：FontPickerRoot 以 fontListRevision 为 :key 重挂载——白名单开关后枚举缓存即时失效（避免改 packages/vue 原语）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-30"
+    },
+    {
+      "id": "P122",
+      "file": "src/components/ui/AppSwitch.vue",
+      "reason": "T41：AppSwitch 增加 disabled prop 透传 SwitchRoot（bundled 字体锁定恒启用，开关置灰）",
       "disposition": "permanent",
       "lastReviewed": "2026-08-30"
     }

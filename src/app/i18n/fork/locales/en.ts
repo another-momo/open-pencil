@@ -40,3 +40,23 @@ export const piMessageDefaults = {
   thinkingHigh: 'High',
   thinkingExtraHigh: 'Extra high'
 } as const
+
+/** T41：字体白名单设置面板（SettingsDialog fonts 分区）英文默认值 */
+export const fontsMessageDefaults = {
+  settingsFonts: 'Fonts',
+  fontsPanelTitle: 'Font allowlist',
+  fontsPanelDescription:
+    'Enable or disable font families across all sources. A disabled font is treated as not installed: it disappears from the font picker and documents fall back to the next available font.',
+  fontsSearchPlaceholder: 'Search fonts…',
+  fontsLoading: 'Loading fonts…',
+  fontsEmpty: 'No fonts match your search.',
+  fontsEnabledSummary: params('{enabled} of {total} families enabled'),
+  fontsSourceBundled: 'Built-in',
+  fontsSourceCdn: 'CDN',
+  fontsSourceLocal: 'System',
+  fontsSourceOnline: 'Online',
+  fontsLockedHint: 'Built-in fonts stay always on — they are the rendering fallback.',
+  fontsLocalAccessPrompt: 'Allow access to system fonts to manage them here.',
+  fontsLocalAllow: 'Allow system fonts',
+  fontsVariableBadge: 'Variable'
+} as const

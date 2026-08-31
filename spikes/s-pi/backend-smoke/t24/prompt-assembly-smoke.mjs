@@ -230,9 +230,11 @@ try {
     JSON.stringify(manifest.failures).slice(0, 160)
   )
   check(
-    '路由 manifest：profiles 三精品摘要含 watercolor_poster_v3（applicableTo=[longform]）',
-    Array.isArray(manifest.profiles) && manifest.profiles.length === 3 &&
+    '路由 manifest：profiles 四精品摘要含 watercolor_poster_v2/v3（applicableTo=[longform]，T48 补迁 v2）',
+    Array.isArray(manifest.profiles) && manifest.profiles.length === 4 &&
       manifest.profiles.some((p) => p.id === 'watercolor_poster_v3' && p.label === '水彩海报 v3' &&
+        Array.isArray(p.applicableTo) && p.applicableTo[0] === 'longform') &&
+      manifest.profiles.some((p) => p.id === 'watercolor_poster_v2' && p.label === '水彩海报 v2' &&
         Array.isArray(p.applicableTo) && p.applicableTo[0] === 'longform')
   )
   check(

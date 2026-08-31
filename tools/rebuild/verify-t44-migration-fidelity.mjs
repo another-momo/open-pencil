@@ -7,6 +7,7 @@
  * 实测）。改为 git 钉扎源 `git show 4ce51816:…`（commit 钉扎防分支漂移；
  * blob ec9b22a3 与 rebuild/pi 同值，2026-08-31 `git rev-parse` 双 ref 实测）。
  *
+ * 前置：PATH 上需有 git（源经 execSync `git show` 读取；缺 git 响亮 ENOENT，非静默）。
  * 用法：node tools/rebuild/verify-t44-migration-fidelity.mjs（cwd = 仓库根）
  */
 import { execSync } from 'node:child_process'

@@ -4,6 +4,10 @@
  *
  * T48 修复（2026-08-31）：动态 import 绝对路径在 Windows 上须转 file:// URL
  * （node 报 ERR_UNSUPPORTED_ESM_URL_SCHEME），改 pathToFileURL——bun 容忍裸路径、node 不容忍。
+ *
+ * 注意（T48 独立核验 F2 登记）：本脚本覆写的 verify-t45-manifest-dump.json 是端点原始
+ * body（压缩单行），非 oxfmt canonical——跑完本脚本须 `bunx oxfmt --write` 该 json
+ * 再过 format:check，否则门禁红（C3→C4 顺序自踩，T47 修正记录 8 同类）。
  */
 import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readdirSync, copyFileSync, rmSync, writeFileSync } from 'node:fs'

@@ -9,6 +9,7 @@
  * oxfmt canonical 化观察项（T48 自检登记）：oxfmt 在 `## Tone` 前补了一个结构性空行——
  * 节体按 trim 口径对照，不受影响，无需 NORMALIZE 条目。
  *
+ * 前置：PATH 上需有 git（源经 execSync `git show` 读取；缺 git 响亮 ENOENT，非静默）。
  * 用法：node tools/rebuild/verify-t48-v2-rescue-fidelity.mjs（cwd = 仓库根）
  */
 import { execSync } from 'node:child_process'

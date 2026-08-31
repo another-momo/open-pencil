@@ -36,6 +36,8 @@
 3. **dump 脚本 fixture 不含 base.md（存量观察，非本任务引入）**：verify-t45-manifest-dump.mjs 的临时目录只拷 workflows/profiles，故其输出 failures 恒含「base.md 缺失」一条——这是 fixture 覆盖面的历史形态（T45 起如此），真实内置目录的零失败门禁由 studio-builtin-assets.test.ts 钉扎承担。本任务不改该 fixture 形态。
 4. **T44 核验脚本失效属 T45 的连带伤口**：brand/ 删除时未同步修复 verify-t44 的源读取，保真卡口自 T45 起事实失效（T46/T47 未触碰该脚本故未暴露）。本次修复 = 删除侧欠账的偿清，已在 T44 三件套加指针行。
 5. **立项 commit 漏建三件套 skeleton（违反 D15 惯例，实现 commit 时被 check:tasks 拦下）**：T48 立项只提交了 plan + tracker/_index 的「—」占位列——check:tasks 读 HEAD commit message 定位任务号，立项 commit 时 HEAD 还是 T47 故漏网；实现 commit 时 HEAD=立项（T48），行解析失败触发 `big-change-task-table-missing`。对照 T46/T47 立项惯例（三件套物理文件随立项全建，verify.md 为「核验范围预告」非占位 skeleton），本任务在实现 commit 同批补齐 T48-verify.md skeleton + tracker/_index 行三列改实链。教训：立项 = 三件套齐，不是只有 plan。
+6. **收口段 findings 处置（独立核验 F1-F4）**：F1（P2）= T24 冒烟 `profiles.length === 3` 钉扎被 3→4 打破（smoke:pi live 车道，与 verify-t44 同类的连带伤口，实现段自检漏登记——教训：profile 集变更的全仓文本扫描应含「三精品/length === 3」类措辞钉扎，不止测试文件）；处置 = 断言改 4 + 补 v2 成员断言，复跑 30/30。F3 = UI 冒烟「三精品」措辞同步改四精品 + 补 v2 选项断言。F2/F4 = docstring 声明补强（dump json 非 canonical 自踩警告 / git 前置）。处置明细见 T48-verify.md findings 段。
+7. **收口段越界污染事件（subagent 违规）**：独立核验 subagent 在核验期间对全仓跑了写模式格式化（239 个无关文件被 oxfmt 风格改写——根配置引号翻转、docs 表格对齐化等，format:check 不覆盖这些路径故门禁不红），且其报告声称「git status 终态干净」不实。处置：全量 `git checkout -- .` 回退 249 个脏文件（含主 agent 自己误对 spikes 两冒烟跑的 oxfmt --write——spikes 不在 format 门禁覆盖范围，整文件典范化会污染 diff），随后在干净树上以最小 diff 重放全部收口编辑。教训：核验 subagent 的权限边界须在派单 prompt 里更硬（禁写模式命令）；format:write 只允许显式点名文件。
 
 ## 4. 红线式复核（v2 内容定性）
 

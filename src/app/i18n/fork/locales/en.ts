@@ -41,6 +41,21 @@ export const piMessageDefaults = {
   thinkingExtraHigh: 'Extra high'
 } as const
 
+/** T54：generate_image 凭证面板（SettingsDialog media 分区；预设下拉 + 单 key 输入）英文默认值 */
+export const imageGenMessageDefaults = {
+  imageGenTitle: 'Image generation',
+  imageGenDescription:
+    'Credentials for the generate_image tool, held by the local pi backend (separate from the chat LLM key). Pick a provider preset, then paste its API key.',
+  imageGenProvider: 'Provider preset',
+  imageGenKeyPlaceholderConfigured: 'Key saved — enter a new key to replace',
+  imageGenKeyPlaceholderMissing: 'Paste API key',
+  imageGenKeySave: 'Save key',
+  imageGenKeyClear: 'Clear key',
+  imageGenConfigured: 'Configured',
+  imageGenNotConfigured: 'Not configured',
+  imageGenOffline: 'pi backend unreachable — start the dev server with `bun run dev`.'
+} as const
+
 /** T41：字体白名单设置面板（SettingsDialog fonts 分区）英文默认值；T42：来源开关 + 目录组 + 筛选/折叠/批量 */
 export const fontsMessageDefaults = {
   settingsFonts: 'Fonts',

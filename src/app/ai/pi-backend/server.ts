@@ -39,6 +39,8 @@ import { join } from 'node:path'
 
 import { isAuthorized } from './auth'
 import { PI_BACKEND_DEFAULT_PORT } from './config'
+import { createImageGenCredentialStore } from './image-gen/credentials'
+import { handleImageGenAdminRequest } from './image-gen/routes'
 import { isPiChatMode } from './modes'
 import { createProviderAdmin, type ModelSpec } from './provider-admin'
 import { createPiChatService } from './service'
@@ -287,7 +289,13 @@ export function createPiBackendServer({
   authToken: string | null
 }): Server {
   const admin = createProviderAdmin({ agentDir: join(rootDir, '.openpencil', 'pi-agent') })
-  const service = createPiChatService({ rootDir, admin })
+  // T54：generate_image 凭证面（三键存储 + 状态端点）——单实例同时供管理
+  // 路由与 service 内 generate_image 工具消费，避免双实例缓存漂移（保存 key
+  // 后工具侧立即可见）
+  const imageGenCredentials = createImageGenCredentialStore({
+    agentDir: join(rootDir, '.openpencil', 'pi-agent')
+  })
+  const service = createPiChatService({ rootDir, admin, imageGenCredentials })
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1')
     if (url.pathname === '/health') {
@@ -306,6 +314,11 @@ export function createPiBackendServer({
     }
     // T22/T23/T24 只读路由（须在 /api/pi/ 管理面前缀之前匹配）
     if (handleReadonlyPiRequest(service, req, res, url)) return
+    // T54：生图凭证面（须在 /api/pi/ 管理面前缀之前匹配；只进不出）
+    if (url.pathname.startsWith('/api/pi/image-gen/')) {
+      void handleImageGenAdminRequest(imageGenCredentials, req, res, url.pathname)
+      return
+    }
     if (url.pathname.startsWith('/api/pi/')) {
       void handleAdminRequest(admin, req, res, url.pathname)
       return

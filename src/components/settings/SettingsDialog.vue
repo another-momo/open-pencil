@@ -12,6 +12,7 @@ import DiagnosticsSettingsPanel from '@/components/settings/diagnostics/Diagnost
 import FontsSettingsPanel from '@/components/settings/fonts/FontsSettingsPanel.vue'
 import GeneralSettingsPanel from '@/components/settings/general/GeneralSettingsPanel.vue'
 import ModelsPanel from '@/components/settings/models/ModelsPanel.vue'
+import ImageGenKeysSection from '@/components/settings/provider/ImageGenKeysSection.vue'
 import StockPhotoKeysSection from '@/components/settings/provider/StockPhotoKeysSection.vue'
 import UsageSettingsPanel from '@/components/settings/usage/UsageSettingsPanel.vue'
 import StorageSettingsPanel from '@/components/settings/storage/StorageSettingsPanel.vue'
@@ -158,6 +159,7 @@ const navigationClass =
         >
           <h3 class="text-xs font-semibold text-surface">{{ dialogs.settingsMedia }}</h3>
           <StockPhotoKeysSection />
+          <ImageGenKeysSection />
           <VectorizeSettingsSection />
         </section>
 

@@ -6,9 +6,16 @@ import { isAuthorized } from '#mcp/auth'
 import type { RPCJSONObject } from '#mcp/json'
 import type { PendingRequest } from '#mcp/rpc-types'
 
-// T27：长回合场景（大文档批量工具调用）可经 OPENPENCIL_RPC_TIMEOUT_MS 放宽；
-// 默认 20s 不变。Number(...)||默认值 的写法同时挡住未设置（NaN）与非法值。
-const RPC_TIMEOUT = Number(process.env.OPENPENCIL_RPC_TIMEOUT_MS) || 20_000
+// T27：长回合场景（大文档批量工具调用）可经 OPENPENCIL_RPC_TIMEOUT_MS 放宽。
+// T54（Phase 3 W2/T-B3）：默认值 20s → 300s——generate_image 双段执行经桥落图，
+// 生图 HTTP 上限 240s（pi-backend image-gen 独立超时），桥超时必须 ≥ 生图上限+余量，
+// 否则 240s 级调用被桥层 20s kill（SP-b 探针实证旧默认掐断点）。
+// 调用时读取（非常量快照）：测试与运维可在进程内调整 env 后立即生效。
+// Number(...)||默认值 的写法同时挡住未设置（NaN）与非法值。
+export const DEFAULT_RPC_TIMEOUT_MS = 300_000
+export function rpcTimeoutMs(): number {
+  return Number(process.env.OPENPENCIL_RPC_TIMEOUT_MS) || DEFAULT_RPC_TIMEOUT_MS
+}
 const APP_WAIT_TIMEOUT = 10_000
 
 const APP_NOT_CONNECTED_MESSAGE =
@@ -177,10 +184,11 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
         }
         const id = randomUUID()
         const settle = createSettler(resolve, reject)
+        const timeoutMs = rpcTimeoutMs()
         const timer = setTimeout(() => {
           pending.delete(id)
-          settle.reject(new Error(`RPC timeout (${Math.round(RPC_TIMEOUT / 1000)}s)`))
-        }, RPC_TIMEOUT)
+          settle.reject(new Error(`RPC timeout (${Math.round(timeoutMs / 1000)}s)`))
+        }, timeoutMs)
         pending.set(id, { resolve: settle.resolve, reject: settle.reject, timer })
         try {
           ws.send(JSON.stringify({ ...body, type: 'request', id }))
@@ -229,7 +237,7 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
     browserRegistered = true
     if (previousBrowserWs && previousBrowserWs !== ws) {
       // Reject in-flight requests to the old browser. Without this, pending
-      // requests sit in the pending map until RPC_TIMEOUT (20s), because
+      // requests sit in the pending map until the RPC timeout fires, because
       // handleClose for the old socket returns early (browserWs is already
       // set to the new socket, so browserWs !== previousBrowserWs).
       rejectAllPending('Browser reconnected')

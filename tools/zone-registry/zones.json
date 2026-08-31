@@ -58,7 +58,9 @@
     "packages/core/src/text/font/cn-catalog.ts",
     "tests/engine/text/fonts/cn-catalog.test.ts",
     "packages/kiwi/src/schema-runtime/interpreter.ts",
-    "packages/kiwi/NOTICE"
+    "packages/kiwi/NOTICE",
+    "packages/core/src/bytes/image-mime.ts",
+    "src/components/settings/provider/ImageGenKeysSection.vue"
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
@@ -216,9 +218,9 @@
     {
       "id": "P22",
       "file": "packages/core/src/tools/registry.ts",
-      "reason": "tool registration seam: ALL_TOOLS spreads FORK_TOOLS (owned packages/core/src/tools/fork/)",
+      "reason": "tool registration seam: ALL_TOOLS spreads FORK_TOOLS (owned packages/core/src/tools/fork/)；T52 集成（2026-09-01）：registry 再导出 FORK_TOOLS（pi-backend 装配面）",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "lastReviewed": "2026-09-01"
     },
     {
       "id": "P23",
@@ -335,9 +337,10 @@
     {
       "id": "P39",
       "file": "src/app/automation/bridge/tool-handlers.ts",
-      "reason": "T21: withAIUndo 环绕——桥 mutates 工具（render + ALL_TOOLS mutates 路径）产生 `AI: <name>` 撤销条目，对齐旧 ToolLoop src/app/ai/tools/index.ts:107-130 先例",
+      "reason": "T21: withAIUndo 环绕——桥 mutates 工具（render + ALL_TOOLS mutates 路径）产生 `AI: <name>` 撤销条目，对齐旧 ToolLoop src/app/ai/tools/index.ts:107-130 先例；T59（2026-09-01）：组感知 withAIUndo——undo_group begin/end 边界内 AI 条目携带 ai-burst:<doc>:<turn>:<zone> coalesceKey 合并撤销单元（一回合=一单元，按设计区独立，S3 §9）",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "lastReviewed": "2026-09-01",
+      "task": "T59"
     },
     {
       "id": "P40",
@@ -370,9 +373,9 @@
     {
       "id": "P44",
       "file": "src/components/settings/SettingsDialog.vue",
-      "reason": "T25: MCP 导航/区块/导入切除（settings-mcp 面随 integrations/mcp 删除） T34: git merge 把 base 88c10770 的 mcp nav button 带回（面板未回——点击落裸 v-else 的 Storage，僵尸 nav） T36(2026-08-28): 删 mcp nav button + 裸 v-else 收窄为 v-else-if storage + 显式空态 fallback（owner 拍板③）；i18n 死键 settingsMCP 保留不删——packages/vue 的 messages/dialogs.ts 与 zh-cn/dialogs.json 经 T35 还原与上游字节一致，删键会制造新 patch 徒增下轮合并冲突面，死文案无害（取舍注记，owner 拍板③附带评估）；T41：设置对话框接入字体分区（FontsSettingsPanel 分支 + 导航按钮）",
+      "reason": "T25: MCP 导航/区块/导入切除（settings-mcp 面随 integrations/mcp 删除） T34: git merge 把 base 88c10770 的 mcp nav button 带回（面板未回——点击落裸 v-else 的 Storage，僵尸 nav） T36(2026-08-28): 删 mcp nav button + 裸 v-else 收窄为 v-else-if storage + 显式空态 fallback（owner 拍板③）；i18n 死键 settingsMCP 保留不删——packages/vue 的 messages/dialogs.ts 与 zh-cn/dialogs.json 经 T35 还原与上游字节一致，删键会制造新 patch 徒增下轮合并冲突面，死文案无害（取舍注记，owner 拍板③附带评估）；T41：设置对话框接入字体分区（FontsSettingsPanel 分支 + 导航按钮）；T54（2026-09-01）：media 段挂载 ImageGenKeysSection（生图凭证预设下拉+单 key 输入）",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-30"
+      "lastReviewed": "2026-09-01"
     },
     {
       "id": "P45",
@@ -459,9 +462,9 @@
     {
       "id": "P56",
       "file": "packages/mcp/src/browser-rpc.ts",
-      "reason": "T27(2026-08-25): RPC_TIMEOUT 20s 硬编码改 OPENPENCIL_RPC_TIMEOUT_MS 环境变量可覆盖（默认不变；长回合场景放宽用）",
+      "reason": "T27(2026-08-25): RPC_TIMEOUT 20s 硬编码改 OPENPENCIL_RPC_TIMEOUT_MS 环境变量可覆盖（默认不变；长回合场景放宽用）；T54（2026-09-01）：缺省 20s→300s（≥240s+余量，SP-b 生图长调用实证），加载期常量改调用时 rpcTimeoutMs() 读取",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25",
+      "lastReviewed": "2026-09-01",
       "task": "T27"
     },
     {
@@ -680,6 +683,70 @@
       "reason": "T50 CI 修复（2026-08-31）：同步 upstream dd15190f 解释器测试套件（124 行新版，本地 30/30 通过），与 interpreter 采纳同批；下个 base bump 后自然消解",
       "disposition": "permanent",
       "lastReviewed": "2026-08-31"
+    },
+    {
+      "id": "P130",
+      "file": "packages/core/src/bytes/index.ts",
+      "reason": "T55（2026-09-01）：detectImageMime 自 image-mime 共享模块再导出（look 移植依赖；svg/defs 消克隆同步换引）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-01",
+      "task": "T55"
+    },
+    {
+      "id": "P131",
+      "file": "packages/core/src/figma-api/index.ts",
+      "reason": "T55（2026-09-01）：exportImage options 类型增 renderInContext/clip（S3 §5 主机能力前置，01 §8 锚定；签名向后兼容）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-01",
+      "task": "T55"
+    },
+    {
+      "id": "P132",
+      "file": "packages/core/src/io/formats/raster/render.ts",
+      "reason": "T55（2026-09-01）：RenderOptions 增 renderInContext/clip + JPG 白底 clear + supersample 匹配输出 scale——逐行对齐移植源 feature/agent-backend 5d38aa4e 同文件",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-01",
+      "task": "T55"
+    },
+    {
+      "id": "P133",
+      "file": "packages/core/src/io/formats/svg/defs.ts",
+      "reason": "T55 集成期（2026-09-01）：本地 detectImageMime 删除换引 #core/bytes 共享模块（jscpd 克隆门禁清零）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-01",
+      "task": "T55"
+    },
+    {
+      "id": "P134",
+      "file": "packages/core/src/tools/index.ts",
+      "reason": "T52 集成（2026-09-01）：FORK_TOOLS 再导出（pi-backend createOpenPencilTools 装配面，S4 W2 工具暴露）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-01",
+      "task": "T52"
+    },
+    {
+      "id": "P135",
+      "file": "src/app/automation/bridge/figma-factory.ts",
+      "reason": "T55 集成（2026-09-01）：exportImage 桥转发透传 quality/renderInContext/clip 三参（look 上下文渲染链路闭合）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-01",
+      "task": "T55"
+    },
+    {
+      "id": "P136",
+      "file": "src/app/automation/bridge/handlers.ts",
+      "reason": "T59（2026-09-01）：undo_group 指令注册——AI 回合撤销组 begin/end 边界信号分派（S3 §9 undo burst）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-01",
+      "task": "T59"
+    },
+    {
+      "id": "P137",
+      "file": "src/app/document/export/files.ts",
+      "reason": "T55（2026-09-01）：renderExportImage 增可选 quality/extras{renderInContext,clip} 透传（对齐移植源同文件；既有调用方零破坏）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-01",
+      "task": "T55"
     }
   ],
   "deletedPaths": [

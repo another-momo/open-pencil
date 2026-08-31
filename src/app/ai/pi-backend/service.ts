@@ -22,6 +22,9 @@
  *    （OPENPENCIL_MAX_SESSIONS，默认 200）/超龄（OPENPENCIL_SESSION_MAX_AGE_DAYS，
  *    默认 30）会话**移动**到 pi-sessions-archive/（保持文件名，index 除条），
  *    归档不删除；GC 失败只 warn 不阻断
+ *  - T59：undo burst coalesce——每个 prompt run（= 一个 AI 回合）首尾向
+ *    7600 桥发 undo_group begin/end 边界信号（undo-group.ts，失败不阻断），
+ *    桥侧按设计区合并撤销单元
  *
  * 仅运行于独立后端进程（T20 起：main.ts 入口 / vite 插件 spawn 的子进程，
  * 不经 vite esbuild 打包）；只允许相对导入与 node/依赖包导入。
@@ -44,6 +47,8 @@ import type { UIMessage, UIMessageChunk } from 'ai'
 
 import type { PiChatMode } from './chat-mode'
 import { readPiHistoryFile } from './history'
+import type { ImageGenCredentialStore } from './image-gen/credentials'
+import { createImageGenTool } from './image-gen/generate'
 import { createPiEventMapper } from './mapping'
 import { isPiChatMode, loadModeSegment, PI_CHAT_MODES } from './modes'
 import { buildMarketingOverlay, studioOverlayInput } from './prompt-overlay'
@@ -54,6 +59,7 @@ import { getStudioRegistry } from './studio'
 import { toStudioManifest, type PiStudioManifest } from './studio/manifest'
 import type { StudioRegistry } from './studio/types'
 import { createOpenPencilTools } from './tools'
+import { sendUndoGroupSignal } from './undo-group'
 
 export type { PiSessionSummary }
 
@@ -104,10 +110,12 @@ type SessionIndex = Record<string, { file: string }>
 
 export function createPiChatService({
   rootDir,
-  admin
+  admin,
+  imageGenCredentials
 }: {
   rootDir: string
   admin: ProviderAdmin
+  imageGenCredentials: ImageGenCredentialStore
 }): PiChatService {
   const stateDir = join(rootDir, '.openpencil')
   const agentDir = join(stateDir, 'pi-agent')
@@ -191,7 +199,12 @@ export function createPiChatService({
     // T22：documentId 以当次请求为准（session 复用、target 可变），
     // 工具经闭包读取注入桥 args.document_id
     const target: { documentId?: string } = {}
-    const customTools = createOpenPencilTools({ current: () => budget.current }, target)
+    const customTools = [
+      ...createOpenPencilTools({ current: () => budget.current }, target),
+      // T54：generate_image 后端段（生成 HTTP 不经桥、落图经桥；凭证单实例
+      // 由 server.ts 注入，与设置路由同视图）
+      createImageGenTool({ credentials: imageGenCredentials, target })
+    ]
 
     // T24：模式注册表烘焙 base prompt；overlay 袋每 prompt 刷新，
     // before_agent_start 闭包读取（per-run 注入，不落盘）
@@ -344,6 +357,9 @@ export function createPiChatService({
       for (const chunk of mapper(event)) emit(chunk)
     })
     try {
+      // T59：回合 = 一次 prompt run；begin 先行 await（本地 HTTP 一跳，失败已内生
+      // 吞掉）保证桥侧撤销组先于本回合首个工具调用打开，end 在 finally 兜底发送
+      await sendUndoGroupSignal('begin', entry.target.documentId)
       await entry.session.prompt(text)
     } catch (error) {
       emit({ type: 'error', errorText: error instanceof Error ? error.message : String(error) })
@@ -351,6 +367,7 @@ export function createPiChatService({
     } finally {
       entry.running = false
       unsubscribe()
+      void sendUndoGroupSignal('end', entry.target.documentId)
       // prompt 完成后 session 文件必然已落盘，补记 index（create 时 file 可能尚未生成）
       const file = entry.session.sessionManager.getSessionFile()
       if (file && readIndex()[sessionId]?.file !== file) {

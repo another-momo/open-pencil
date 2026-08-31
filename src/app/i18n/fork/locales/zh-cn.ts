@@ -13,11 +13,24 @@
  */
 import type { ComponentsJSON } from '@nanostores/i18n'
 
-import type { fontsMessageDefaults, piMessageDefaults } from './en'
+import type { fontsMessageDefaults, imageGenMessageDefaults, piMessageDefaults } from './en'
 
 const zhCN = {
   rebuild: {
     seamProbe: 'fork i18n 缝已接通'
+  },
+  imagegen: {
+    imageGenTitle: '图像生成',
+    imageGenDescription:
+      'generate_image 工具的凭证由本地 pi 后端持有（与聊天 LLM 密钥分开）。选择服务商预设，然后粘贴对应的 API 密钥。',
+    imageGenProvider: '服务商预设',
+    imageGenKeyPlaceholderConfigured: '密钥已保存——输入新密钥以替换',
+    imageGenKeyPlaceholderMissing: '粘贴 API 密钥',
+    imageGenKeySave: '保存密钥',
+    imageGenKeyClear: '清除密钥',
+    imageGenConfigured: '已配置',
+    imageGenNotConfigured: '未配置',
+    imageGenOffline: '无法连接 pi 后端——请用 `bun run dev` 启动开发服务器。'
   },
   fonts: {
     settingsFonts: '字体',
@@ -88,3 +101,4 @@ export default zhCN
 // 参数化 key（如 providerModels）在 useForkPi() 消费端保留 callable 形态。
 export type PiNamespace = typeof piMessageDefaults
 export type FontsNamespace = typeof fontsMessageDefaults
+export type ImageGenNamespace = typeof imageGenMessageDefaults

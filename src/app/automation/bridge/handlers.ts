@@ -28,11 +28,13 @@ type CommandHandler = (
 
 export function createAutomationCommandHandlers(makeFigma: FigmaFactory) {
   const handleEval = createAutomationEvalHandler(makeFigma)
-  const handleTool = createAutomationToolHandler(makeFigma)
+  const { handleTool, handleUndoGroup } = createAutomationToolHandler(makeFigma)
 
   const commandHandlers: Partial<Record<string, CommandHandler>> = {
     eval: handleEval,
     tool: handleTool,
+    // T59：AI 回合撤销组边界（begin/end），pi service 每回合各发一次
+    undo_group: handleUndoGroup,
     export: handleExport,
     export_jsx: handleExportJSX,
     selection: handleSelection,

@@ -50,8 +50,8 @@ try {
       up = (await fetch(`http://127.0.0.1:${PORT}/health`)).ok
     } catch {
       await new Promise((r) => {
-      setTimeout(r, 250)
-    })
+        setTimeout(r, 250)
+      })
     }
   }
   if (!up) throw new Error('backend 未就绪')

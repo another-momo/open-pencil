@@ -192,17 +192,20 @@ function registerFontFaces(fonts: TauriFontFamily[]): void {
   }
 }
 
+async function listTauriMergedFamilies(
+  listWebFonts: () => Promise<FontFamilyOption[]>
+): Promise<FontFamilyOption[]> {
+  const [systemFonts, webFonts] = await Promise.all([getTauriFonts(), listWebFonts()])
+  const byFamily = new Map(webFonts.map((font) => [font.family, font]))
+  for (const font of systemFonts)
+    byFamily.set(font.family, { family: font.family, source: 'local' })
+  return [...byFamily.values()].sort((a, b) => a.family.localeCompare(b.family))
+}
+
 export async function listFamilies(): Promise<FontFamilyOption[]> {
   configureTauriFontCache()
   if (isTauri()) {
-    const [systemFonts, webFonts] = await Promise.all([
-      getTauriFonts(),
-      fontManager.listFamilyOptions()
-    ])
-    const byFamily = new Map(webFonts.map((font) => [font.family, font]))
-    for (const font of systemFonts)
-      byFamily.set(font.family, { family: font.family, source: 'local' })
-    return [...byFamily.values()].sort((a, b) => a.family.localeCompare(b.family))
+    return listTauriMergedFamilies(() => fontManager.listFamilyOptions())
   }
   showWebFontUnavailableToast()
   return fontManager.listFamilyOptions()
@@ -215,14 +218,7 @@ export async function listFamilies(): Promise<FontFamilyOption[]> {
 export async function listAllFamilies(): Promise<FontFamilyOption[]> {
   configureTauriFontCache()
   if (isTauri()) {
-    const [systemFonts, webFonts] = await Promise.all([
-      getTauriFonts(),
-      fontManager.listFamilyOptions({ includeDisabled: true })
-    ])
-    const byFamily = new Map(webFonts.map((font) => [font.family, font]))
-    for (const font of systemFonts)
-      byFamily.set(font.family, { family: font.family, source: 'local' })
-    return [...byFamily.values()].sort((a, b) => a.family.localeCompare(b.family))
+    return listTauriMergedFamilies(() => fontManager.listFamilyOptions({ includeDisabled: true }))
   }
   return fontManager.listFamilyOptions({ includeDisabled: true })
 }

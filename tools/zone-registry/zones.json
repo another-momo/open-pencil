@@ -57,7 +57,8 @@
     "tests/engine/text/fonts/variable-fonts.test.ts",
     "packages/core/src/text/font/cn-catalog.ts",
     "tests/engine/text/fonts/cn-catalog.test.ts",
-    "packages/kiwi/src/schema-runtime/interpreter.ts"
+    "packages/kiwi/src/schema-runtime/interpreter.ts",
+    "packages/kiwi/NOTICE"
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
@@ -543,9 +544,9 @@
     {
       "id": "P109",
       "file": "src/app/editor/fonts/index.ts",
-      "reason": "T39 加载链修复（05 册 T1）：systemFontDataCache 会话缓存（CJK fallback 循环不再每次 IPC 拉 ~100MB）+ 浏览器 local-fonts 权限启动同步；T41：disabledFontFamilies localStorage 持久化 + fontListRevision 同步（picker 失效信号）+ listAllFamilies 不过滤枚举（面板数据源，listFamilies 仍过滤供 picker）；T42：cnFontsEnabled（op-cn-fonts-enabled）+ enabledCatalogFamilies（op-font-enabled-catalog:v1）持久化接线 + cnSwitchEpoch（CDN 开关绕过白名单 revision 的 picker 失效补偿）",
+      "reason": "T39 加载链修复（05 册 T1）：systemFontDataCache 会话缓存（CJK fallback 循环不再每次 IPC 拉 ~100MB）+ 浏览器 local-fonts 权限启动同步；T41：disabledFontFamilies localStorage 持久化 + fontListRevision 同步（picker 失效信号）+ listAllFamilies 不过滤枚举（面板数据源，listFamilies 仍过滤供 picker）；T42：cnFontsEnabled（op-cn-fonts-enabled）+ enabledCatalogFamilies（op-font-enabled-catalog:v1）持久化接线 + cnSwitchEpoch（CDN 开关绕过白名单 revision 的 picker 失效补偿）；T50：抽 listTauriMergedFamilies helper 消 listFamilies/listAllFamilies 间 7 行 jscpd 克隆（行为不变，2026-08-31）",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-30"
+      "lastReviewed": "2026-08-31"
     },
     {
       "id": "P110",
@@ -649,6 +650,34 @@
       "id": "P125",
       "file": "packages/kiwi/src/schema-runtime/index.ts",
       "reason": "CI 修复（2026-08-31）：同步 upstream dd15190f——CSP-safe Kiwi interpreter 取代 eval 版 js.ts（export 改自 './interpreter' 的 compileSchemaRuntime as compileSchema；伴随新增 interpreter.ts 入 ownedFiles、js.ts 入 deletedPaths）。下个 base bump 越过 2026-08-29 后此 patch 自然消解",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-31"
+    },
+    {
+      "id": "P126",
+      "file": "packages/core/src/clipboard.ts",
+      "reason": "T50 CI 修复（2026-08-31）：同步 upstream dd15190f 调用点守卫——interpreter 版 compileSchema 的 decodeMessage 变为可选，上游同 commit 在此加 if (!compiled.decodeMessage) return null（TS2722 type-aware lint 红）。下个 base bump 越过 2026-08-29 后自然消解",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-31"
+    },
+    {
+      "id": "P127",
+      "file": "packages/kiwi/package.json",
+      "reason": "T50 CI 修复（2026-08-31）：同步 upstream dd15190f 发布元数据（files 收录 NOTICE、publishConfig、字段重排），与 interpreter 采纳同批；下个 base bump 后自然消解",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-31"
+    },
+    {
+      "id": "P128",
+      "file": "packages/kiwi/README.md",
+      "reason": "T50 CI 修复（2026-08-31）：同步 upstream dd15190f README（interpreter 说明与 Kiwi attribution），与 interpreter 采纳同批；下个 base bump 后自然消解",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-31"
+    },
+    {
+      "id": "P129",
+      "file": "packages/kiwi/tests/schema-runtime.test.ts",
+      "reason": "T50 CI 修复（2026-08-31）：同步 upstream dd15190f 解释器测试套件（124 行新版，本地 30/30 通过），与 interpreter 采纳同批；下个 base bump 后自然消解",
       "disposition": "permanent",
       "lastReviewed": "2026-08-31"
     }

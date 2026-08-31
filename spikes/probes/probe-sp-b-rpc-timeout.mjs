@@ -15,7 +15,7 @@
  *   default  模式：mock app 延迟 25s 应答 → 期望 ~20s 被掐（502 RPC timeout）；
  *   override 模式：OPENPENCIL_RPC_TIMEOUT_MS=60000（模块加载前设置）→ 期望 25s 成功。
  *
- * 运行：bun workbench/probe-sp-b-rpc-timeout.mjs default|override
+ * 运行：bun spikes/probes/probe-sp-b-rpc-timeout.mjs default|override
  * 注意：RPC_TIMEOUT 是模块加载期常量，两种模式必须分进程跑（由驱动模式 all 编排）。
  */
 

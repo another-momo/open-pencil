@@ -18,7 +18,7 @@
  *
  * 判定：A/B 两夹具全扫描宽度 0 违规 → 避头尾自动排印成立；任何违规 → 证伪。
  *
- * 运行：bun workbench/probe-sp-c-kinsoku.mjs
+ * 运行：bun spikes/probes/probe-sp-c-kinsoku.mjs
  */
 
 import { readFileSync } from 'node:fs'

@@ -1,9 +1,10 @@
 /**
  * T44 C2 保真核验：config.yaml 三 profile 正文 vs 迁移后 profiles/*.md。
  * 逐节对照（节名归一映射后），Recipe 节对 editorial/solid 期望 no-op 显式空节。
- * 用法：bun workbench/verify-t44-migration-fidelity.mjs（cwd = 仓库根）
+ * 用法：bun tools/rebuild/verify-t44-migration-fidelity.mjs（cwd = 仓库根）
  */
 import { readFileSync } from 'node:fs'
+
 import { parse } from 'yaml'
 
 const RENAME = new Map([

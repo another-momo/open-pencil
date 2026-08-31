@@ -31,7 +31,7 @@
 | tests/engine/text/fonts/allowlist.test.ts | **新建 8 用例**：枚举过滤（bundled 锁定恒在 + cdn/local 关停隐藏 + 重开恢复）/ **includeDisabled 面板路径（关停行仍列出）** / 四加载门禁 / fallback 链跳过 / revision 单调 + replaceDisabled 滤锁定 / normalize 归一 / syst 注册表标记 |
 | tests/engine/text/fonts/cn-fonts.test.ts | owned 扩展至 22 用例（+4）：区间 font-weight 解析 + 区间包含选片 + syst 形态端到端（单目录 + 区间 css） |
 | tests/engine/text/fonts/registry.test.ts | owned 扩展至 10 用例（+1）：CDN 六家族精确清单（syst 居首）+ syst variable 标记 + 其余五族非 VF |
-| workbench/probe-t41-variable-font.mjs | **新建（owned root workbench/）**：S1 CanvasKit VF 探针——真实 syst 分片注册后 wght 250/900 排版墨量对比 |
+| spikes/probes/probe-t41-variable-font.mjs | **新建（owned root workbench/）**：S1 CanvasKit VF 探针——真实 syst 分片注册后 wght 250/900 排版墨量对比 |
 | tools/zone-registry/zones.json | patch 新增 P121/P122，P44/P45/P107/P109/P119 reason 扩展；ownedFiles += variable.ts/allowlist.ts/FontsSettingsPanel.vue/2 测试文件 |
 | docs/rebuild/tasks/T41-plan.md | 任务卡（D-a..D-i 九决策点 + S1-S7 范围 + C1-C9 验收） |
 

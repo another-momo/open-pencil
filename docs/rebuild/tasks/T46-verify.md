@@ -10,6 +10,7 @@
 # T46 核验 · base.md v0 落位 + 红线补洞 + base 候选清单建档（S4 W1 / T-A5）
 
 > **状态**：✅ 核验通过（带 findings 收口；F1/F2 已于收口段修复并复验） | **时间**：2026-08-31 独立核验 | **核验人**：subagent（general-purpose，只读 + V1 幂等性验证后还原）
+> **⚠ 当前态修正（T47，2026-08-31）**：转写源已切换为 prompts/system-prompt-base.md（119 行），本文中 576 行源判定表/双源头注落点/P123 等口径为历史记录，现役口径见 T47 三件套
 > **关联**：[T46-plan.md](T46-plan.md)（验收标准 C1-C6）/ [T46-self-check.md](T46-self-check.md)
 > **被验对象**：25cda2be（立项）→ 0045baf4（实现）
 
@@ -19,7 +20,7 @@
 
 ## V1 保真复核（C1）——通过
 
-- `node workbench/verify-t46-base-fidelity.mjs` → 6/6 passed（2026-08-31）。
+- `node tools/rebuild/verify-t46-base-fidelity.mjs` → 6/6 passed（2026-08-31）。
 - 人工抽查：base.md 头 6 行（frontmatter `id: base` + 双源声明头注）、补洞段边界（L234 begin / L247 end，恰在 `# Example: mobile app UI` L249 前）、两文件尾部 8 行逐字一致。
 - 分段 diff：`base.md[7..233]` vs `system-prompt.md[3..229]`（各 227 行）零 diff；`base.md[249..597]` vs `system-prompt.md[229..578]` 零 diff。base.md L248 空行属补洞块自有尾隔，保真等式成立。
 - 幂等性实测初验失败 → 记 F1（已修，见末节）。
@@ -34,7 +35,7 @@
 
 - `bun test tests/engine/rebuild/` → 26 pass / 0 fail（5 文件，2026-08-31）。studio-builtin-assets.test.ts 钉 failures 收零 + base 注册 + 补洞段双锚点；studio-registry.test.ts 新 C1 测（`id: not-base` → failure「不是 `base`」；缺省 id 注册成功）。
 - `node spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs` → 30/30（fixture 复制 base.md；无绝对路径断言移交无资产后端半）。
-- `bun workbench/probe-t45-old-route.mjs` → 旧路径 404，新路径 200，modes=[general,longform]，profiles=3，failures=0（2026-08-31；probe 需 bun 运行，其 docstring 已写明）。
+- `bun spikes/probes/probe-t45-old-route.mjs` → 旧路径 404，新路径 200，modes=[general,longform]，profiles=3，failures=0（2026-08-31；probe 需 bun 运行，其 docstring 已写明）。
 
 ## V4 建档与登记面（C5）——通过
 
@@ -45,8 +46,8 @@
 ## V5 门禁与回归复核（C6）——通过
 
 - `bun run check:zones / check:docs / check:bindings / check:tasks` 全部 exit 0（2026-08-31）。
-- 全量回归日志 `workbench/t46-regression-run.log` 尾：2559 pass / 23 skip / 79 fail，Ran 2661 tests across 434 files，542.28s 完整跑完。
-- `workbench/t46-failures.txt`（74 行唯一化）diff `workbench/t45-failures.txt`（73 行）仅两处：T45 的 MCP concurrent startServer 转绿；新增 MCP stdio readiness（bridge connect timeout 抖动）与 plugin-data roundtrip 两条——隔离复跑 9/9、20/20 全绿确为 flake；grep `studio|registry|rebuild|assembly|base|prompt` 于失败清单 0 命中，零本任务文件。
+- 全量回归日志 `doc/t46-regression-run.log（仓外）` 尾：2559 pass / 23 skip / 79 fail，Ran 2661 tests across 434 files，542.28s 完整跑完。
+- `doc/t46-failures.txt（仓外）`（74 行唯一化）diff `doc/t45-failures.txt（仓外）`（73 行）仅两处：T45 的 MCP concurrent startServer 转绿；新增 MCP stdio readiness（bridge connect timeout 抖动）与 plugin-data roundtrip 两条——隔离复跑 9/9、20/20 全绿确为 flake；grep `studio|registry|rebuild|assembly|base|prompt` 于失败清单 0 命中，零本任务文件。
 
 ## V6 缺陷面——通过
 
@@ -58,5 +59,5 @@
 ## Findings 处置（收口段，2026-08-31）
 
 - **F1（P1）构建器不幂等**——已修：构建器包裹格式对齐 oxfmt 典范形（`BEGIN\n\n`、`_facts_`、`\nEND`）；复跑两次 `git diff` 零增长，幂等坐实；verify 复跑 6/6。修复记录见 T46-self-check §3 第 7 条。
-- **F2（P2）头注缺核验命令指针**——已修：两文头注各补「同步核验：node workbench/verify-t46-base-fidelity.mjs」；保真 6/6 复跑确认（剥除正则兼容）。修复记录见 T46-self-check §3 第 8 条。
+- **F2（P2）头注缺核验命令指针**——已修：两文头注各补「同步核验：node tools/rebuild/verify-t46-base-fidelity.mjs」；保真 6/6 复跑确认（剥除正则兼容）。修复记录见 T46-self-check §3 第 8 条。
 - 修复后复验（2026-08-31）：verify 6/6；format:check 全绿（2093 文件）；`bun test tests/engine/rebuild/` 26/26；assembly 冒烟 30/30。

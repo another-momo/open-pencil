@@ -1,4 +1,6 @@
-# openpencil-marketing（workbench/）
+# openpencil-marketing（attic/dsh-workbench/，原 workbench/）
+
+> **⚠ 搁置声明（T47，2026-08-31）**：本目录是已搁置的 DSH plugin 形态产品路线的遗留物，2026-08-31 由 `workbench/` 正名迁移至此。产品主线已转向 fork 内 pi-backend 形态（docs/rebuild/），**勿在此新增文件**；保留仅为历史证据与 CI 的 X1 raw-JSX 回归守卫（`.github/workflows/ci.yml` workbench-build job）。下文中的 `workbench/` 路径均指本目录。
 
 OpenPencil 营销工作台的 dsh bundle：shell.overlay 孤岛（React 宿主 + Vue 3 应用）+ 7600 WS 桥工具 + `openpencil-design` agent preset。
 

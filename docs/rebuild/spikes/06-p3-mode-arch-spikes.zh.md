@@ -9,7 +9,7 @@
 
 # Spike 06 · Phase 3 前置探针批（SP-a / SP-b / SP-c / SP-d）
 
-> **状态**：SP-a1 / SP-b / SP-c 成立（2026-08-30 复核绿）；SP-a2 阻塞待 owner 提供 OpenRouter key；SP-d 建议递延至 KV mode 立项
+> **状态**：SP-a1 / SP-b / SP-c 成立（2026-08-30 复核绿）；SP-a2 关闭（2026-08-31 owner 拍板路线乙：自写 DMX GPT-image-2 provider 为核心，pi-ai generateImages 留扩展位，探针取消）；SP-d 建议递延至 KV mode 立项
 > **执行分支**：`rebuild/mode-arch`（worktree `open-pencil-mode`，从 `rebuild/pi` 83a9687d 拉出）
 > **上游依据**：`doc/S4-phase3-plan.md` v2 §2 探针批；`doc/S3-tool-contracts-spec.md` v2 §4
 > 陈述纪律：**【事实】**（附核验命令 + 日期）/ **【推断】**（由证据推出）/ **【假设】**（未验证）。
@@ -36,11 +36,11 @@
 
 ### 方法与证据
 
-探针：`workbench/probe-sp-a1-images-contract.mjs`（注入 fake fetch 捕获请求 + 合成响应）。
+探针：`spikes/probes/probe-sp-a1-images-contract.mjs`（注入 fake fetch 捕获请求 + 合成响应）。
 核验命令（2026-08-30，本 worktree 复核绿，14/14 断言）：
 
 ```
-bun workbench/probe-sp-a1-images-contract.mjs
+bun spikes/probes/probe-sp-a1-images-contract.mjs
 ```
 
 **【事实】** 钉扎结论（另经 2026-08-30 走查 `node_modules/@earendil-works/pi-ai/dist/api/openrouter-images.js` 全文确认）：
@@ -68,7 +68,9 @@ bun workbench/probe-sp-a1-images-contract.mjs
 
 **【事实】** 2026-08-30 核查本机凭证面：`~/.openpencil/` 仅含 `brand.db`，无 `pi-agent/auth.json`，环境变量无 OpenRouter key——真图出图无法实测。
 
-**阻塞登记**：待 owner 提供 OpenRouter key 后补测（prompt → 真图质量、尺寸可控性、多图返回行为）。**不阻塞 W1-W3**：接口形状已由 SP-a1 钉死，封装与联调可先走 fake fetch / mock。
+**【事实】** 2026-08-31 路线核查：pi-ai v0.84.2 的 `openrouter-images` 是 dist/api 唯一图像模块，传输 = chat.completions + modalities 形状（`dist/api/` 目录 ls 实证无 images/generations 模块）；而旧仓 DMX 用法（`open-pencil/packages/core/src/tools/image-gen/providers.ts:79-217`）= `dmxapi.cn/v1` 的 `/images/generations` + `/images/edits` 形状——两套协议不兼容。
+
+**决定登记（owner 指令，2026-08-31，T47）**：生图走**路线乙**——自写 GPT-image-2 形状 provider（DMX `/images/generations` + `/images/edits`）为当前核心 provider；pi-ai `generateImages`（SP-a1 已钉接口形状）保留为未来可扩展支持项；DMX 不走 pi-ai，DMX×pi-ai 探针取消，本 spike 关闭。W2 `generate_image` 工具层设计须留双后端可插抽象。
 
 ---
 
@@ -88,11 +90,11 @@ S3 v2 §4 要求长任务工具（生图、批量排版）单调用可能超过 
 
 ### 动态实证
 
-探针：`workbench/probe-sp-b-rpc-timeout.mjs`（起真 MCP server + 延迟 25s 应答的 mock app；default / override 两模式自spawn）。
+探针：`spikes/probes/probe-sp-b-rpc-timeout.mjs`（起真 MCP server + 延迟 25s 应答的 mock app；default / override 两模式自spawn）。
 核验命令（2026-08-30 复核绿）：
 
 ```
-bun workbench/probe-sp-b-rpc-timeout.mjs all
+bun spikes/probes/probe-sp-b-rpc-timeout.mjs all
 ```
 
 | 模式 | 结果 | 判定 |
@@ -114,11 +116,11 @@ bun workbench/probe-sp-b-rpc-timeout.mjs all
 
 ### 方法与证据
 
-探针：`workbench/probe-sp-c-kinsoku.mjs`（本地字体 `packages/core/assets/AlibabaPuHuiTi-Regular.ttf`，零网络依赖）。
+探针：`spikes/probes/probe-sp-c-kinsoku.mjs`（本地字体 `packages/core/assets/AlibabaPuHuiTi-Regular.ttf`，零网络依赖）。
 核验命令（2026-08-30 复核绿）：
 
 ```
-bun workbench/probe-sp-c-kinsoku.mjs
+bun spikes/probes/probe-sp-c-kinsoku.mjs
 ```
 
 **【事实】**：
@@ -144,7 +146,7 @@ S4 §2 原列为可选探针。KV（主视觉）设计的纸张/尺寸语义尚�
 
 ## 6. 汇总：探针批对 S4 排期的解锁状态
 
-- SP-a1 ✅ → T-A 批 `generate_image` 封装开工无障碍（SP-a2 真图补测不挡接口联调）；
+- SP-a1 ✅ → pi-ai 路线接口形状在案（留作未来扩展位）；当前核心 provider 按路线乙自写（2026-08-31 owner 拍板，见 §2）；
 - SP-b ✅ → W1 须带 env 配置改动（≥240s），否则 W3 联调必断；
 - SP-c ✅ → T-C2 `longform.md` 内容边界收窄一条；
 - SP-d ⏸️ → 不占本次排期。

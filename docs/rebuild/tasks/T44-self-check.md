@@ -37,7 +37,7 @@
 
 ### C2 保真 ✅
 
-- 核验脚本 `workbench/verify-t44-migration-fidelity.mjs`（`bun workbench/verify-t44-migration-fidelity.mjs`，2026-08-31）：**21/21**——三份 profile 文首/Fixed/Variable/Anti-identity/Tone/Recipe 逐节逐字一致 + 恰好五节无残留旧节名 + editorial/solid Recipe 旧空节→显式 no-op。
+- 核验脚本 `tools/rebuild/verify-t44-migration-fidelity.mjs`（`bun tools/rebuild/verify-t44-migration-fidelity.mjs`，2026-08-31）：**21/21**——三份 profile 文首/Fixed/Variable/Anti-identity/Tone/Recipe 逐节逐字一致 + 恰好五节无残留旧节名 + editorial/solid Recipe 旧空节→显式 no-op。
 - **唯一内容偏差（已登记）**：v3 Recipe 步骤 1 列表标记 `1.（Phase 2 骨架）` → `1. （Phase 2 骨架）`（补半角空格）。源 config.yaml 该标记是非法 markdown 列表项，oxfmt 会把整个步骤列表并成单段（实测复现）；修标记后列表结构保留。脚本内 `NORMALIZE` 表登记此归一。
 
 ### C3 钉扎 + 不回归 ✅

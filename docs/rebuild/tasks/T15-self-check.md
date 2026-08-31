@@ -15,10 +15,10 @@
 
 | 工作项 | 状态 | 证据 |
 |---|---|---|
-| E1 CanvasKit wasm 初始化探针 | ✅ 通过（2026-08-22） | §2.2 实测值 + [evidence/t15-e1-canvaskit-island.png](../../../workbench/evidence/t15-e1-canvaskit-island.png) |
+| E1 CanvasKit wasm 初始化探针 | ✅ 通过（2026-08-22） | §2.2 实测值 + [evidence/t15-e1-canvaskit-island.png](../../../attic/dsh-workbench/evidence/t15-e1-canvaskit-island.png) |
 | E2 编辑器外壳入孤岛 | ✅ 通过（2026-08-22） | §2.1 实测值 + evidence/t15-e2-editor-island{,-interact}.png |
-| E3 生命周期/状态对齐 | ✅ 通过（2026-08-22） | §2.5 会话往返实测 + dispose/接受全局项成文 + [evidence/t15-e3-session-switch.png](../../../workbench/evidence/t15-e3-session-switch.png) |
-| E4 冒烟 + 三件套收口 | ✅ 通过（2026-08-22）：冒烟 §2.6 + subagent 独立核验 V1-V8 全过「可以提交」+ 远端 CI HEAD 绿 | §2.6 + [evidence/t15-e4-smoke.png](../../../workbench/evidence/t15-e4-smoke.png) + [T15-verify](T15-verify.md) |
+| E3 生命周期/状态对齐 | ✅ 通过（2026-08-22） | §2.5 会话往返实测 + dispose/接受全局项成文 + [evidence/t15-e3-session-switch.png](../../../attic/dsh-workbench/evidence/t15-e3-session-switch.png) |
+| E4 冒烟 + 三件套收口 | ✅ 通过（2026-08-22）：冒烟 §2.6 + subagent 独立核验 V1-V8 全过「可以提交」+ 远端 CI HEAD 绿 | §2.6 + [evidence/t15-e4-smoke.png](../../../attic/dsh-workbench/evidence/t15-e4-smoke.png) + [T15-verify](T15-verify.md) |
 
 ## 2. 实测记录（§2.1-§2.4 为注册期→E2 阶段、编号冻结以保持外链有效；E3 起按追加序续号）
 

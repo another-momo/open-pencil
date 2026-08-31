@@ -37,11 +37,11 @@
 - **时间**：2026-08-30
 - **执行分支**：`rebuild/mode-arch`（worktree `open-pencil-mode`）
 - **核验命令**（本 worktree 当日复核绿）：
-  - `bun workbench/probe-sp-a1-images-contract.mjs`（14/14 断言）
-  - `bun workbench/probe-sp-b-rpc-timeout.mjs all`（default 502@20s 掐断 / override 200@25s 放宽，双模式实证）
-  - `bun workbench/probe-sp-c-kinsoku.mjs`（33 宽度 × 2 locale × 3 夹具 0 违规，危险区相邻断点 20 处）
+  - `bun spikes/probes/probe-sp-a1-images-contract.mjs`（14/14 断言）
+  - `bun spikes/probes/probe-sp-b-rpc-timeout.mjs all`（default 502@20s 掐断 / override 200@25s 放宽，双模式实证）
+  - `bun spikes/probes/probe-sp-c-kinsoku.mjs`（33 宽度 × 2 locale × 3 夹具 0 违规，危险区相邻断点 20 处）
 - **结论**：
-  - SP-a1 成立——pi-ai `generateImages` 走 chat.completions，接口形状钉死，可封装；SP-a2（真图质量）阻塞待 owner 提供 OpenRouter key，不挡 W1-W3
+  - SP-a1 成立——pi-ai `generateImages` 走 chat.completions，接口形状钉死（留扩展位）；SP-a2 关闭——2026-08-31 owner 拍板路线乙：核心 = 自写 DMX GPT-image-2 provider，DMX 不走 pi-ai
   - SP-b 定谳——唯一 20s 硬上限在桥 `packages/mcp/src/browser-rpc.ts:11`，env `OPENPENCIL_RPC_TIMEOUT_MS` 可放宽（模块加载期常量）；Phase 3 dev 链必须配 ≥240s+余量
   - SP-c 成立——canvaskit-wasm 0.41.1 ICU 断行自动避头尾，长图 workflow 不写软约束兜底
   - SP-d 递延至 KV mode 立项
@@ -55,4 +55,4 @@
 | `02-pi-sdk-runtime.zh.md` | 成立（716 行） | 推荐 pi 直接驱动 |
 | `03-weshop-case-deep-dive.zh.md` | 成立（474 行） | 修正 spikes/01-dsh-integration-routes.zh.md X 路线偏差 |
 | `04-dsh-x-design.zh.md` v4 | 成立（314 行） | X 路线专项设计（备选推荐） |
-| `06-p3-mode-arch-spikes.zh.md` | SP-a1/SP-b/SP-c 成立（2026-08-30 核验-2）；SP-a2 阻塞待 key；SP-d 递延 | Phase 3（T43+）解锁：生图接口契约、桥 env ≥240s、长图免避头尾软约束 |
+| `06-p3-mode-arch-spikes.zh.md` | SP-a1/SP-b/SP-c 成立（2026-08-30 核验-2）；SP-a2 关闭（2026-08-31 路线乙拍板）；SP-d 递延 | Phase 3（T43+）解锁：生图接口契约、桥 env ≥240s、长图免避头尾软约束 |

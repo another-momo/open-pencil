@@ -148,7 +148,7 @@ jobs:
       - name: Run pi backend contract smokes
         run: bun run smoke:pi
 
-  # T14 (P35): workbench/ is a standalone-toolchain dsh bundle (not in bun
+  # T14 (P35, path updated T47): attic/dsh-workbench/ is a standalone-toolchain dsh bundle (not in bun
   # workspaces) — build it with its own npm lockfile and guard the X1
   # regression (raw JSX in client bundle breaks dsh module registration).
   # T15 (E2): the client bundle now inlines @open-pencil/core + @open-pencil/vue
@@ -176,14 +176,14 @@ jobs:
 
       - name: Build workbench bundle
         run: npm ci --no-audit --no-fund && npm run build
-        working-directory: workbench
+        working-directory: attic/dsh-workbench
 
       - name: X1 regression guard (no raw JSX in client bundle)
         shell: bash
         run: |
-          grep -q "jsx-runtime" workbench/lib/client.js
-          ! grep -q "createPortal)(<" workbench/lib/client.js
-          head -c 200 workbench/lib/client.js | grep -q "__ModuleLoader__.load"
+          grep -q "jsx-runtime" attic/dsh-workbench/lib/client.js
+          ! grep -q "createPortal)(<" attic/dsh-workbench/lib/client.js
+          head -c 200 attic/dsh-workbench/lib/client.js | grep -q "__ModuleLoader__.load"
 
   storybook:
     name: Component workshop

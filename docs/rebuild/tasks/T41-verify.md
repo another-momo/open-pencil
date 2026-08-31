@@ -13,7 +13,7 @@
 
 ## V1 S1 CanvasKit VF 探针（C1）✅
 
-- 探针 `workbench/probe-t41-variable-font.mjs`（bun + canvaskit-wasm 0.41.1，2026-08-30 实跑）：下载 syst 真实分片（解析 result.css 选覆盖「中」/「A」的片），registerFont 后分别以 `fontVariations:[{axis:'wght',value:250}]` / `900` 排版绘制，readPixels 统计墨量。
+- 探针 `spikes/probes/probe-t41-variable-font.mjs`（bun + canvaskit-wasm 0.41.1，2026-08-30 实跑）：下载 syst 真实分片（解析 result.css 选覆盖「中」/「A」的片），registerFont 后分别以 `fontVariations:[{axis:'wght',value:250}]` / `900` 排版绘制，readPixels 统计墨量。
 - 结果：**CJK 墨量 900 档 = 250 档 × 2.81**（验收锚 > 1.2），对照组（仅 fontStyle.weight 不传 fontVariations）无显著差异 → **D-a 成立**：canvaskit-wasm 0.41.1 注册期无轴参数 API，VF 字重渲染由排版期 TextStyle.fontVariations 注入承载。
 
 ## V2 VF 资源面（C2）✅

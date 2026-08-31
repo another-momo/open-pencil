@@ -9,7 +9,8 @@
 
 # T46 计划 · base.md v0 落位 + 红线补洞 + base 候选清单建档（S4 W1 / T-A5）
 
-> **状态**：🔄 进行中 | **时间**：2026-08-31 立项 | **负责人**：主 agent
+> **状态**：✅ 已收口（2026-08-31；状态行遗留翻转由 T47 补正） | **时间**：2026-08-31 立项 | **负责人**：主 agent
+> **⚠ 当前态修正（T47，2026-08-31）**：owner 指令 #6——转写源已由 system-prompt.md 576 行切换为 prompts/system-prompt-base.md 119 行（workflow 无关），本文 D-a/D-b/§1 的 576 行源口径与「system-prompt.md 双源」相关段落为历史记录，现役口径见 [T47-plan.md](T47-plan.md)
 > **分支**：`rebuild/mode-arch`（worktree `open-pencil-mode`；T45 收口 c2fca16f 之后）
 > **规格真源**：[S2 资产文件机制规格 v2](../../../doc/S2-asset-files-spec.md) §3（base.md 全局行为基座 + base v0 沿用两条守卫）；[S4 Phase 3 计划 v2](../../../doc/S4-phase3-plan.md) §4 W1 T-A5 行 + §3 前置批「base v0 红线补洞」行；[19 册 PD-20](../../../docs/202608251637-migration-proposal/19-product-design-decisions.md)（base 节奏拍板原文）
 
@@ -43,7 +44,7 @@ T43 建成 studio 文件机制内核（base 唯一槽位已在注册表——双
 - **S2** `src/app/ai/chat/system-prompt.md`：头注一行互指（D-b），正文零改动。
 - **S3** 红线齐全性检查：逐条判定 → 需要则最小补齐（随 S1 落进新增节）；判定表记自检。
 - **S4** `tests/engine/rebuild/studio-builtin-assets.test.ts`：failures 收零 + base 断言（D-f）；按需加 base schema 钉扎（D-e：无 label 注册成功 + 非 base id 仍失败——后者 registry 测试已有，不重复）。
-- **S5** 保真核验脚本 `workbench/verify-t46-base-fidelity.mjs`：base.md body 减补洞段后与 system-prompt.md 逐字 diff 为零（T44 verify-t44-migration-fidelity.mjs 先例——NORMALIZE 表登记任何被迫偏差，如 oxfmt 列表标记）。
+- **S5** 保真核验脚本 `tools/rebuild/verify-t46-base-fidelity.mjs`：base.md body 减补洞段后与 system-prompt.md 逐字 diff 为零（T44 verify-t44-migration-fidelity.mjs 先例——NORMALIZE 表登记任何被迫偏差，如 oxfmt 列表标记）。
 - **S6** `doc/base-candidate-list.md` 建档（D-g）+ S4 §7 尾巴表两行更新（清单指向；免 label 行标已处置）+ 新增双源收编行（D-b）。
 - **S7** 实证：probe/冒烟复跑确认端点 failures 从「base 缺失一条」收为空数组；登记 tracker/_index/三件套。
 
@@ -51,7 +52,7 @@ T43 建成 studio 文件机制内核（base 唯一槽位已在注册表——双
 
 - **C1** base.md 落位保真：body 减补洞段与 system-prompt.md 逐字一致（保真脚本 0 diff，NORMALIZE 表逐笔登记）；frontmatter `id: base`；头注双源声明在。
 - **C2** 红线补洞：四条红线判定表齐全（逐条落点/处置/依据）；修辞事实标注段存在且语义覆盖功效/数据/背书三例 + 请用户确认动作。
-- **C3** 注册表收零实证：`bun test tests/engine/rebuild/` 全绿且钉扎断言 `failures: []`；`bun workbench/probe-t45-old-route.mjs`（或等价探针）实证端点 failures 空数组。
+- **C3** 注册表收零实证：`bun test tests/engine/rebuild/` 全绿且钉扎断言 `failures: []`；`bun spikes/probes/probe-t45-old-route.mjs`（或等价探针）实证端点 failures 空数组。
 - **C4** base schema 成文（D-e）+ 免 label 钉扎测试绿。
 - **C5** 候选清单建档 + S4 §7 三处更新落地（清单指向 / 免 label 已处置 / 双源收编新增行）。
 - **C6** 门禁九项全绿 + 全量回归对照 T45 基线（78 fail/2660）失败数不增、唯一化 diff 零本任务文件。

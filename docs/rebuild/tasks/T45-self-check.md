@@ -27,7 +27,7 @@
 
 ### C1 新端点实证 ✅
 
-- 旧路径不命中：`bun workbench/probe-t45-old-route.mjs`（2026-08-31）→ `旧路径 GET /api/pi/brand/manifest → 404 Not Found`；同探针新路径 200，`modes=[general(0types), longform(3types)]；profiles=3；failures=1（base:base.md）`——modes 展开、摘要、failures 相对路径三段俱全。
+- 旧路径不命中：`bun spikes/probes/probe-t45-old-route.mjs`（2026-08-31）→ `旧路径 GET /api/pi/brand/manifest → 404 Not Found`；同探针新路径 200，`modes=[general(0types), longform(3types)]；profiles=3；failures=1（base:base.md）`——modes 展开、摘要、failures 相对路径三段俱全。
 - `bun spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs`（2026-08-31）→ **29 passed / 0 failed**：manifest 断言组覆盖三 type 展开（750x/750x/1080x）、profiles 三摘要 applicableTo=[longform]、无任何 body/markdown 键、非 GET → 405、未鉴权 → 401、无资产后端降级（modes=[general]、profiles=[]、failures 含 kind=studio 整体态）。
 - vite proxy 路径实证：截图阶段 `curl http://localhost:1421/api/pi/studio/manifest` → 200（2026-08-31）。
 
@@ -51,7 +51,7 @@
 
 - 新单测 + 范围回归：`bun test tests/engine/rebuild/`（2026-08-31）→ **25 pass / 0 fail / 5 文件**（studio-registry 16 + 钉扎 1 + studio-manifest 5 + 其余 3）。
 - 门禁九项（2026-08-31）：check:zones clean（67 modified/379 added/1014 deleted 全登记）；check:docs 42/42；check:tasks 通过（T45 三件套齐全）；check:bindings 18 文件全绿；lint 0 errors / 5 warnings（基线告警）；`bunx tsgo --noEmit` exit 0；check:vue exit 0；format:check 全绿；check:i18n in sync。
-- 全量回归（`bun run test:unit:quick`，558s，2026-08-31）：**78 fail / 2660 tests / 434 files**。对照 T44 基线 77 fail/2655：唯一化 diff（workbench/t45-failures.txt 73 行 vs /tmp/t44-fails.txt 72 行，sort -u）**仅 +1 行** = `export subgraph extraction > fig export preserves imported instance symbol overrides and guids`——即 T44 核验记录的那例 fig 导出 flake（T43 基线 78 含之、T44 两轮 77/76 消失、本轮复现），隔离复跑 `bun test tests/engine/io/subgraph.test.ts` → 4/4 通过，与 T45 文件零关联；零 T45 文件失败（`grep -iE "studio|pi-backend|brand|overlay|mode-selection|manifest" workbench/t45-failures.txt` 无命中）。测试数 +5 = 新增 studio-manifest.test.ts 五测（全绿）。
+- 全量回归（`bun run test:unit:quick`，558s，2026-08-31）：**78 fail / 2660 tests / 434 files**。对照 T44 基线 77 fail/2655：唯一化 diff（doc/t45-failures.txt（仓外） 73 行 vs /tmp/t44-fails.txt 72 行，sort -u）**仅 +1 行** = `export subgraph extraction > fig export preserves imported instance symbol overrides and guids`——即 T44 核验记录的那例 fig 导出 flake（T43 基线 78 含之、T44 两轮 77/76 消失、本轮复现），隔离复跑 `bun test tests/engine/io/subgraph.test.ts` → 4/4 通过，与 T45 文件零关联；零 T45 文件失败（`grep -iE "studio|pi-backend|brand|overlay|mode-selection|manifest" doc/t45-failures.txt（仓外）` 无命中）。测试数 +5 = 新增 studio-manifest.test.ts 五测（全绿）。
 
 ### C6 登记 ✅
 

@@ -21,3 +21,38 @@
 - [x] #1 旧仓形状实证（2026-08-31）：`open-pencil/packages/core/src/tools/image-gen/providers.ts:79-217`——baseURL dmxapi.cn/v1、model gpt-image-2-ssvip、`/images/generations` + `/images/edits`；pi-ai 侧 openrouter-images 为 dist/api 唯一图像模块（`ls` 实证无 images/generations 模块）→ 路线分叉判据成立，路线乙 = 自写 provider。
 - [x] 文档引用面盘点（2026-08-31，grep workbench）：docs/rebuild 下 T41/T44/T45/T46 三件套 + spike 06 共 ~25 处引用，实现段逐文件改写并清单化。
 - [x] S4 修文点位盘点（2026-08-31）：§2 SP 表 SP-a 行（L19）、§3 补洞行（L33）、§4 T-A5 行（L44）、§7 双源收编行 + 新增生图 provider 行。
+
+## 2. 实现段自检（2026-08-31）
+
+### 红线齐全性判定表（119 行新源，grep 实证 2026-08-31）
+
+| 红线 | 新源现状 | 处置 |
+|---|---|---|
+| #3 事实零虚构 | 0 命中（`invent\|fabricat\|hallucinat\|make up`） | 补洞段规则 1（豁免文案创作） |
+| #2 成本确认 | 1 命中但为 eval 语义「counter ≠ confirmation」（L121），非成本纪律 | 补洞段规则 2 |
+| #6 可撤销 | 0 命中（`undo`） | 补洞段规则 3（宿主 undo burst 承载 + prose 协作句） |
+| #8 不静默降级 | 1 命中为字重回退带警告（L35「fall back to 400 with a warning」——带警示的降级恰是合格局部实例），无通则 | 补洞段规则 4 通则化（删 stock_photo 401 引用——该规则属 system-prompt.md 长图 workflow 段，不在本源） |
+
+结论：四条红线在 119 行源中仍全缺/半缺，补洞段整体保留（内容随 T47 微调规则 4）。
+
+### 实现项核验
+
+- [x] **C1 转写保真（新源）**（2026-08-31）：`node tools/rebuild/verify-t46-base-fidelity.mjs` → 6/6；build → format → verify → build 循环字节稳定（12434 bytes 两次一致，`git status` 零增长）——幂等坐实。
+- [x] **C2 回退干净**（2026-08-31）：`git diff rebuild/pi -- src/app/ai/chat/system-prompt.md` 输出为空；zones.json P123 已删；`bun run check:zones` clean。
+- [x] **C3 迁移零残留**（2026-08-31）：`grep -rn "workbench/" src/ tests/ spikes/ tools/ .github/ --include=*.ts/vue/mjs/yml` 零命中（attic 内自指豁免）；`ls workbench` 不存在；ci.yml job working-directory 与三条 grep 均指 attic/dsh-workbench。docs 清扫豁免：T14-T18 DSH 时代叙事文档对 workbench/ 的引用为历史记录（目录本身的曾用名），由 attic README 搁置声明承载映射——不动。
+- [x] **C4 钉扎复跑**（2026-08-31）：`bun test tests/engine/rebuild/` 26/26。
+- [x] **C5 登记落位**（2026-08-31）：spike 06 SP-a2 节 = 路线乙决定版 + 头部状态行 + 结论区行 + 探针路径 ×3；records 镜像（narrative/06 §SP-a2 行、topics/spikes.md 两行）同步；S4 v3 修订行 + §2/§3/§4/§7 五处。
+- [x] **T46 文档当前态修正**（2026-08-31）：T46 三件套各加「⚠ 当前态修正（T47）」指针行；T46-plan 状态行遗留翻转补正（🔄→✅）；全部迁移文件路径引用批量改写（12 文件 + 相对链接 4 处）。
+- [x] **C6 门禁与回归**（2026-08-31）：format:check 全绿（2098 文件）；lint 0 errors/5 warnings（回基线）；`bunx tsgo --noEmit` exit 0；check:vue exit 0；check:i18n in sync；check:docs 42/42；check:zones clean（P123 删 / P35 改 / P124 增）；check:bindings/check:tasks 见 pre-commit 输出。全量回归（run 日志仓外 `doc/t47-regression-run.log` 492.32s 完整跑完）：**77 fail / 2661 tests**（对照 T46 基线 79/2661，失败数不增）；唯一化去抖 diff（74 → 72 行）：T46 三条 flake 本轮转绿，新增 1 条 MCP stdio transport「stderr does not contain JSON-RPC」——隔离复跑 9/9 全绿确为 flake；零本任务文件。
+- [x] **C7 登记面**（2026-08-31）：tracker/_index T47 行 🔄 在案；三件套齐。
+- [x] **D-b 补洞段适配**：位置 = 文末（119 行源无 `# Example` 锚点，grep 0 命中实证）；规则 4 去 stock_photo 引用；块前结构空行纳入 BLOCK_RE 剥除（保真等式修偏一处，见修正记录 1）。
+
+### 实测修正记录
+
+1. **BLOCK_RE 多一字偏差**：补洞段移文末后，首版等式 base 侧残留块前结构空行（构建器附加、源侧没有）→ 标记块剥除正则扩为含前导 `\n`（两脚本同步），等式复零。
+2. **git mv workbench 失败**：Windows 下 `git mv`/`mv` 均 Permission denied（无进程占用实证，疑杀软/索引器瞬时锁）→ 改 `cp -r` + `rm -rf` + `git add -A`，git 按内容识别为 rename（`git status` R 标记确认）。
+3. **zones.json P123 删尾条目留尾逗号**：JSON 语法错误被 check:zones 当场抓住 → 修正前一条目闭括号。
+4. **文档批扫误伤 T47-plan 叙事**：迁移文件的「源路径 → 新路径」描述箭头源侧被批量替换吃掉 → 人工还原两处叙事行。
+5. **oxfmt 重排新脚本**：build/verify 两脚本初写格式非典范 → format 一遍 + 构建器复跑字节不变，build→format 循环稳定（沿用 T46 F1 教训的验证法）。
+6. **迁入 tools/ 激活 lint 新视野**：workbench/ 本在 lint:structure 范围外，迁入后 verify-t45-manifest-dump.mjs 两个休眠 error（no-promise-executor-return ×2、no-math-random ×1）被激活 → 诚实修代码（Promise executor 加花括号；端口随机化改 `process.pid % 200`）；no-console 警告类按 `tools/**/*.ts` 既有豁免同口径扩 `tools/**/*.mjs`（oxlint.json override 5，登记 P124）——lint 回基线 0 errors/5 warnings。
+7. **文档链接批扫两轮**：第一轮路径 token 替换（12 文件）后，第二轮 `](../../../workbench/` 相对链接替换（T14/T15-self-check 证据图与 README 链接 4 处）——纯文本提及与相对链接是两套模式，一轮扫不干净。

@@ -13,7 +13,7 @@
  *
  * 判定：实验组 ink(900) > ink(250) × 1.2 且对照组差异 < 5% → D-a 机制成立。
  *
- * 运行：bun workbench/probe-t41-variable-font.mjs
+ * 运行：bun spikes/probes/probe-t41-variable-font.mjs
  */
 
 import CanvasKitInit from 'canvaskit-wasm'

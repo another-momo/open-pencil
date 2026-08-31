@@ -64,7 +64,7 @@
 
 - 探针改动已回退（`grep -c HMR-PROBE lib/client.js` = 0）；截图 `workbench/evidence/t14-hmr-probe.png`
 - 已知特性（非缺陷）：岛内 Vue 状态每次热替换重置。产品架构不受影响——画布状态在编辑器进程（7600 桥另一侧），岛内只挂 UI 态；X5 已证 session 切换不卸载
-- 开发回路成文：[workbench/README.md](../../../workbench/README.md)「开发回路」节
+- 开发回路成文：[attic/dsh-workbench/README.md](../../../attic/dsh-workbench/README.md)「开发回路」节
 
 ### 2.5 W6 · CI 接线
 

@@ -10,6 +10,7 @@
 # T46 自检 · base.md v0 落位 + 红线补洞 + base 候选清单建档（S4 W1 / T-A5）
 
 > **状态**：✅ 已收口（独立核验通过，findings 2 条已修） | **时间**：2026-08-31 立项；2026-08-31 实现；2026-08-31 收口 | **负责人**：主 agent
+> **⚠ 当前态修正（T47，2026-08-31）**：转写源已切换为 prompts/system-prompt-base.md（119 行），本文中 576 行源判定表/双源头注落点/P123 等口径为历史记录，现役口径见 T47 三件套
 > **关联**：[T46-plan.md](T46-plan.md)（验收标准 C1-C6 以其 §4 为准）
 
 ## 1. 立项段自检（2026-08-31）
@@ -38,8 +39,8 @@
 
 ### C1 base.md 落位保真 ✅
 
-- 构建经程序复制（`workbench/build-t46-base.mjs`，幂等）——非人工重打；插入点锚 `# Example: mobile app UI`（断言全文恰好一次）。
-- 独立保真核验 `bun workbench/verify-t46-base-fidelity.mjs`（2026-08-31）→ **6/6**：frontmatter id=base、标记 begin/end 各一、双源头注各一、四红线语义锚点、修辞事实标注三例+confirm、剥除后零 diff。
+- 构建经程序复制（`tools/rebuild/build-t46-base.mjs`，幂等）——非人工重打；插入点锚 `# Example: mobile app UI`（断言全文恰好一次）。
+- 独立保真核验 `bun tools/rebuild/verify-t46-base-fidelity.mjs`（2026-08-31）→ **6/6**：frontmatter id=base、标记 begin/end 各一、双源头注各一、四红线语义锚点、修辞事实标注三例+confirm、剥除后零 diff。
 - 补洞段位置：「Advanced tools」节之后、两个 Example 之前（纪律区尾、示例区头）；标记注释包裹（`<!-- T46 红线补洞段 begin/end -->`），核验脚本剥除后逐字等于源文件。
 - 双源声明/互指头注两文各一（D-b 防控落地）：base.md 声明「组装接入前 ui 基底以 system-prompt.md 为准、接入后退役」；system-prompt.md 顶部互指（git diff 实证仅 +2 行注释）。
 
@@ -50,7 +51,7 @@
 ### C3 注册表收零实证 ✅
 
 - `bun test tests/engine/rebuild/`（2026-08-31）→ **26 pass / 0 fail / 5 文件**：钉扎测试收编为 `failures: []` + base 注册断言（免 label、origin=builtin、补洞段锚点）；registry 新增 schema 钉扎（id 缺省合法/写错失败）。
-- 端点实证 `bun workbench/probe-t45-old-route.mjs`（2026-08-31）：新路径 200 且 **failures=0**；旧路径维持 404。
+- 端点实证 `bun spikes/probes/probe-t45-old-route.mjs`（2026-08-31）：新路径 200 且 **failures=0**；旧路径维持 404。
 - 冒烟 `bun spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs`（2026-08-31）→ **30/30**：fixture 加复制 base.md；资产后端 failures 断言收零；base 缺失 + 整体态 + 路径脱敏断言移交无资产后端半（覆盖不丢）。
 
 ### C4 base schema 成文 + 钉扎 ✅
@@ -65,7 +66,7 @@ D-e 成文（plan §2）；钉扎 = studio-registry.test.ts 新 C1 测（`id: no
 ### C6 门禁与回归 ✅
 
 - 门禁（2026-08-31）：format:check 全绿（2093 文件）；lint 0 errors/5 warnings（基线告警）；`bunx tsgo --noEmit` exit 0；check:vue exit 0；check:i18n in sync；check:docs 42/42；check:zones/check:bindings/check:tasks 见 pre-commit 输出（收口 commit 记录）。
-- 全量回归（`bun run test:unit:quick`，2026-08-31，run 日志 `workbench/t46-regression-run.log` 542.28s 完整跑完）：79 fail / 2661 tests（对照 T45 基线 78 fail / 2660，测试数 +1 = registry 新 schema 钉扎，符合预期）。唯一化去抖 diff（剥 `[xx ms]` 后缀，T45 73 行 → T46 74 行）：基线 1 条本轮转绿（MCP concurrent startServer），新增 2 条均非本任务文件——MCP stdio readiness（bridge connect timeout 抖动）与 plugin-data roundtrip，两文件隔离复跑 9/9、20/20 全绿确为 flake；零本任务文件（studio/registry/rebuild/assembly 全文无命中）。
+- 全量回归（`bun run test:unit:quick`，2026-08-31，run 日志 `doc/t46-regression-run.log（仓外）` 542.28s 完整跑完）：79 fail / 2661 tests（对照 T45 基线 78 fail / 2660，测试数 +1 = registry 新 schema 钉扎，符合预期）。唯一化去抖 diff（剥 `[xx ms]` 后缀，T45 73 行 → T46 74 行）：基线 1 条本轮转绿（MCP concurrent startServer），新增 2 条均非本任务文件——MCP stdio readiness（bridge connect timeout 抖动）与 plugin-data roundtrip，两文件隔离复跑 9/9、20/20 全绿确为 flake；零本任务文件（studio/registry/rebuild/assembly 全文无命中）。
 
 ## 3. 实测修正记录（实现段，2026-08-31）
 
@@ -76,7 +77,7 @@ D-e 成文（plan §2）；钉扎 = studio-registry.test.ts 新 C1 测（`id: no
 5. **plan D-e 误判**：「非 base id 仍失败 registry 测试已有」不实——grep 实证无此钉扎；已补（studio-registry.test.ts 新 C1 测），plan 口径以此为准。
 6. **冒烟断言收零的连带**：资产后端 failures 由「base 缺失一条」收为零数组后，「无绝对路径泄漏」断言在空数组上真退化（every 真空真）→ 该断言移交无资产后端半（failures 含 base.md + 整体态两条，检查为实）。
 7. **F1（核验 P1）构建器不幂等**：独立核验实测 `build-t46-base.mjs` 重建产出与已提交 base.md 有 3 处文本差异（begin 标记后空行、`*facts*` vs oxfmt 典范 `_facts_`、end 标记前空行）——构建器包裹格式未对齐 oxfmt 典范形 → 修：构建器改发典范形（`BEGIN\n\n` / `_facts_` / `\nEND`），复跑两次 diff 零增长，幂等坐实（2026-08-31）。
-8. **F2（核验 P2）头注缺核验命令指针**：base.md 双源声明与 system-prompt.md 互指头注均只说「双边同步」未给核验手段 → 两文头注各补「同步核验：node workbench/verify-t46-base-fidelity.mjs」（剥除正则兼容，保真 6/6 复跑确认，2026-08-31）。
+8. **F2（核验 P2）头注缺核验命令指针**：base.md 双源声明与 system-prompt.md 互指头注均只说「双边同步」未给核验手段 → 两文头注各补「同步核验：node tools/rebuild/verify-t46-base-fidelity.mjs」（剥除正则兼容，保真 6/6 复跑确认，2026-08-31）。
 
 ## 4. 关键决策回执
 

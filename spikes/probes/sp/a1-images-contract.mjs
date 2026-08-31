@@ -13,7 +13,7 @@
  * - options.timeoutMs → OpenAI client timeout（provider 层超时可控，SP-b 结论配套）；
  * - 无 apiKey → stopReason:'error'。
  *
- * 运行：bun spikes/probes/probe-sp-a1-images-contract.mjs
+ * 运行：bun spikes/probes/sp/a1-images-contract.mjs
  */
 
 import { generateImages } from '@earendil-works/pi-ai/api/openrouter-images'

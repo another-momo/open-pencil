@@ -22,9 +22,9 @@
 
 ## 2. 实现段核验（验收标准逐条，2026-08-31 实测）
 
-- **C1 保真（v2）**：`node tools/rebuild/verify-t48-v2-rescue-fidelity.mjs` → **9/9 PASS**（钉扎源条目存在 / frontmatter 四键 / 文首逐字 / Fixed / Variable / Anti-identity / Tone / Recipe 真配方逐字 / 恰好五节）。
-- **C2 T44 卡口复活**：修复前 `node tools/rebuild/verify-t44-migration-fidelity.mjs` 实测 ENOENT 崩（`brand/config.yaml` 已被 T45 删除）；修复后同命令 → **21/21 PASS**。
-- **C3 注册与投影**：`bun test tests/engine/rebuild/` → **26/26 pass**（含更新后内置资产钉扎：4 profiles、failures 零）；`node tools/rebuild/verify-t45-manifest-dump.mjs` 实跑 → profiles 含 `watercolor_poster_v2`（四份齐），泄漏检查 **CLEAN**。
+- **C1 保真（v2）**：`node tools/rebuild/src/verify/t48-v2-rescue-fidelity.mjs` → **9/9 PASS**（钉扎源条目存在 / frontmatter 四键 / 文首逐字 / Fixed / Variable / Anti-identity / Tone / Recipe 真配方逐字 / 恰好五节）。
+- **C2 T44 卡口复活**：修复前 `node tools/rebuild/src/verify/t44-migration-fidelity.mjs` 实测 ENOENT 崩（`brand/config.yaml` 已被 T45 删除）；修复后同命令 → **21/21 PASS**。
+- **C3 注册与投影**：`bun test tests/engine/rebuild/` → **26/26 pass**（含更新后内置资产钉扎：4 profiles、failures 零）；`node tools/rebuild/src/verify/t45-manifest-dump.mjs` 实跑 → profiles 含 `watercolor_poster_v2`（四份齐），泄漏检查 **CLEAN**。
 - **C4 门禁**：format:check / lint（0 错误，基线 5 警告）/ tsgo / check:vue / check:i18n / check:zones / check:bindings / check:docs（42/42）全绿，**均不接管验码**（exit code 直读，T47 修正记录 8 教训）；check:tasks 随 commit 钩子跑。
 - **C5 回归**：全量回归 `bun run test:unit:quick` 完整跑完（562.0s，仓外 `doc/t48-regression-run.log`）→ **76 fail / 2661**（2562 pass），对照 T47 基线 77 fail/2661 **失败数不增**；唯一化失败清单（`doc/t48-failures.txt`，71 条）对照 T47（72 条）diff 唯一变化 = 少 `MCP stdio transport > stderr does not contain JSON-RPC`（既有 flake 本次未复现），**零新增、零本任务文件**——按 flake 裁决协议判定干净，无新条目需隔离复跑。
 - **C6 登记面**：T48 三件套 + tracker/_index 行（立项 commit 7a4e4d50）+ T44 三件套「⚠ 当前态修正（T48）」指针行（本 commit）。

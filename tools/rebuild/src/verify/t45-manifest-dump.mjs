@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..')
+const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', '..', '..')
 const PORT = 7910 + (process.pid % 200)
 const tempRoot = mkdtempSync(join(tmpdir(), 't45-verify-dump-'))
 

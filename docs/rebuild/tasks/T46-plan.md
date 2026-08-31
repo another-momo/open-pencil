@@ -44,8 +44,8 @@ T43 建成 studio 文件机制内核（base 唯一槽位已在注册表——双
 - **S1** `src/app/ai/pi-backend/studio/base.md`：frontmatter（`id: base`）+ 头注（D-b 声明）+ 576 行全文转写 + 补洞段（D-c/D-d）。
 - **S2** `src/app/ai/chat/system-prompt.md`：头注一行互指（D-b），正文零改动。
 - **S3** 红线齐全性检查：逐条判定 → 需要则最小补齐（随 S1 落进新增节）；判定表记自检。
-- **S4** `tests/engine/rebuild/studio-builtin-assets.test.ts`：failures 收零 + base 断言（D-f）；按需加 base schema 钉扎（D-e：无 label 注册成功 + 非 base id 仍失败——后者 registry 测试已有，不重复）。
-- **S5** 保真核验脚本 `tools/rebuild/verify-t46-base-fidelity.mjs`：base.md body 减补洞段后与 system-prompt.md 逐字 diff 为零（T44 verify-t44-migration-fidelity.mjs 先例——NORMALIZE 表登记任何被迫偏差，如 oxfmt 列表标记）。
+- **S4** `tests/engine/rebuild/studio/builtin-assets.test.ts`：failures 收零 + base 断言（D-f）；按需加 base schema 钉扎（D-e：无 label 注册成功 + 非 base id 仍失败——后者 registry 测试已有，不重复）。
+- **S5** 保真核验脚本 `tools/rebuild/src/verify/t46-base-fidelity.mjs`：base.md body 减补洞段后与 system-prompt.md 逐字 diff 为零（T44 verify-t44-migration-fidelity.mjs 先例——NORMALIZE 表登记任何被迫偏差，如 oxfmt 列表标记）。
 - **S6** `doc/base-candidate-list.md` 建档（D-g）+ S4 §7 尾巴表两行更新（清单指向；免 label 行标已处置）+ 新增双源收编行（D-b）。
 - **S7** 实证：probe/冒烟复跑确认端点 failures 从「base 缺失一条」收为空数组；登记 tracker/_index/三件套。
 

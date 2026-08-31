@@ -412,9 +412,9 @@
     {
       "id": "P50",
       "file": "tools/type-shapes/src/files.ts",
-      "reason": "T25 顺修：Windows 上 Bun.Glob 产出反斜杠导致 discoverTypeShapeFiles 输出混入 \\——统一正斜杠（tools/test.ts 本地门禁修复）",
+      "reason": "T25 顺修：Windows 上 Bun.Glob 产出反斜杠导致 discoverTypeShapeFiles 输出混入 \\——统一正斜杠（tools/test.ts 本地门禁修复）；T51（2026-08-31）：scripts/ 目录整体退役后 Bun.Glob.scan 对缺失根在 Windows 抛 ENOENT（Linux 返回空），补 existsSync 跳根——CI 步骤 check:arch && test:type-shapes 链中后者在本分支从未跑到，本地首跑暴露",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "lastReviewed": "2026-08-31"
     },
     {
       "id": "P51",
@@ -800,7 +800,8 @@
     "packages/kiwi/src/schema-runtime/js.ts",
     "scripts/export-fixture-visuals.ts",
     "scripts/visual-bisect.ts",
-    "scripts/visual-compare.ts"
+    "scripts/visual-compare.ts",
+    "tests/engine/render/canvas/silhouette-autopsy.test.ts"
   ],
   "upstreamMergeTarball": [
     {

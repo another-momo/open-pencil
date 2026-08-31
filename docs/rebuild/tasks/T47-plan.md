@@ -37,11 +37,11 @@ T46 收口汇报后 owner 复核提出六条。三条构成对 W1 成果的修�
 
 **T47a 转写源切换**（预计 ~10 文件）：
 
-1. `workbench/build-t46-base.mjs` → 迁移为 `tools/rebuild/build-t46-base.mjs`（随 D-e），SRC/HEADNOTE/SRC_NOTE/锚点逻辑改写（文末追加 + 头注剔除对称化 + 规则 4 删 stock_photo 引用）。
-2. `workbench/verify-t46-base-fidelity.mjs` → `tools/rebuild/verify-t46-base-fidelity.mjs`：源路径、互指文件路径（system-prompt.md → prompts/system-prompt-base.md）、剥除对称化同步。
+1. `workbench/build-t46-base.mjs` → 迁移为 `tools/rebuild/src/build-t46-base.mjs`（随 D-e），SRC/HEADNOTE/SRC_NOTE/锚点逻辑改写（文末追加 + 头注剔除对称化 + 规则 4 删 stock_photo 引用）。
+2. `workbench/verify-t46-base-fidelity.mjs` → `tools/rebuild/src/verify/t46-base-fidelity.mjs`：源路径、互指文件路径（system-prompt.md → prompts/system-prompt-base.md）、剥除对称化同步。
 3. 重建 `src/app/ai/pi-backend/studio/base.md`；`src/app/ai/chat/system-prompt.md` 回退头注（恢复上游态）；`prompts/system-prompt-base.md` 加 T46 互指头注。
 4. `tools/zone-registry/zones.json`：删 P123（T47b 的 ownedRoots 调整同 commit）。
-5. 钉扎测试同步：`tests/engine/rebuild/studio-builtin-assets.test.ts`（锚点断言复查）、`spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs`（头注/路径引用复查）、`spikes/probes/probe-t45-old-route.mjs`（迁移后路径）。
+5. 钉扎测试同步：`tests/engine/rebuild/studio/builtin-assets.test.ts`（锚点断言复查）、`spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs`（头注/路径引用复查）、`spikes/probes/probe-t45-old-route.mjs`（迁移后路径）。
 6. T46 三件套当前态修正（转写源口径 + 头注落点 + P123 退役；判定表随 119 行源重判）。
 
 **T47b workbench 归档迁移**：
@@ -58,7 +58,7 @@ T46 收口汇报后 owner 复核提出六条。三条构成对 W1 成果的修�
 
 ## 4. 验收标准
 
-- **C1 转写保真（新源）**：`node tools/rebuild/verify-t46-base-fidelity.mjs` 6/6 绿；构建器连续两跑 `git diff` 零增长（幂等）；红线齐全性对 119 行源重新判定表入自检（grep 证据）。
+- **C1 转写保真（新源）**：`node tools/rebuild/src/verify/t46-base-fidelity.mjs` 6/6 绿；构建器连续两跑 `git diff` 零增长（幂等）；红线齐全性对 119 行源重新判定表入自检（grep 证据）。
 - **C2 system-prompt.md 回退干净**：`git diff rebuild/pi -- src/app/ai/chat/system-prompt.md` 为空；zones.json 无 P123；`bun run check:zones` exit 0。
 - **C3 迁移零残留**：`grep -rn "workbench/" --include=*.ts --include=*.vue --include=*.mjs src/ tests/ spikes/ tools/ .github/` 零命中（attic 内自指豁免）；`git status` 无 workbench 顶层残留；ci.yml job 路径 = attic/dsh-workbench。
 - **C4 钉扎与冒烟复跑绿**：`bun test tests/engine/rebuild/` 26/26；`node spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs` 30/30；`bun spikes/probes/probe-t45-old-route.mjs` 旧 404 新 failures=0（需 dev 链，实证记录）。

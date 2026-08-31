@@ -1,5 +1,5 @@
 /**
- * T42 S1 生成目录契约单测：cn-catalog.ts 是 tools/cn-font-catalog/build.mjs 的
+ * T42 S1 生成目录契约单测：cn-catalog.ts 是 tools/cn-font-catalog/src/build.mjs 的
  * 提交产物（运行时零枚举，D-b）。钉住结构契约，防手改/再生成漂移；
  * 重跑管线更新目录后本文件断言须同步复核。
  */

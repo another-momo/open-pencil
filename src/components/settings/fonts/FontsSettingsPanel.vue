@@ -14,6 +14,7 @@ import {
   requestLocalFontAccess
 } from '@/app/editor/fonts'
 import { useForkFonts } from '@/app/i18n/fork'
+import Tip from '@/components/ui/Tip.vue'
 import AppSwitch from '@/components/ui/AppSwitch.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 
@@ -366,18 +367,12 @@ watch([cnFontsEnabled, onlineFontsEnabled], async () => {
           >
             {{ msgs.fontsVariableBadge }}
           </span>
-          <span
-            v-if="licenseHint(option)"
-            class="shrink-0 text-[9px] text-muted"
-            :title="licenseHint(option)"
-            >ⓘ</span
-          >
-          <span
-            v-if="isLocked(option.family)"
-            class="shrink-0 text-[9px] text-muted"
-            :title="msgs.fontsLockedHint"
-            >🔒</span
-          >
+          <Tip v-if="licenseHint(option)" :label="licenseHint(option)">
+            <span class="shrink-0 text-[9px] text-muted">ⓘ</span>
+          </Tip>
+          <Tip v-if="isLocked(option.family)" :label="msgs.fontsLockedHint">
+            <span class="shrink-0 text-[9px] text-muted">🔒</span>
+          </Tip>
           <AppSwitch
             :model-value="isEnabled(option.family)"
             :label="option.family"

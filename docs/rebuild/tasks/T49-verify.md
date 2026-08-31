@@ -21,7 +21,7 @@
 ## V1 纯转写（C1）—— ✅
 
 - `grep -c "Trust & Safety" src/app/ai/pi-backend/studio/base.md` = 0 命中（exit 1）；
-- `node tools/rebuild/verify-t46-base-fidelity.mjs` = 3/3 绿（exit 0）：frontmatter id=base / 双源头注两文各一 / 剥除后逐字保真零 diff；
+- `node tools/rebuild/src/verify/t46-base-fidelity.mjs` = 3/3 绿（exit 0）：frontmatter id=base / 双源头注两文各一 / 剥除后逐字保真零 diff；
 - base.md = 123 行（wc -l），尾段止于「## Advanced tools」eval 段，无补洞段、无 T46 标记注释残留；构建器幂等 = 主 agent 收口复跑两连跑均 10887 bytes、`git diff --stat` 稳定 1+/16-（2026-08-31）；
 - `git show 15fa0613 --stat` = 恰 12 文件（44+/94-）。
 
@@ -61,8 +61,8 @@ tracker.md T49 行（L60）/ _index.md T49 行（L83）三列真实链接齐；T
 
 | 证据 | 命令 | 结果 |
 |---|---|---|
-| 保真核验 | `node tools/rebuild/verify-t46-base-fidelity.mjs` | 3/3 绿 exit 0 |
-| 构建幂等 | `node tools/rebuild/build-t46-base.mjs` ×2 + `git diff --stat` | 10887 bytes 两跑一致，diff 稳定 |
+| 保真核验 | `node tools/rebuild/src/verify/t46-base-fidelity.mjs` | 3/3 绿 exit 0 |
+| 构建幂等 | `node tools/rebuild/src/build-t46-base.mjs` ×2 + `git diff --stat` | 10887 bytes 两跑一致，diff 稳定 |
 | 九门 | `bun run check:zones / check:docs / check:tasks / check:bindings / lint / tsgo / check:vue / format:check / check:i18n` | 全 exit 0（lint 0 error） |
 | 冒烟 | `node spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs` | 30/30 exit 0 |
 | 单测 | `bun test tests/engine/rebuild/` | 26/26 exit 0 |

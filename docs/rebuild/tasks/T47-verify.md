@@ -20,8 +20,8 @@
 
 ## V1 转写保真（新源，C1）——通过
 
-- `node tools/rebuild/verify-t46-base-fidelity.mjs` → 6/6（2026-08-31）。
-- 幂等：`bun tools/rebuild/build-t46-base.mjs` 连跑两次均「12434 bytes；源 10979 bytes + 保真自检零 diff」，第二次后 `git status --short` 完全为空。
+- `node tools/rebuild/src/verify/t46-base-fidelity.mjs` → 6/6（2026-08-31）。
+- 幂等：`bun tools/rebuild/src/build-t46-base.mjs` 连跑两次均「12434 bytes；源 10979 bytes + 保真自检零 diff」，第二次后 `git status --short` 完全为空。
 - 人工抽查：base.md frontmatter + 双源头注（含核验命令）；补洞段 begin/end 在文末；正文 L7-123 vs 源 L5-121 diff 零；`grep T24 base.md` 无命中（元注释未混入正文）。
 
 ## V2 回退干净性（C2）——通过

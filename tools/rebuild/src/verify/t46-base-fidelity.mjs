@@ -13,13 +13,13 @@
  * T49（owner 指令，2026-08-31）：base.md 回归纯转写（不承载显式纪律段），
  * 核验链相应简化——剥除链 = frontmatter + T46 头注注释行 + 前导注释块。
  *
- * 运行：bun tools/rebuild/verify-t46-base-fidelity.mjs（仓根）
+ * 运行：bun tools/rebuild/src/verify/t46-base-fidelity.mjs（仓根）
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..')
+const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', '..', '..')
 const base = readFileSync(join(repoRoot, 'src/app/ai/pi-backend/studio/base.md'), 'utf8')
 const src = readFileSync(
   join(repoRoot, 'src/app/ai/pi-backend/prompts/system-prompt-base.md'),

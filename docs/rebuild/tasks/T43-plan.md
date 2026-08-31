@@ -72,7 +72,7 @@ StudioRegistry = { base: StudioBase | null, workflows: Map<id, StudioWorkflow>, 
 - modes 投影：`general` 恒在 + 每个成功注册的 workflow 文件派生一个 mode（id=文件 id，label 取 frontmatter）——PD-16「文件存在 = mode 可用」的数据源。
 - 默认集整体缺失/全坏（base 与全部 workflow/profile 均失败且无任何注册成功）→ failures 记一条整体态（kind 标记），供 T-B10 错误条消费（S2 §8）。
 
-### S5 单测（`tests/engine/rebuild/studio-registry.test.ts`）
+### S5 单测（`tests/engine/rebuild/studio/registry.test.ts`）
 
 tmp fixture 目录（`mkdtemp`）构造内置/用户两源，覆盖 C1-C7 全部断言；不依赖真实资产文件（T-A2 前内置目录为空是设计态）。
 

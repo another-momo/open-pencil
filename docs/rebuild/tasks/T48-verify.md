@@ -20,9 +20,9 @@
 
 ## 逐项结果（subagent 独立核验，2026-08-31）
 
-- **V1（C1 保真）PASS**：`node tools/rebuild/verify-t48-v2-rescue-fidelity.mjs` → 9/9 PASS（exit 0）。核验方另做零信任字节级重建：git 钉扎源取 v2 markdown → 应用 RENAME → 拼 frontmatter，与仓内文件 diff 唯一差异 = oxfmt 补的 `## Tone` 前结构性空行（50a51，自检修正记录 2 声明属实）；Recipe 节为真配方（generate_image/compose_backdrop/look 四步）逐字，非 no-op；节名归一恰好四处，frontmatter 四键 + applicable_to 收窄 [longform] 与 D-a 登记一致。
-- **V2（C2 T44 卡口）PASS**：`node tools/rebuild/verify-t44-migration-fidelity.mjs` → 21/21 PASS；源读取 = `git show 4ce51816:…`（commit 钉扎，verify-t44-migration-fidelity.mjs:63 附近）；`git rev-parse` 双 ref 同 blob `ec9b22a3`。
-- **V3（C3 注册与投影）PASS**：`bun test tests/engine/rebuild/` → 26/26；`node tools/rebuild/verify-t45-manifest-dump.mjs` 实跑 profiles 四份齐含 v2、泄漏 CLEAN；dump 输出 failures 的 base.md 缺失一条确认为 fixture 历史形态（自检 §3.3），非缺陷。
+- **V1（C1 保真）PASS**：`node tools/rebuild/src/verify/t48-v2-rescue-fidelity.mjs` → 9/9 PASS（exit 0）。核验方另做零信任字节级重建：git 钉扎源取 v2 markdown → 应用 RENAME → 拼 frontmatter，与仓内文件 diff 唯一差异 = oxfmt 补的 `## Tone` 前结构性空行（50a51，自检修正记录 2 声明属实）；Recipe 节为真配方（generate_image/compose_backdrop/look 四步）逐字，非 no-op；节名归一恰好四处，frontmatter 四键 + applicable_to 收窄 [longform] 与 D-a 登记一致。
+- **V2（C2 T44 卡口）PASS**：`node tools/rebuild/src/verify/t44-migration-fidelity.mjs` → 21/21 PASS；源读取 = `git show 4ce51816:…`（commit 钉扎，verify-t44-migration-fidelity.mjs:63 附近）；`git rev-parse` 双 ref 同 blob `ec9b22a3`。
+- **V3（C3 注册与投影）PASS**：`bun test tests/engine/rebuild/` → 26/26；`node tools/rebuild/src/verify/t45-manifest-dump.mjs` 实跑 profiles 四份齐含 v2、泄漏 CLEAN；dump 输出 failures 的 base.md 缺失一条确认为 fixture 历史形态（自检 §3.3），非缺陷。
 - **V4（C4 门禁）PASS**：format:check / lint（0 错误 5 警告基线）/ check:zones / check:docs（42/42）/ check:bindings / check:tasks 抽查 exit 0（直读退出码无管道吞码）；核验方补跑 tsgo / check:vue / check:i18n 亦全 0——九项门禁声明完整成立。
 - **V5（C5 回归裁决复查）PASS**：仓外 log 尾部实测 2562 pass / 76 fail / 2661（562.01s）；t48-failures.txt（71 条）对照 t47（72 条）唯一变化 = 少 `MCP stdio transport > stderr does not contain JSON-RPC`（既有 flake 未复现），零新增；对 t48 清单 grep `studio|profile|rebuild|watercolor|pi-backend|manifest` 零命中——裁决独立成立。
 - **V6（C6 登记面）PASS**：tracker.md / _index.md 的 T48 行三件套列均为有效链接且物理存在；T44 三件套各有「⚠ 当前态修正（T48，2026-08-31）」指针行。
@@ -35,4 +35,4 @@
 - **F3（P3）`mode-overlay-bind-smoke.mjs` 「三精品」措辞陈旧**（成员制断言不受 3→4 影响）。**处置**：docstring 与断言标签改「四精品」并补 `水彩海报 v2` 选项成员断言（UI 车道 `smoke:pi:ui` 形状不变，仅文案 + 一个 count 断言）。
 - **F4（P3）两保真脚本 docstring 未明文 git 前置**。**处置**：两脚本头注各补「前置：PATH 上需有 git（缺 git 响亮 ENOENT，非静默）」。
 
-findings 处置后复验（干净树最小 diff 重放后）：`node tools/rebuild/verify-t48-v2-rescue-fidelity.mjs` 9/9、`node tools/rebuild/verify-t44-migration-fidelity.mjs` 21/21、T24 冒烟 30/30、format:check exit 0（均 2026-08-31）。
+findings 处置后复验（干净树最小 diff 重放后）：`node tools/rebuild/src/verify/t48-v2-rescue-fidelity.mjs` 9/9、`node tools/rebuild/src/verify/t44-migration-fidelity.mjs` 21/21、T24 冒烟 30/30、format:check exit 0（均 2026-08-31）。

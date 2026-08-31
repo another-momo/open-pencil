@@ -14,7 +14,7 @@
 
 | 文件 | 改动 |
 |---|---|
-| tools/cn-font-catalog/build.mjs | **新建（owned root）**：目录管线——npm search 枚举 83 个 `@chinese-fonts/` 包（翻页至空）→ 并发 8 逐包探针（packument version/license → jsdelivr dist/index.json → 逐目录 result.css 解析 font-family/font-weight，区间形态 → variable）→ 产出入仓。非 ASCII 目录名 jsdelivr 全边缘 404（实测 cdn/fastly/gcore）→ 逐目录回退 unpkg（CORS `*` 实测 200）；同族跨 CDN 分裂即排除 |
+| tools/cn-font-catalog/src/build.mjs | **新建（owned root）**：目录管线——npm search 枚举 83 个 `@chinese-fonts/` 包（翻页至空）→ 并发 8 逐包探针（packument version/license → jsdelivr dist/index.json → 逐目录 result.css 解析 font-family/font-weight，区间形态 → variable）→ 产出入仓。非 ASCII 目录名 jsdelivr 全边缘 404（实测 cdn/fastly/gcore）→ 逐目录回退 unpkg（CORS `*` 实测 200）；同族跨 CDN 分裂即排除 |
 | packages/core/src/text/font/cn-catalog.ts | **新建（generated owned）**：105 族收录（37 族 unpkg base 钉扎，2 个 VF 族 xiaohe-simplify@2.0.0 区间 250-900）；`cnCatalogEntry`/`isCnCatalogFamily` 访问器；头部 generated 注释（构建日期 + 规模） |
 | tools/cn-font-catalog/excluded.json | **新建**：9 条排除记录（6 包全目录双 CDN 不可达 + 3 个工具包 font-contours/index/wawoff2 index.json 非法） |
 | packages/core/src/text/font/allowlist.ts | owned 扩展：catalog 族 opt-in 双集合语义（D-c）——`enabledCatalog` 集合 + `isEnabled` 分流（catalog 族只看 enabledCatalog，disabled 无否决权）+ `setEnabled` catalog 路由 + `replaceEnabledCatalog`（滤除非 catalog 族）+ `listEnabledCatalog`；两个 commit 均守「无变化 revision 不空转」 |
@@ -65,7 +65,7 @@
 
 ## 5. 遗留与边界
 
-- **目录更新靠管线重跑**（显式动作）：`bun tools/cn-font-catalog/build.mjs`；运行时零目录枚举（D-b）。npm search 可见面之外的包不在目录（已知边界，plan §5）。
+- **目录更新靠管线重跑**（显式动作）：`bun tools/cn-font-catalog/src/build.mjs`；运行时零目录枚举（D-b）。npm search 可见面之外的包不在目录（已知边界，plan §5）。
 - **catalog 族授权一律未审计标注**（D-d 分层治理）：面板 ⓘ 展示包内 license 原文（全 105 族 npm 包字段均为 'MIT'，系打包者字段非字体授权本体——治理红线：catalog 不给 tier）。
 - **跨源同名族**（§3 第 3 条）：按名管控语义自洽，未做按源拆分（如需「在线渠道可用而 CDN 渠道停用」粒度，独立任务再议）。
 - **FontSettingsPopover 未动**（D-h）：picker 浮层四家 provider 复选维持现状；CDN 主开关落设置面板。

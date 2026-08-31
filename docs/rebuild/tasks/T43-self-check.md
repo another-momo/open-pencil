@@ -39,7 +39,7 @@
 ### 3.1 实现清单（2026-08-30）
 
 - `src/app/ai/pi-backend/studio/`：`types.ts`（契约）/ `parse.ts`（`---` frontmatter 切分 + `##`/`###` 正文小节索引）/ `validate.ts`（通用 id/label + workflow types/蓝图节/step_budget + profile 必需节/applicable_to/hex 启发式/字体白名单）/ `registry.ts`（两源扫描、同 id 用户覆盖、loadBase/loadWorkflows/loadProfiles 分载、mode 投影含 general 恒在、整体缺失态、`reloadStudio`/`getStudioRegistry` 单例）/ `index.ts`（公共出口）
-- `tests/engine/rebuild/studio-registry.test.ts`：16 用例覆盖 C1-C6（tmp fixture 目录注入，不依赖真实资产）
+- `tests/engine/rebuild/studio/registry.test.ts`：16 用例覆盖 C1-C6（tmp fixture 目录注入，不依赖真实资产）
 
 ### 3.2 验收标准实测（T43-plan §4）
 

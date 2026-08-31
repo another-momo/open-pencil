@@ -57,7 +57,7 @@ T44 已把 config.yaml 内容迁入 studio 文件集（profiles×3 + longform.md
 - **S4** `prompt-overlay.ts`：类型换源 + 文案措辞（brand config → studio registry）。
 - **S5** `mode-selection.ts` + `ChatStyleProfileSelect.vue`：前端更名换源（D-e）。
 - **S6** 删除 `brand/` 目录 + studio 头注顺手改（D-f）。
-- **S7** `tests/engine/rebuild/studio-manifest.test.ts`：投影单测——modes 展开（general 空 types / longform 三 type）/ profiles 摘要无 body / failures 相对路径脱敏 / 整体缺失态投影。
+- **S7** `tests/engine/rebuild/studio/manifest.test.ts`：投影单测——modes 展开（general 空 types / longform 三 type）/ profiles 摘要无 body / failures 相对路径脱敏 / 整体缺失态投影。
 - **S8** 实证：dev server 起后端 → curl 新端点（modes/profiles/failures 三段俱全）+ 旧路径不命中；Playwright 开 app → profile 下拉经新端点列出三精品（截图存仓外 doc/t45-*.png）。
 - **S9** 登记：tracker/_index/三件套。
 

@@ -22,7 +22,7 @@
 | 项 | 结论 | 证据 |
 |---|---|---|
 | V1 计划/规格一致性 | 过 | D-a~D-i 与 S2 §4/§5、S4 T-A2 逐条一致；迁移取舍符合 S2 §5 清单（casual_v1 不迁的两条理由经源文件核实：applicable_to 全非长图 type + 正文无五节结构，config.yaml:35-42）；S4 §7 尾巴表 +2 行（S4-phase3-plan.md:115-116）与 T-A4 三段吸收注记（:43）在位 |
-| V2 保真核验复跑 | 过 | `bun tools/rebuild/verify-t44-migration-fidelity.mjs` → 21 pass / 0 fail；人工抽查 v3 Recipe 与 config.yaml:274-301 源段逐字一致，唯一偏差 = 步骤 1 列表标记 `1.（`→`1. （`（脚本 NORMALIZE 表与自检 C2 登记吻合） |
+| V2 保真核验复跑 | 过 | `bun tools/rebuild/src/verify/t44-migration-fidelity.mjs` → 21 pass / 0 fail；人工抽查 v3 Recipe 与 config.yaml:274-301 源段逐字一致，唯一偏差 = 步骤 1 列表标记 `1.（`→`1. （`（脚本 NORMALIZE 表与自检 C2 登记吻合） |
 | V3 测试复跑 | 过 | `bun test tests/engine/rebuild/` → 20 pass / 0 fail / 4 文件；钉扎断言精确（failures 恰 1 条 kind=base；三 type id/size 精确匹配；profiles 恰三份 applicableTo=[longform]；modes=[general, longform]），无过宽 |
 | V4 门禁复跑 | 过 | 九项全 exit 0：check:zones（clean）/ check:docs（42/42）/ check:bindings / check:tasks / lint（0 errors，5 warnings 与立项前持平）/ tsgo / check:vue / format:check（2093 文件）/ check:i18n |
 | V5 消费面零触碰 | 过 | `git diff --stat 61f13f5b^..HEAD`：11 文件纯新增 + docs 登记；禁碰清单（service/server/prompt-overlay/mode-selection/brand 目录/config.yaml/.vue）精确 grep 零命中；config.yaml 最后改动停在 T24 提交 4ce51816 |

@@ -25,7 +25,7 @@
 
 ## V2 catalog 全量入仓（C2）✅
 
-- 管线实录（`bun tools/cn-font-catalog/build.mjs`，2026-08-30）：npm search 83 包可见面 → 77 包探针（registry 6 包排除）→ **105 族收录 / 9 条排除**（excluded.json 原因齐全：6 包全目录双 CDN 不可达 + 3 工具包 index.json 非法）。
+- 管线实录（`bun tools/cn-font-catalog/src/build.mjs`，2026-08-30）：npm search 83 包可见面 → 77 包探针（registry 6 包排除）→ **105 族收录 / 9 条排除**（excluded.json 原因齐全：6 包全目录双 CDN 不可达 + 3 工具包 index.json 非法）。
 - 关键发现：非 ASCII 目录名 jsdelivr 全边缘节点 404（实测 cdn/fastly/gcore；T40 sypxzs 个案上升为普遍规律）→ 逐目录 unpkg 回退（实测 200 + CORS `*`）——37 族因此得救并入仓（条目带 `base: 'https://unpkg.com'` 钉扎）。
 - 单测（`bun test tests/engine/text/fonts/cn-catalog.test.ts` 7/7，2026-08-30）：必填字段 / weights 升序正整数 / VF 恰两端点 / family 全局唯一 / registry 6 包不入目录 / registry cdn 族 isCnCatalogFamily 恒假 / unpkg 族 base 钉扎 / VF 收录（小禾简化 VF 250-900）。
 

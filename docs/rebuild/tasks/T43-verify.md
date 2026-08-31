@@ -33,7 +33,7 @@
 
 ## V3 测试真实性：✅ 过
 
-- `bun test tests/engine/rebuild/studio-registry.test.ts` → 16 pass / 0 fail / 62 expect()（2026-08-30 复跑）。
+- `bun test tests/engine/rebuild/studio/registry.test.ts` → 16 pass / 0 fail / 62 expect()（2026-08-30 复跑）。
 - 仓外临时探针（11 断言全 OK）独立复验：未初始化 getStudioRegistry 抛错；缺 types → 不注册+failure 指名；负向对照（好 fixture → 0 failure，证明断言非恒真）；未知 mode 指名/general 合法；`#a0c4e` 报 / `#1`+`#fff` 不误报。
 
 ## V4 门禁：✅ 过

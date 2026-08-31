@@ -17,7 +17,7 @@
 
 | 项 | 结论 | 核验方亲跑证据（2026-08-31） |
 |---|---|---|
-| V1 端点实证 | 过 | 复跑 `bun spikes/probes/probe-t45-old-route.mjs` → 旧路径 404 / 新路径 200（modes=[general(0), longform(3)]、profiles=3、failures=1 相对路径）；另写独立探针 dump 全 JSON（tools/rebuild/verify-t45-manifest-dump.mjs）：top-level 仅 modes/profiles/failures、profile 三无 body/markdown 键、全文无盘符泄漏；复跑 prompt-assembly-smoke → 29/29 |
+| V1 端点实证 | 过 | 复跑 `bun spikes/probes/probe-t45-old-route.mjs` → 旧路径 404 / 新路径 200（modes=[general(0), longform(3)]、profiles=3、failures=1 相对路径）；另写独立探针 dump 全 JSON（tools/rebuild/src/verify/t45-manifest-dump.mjs）：top-level 仅 modes/profiles/failures、profile 三无 body/markdown 键、全文无盘符泄漏；复跑 prompt-assembly-smoke → 29/29 |
 | V2 brand 链零残留 | 过 | `grep -rn -E "loadBrandSeed\|toBrandManifest\|PiBrandManifest\|api/pi/brand/manifest\|piBrandManifest\|ensurePiBrandManifest" src/ tests/ scripts/ tools/ spikes/ packages/` 零命中；`git ls-tree -r HEAD` 无 brand/；`git diff febfefdc..fd890b2f -- src/app/ai/pi-backend/modes.ts` 为空（D-h 成立） |
 | V3 单测真实性 | 过 | 通读投影/适配/测试三方，断言精确（toEqual 全等、键集排序比对、`not.toContain(builtinDir)` 反绝对路径、整体态正反两例）；`bun test tests/engine/rebuild/` → 25/25 |
 | V4 前端实证 | 过 | Read 仓外 doc/t45-profile-dropdown.png → 下拉列出 No style profile + 三精品；**亲跑** bind 冒烟（自起 1422/7702 dev server，node）→ 17/17；跑后清理无孤儿进程，未碰 1420/7700（对方 worktree） |
@@ -51,6 +51,6 @@
 
 ## 4. 核验过程附记
 
-- 核验方落的探针文件 tools/rebuild/verify-t45-manifest-dump.mjs（+ .json 输出）作为 V1 证据随收口 commit 登记。
+- 核验方落的探针文件 tools/rebuild/src/verify/t45-manifest-dump.mjs（+ .json 输出）作为 V1 证据随收口 commit 登记。
 - 核验方 V4 可选项（亲跑 bind 冒烟）已执行，非采信自述。
 - check:zones added 计数差值（382 vs 自检 379）已查明 = 核验方探针文件 + 未跟踪回归日志，非被检方问题。

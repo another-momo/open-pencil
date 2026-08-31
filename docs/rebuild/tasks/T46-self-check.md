@@ -40,8 +40,8 @@
 
 ### C1 base.md 落位保真 ✅
 
-- 构建经程序复制（`tools/rebuild/build-t46-base.mjs`，幂等）——非人工重打；插入点锚 `# Example: mobile app UI`（断言全文恰好一次）。
-- 独立保真核验 `bun tools/rebuild/verify-t46-base-fidelity.mjs`（2026-08-31）→ **6/6**：frontmatter id=base、标记 begin/end 各一、双源头注各一、四红线语义锚点、修辞事实标注三例+confirm、剥除后零 diff。
+- 构建经程序复制（`tools/rebuild/src/build-t46-base.mjs`，幂等）——非人工重打；插入点锚 `# Example: mobile app UI`（断言全文恰好一次）。
+- 独立保真核验 `bun tools/rebuild/src/verify/t46-base-fidelity.mjs`（2026-08-31）→ **6/6**：frontmatter id=base、标记 begin/end 各一、双源头注各一、四红线语义锚点、修辞事实标注三例+confirm、剥除后零 diff。
 - 补洞段位置：「Advanced tools」节之后、两个 Example 之前（纪律区尾、示例区头）；标记注释包裹（`<!-- T46 红线补洞段 begin/end -->`），核验脚本剥除后逐字等于源文件。
 - 双源声明/互指头注两文各一（D-b 防控落地）：base.md 声明「组装接入前 ui 基底以 system-prompt.md 为准、接入后退役」；system-prompt.md 顶部互指（git diff 实证仅 +2 行注释）。
 
@@ -78,7 +78,7 @@ D-e 成文（plan §2）；钉扎 = studio-registry.test.ts 新 C1 测（`id: no
 5. **plan D-e 误判**：「非 base id 仍失败 registry 测试已有」不实——grep 实证无此钉扎；已补（studio-registry.test.ts 新 C1 测），plan 口径以此为准。
 6. **冒烟断言收零的连带**：资产后端 failures 由「base 缺失一条」收为零数组后，「无绝对路径泄漏」断言在空数组上真退化（every 真空真）→ 该断言移交无资产后端半（failures 含 base.md + 整体态两条，检查为实）。
 7. **F1（核验 P1）构建器不幂等**：独立核验实测 `build-t46-base.mjs` 重建产出与已提交 base.md 有 3 处文本差异（begin 标记后空行、`*facts*` vs oxfmt 典范 `_facts_`、end 标记前空行）——构建器包裹格式未对齐 oxfmt 典范形 → 修：构建器改发典范形（`BEGIN\n\n` / `_facts_` / `\nEND`），复跑两次 diff 零增长，幂等坐实（2026-08-31）。
-8. **F2（核验 P2）头注缺核验命令指针**：base.md 双源声明与 system-prompt.md 互指头注均只说「双边同步」未给核验手段 → 两文头注各补「同步核验：node tools/rebuild/verify-t46-base-fidelity.mjs」（剥除正则兼容，保真 6/6 复跑确认，2026-08-31）。
+8. **F2（核验 P2）头注缺核验命令指针**：base.md 双源声明与 system-prompt.md 互指头注均只说「双边同步」未给核验手段 → 两文头注各补「同步核验：node tools/rebuild/src/verify/t46-base-fidelity.mjs」（剥除正则兼容，保真 6/6 复跑确认，2026-08-31）。
 
 ## 4. 关键决策回执
 

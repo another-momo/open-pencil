@@ -36,11 +36,11 @@
 
 ### 方法与证据
 
-探针：`spikes/probes/probe-sp-a1-images-contract.mjs`（注入 fake fetch 捕获请求 + 合成响应）。
+探针：`spikes/probes/sp/a1-images-contract.mjs`（注入 fake fetch 捕获请求 + 合成响应）。
 核验命令（2026-08-30，本 worktree 复核绿，14/14 断言）：
 
 ```
-bun spikes/probes/probe-sp-a1-images-contract.mjs
+bun spikes/probes/sp/a1-images-contract.mjs
 ```
 
 **【事实】** 钉扎结论（另经 2026-08-30 走查 `node_modules/@earendil-works/pi-ai/dist/api/openrouter-images.js` 全文确认）：
@@ -90,11 +90,11 @@ S3 v2 §4 要求长任务工具（生图、批量排版）单调用可能超过 
 
 ### 动态实证
 
-探针：`spikes/probes/probe-sp-b-rpc-timeout.mjs`（起真 MCP server + 延迟 25s 应答的 mock app；default / override 两模式自spawn）。
+探针：`spikes/probes/sp/b-rpc-timeout.mjs`（起真 MCP server + 延迟 25s 应答的 mock app；default / override 两模式自spawn）。
 核验命令（2026-08-30 复核绿）：
 
 ```
-bun spikes/probes/probe-sp-b-rpc-timeout.mjs all
+bun spikes/probes/sp/b-rpc-timeout.mjs all
 ```
 
 | 模式 | 结果 | 判定 |
@@ -116,11 +116,11 @@ bun spikes/probes/probe-sp-b-rpc-timeout.mjs all
 
 ### 方法与证据
 
-探针：`spikes/probes/probe-sp-c-kinsoku.mjs`（本地字体 `packages/core/assets/AlibabaPuHuiTi-Regular.ttf`，零网络依赖）。
+探针：`spikes/probes/sp/c-kinsoku.mjs`（本地字体 `packages/core/assets/AlibabaPuHuiTi-Regular.ttf`，零网络依赖）。
 核验命令（2026-08-30 复核绿）：
 
 ```
-bun spikes/probes/probe-sp-c-kinsoku.mjs
+bun spikes/probes/sp/c-kinsoku.mjs
 ```
 
 **【事实】**：

@@ -2,7 +2,7 @@
  * T46（S4 W1/T-A5）base.md 构建器：system-prompt-base.md 全文转写。
  *
  * 转写经程序复制（非人工重打）保证逐字保真；保真核验
- * （tools/rebuild/verify-t46-base-fidelity.mjs）剥除 frontmatter 与 T46 头注注释行后
+ * （tools/rebuild/src/verify/t46-base-fidelity.mjs）剥除 frontmatter 与 T46 头注注释行后
  * 与源文件 diff 必须为零。本构建器落盘后自检同一等式。
  *
  * T47（owner 指令 #6，2026-08-31）：转写源由 src/app/ai/chat/system-prompt.md
@@ -13,27 +13,27 @@
  * T49（owner 指令，2026-08-31）：base.md 回归纯转写——frontmatter + 双源头注 +
  * 119 行逐字转写，不承载显式纪律段；构建器相应删去段追加逻辑。
  *
- * 运行：bun tools/rebuild/build-t46-base.mjs（仓根；幂等——重复运行产出同一份 base.md）
+ * 运行：bun tools/rebuild/src/build-t46-base.mjs（仓根；幂等——重复运行产出同一份 base.md）
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..')
+const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', '..')
 const SRC = join(repoRoot, 'src/app/ai/pi-backend/prompts/system-prompt-base.md')
 const OUT = join(repoRoot, 'src/app/ai/pi-backend/studio/base.md')
 
 const HEADNOTE =
   '<!-- T46（S4 W1/T-A5）双源声明：本文 = src/app/ai/pi-backend/prompts/system-prompt-base.md 全文转写（119 行，workflow 无关；T47 起由 system-prompt.md 切换至此源；T49 起为纯转写，不承载显式纪律段）。' +
   '每回合组装接入（W2/W3，S2 §6）前，各 mode 基底仍以 modes.ts 注册路径为准——两文变更须双边同步；接入后源文件退役。' +
-  '同步核验：node tools/rebuild/verify-t46-base-fidelity.mjs（剥 frontmatter 与 T46 头注后零 diff 硬卡口）。 -->'
+  '同步核验：node tools/rebuild/src/verify/t46-base-fidelity.mjs（剥 frontmatter 与 T46 头注后零 diff 硬卡口）。 -->'
 
 const src = readFileSync(SRC, 'utf8')
 
 // 源文件头注（互指）幂等补入——若已存在则跳过（保真等式两侧同样剥除头注）
 const SRC_NOTE =
   '<!-- T46（S4 W1/T-A5）互指：本文已全文转写至 src/app/ai/pi-backend/studio/base.md（T47 起本文替代 chat/system-prompt.md 成为转写源；T49 起 base.md 为纯转写，不承载显式纪律段）——变更本文须同步 base.md；每回合组装接入（W2/W3，S2 §6）后本文退役。' +
-  '同步核验：node tools/rebuild/verify-t46-base-fidelity.mjs（剥 frontmatter 与 T46 头注后零 diff）。 -->\n\n'
+  '同步核验：node tools/rebuild/src/verify/t46-base-fidelity.mjs（剥 frontmatter 与 T46 头注后零 diff）。 -->\n\n'
 const srcNoted = src.startsWith('<!-- T46') ? src : SRC_NOTE + src
 
 // 转写内容剔除源文件顶部的元注释块（T46 互指 + T24 来源注——base.md 只带自己的

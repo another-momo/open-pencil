@@ -56,7 +56,7 @@ T43（T-A1）已建成 studio 文件机制内核（两源扫描/校验/注册表
 - frontmatter：id=longform / label=长图设计 / subtitle（S2 §4 示例：电商详情 / 产品长文 / 小红书长图的分区物料）/ `step_budget: 50` / types 三条（D-g，id/label/size，safeArea 暂不写）。
 - 正文：`## 阶段定义`（D-i）→ `## type 蓝图`（`### ecommerce_detail` / `### product_long` / `### xiaohongshu_long` 各一段最小真实章节序，D-h）→ `## 纪律`（D-i）。
 
-### S3 实测钉扎测试（`tests/engine/rebuild/studio-builtin-assets.test.ts`）
+### S3 实测钉扎测试（`tests/engine/rebuild/studio/builtin-assets.test.ts`）
 
 真目录加载：内置 = 仓库 `src/app/ai/pi-backend/studio/`，用户 = tmp 空目录。断言：`failures: []`；`longform` 注册且三 type 齐全、各蓝图节非空；profiles 恰好 3 份且 applicableTo=[longform]；modes = [general, longform]。把「内置资产过校验面」钉成永久门禁——后续 W3 内容填充若写坏文件，测试即红。
 

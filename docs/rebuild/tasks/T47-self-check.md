@@ -38,7 +38,7 @@
 
 ### 实现项核验
 
-- [x] **C1 转写保真（新源）**（2026-08-31）：`node tools/rebuild/verify-t46-base-fidelity.mjs` → 6/6；build → format → verify → build 循环字节稳定（12434 bytes 两次一致，`git status` 零增长）——幂等坐实。
+- [x] **C1 转写保真（新源）**（2026-08-31）：`node tools/rebuild/src/verify/t46-base-fidelity.mjs` → 6/6；build → format → verify → build 循环字节稳定（12434 bytes 两次一致，`git status` 零增长）——幂等坐实。
 - [x] **C2 回退干净**（2026-08-31）：`git diff rebuild/pi -- src/app/ai/chat/system-prompt.md` 输出为空；zones.json P123 已删；`bun run check:zones` clean。
 - [x] **C3 迁移零残留**（2026-08-31）：`grep -rn "workbench/" src/ tests/ spikes/ tools/ .github/ --include=*.ts/vue/mjs/yml` 零命中（attic 内自指豁免）；`ls workbench` 不存在；ci.yml job working-directory 与三条 grep 均指 attic/dsh-workbench。docs 清扫豁免：T14-T18 DSH 时代叙事文档对 workbench/ 的引用为历史记录（目录本身的曾用名），由 attic README 搁置声明承载映射——不动。
 - [x] **C4 钉扎复跑**（2026-08-31）：`bun test tests/engine/rebuild/` 26/26。

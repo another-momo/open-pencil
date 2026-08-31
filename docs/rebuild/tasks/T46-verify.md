@@ -21,7 +21,7 @@
 
 ## V1 保真复核（C1）——通过
 
-- `node tools/rebuild/verify-t46-base-fidelity.mjs` → 6/6 passed（2026-08-31）。
+- `node tools/rebuild/src/verify/t46-base-fidelity.mjs` → 6/6 passed（2026-08-31）。
 - 人工抽查：base.md 头 6 行（frontmatter `id: base` + 双源声明头注）、补洞段边界（L234 begin / L247 end，恰在 `# Example: mobile app UI` L249 前）、两文件尾部 8 行逐字一致。
 - 分段 diff：`base.md[7..233]` vs `system-prompt.md[3..229]`（各 227 行）零 diff；`base.md[249..597]` vs `system-prompt.md[229..578]` 零 diff。base.md L248 空行属补洞块自有尾隔，保真等式成立。
 - 幂等性实测初验失败 → 记 F1（已修，见末节）。
@@ -60,5 +60,5 @@
 ## Findings 处置（收口段，2026-08-31）
 
 - **F1（P1）构建器不幂等**——已修：构建器包裹格式对齐 oxfmt 典范形（`BEGIN\n\n`、`_facts_`、`\nEND`）；复跑两次 `git diff` 零增长，幂等坐实；verify 复跑 6/6。修复记录见 T46-self-check §3 第 7 条。
-- **F2（P2）头注缺核验命令指针**——已修：两文头注各补「同步核验：node tools/rebuild/verify-t46-base-fidelity.mjs」；保真 6/6 复跑确认（剥除正则兼容）。修复记录见 T46-self-check §3 第 8 条。
+- **F2（P2）头注缺核验命令指针**——已修：两文头注各补「同步核验：node tools/rebuild/src/verify/t46-base-fidelity.mjs」；保真 6/6 复跑确认（剥除正则兼容）。修复记录见 T46-self-check §3 第 8 条。
 - 修复后复验（2026-08-31）：verify 6/6；format:check 全绿（2093 文件）；`bun test tests/engine/rebuild/` 26/26；assembly 冒烟 30/30。

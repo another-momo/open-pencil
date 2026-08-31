@@ -20,7 +20,7 @@
 
 （subagent 执行，2026-08-31 实测填报；主 agent 复核 diff 后提交）
 
-- **C1 base.md 纯转写**：`grep -c "Trust & Safety" src/app/ai/pi-backend/studio/base.md` = 0（grep exit 1 零命中）；`node tools/rebuild/verify-t46-base-fidelity.mjs` 3/3 绿（exit 0）——检查项 6→3：删「补洞段标记 begin/end 各恰好一次」「补洞段含四红线语义锚点」「补洞段含修辞事实标注」三项，保留 frontmatter id=base / 双源头注两文各一 / 逐字保真零 diff；构建器（node 跑）连续两跑 `git diff --stat` 零增长（幂等）；base.md 现 123 行 = frontmatter + 双源头注 + 119 行纯转写（wc -l 实测）。
+- **C1 base.md 纯转写**：`grep -c "Trust & Safety" src/app/ai/pi-backend/studio/base.md` = 0（grep exit 1 零命中）；`node tools/rebuild/src/verify/t46-base-fidelity.mjs` 3/3 绿（exit 0）——检查项 6→3：删「补洞段标记 begin/end 各恰好一次」「补洞段含四红线语义锚点」「补洞段含修辞事实标注」三项，保留 frontmatter id=base / 双源头注两文各一 / 逐字保真零 diff；构建器（node 跑）连续两跑 `git diff --stat` 零增长（幂等）；base.md 现 123 行 = frontmatter + 双源头注 + 119 行纯转写（wc -l 实测）。
 - **C2 机制零残留**：`grep -rn "补洞\|Trust & Safety\|修辞事实标注\|BLOCK_RE" src/ tests/ tools/ spikes/` 零命中（exit 1）；docs/ 命中（T43/T46/T47 历史段落、T46-T49 指针行、tracker/_index 登记行、T49 三件套自身引用）逐行人工核对属豁免面。
 - **C3 S1 §7 修正落位**（sed 实读复核）：§7 删三行（事实零虚构 #3 / AI 可写文案 PD-8 / 修辞事实标注 PD-20①）；五行层归属改宿主（#2/#5/#6/#7/#10）；#1 保持 base+宿主、#8 改宿主，两行实施落点均补「base 侧纪律候选随 PD-20 触发式 base 重新设计评估（T49 后 base.md 不承载显式红线段）」；节首引言补记 owner 2026-08-31 决策行；§8「base 重新设计」守卫改撤销口径；附录索引行标注「（已撤销，T49）」。S4 五处同步（§3 前置批行划线撤销 / §4 T-A5 划线撤销 / T-C1·T-C2 修辞事实标注括注 / §7 双源收编行去补洞段）+ 版本线 v4 记录。
 - **C4 门禁与冒烟**（全部直读退出码）：check:zones=0 / check:docs=0 / check:tasks=0 / check:bindings=0 / lint=0 / `tsgo --noEmit`=0 / check:vue=0 / format:check=0 / check:i18n=0；`node spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs` 30/30（exit 0）；`bun test tests/engine/rebuild/` 26/26（110 expect() calls）。

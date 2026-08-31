@@ -33,12 +33,12 @@
 ### C1 四文件落位 + 校验面 ✅
 
 - 落位：`src/app/ai/pi-backend/studio/profiles/{watercolor_poster_v3,editorial_poster_v1,solid_poster_v1}.md` + `workflows/longform.md`。
-- 钉扎测试 `tests/engine/rebuild/studio-builtin-assets.test.ts` 1/1 绿（`bun test tests/engine/rebuild/studio-builtin-assets.test.ts`，2026-08-31）：failures 恰含且仅含 base 缺失一条（kind=base）；longform 三 type 齐全（750x/750x/1080x）且蓝图节非空；profiles 恰好三份、applicableTo=[longform]；modes=[general, longform]。
+- 钉扎测试 `tests/engine/rebuild/studio/builtin-assets.test.ts` 1/1 绿（`bun test tests/engine/rebuild/studio/builtin-assets.test.ts`，2026-08-31）：failures 恰含且仅含 base 缺失一条（kind=base）；longform 三 type 齐全（750x/750x/1080x）且蓝图节非空；profiles 恰好三份、applicableTo=[longform]；modes=[general, longform]。
 - **计划 C1 口径修正**：plan 原文「零 failures」在 base.md 落位（T-A5）前不成立——实测断言收紧为「四迁移文件零失败 + 唯一 failure=base 缺失」，测试注释写明 T-A5 应收为 `failures: []`。
 
 ### C2 保真 ✅
 
-- 核验脚本 `tools/rebuild/verify-t44-migration-fidelity.mjs`（`bun tools/rebuild/verify-t44-migration-fidelity.mjs`，2026-08-31）：**21/21**——三份 profile 文首/Fixed/Variable/Anti-identity/Tone/Recipe 逐节逐字一致 + 恰好五节无残留旧节名 + editorial/solid Recipe 旧空节→显式 no-op。
+- 核验脚本 `tools/rebuild/src/verify/t44-migration-fidelity.mjs`（`bun tools/rebuild/src/verify/t44-migration-fidelity.mjs`，2026-08-31）：**21/21**——三份 profile 文首/Fixed/Variable/Anti-identity/Tone/Recipe 逐节逐字一致 + 恰好五节无残留旧节名 + editorial/solid Recipe 旧空节→显式 no-op。
 - **唯一内容偏差（已登记）**：v3 Recipe 步骤 1 列表标记 `1.（Phase 2 骨架）` → `1. （Phase 2 骨架）`（补半角空格）。源 config.yaml 该标记是非法 markdown 列表项，oxfmt 会把整个步骤列表并成单段（实测复现）；修标记后列表结构保留。脚本内 `NORMALIZE` 表登记此归一。
 
 ### C3 钉扎 + 不回归 ✅

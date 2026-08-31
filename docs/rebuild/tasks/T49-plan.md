@@ -31,9 +31,9 @@ T46 按 PD-20① 给 base.md 加了「Trust & Safety Discipline (MANDATORY)」�
 
 ## 3. 范围与修法
 
-1. `tools/rebuild/build-t46-base.mjs`：删补洞段常量与追加逻辑 + docstring/头注改写 → 重建 `src/app/ai/pi-backend/studio/base.md`（幂等复跑零 diff）。
-2. `tools/rebuild/verify-t46-base-fidelity.mjs`：删 BLOCK_RE 与补洞检查行 → 复跑全绿。
-3. `tests/engine/rebuild/studio-builtin-assets.test.ts`：删两条钉扎 + 注释/docstring 同步 → `bun test tests/engine/rebuild/` 全绿。
+1. `tools/rebuild/src/build-t46-base.mjs`：删补洞段常量与追加逻辑 + docstring/头注改写 → 重建 `src/app/ai/pi-backend/studio/base.md`（幂等复跑零 diff）。
+2. `tools/rebuild/src/verify/t46-base-fidelity.mjs`：删 BLOCK_RE 与补洞检查行 → 复跑全绿。
+3. `tests/engine/rebuild/studio/builtin-assets.test.ts`：删两条钉扎 + 注释/docstring 同步 → `bun test tests/engine/rebuild/` 全绿。
 4. `src/app/ai/pi-backend/prompts/system-prompt-base.md` 头注措辞修订。
 5. T46/T47 三件套指针行 ×6；tracker/_index T49 行。
 6. 仓外：S1 §7/§8/附录修订 + S4 五处同步（D-e）。
@@ -41,7 +41,7 @@ T46 按 PD-20① 给 base.md 加了「Trust & Safety Discipline (MANDATORY)」�
 
 ## 4. 验收标准
 
-- **C1 base.md 纯转写**：`grep -c "Trust & Safety" src/app/ai/pi-backend/studio/base.md` = 0；`node tools/rebuild/verify-t46-base-fidelity.mjs` 全绿（剥除链无 BLOCK_RE）；构建器两跑幂等。
+- **C1 base.md 纯转写**：`grep -c "Trust & Safety" src/app/ai/pi-backend/studio/base.md` = 0；`node tools/rebuild/src/verify/t46-base-fidelity.mjs` 全绿（剥除链无 BLOCK_RE）；构建器两跑幂等。
 - **C2 机制零残留**：`grep -rn "补洞\|Trust & Safety\|修辞事实标注\|BLOCK_RE" src/ tests/ tools/ spikes/` 仅命中 T46-T49 文档指针行与历史叙事（docs/ 历史段落豁免），代码面零命中。
 - **C3 S1 §7 修正落位**：三层行删除、五行改宿主、引言与 §8 守卫、附录索引同步；S4 五处同步；grep 可验。
 - **C4 门禁与冒烟**：九项门禁全绿（不接管验码）；`node spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs` 30/30。

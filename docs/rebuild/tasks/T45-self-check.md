@@ -38,7 +38,7 @@
 
 ### C3 overlay 改源 ✅
 
-- 适配纯函数 `studioOverlayInput(registry)`（prompt-overlay.ts）：types 从 workflows 拍平、profiles={id, markdown:body}；`tests/engine/rebuild/studio-manifest.test.ts` 第 5 测钉扎（5/5 绿，见 C5）。
+- 适配纯函数 `studioOverlayInput(registry)`（prompt-overlay.ts）：types 从 workflows 拍平、profiles={id, markdown:body}；`tests/engine/rebuild/studio/manifest.test.ts` 第 5 测钉扎（5/5 绿，见 C5）。
 - 端侧实证（prompt-assembly-smoke 29/29 内）：overlay 含注册表 type 条目 `- ecommerce_detail (电商详情页) — 750x`；picked watercolor_poster_v3 注入 `# 水彩海报` 正文；bogus id → `(not in studio registry)` re-pick 段；无资产后端 → fallback 引导段；ui 模式探针与 system-prompt.md byte 级一致（零 overlay）。
 
 ### C4 前端实证 ✅

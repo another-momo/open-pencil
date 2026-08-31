@@ -56,3 +56,4 @@
 5. **oxfmt 重排新脚本**：build/verify 两脚本初写格式非典范 → format 一遍 + 构建器复跑字节不变，build→format 循环稳定（沿用 T46 F1 教训的验证法）。
 6. **迁入 tools/ 激活 lint 新视野**：workbench/ 本在 lint:structure 范围外，迁入后 verify-t45-manifest-dump.mjs 两个休眠 error（no-promise-executor-return ×2、no-math-random ×1）被激活 → 诚实修代码（Promise executor 加花括号；端口随机化改 `process.pid % 200`）；no-console 警告类按 `tools/**/*.ts` 既有豁免同口径扩 `tools/**/*.mjs`（oxlint.json override 5，登记 P124）——lint 回基线 0 errors/5 warnings。
 7. **文档链接批扫两轮**：第一轮路径 token 替换（12 文件）后，第二轮 `](../../../workbench/` 相对链接替换（T14/T15-self-check 证据图与 README 链接 4 处）——纯文本提及与相对链接是两套模式，一轮扫不干净。
+8. **管道符吞 format:check 失败码**：`bun run format:check 2>&1 | tail -1 && …` 管道退出码取 tail，format 失败被吞，实现 commit a2b3f3f5 带着一处未典范化文件通过 → 补 commit 2c1c0b6e 典范化。教训：门禁命令串管道时必须 `${PIPESTATUS[0]}` 或分步执行。

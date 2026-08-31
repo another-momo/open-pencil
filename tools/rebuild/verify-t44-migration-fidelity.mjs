@@ -1,8 +1,15 @@
 /**
  * T44 C2 保真核验：config.yaml 三 profile 正文 vs 迁移后 profiles/*.md。
  * 逐节对照（节名归一映射后），Recipe 节对 editorial/solid 期望 no-op 显式空节。
- * 用法：bun tools/rebuild/verify-t44-migration-fidelity.mjs（cwd = 仓库根）
+ *
+ * 源读取（T48 修复）：brand/ 目录已被 T45 删除（brand 链退役），原
+ * `readFileSync('src/app/ai/pi-backend/brand/config.yaml')` 必崩（ENOENT，2026-08-31
+ * 实测）。改为 git 钉扎源 `git show 4ce51816:…`（commit 钉扎防分支漂移；
+ * blob ec9b22a3 与 rebuild/pi 同值，2026-08-31 `git rev-parse` 双 ref 实测）。
+ *
+ * 用法：node tools/rebuild/verify-t44-migration-fidelity.mjs（cwd = 仓库根）
  */
+import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 
 import { parse } from 'yaml'
@@ -52,7 +59,12 @@ function stripFrontmatter(raw) {
   return lines.slice(end + 1).join('\n')
 }
 
-const cfg = parse(readFileSync('src/app/ai/pi-backend/brand/config.yaml', 'utf8'))
+const cfg = parse(
+  execSync('git show 4ce51816:src/app/ai/pi-backend/brand/config.yaml', {
+    encoding: 'utf8',
+    maxBuffer: 1 << 24
+  })
+)
 const ids = ['watercolor_poster_v3', 'editorial_poster_v1', 'solid_poster_v1']
 let pass = 0
 let fail = 0

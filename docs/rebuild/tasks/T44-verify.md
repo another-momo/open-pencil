@@ -10,6 +10,7 @@
 # T44 核验 · config.yaml 拆解迁移 + longform.md 骨架（S4 W1 / T-A2）
 
 > **状态**：✅ 核验完成——可以收口 | **时间**：2026-08-31 核验执行 | **核验人**：subagent（独立核验，只读+运行命令，未改仓库文件）
+> **⚠ 当前态修正（T48，2026-08-31）**：watercolor_poster_v2 已补迁（四精品）；保真核验脚本源已修复为 git 钉扎（4ce51816），本文中读 brand/config.yaml 文件路径的核验口径为历史记录，现役口径见 T48 三件套
 > **关联**：[T44-plan.md](T44-plan.md)（验收标准 C1-C5）/ [T44-self-check.md](T44-self-check.md)
 
 ## 总结论

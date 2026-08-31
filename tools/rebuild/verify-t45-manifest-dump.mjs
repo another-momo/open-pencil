@@ -1,12 +1,15 @@
 /**
  * 独立核验 V1 补充：dump /api/pi/studio/manifest 完整 JSON，
  * 检查 ① profiles 摘要无 body/markdown 键 ② 全 JSON 无绝对路径泄漏（盘符/斜杠绝对路径）。
+ *
+ * T48 修复（2026-08-31）：动态 import 绝对路径在 Windows 上须转 file:// URL
+ * （node 报 ERR_UNSUPPORTED_ESM_URL_SCHEME），改 pathToFileURL——bun 容忍裸路径、node 不容忍。
  */
 import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readdirSync, copyFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..')
 const PORT = 7910 + (process.pid % 200)
@@ -40,7 +43,7 @@ const backend = spawn('bun', ['run', join(repoRoot, 'src/app/ai/pi-backend/main.
 backend.stderr.on('data', (d) => process.stderr.write(`[backend] ${d}`))
 
 const { readBackendToken, authHeaders } = await import(
-  join(repoRoot, 'spikes/s-pi/backend-smoke/pi-backend-auth.mjs')
+  pathToFileURL(join(repoRoot, 'spikes/s-pi/backend-smoke/pi-backend-auth.mjs')).href
 )
 
 try {

@@ -17,7 +17,7 @@ import { loadStudioFromDirs } from '@/app/ai/pi-backend/studio'
 
 const BUILTIN_DIR = join(import.meta.dir, '../../../src/app/ai/pi-backend/studio')
 
-test('内置资产集过校验面：failures 零、base 注册（免 label）、longform 三 type 蓝图非空、三 profile 注册、modes=[general, longform]', () => {
+test('内置资产集过校验面：failures 零、base 注册（免 label）、longform 三 type 蓝图非空、四 profile 注册、modes=[general, longform]', () => {
   const userDir = mkdtempSync(join(tmpdir(), 'studio-user-empty-'))
   try {
     const r = loadStudioFromDirs(BUILTIN_DIR, userDir)
@@ -47,10 +47,11 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
       expect(longform.sections[t.id]).toBeTruthy()
     }
 
-    // profiles：恰好三份精品，applicable_to 均指向 longform
+    // profiles：恰好四份精品（T48 补迁 watercolor_poster_v2），applicable_to 均指向 longform
     expect([...r.profiles.keys()].sort()).toEqual([
       'editorial_poster_v1',
       'solid_poster_v1',
+      'watercolor_poster_v2',
       'watercolor_poster_v3'
     ])
     for (const p of r.profiles.values()) {

@@ -10,6 +10,7 @@
 # T44 计划 · config.yaml 拆解迁移 + longform.md 骨架（S4 W1 / T-A2）
 
 > **状态**：✅ 已完成 | **时间**：2026-08-31 立项 / 2026-08-31 收口 | **负责人**：主 agent
+> **⚠ 当前态修正（T48，2026-08-31）**：owner 指令补迁 watercolor_poster_v2（studio/profiles/ 现为四精品）；verify-t44-migration-fidelity.mjs 的核验源 brand/config.yaml 已被 T45 删除，T48 修复为 git 钉扎源（4ce51816），本文「三精品」「config.yaml 读文件」口径为历史记录，现役口径见 [T48-plan.md](T48-plan.md)
 > **分支**：`rebuild/mode-arch`（worktree `open-pencil-mode`；T43 收口 a2f04d4f 之后）
 > **规格真源**：[S2 资产文件机制规格 v2](../../../doc/S2-asset-files-spec.md) §2 id 规则 / §4 workflow / §5 profile+迁移清单；[S4 Phase 3 计划 v2](../../../doc/S4-phase3-plan.md) §4 W1 T-A2 行；[S1 产品规格](../../../doc/S1-product-spec.md) §3 执行序
 

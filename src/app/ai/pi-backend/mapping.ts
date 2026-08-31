@@ -14,12 +14,17 @@
  * finish 只在 agent_end 且 willRetry=false 时发出（pi 自动重试序列中
  * agent_end 会中途出现，agent-session.d.ts:40-44 事件形状实证）。
  *
+ * T55 媒体输出：登记工具（media-output.ts MEDIA_OUTPUT_TOOLS，含 look）的
+ * 桥结果带 base64 图像时，转 file 媒体块 + 脱敏 tool-output-available。
+ *
  * 本文件被 Node 端 service.ts 使用，只允许相对导入（vite.config esbuild 打包，
  * 不解析 tsconfig paths）。
  */
 
 import type { AgentSessionEvent } from '@earendil-works/pi-coding-agent'
 import type { UIMessageChunk } from 'ai'
+
+import { MEDIA_OUTPUT_TOOLS, mediaToolOutputChunks } from './media-output'
 
 type AssistantSubEvent = Extract<
   AgentSessionEvent,
@@ -114,12 +119,21 @@ export function createPiEventMapper(
         providerExecuted: true
       })
     } else {
-      chunks.push({
-        type: 'tool-output-available',
-        toolCallId: event.toolCallId,
-        output: result?.details !== undefined ? result.details : contentText || null,
-        providerExecuted: true
-      })
+      const output = result?.details !== undefined ? result.details : contentText || null
+      // T55：登记媒体工具（look 等）的 base64 图像转 file 媒体块，details 脱敏
+      const mediaChunks = MEDIA_OUTPUT_TOOLS.has(event.toolName)
+        ? mediaToolOutputChunks(event.toolCallId, output)
+        : null
+      if (mediaChunks) {
+        chunks.push(...mediaChunks)
+      } else {
+        chunks.push({
+          type: 'tool-output-available',
+          toolCallId: event.toolCallId,
+          output,
+          providerExecuted: true
+        })
+      }
     }
   }
 

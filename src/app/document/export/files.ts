@@ -105,7 +105,12 @@ export function createExportTargetActions(editor: Editor, state: EditorState, io
     nodeIds: string[],
     scale: number,
     format: RasterExportFormat,
-    pageId = state.currentPageId
+    pageId = state.currentPageId,
+    quality?: number,
+    extras?: {
+      renderInContext?: boolean
+      clip?: { minX: number; minY: number; maxX: number; maxY: number }
+    }
   ): Promise<Uint8Array | null> {
     const renderer = editor.renderer
     if (!renderer) return null
@@ -113,7 +118,10 @@ export function createExportTargetActions(editor: Editor, state: EditorState, io
     if (ids.length === 0) return null
     return renderNodesToImage(renderer.ck, renderer, editor.graph, pageId, ids, {
       scale,
-      format
+      format,
+      quality,
+      renderInContext: extras?.renderInContext,
+      clip: extras?.clip
     })
   }
 

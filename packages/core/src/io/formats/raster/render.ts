@@ -21,6 +21,17 @@ interface RenderOptions {
   quality?: number
   colorSpace?: RenderColorSpace
   trimTransparent?: boolean
+  /**
+   * Render the live page instead of extracting the selection onto a scratch
+   * page — the selection paints with everything beneath/above it in z-order
+   * (the same thing the blend-mode/BACKGROUND_BLUR path forces implicitly).
+   */
+  renderInContext?: boolean
+  /**
+   * Output window in absolute canvas coordinates. Defaults to the
+   * selection's content bounds.
+   */
+  clip?: { minX: number; minY: number; maxX: number; maxY: number }
 }
 
 function ensureSinglePageSelection(graph: SceneGraph, pageId: string, nodeIds: string[]): boolean {
@@ -113,9 +124,9 @@ function renderToSurface(
   format: ExportFormat,
   quality: number,
   setup: (canvas: Canvas) => void,
-  trimTransparent = false
+  trimTransparent = false,
+  renderScale = 2
 ): Uint8Array | null {
-  const renderScale = 2
   const renderWidth = width * renderScale
   const renderHeight = height * renderScale
   const pixels = ck.Malloc(Uint8Array, renderWidth * renderHeight * 4)
@@ -282,7 +293,7 @@ export function renderNodesToImage(
     throw new Error('Raster export selection must stay on a single page')
   }
 
-  const bounds = computeContentBounds(graph, nodeIds)
+  const bounds = options.clip ?? computeContentBounds(graph, nodeIds)
   if (!bounds) return null
 
   const contentW = bounds.maxX - bounds.minX
@@ -293,15 +304,18 @@ export function renderNodesToImage(
   const pixelH = Math.ceil(contentH * options.scale)
   if (pixelW <= 0 || pixelH <= 0) return null
 
-  const extracted = extractExportGraph(graph, { scope: 'selection', nodeIds })
-  if (!extracted.pageId) return null
+  const inContext =
+    options.renderInContext === true ||
+    nodeIds.some((nodeId) => nodeNeedsSceneBackdrop(graph, nodeId))
 
-  const renderGraph = nodeIds.some((nodeId) => nodeNeedsSceneBackdrop(graph, nodeId))
-    ? graph
-    : extracted.graph
-  const renderPageId = renderGraph === graph ? pageId : extracted.pageId
-  if (renderGraph !== graph) {
-    prepareSelectionRenderGraph(graph, renderGraph, renderPageId, nodeIds)
+  let renderGraph = graph
+  let renderPageId = pageId
+  if (!inContext) {
+    const extracted = extractExportGraph(graph, { scope: 'selection', nodeIds })
+    if (!extracted.pageId) return null
+    prepareSelectionRenderGraph(graph, extracted.graph, extracted.pageId, nodeIds)
+    renderGraph = extracted.graph
+    renderPageId = extracted.pageId
   }
 
   const quality = options.quality ?? (options.format === 'PNG' ? 100 : 90)
@@ -315,11 +329,14 @@ export function renderNodesToImage(
     options.format,
     quality,
     (canvas) => {
-      canvas.clear(ck.TRANSPARENT)
+      canvas.clear(options.format === 'JPG' ? ck.WHITE : ck.TRANSPARENT)
       canvas.scale(options.scale, options.scale)
       canvas.translate(-bounds.minX, -bounds.minY)
     },
-    options.trimTransparent
+    options.trimTransparent,
+    // Match the supersample grid to the output scale — upscales (scale > 2)
+    // would otherwise resample up from a 2x render with linear filtering.
+    Math.max(2, options.scale)
   )
 }
 

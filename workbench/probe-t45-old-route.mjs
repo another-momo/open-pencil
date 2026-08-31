@@ -21,6 +21,12 @@ for (const sub of ['workflows', 'profiles']) {
   }
 }
 // 与 smoke 同纪律：prompt 段一并复制，避免 service 启动期读盘差异
+// T46：base.md 已落位——种子侧复制后 failures 应收零
+mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/studio'), { recursive: true })
+copyFileSync(
+  join(repoRoot, 'src/app/ai/pi-backend/studio/base.md'),
+  join(tempRoot, 'src/app/ai/pi-backend/studio/base.md')
+)
 mkdirSync(join(tempRoot, 'src/app/ai/chat'), { recursive: true })
 mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/prompts'), { recursive: true })
 copyFileSync(

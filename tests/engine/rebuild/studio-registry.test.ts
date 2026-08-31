@@ -154,6 +154,21 @@ test('C1: 用户目录不存在为正常态（只用内置集）', () => {
   expect(r.failures).toEqual([])
 })
 
+// T46（S4 W1 / T-A5 D-e）：base frontmatter schema 钉扎——id 可缺省（缺省即 base）、
+// 免 label（BASE_MD 无 label 字段即注册成功，以上各测试已证）；但写了就必须是 `base`
+test('C1: base frontmatter id 写错（非 base）→ 失败；缺省 id 与免 label 合法', () => {
+  put(builtinDir, 'base.md', BASE_MD.replace('id: base', 'id: not-base'))
+  let r = loadBoth()
+  expect(r.base).toBeNull()
+  expect(r.failures.some((f) => f.kind === 'base' && f.reason.includes('不是 `base`'))).toBe(true)
+
+  // 缺省 id 合法（缺省即 base；BASE_MD 本就无 label——免 label 由全测试组共同钉扎）
+  put(userDir, 'base.md', BASE_MD.replace('---\nid: base\n---\n', '---\n---\n'))
+  r = loadBoth()
+  expect(r.base?.id).toBe('base')
+  expect(r.failures).toEqual([])
+})
+
 // ── C2：解析纪律 ──────────────────────────────────────────────────────────
 
 test('C2: 坏 frontmatter 不注册且 failures 带原因与指引，其余文件不受影响', () => {

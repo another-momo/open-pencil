@@ -22,6 +22,8 @@
  * T45（S4 W1 / T-A3）改源：种子 config.yaml → studio 文件注册表（workflows/
  * + profiles/ 复制进 tempRoot）；端点更名 /api/pi/studio/manifest，契约改为
  * modes（展开 types）+ profiles（摘要）+ failures（相对路径）。
+ * T46（S4 W1 / T-A5）：base.md 落位——资产后端 failures 收零（base 缺失 +
+ * 整体态断言移交无资产后端半），fixture 复制 base.md。
  *
  * 运行：bun spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs（仓根）
  *
@@ -83,6 +85,11 @@ function layoutRoot(withStudioAssets) {
     )
   }
   if (withStudioAssets) {
+    mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/studio'), { recursive: true })
+    copyFileSync(
+      join(repoRoot, 'src/app/ai/pi-backend/studio/base.md'),
+      join(tempRoot, 'src/app/ai/pi-backend/studio/base.md')
+    )
     for (const sub of ['workflows', 'profiles']) {
       const srcDir = join(repoRoot, 'src/app/ai/pi-backend/studio', sub)
       mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/studio', sub), { recursive: true })
@@ -218,10 +225,9 @@ try {
     JSON.stringify(manifest).slice(0, 160)
   )
   check(
-    '路由 manifest：failures 数据面——base 缺失（base.md 相对路径，无绝对路径泄漏）',
-    Array.isArray(manifest.failures) &&
-      manifest.failures.some((f) => f.kind === 'base' && f.path === 'base.md') &&
-      manifest.failures.every((f) => !f.path.includes(':') && !f.path.startsWith('/'))
+    '路由 manifest：failures 数据面——内置集零失败（T46 base.md 落位后收零；base 缺失+整体态由无资产后端半覆盖）',
+    Array.isArray(manifest.failures) && manifest.failures.length === 0,
+    JSON.stringify(manifest.failures).slice(0, 160)
   )
   check(
     '路由 manifest：profiles 三精品摘要含 watercolor_poster_v3（applicableTo=[longform]）',
@@ -249,6 +255,11 @@ try {
       Array.isArray(emptyManifest.profiles) && emptyManifest.profiles.length === 0 &&
       Array.isArray(emptyManifest.failures) &&
       emptyManifest.failures.some((f) => f.kind === 'studio')
+  )
+  check(
+    '路由 manifest：failures 路径脱敏——base 缺失 path=base.md 相对路径，无绝对路径泄漏',
+    emptyManifest.failures.some((f) => f.kind === 'base' && f.path === 'base.md') &&
+      emptyManifest.failures.every((f) => !f.path.includes(':') && !f.path.startsWith('/'))
   )
 
   // ── dummy 凭据过 auth 预检（写 tempRoot 自带 agentDir，不碰真实 .openpencil）

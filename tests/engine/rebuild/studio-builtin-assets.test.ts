@@ -4,8 +4,8 @@
  * 把「内置资产过 T43 校验面」钉成永久门禁：W3 内容填充（T-C2/C3）或后续
  * 资产改动写坏文件即红。用户目录以 tmp 空目录隔离，只测内置集。
  *
- * 中间态注记：base.md 随 T-A5 落位——此前 failures 恰含且仅含 base 缺失一条
- *（kind=base）；T-A5 收口时应把该断言收为 failures: []。
+ * T46（S4 W1 / T-A5）：base.md 已落位——failures 断言按预约收为零，并加
+ * base 注册钉扎（免 label schema：frontmatter 仅 `id: base` 即注册成功）。
  */
 
 import { expect, test } from 'bun:test'
@@ -17,16 +17,21 @@ import { loadStudioFromDirs } from '@/app/ai/pi-backend/studio'
 
 const BUILTIN_DIR = join(import.meta.dir, '../../../src/app/ai/pi-backend/studio')
 
-test('内置资产集过校验面：四迁移文件零失败、longform 三 type 蓝图非空、三 profile 注册、modes=[general, longform]', () => {
+test('内置资产集过校验面：failures 零、base 注册（免 label）、longform 三 type 蓝图非空、三 profile 注册、modes=[general, longform]', () => {
   const userDir = mkdtempSync(join(tmpdir(), 'studio-user-empty-'))
   try {
     const r = loadStudioFromDirs(BUILTIN_DIR, userDir)
 
-    // 迁移四文件零失败；唯一 failure = base.md 未落位（T-A5 消除）
-    expect(r.failures.length).toBe(1)
-    const only = r.failures[0]
-    expect(only.kind).toBe('base')
-    expect(only.reason).toContain('base.md 缺失')
+    // T46 收零：base.md 落位后内置集零失败成永久门禁
+    expect(r.failures).toEqual([])
+
+    // base 唯一槽位注册（D-e 免 label schema：内置 base.md 无 label 字段）
+    if (!r.base) throw new Error('base 未注册')
+    expect(r.base.id).toBe('base')
+    expect(r.base.origin).toBe('builtin')
+    // 红线补洞段钉扎（PD-20 ① 落点锚点）
+    expect(r.base.body).toContain('# Trust & Safety Discipline (MANDATORY)')
+    expect(r.base.body).toContain('修辞事实标注')
 
     // workflow：longform 注册，三 type 齐全且蓝图节非空
     const longform = r.workflows.get('longform')

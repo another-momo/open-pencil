@@ -635,6 +635,13 @@
       "reason": "T41：AppSwitch 增加 disabled prop 透传 SwitchRoot（bundled 字体锁定恒启用，开关置灰）",
       "disposition": "permanent",
       "lastReviewed": "2026-08-30"
+    },
+    {
+      "id": "P123",
+      "file": "src/app/ai/chat/system-prompt.md",
+      "reason": "T46（S4 W1/T-A5）：顶部 T46 互指头注一行——本文已全文转写至 studio/base.md（+ 红线补洞段，PD-20 ①），变更须双边同步；W2/W3 每回合组装接入（S2 §6）后本文退役、本 patch 随之移除",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-31"
     }
   ],
   "deletedPaths": [

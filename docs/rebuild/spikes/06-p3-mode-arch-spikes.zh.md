@@ -21,7 +21,7 @@
 | 探针 | 判定 | 一句话结论 | Phase 3 落点 |
 |---|---|---|---|
 | SP-a1 生图接口形状 | ✅ 成立 | pi-ai `generateImages` 走 OpenAI 兼容 chat.completions，请求/响应/错误路径全部钉死，可直接封装 | T-A 批资产机制内封装 `generate_image` 工具；超时经 `options.timeoutMs` 可控 |
-| SP-a2 真图出图质量 | ⛔ 阻塞 | 本机无 OpenRouter 凭证，真图质量无法实测 | 待 owner 提供 key 后补测；不阻塞 W1-W3（接口形状已钉死） |
+| SP-a2 真图出图质量 | ✅ 关闭 | 2026-08-31 owner 拍板路线乙：自写 DMX GPT-image-2 provider 为核心（/images/generations + /images/edits），pi-ai 留扩展位；DMX×pi-ai 探针取消 | W2 generate_image 工具层留双后端可插抽象（S4 §7 生图 provider 路线行） |
 | SP-b 桥 RPC 超时 | ✅ 定谳 | 桥默认 20s 掐断实证成立；`OPENPENCIL_RPC_TIMEOUT_MS` env 放宽实证成立；框架/fetch 层无额外出厂上限 | dev 链必须配 env ≥ 240s + 余量（S3 §4），否则长任务工具必被掐 |
 | SP-c CanvasKit 避头尾 | ✅ 成立 | canvaskit-wasm 0.41.1 的 ICU 断行器自动执行中文避头尾禁则，33 宽度 × 2 locale × 3 夹具 0 违规 | 不需要 prompt 软约束兜底；长图 workflow（T-C2）不写避头尾纪律条款 |
 | SP-d KV paper dry-run | ⏸️ 递延 | 建议并入未来 KV mode 立项时再做 | S4 §2 标注可选；本次不动 |
@@ -60,7 +60,7 @@ bun spikes/probes/probe-sp-a1-images-contract.mjs
 
 - `generate_image` 工具封装直接按上述契约写，无需再探；
 - model 注册表需为图像模型补 `output`/`cost` 字段形状；
-- 凭证来源（OpenRouter key 存取路径）归入 T-A 批资产机制一并解决——SP-a2 解锁后即插即测。
+- 凭证来源归入 T-B 批工具层一并解决（路线乙：DMX key 存取路径；pi-ai 扩展位解锁后即插即测）。
 
 ---
 

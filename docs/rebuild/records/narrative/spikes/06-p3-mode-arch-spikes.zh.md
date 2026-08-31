@@ -40,5 +40,5 @@
 
 ## SP-a2 / SP-d 处置登记
 
-- **SP-a2**（真图出图质量）：✅ 关闭——2026-08-31 owner 拍板路线乙：自写 DMX GPT-image-2 provider（/images/generations + /images/edits）为核心，pi-ai generateImages 留扩展位，DMX×pi-ai 探针取消（T47 登记）
+- **SP-a2**（真图出图质量）：✅ 关闭——2026-08-31 owner 拍板路线乙：自写 DMX GPT-image-2 provider（/images/generations + /images/edits）为核心，pi-ai generateImages 留扩展位，DMX×pi-ai 探针取消（T47 登记）；凭证来源归入 T-B 批工具层（DMX key 存取路径）；主文档 §0 汇表行与 §1 尾句旧口径已于 T47 收口段同步修正
 - **SP-d**（KV paper dry-run）：⏸️ 递延至 KV mode 立项（PD-16：mode 可用性 = workflow 文件存在，KV mode 尚无消费方）

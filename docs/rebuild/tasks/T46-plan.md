@@ -10,6 +10,7 @@
 # T46 计划 · base.md v0 落位 + 红线补洞 + base 候选清单建档（S4 W1 / T-A5）
 
 > **状态**：✅ 已收口（2026-08-31；状态行遗留翻转由 T47 补正） | **时间**：2026-08-31 立项 | **负责人**：主 agent
+> **⚠ 当前态修正（T49，2026-08-31）**：owner 指令——红线补洞段及配套机制（构建器 SECTION 常量/核验 BLOCK_RE/钉扎断言）已全部撤除（过度工程），base.md 回归 119 行纯转写、不承载显式红线段；本文补洞段相关段落为历史记录，现役口径见 [T49-plan.md](T49-plan.md)
 > **⚠ 当前态修正（T47，2026-08-31）**：owner 指令 #6——转写源已由 system-prompt.md 576 行切换为 prompts/system-prompt-base.md 119 行（workflow 无关），本文 D-a/D-b/§1 的 576 行源口径与「system-prompt.md 双源」相关段落为历史记录，现役口径见 [T47-plan.md](T47-plan.md)
 > **分支**：`rebuild/mode-arch`（worktree `open-pencil-mode`；T45 收口 c2fca16f 之后）
 > **规格真源**：[S2 资产文件机制规格 v2](../../../doc/S2-asset-files-spec.md) §3（base.md 全局行为基座 + base v0 沿用两条守卫）；[S4 Phase 3 计划 v2](../../../doc/S4-phase3-plan.md) §4 W1 T-A5 行 + §3 前置批「base v0 红线补洞」行；[19 册 PD-20](../../../docs/202608251637-migration-proposal/19-product-design-decisions.md)（base 节奏拍板原文）

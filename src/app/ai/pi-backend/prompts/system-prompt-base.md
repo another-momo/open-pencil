@@ -1,4 +1,4 @@
-<!-- T46（S4 W1/T-A5）互指：本文已全文转写至 src/app/ai/pi-backend/studio/base.md（+ 红线补洞段，PD-20 ①；T47 起本文替代 chat/system-prompt.md 成为转写源）——变更本文须同步 base.md；每回合组装接入（W2/W3，S2 §6）后本文退役。同步核验：node tools/rebuild/verify-t46-base-fidelity.mjs。 -->
+<!-- T46（S4 W1/T-A5）互指：本文已全文转写至 src/app/ai/pi-backend/studio/base.md（T47 起本文替代 chat/system-prompt.md 成为转写源；T49 起 base.md 为纯转写，不承载显式纪律段）——变更本文须同步 base.md；每回合组装接入（W2/W3，S2 §6）后本文退役。同步核验：node tools/rebuild/verify-t46-base-fidelity.mjs（剥 frontmatter 与 T46 头注后零 diff）。 -->
 
 <!-- T24: marketing 模式 base 段（身份 + 设计 DSL 参考）。移植自上游 fork packages/agent/src/prompts/system-prompt-base.md（fork-owned 策划件——不机械同步上游）。装配：modes.ts 注册表 → service.ts 建会话时经 resourceLoader.systemPrompt 烘焙。 -->
 

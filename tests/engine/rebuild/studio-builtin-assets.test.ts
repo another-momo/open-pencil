@@ -6,6 +6,9 @@
  *
  * T46（S4 W1 / T-A5）：base.md 已落位——failures 断言按预约收为零，并加
  * base 注册钉扎（免 label schema：frontmatter 仅 `id: base` 即注册成功）。
+ *
+ * T49（2026-08-31，owner 指令）：base.md 已回归纯转写（frontmatter + 双源头注 +
+ * 119 行逐字转写，不承载显式纪律段），原纪律段内容钉扎断言随之撤除。
  */
 
 import { expect, test } from 'bun:test'
@@ -29,9 +32,6 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
     if (!r.base) throw new Error('base 未注册')
     expect(r.base.id).toBe('base')
     expect(r.base.origin).toBe('builtin')
-    // 红线补洞段钉扎（PD-20 ① 落点锚点）
-    expect(r.base.body).toContain('# Trust & Safety Discipline (MANDATORY)')
-    expect(r.base.body).toContain('修辞事实标注')
 
     // workflow：longform 注册，三 type 齐全且蓝图节非空
     const longform = r.workflows.get('longform')

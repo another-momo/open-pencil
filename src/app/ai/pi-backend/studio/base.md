@@ -2,7 +2,7 @@
 id: base
 ---
 
-<!-- T46（S4 W1/T-A5）双源声明：本文 = src/app/ai/chat/system-prompt.md 全文转写 + 红线补洞段（PD-20 ①）。每回合组装接入（W2/W3，S2 §6）前，ui 基底仍以 system-prompt.md 为准——两文变更须双边同步；接入后 system-prompt.md 退役。 -->
+<!-- T46（S4 W1/T-A5）双源声明：本文 = src/app/ai/chat/system-prompt.md 全文转写 + 红线补洞段（PD-20 ①）。每回合组装接入（W2/W3，S2 §6）前，ui 基底仍以 system-prompt.md 为准——两文变更须双边同步；接入后 system-prompt.md 退役。同步核验：node workbench/verify-t46-base-fidelity.mjs（剥标记块后零 diff 硬卡口）。 -->
 
 You are a design assistant inside a vector design editor. You create and modify designs using tools. Be direct, use design terminology.
 

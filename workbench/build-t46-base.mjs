@@ -19,7 +19,8 @@ const BEGIN = '<!-- T46 红线补洞段 begin（PD-20 ①：四红线齐全性�
 const END = '<!-- T46 红线补洞段 end -->'
 const HEADNOTE =
   '<!-- T46（S4 W1/T-A5）双源声明：本文 = src/app/ai/chat/system-prompt.md 全文转写 + 红线补洞段（PD-20 ①）。' +
-  '每回合组装接入（W2/W3，S2 §6）前，ui 基底仍以 system-prompt.md 为准——两文变更须双边同步；接入后 system-prompt.md 退役。 -->'
+  '每回合组装接入（W2/W3，S2 §6）前，ui 基底仍以 system-prompt.md 为准——两文变更须双边同步；接入后 system-prompt.md 退役。' +
+  '同步核验：node workbench/verify-t46-base-fidelity.mjs（剥标记块后零 diff 硬卡口）。 -->'
 
 // PD-20 ①：四红线齐全性补齐（事实零虚构 #3 / 成本确认 #2 / 可撤销 #6 / 不静默降级 #8）
 // + 修辞事实标注段（功效/数据/背书修辞 → 显式标注请用户确认；CP 表单落点属 workflow 层）
@@ -28,7 +29,7 @@ const SECTION = `# Trust & Safety Discipline (MANDATORY)
 
 These rules hold for every design, in every mode:
 
-1. **Facts are never invented.** Product specs, statistics, certifications, endorsements, prices, and any other factual claims must come from the user or the brief. If a needed fact is missing, ask the user or leave a visible placeholder — never fill it with plausible-sounding fiction. Copywriting itself (headlines, taglines, CTA) is creative work and is encouraged; the ban is on fabricated *facts*.
+1. **Facts are never invented.** Product specs, statistics, certifications, endorsements, prices, and any other factual claims must come from the user or the brief. If a needed fact is missing, ask the user or leave a visible placeholder — never fill it with plausible-sounding fiction. Copywriting itself (headlines, taglines, CTA) is creative work and is encouraged; the ban is on fabricated _facts_.
 2. **Costly actions need explicit confirmation.** Any action that incurs real cost (such as paid image generation) runs only after the user has explicitly confirmed it — no bulk execution without confirmation.
 3. **Keep undo one step deep.** Batch a turn's edits (batch_update, grouped renders) so the whole turn stays a single undo unit — the host merges the turn, you keep it mergeable.
 4. **Failures are surfaced, never silently worked around.** When a tool fails or a capability is missing, tell the user in plain language and offer the fix action. Never swap in a degraded path and present it as success — the stock_photo 401 rule above is one instance of this.
@@ -39,7 +40,8 @@ const src = readFileSync(SRC, 'utf8')
 
 // 源文件头注（互指）幂等补入——若已存在则跳过（保真等式两侧同样剥除 T46 注释行）
 const SRC_NOTE =
-  '<!-- T46（S4 W1/T-A5）互指：本文已全文转写至 src/app/ai/pi-backend/studio/base.md（+ 红线补洞段，PD-20 ①）——变更本文须同步 base.md；每回合组装接入（W2/W3，S2 §6）后本文退役。 -->\n\n'
+  '<!-- T46（S4 W1/T-A5）互指：本文已全文转写至 src/app/ai/pi-backend/studio/base.md（+ 红线补洞段，PD-20 ①）——变更本文须同步 base.md；每回合组装接入（W2/W3，S2 §6）后本文退役。' +
+  '同步核验：node workbench/verify-t46-base-fidelity.mjs。 -->\n\n'
 const srcNoted = src.startsWith('<!-- T46') ? src : SRC_NOTE + src
 
 // 转写内容剔除源文件自己的 T46 互指头注（base.md 只带自己的双源声明——
@@ -59,7 +61,7 @@ const base =
   `---\nid: base\n---\n\n` +
   `${HEADNOTE}\n\n` +
   p1 +
-  `${BEGIN}\n${SECTION}\n${END}\n\n` +
+  `${BEGIN}\n\n${SECTION}\n\n${END}\n\n` +
   p2
 
 writeFileSync(OUT, base, 'utf8')

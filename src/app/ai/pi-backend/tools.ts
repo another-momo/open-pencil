@@ -34,8 +34,17 @@
 import { defineTool, type AgentToolResult } from '@earendil-works/pi-coding-agent'
 import { Type, type TSchema } from 'typebox'
 
-import { CORE_TOOLS, EXTENDED_TOOLS, type ParamDef, type ToolDef } from '@open-pencil/core/tools'
+import {
+  CORE_TOOLS,
+  EXTENDED_TOOLS,
+  FORK_TOOLS,
+  type ParamDef,
+  type ToolDef
+} from '@open-pencil/core/tools'
 import { readDiscoveryFile } from '@open-pencil/mcp/discovery'
+
+import { postBridgeRPC } from './bridge-rpc'
+import { isMediaToolOutput, MEDIA_OUTPUT_TOOLS, sanitizeMediaToolOutput } from './media-output'
 
 const EXTENDED_WHITELIST = [
   'get_components',
@@ -79,14 +88,7 @@ async function callBridgeTool(
 
   let res: Response
   try {
-    res = await fetch(`http://127.0.0.1:${discovery.httpPort}/rpc`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(discovery.authToken ? { authorization: `Bearer ${discovery.authToken}` } : {})
-      },
-      body: JSON.stringify({ command: 'tool', args: { name: toolName, args } })
-    })
+    res = await postBridgeRPC(discovery, 'tool', { name: toolName, args })
   } catch (error) {
     // T27 复核：单次重试并非死重试——重试会重读 discovery 文件（每次调用开头），
     // 覆盖「独立 dev:backend 后端存活期间 vite/7600 桥重启、端口或 token 恰好
@@ -187,6 +189,18 @@ function defineBridgeTool(
         await callBridgeTool(def.name, { ...params }, target),
         budget
       )
+      // T55（S3 §5 通道 A）：登记媒体工具的结果把 base64 图像提升为 pi
+      // ImageContent——模型收到的是真图像模态而非 JSON 内嵌字符串；
+      // 文本副本脱敏（base64 → 尺寸标记）保留 note/node/exportInfo 元数据
+      if (MEDIA_OUTPUT_TOOLS.has(def.name) && isMediaToolOutput(result)) {
+        return {
+          content: [
+            { type: 'image', data: result.base64, mimeType: result.mimeType },
+            { type: 'text', text: JSON.stringify(sanitizeMediaToolOutput(result)) }
+          ],
+          details: result
+        }
+      }
       return {
         content: [{ type: 'text', text: JSON.stringify(result) }],
         details: result
@@ -198,7 +212,10 @@ function defineBridgeTool(
 export function createOpenPencilTools(budget?: StepBudgetSource, target?: ToolTargetSource) {
   const toolSet = [
     ...CORE_TOOLS,
-    ...EXTENDED_TOOLS.filter((def) => (EXTENDED_WHITELIST as readonly string[]).includes(def.name))
+    ...EXTENDED_TOOLS.filter((def) => (EXTENDED_WHITELIST as readonly string[]).includes(def.name)),
+    // T52/T54/T55（S4 W2）：fork 工具全量暴露——brief 三件套 / look /
+    // image-gen 落图段端点（generate_image 本体由 service 后端段另行装配）
+    ...FORK_TOOLS
   ]
   return toolSet.map((def) => defineBridgeTool(def, budget, target))
 }

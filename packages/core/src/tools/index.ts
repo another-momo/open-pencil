@@ -6,7 +6,7 @@ export type {
   ComponentCatalogInsertInput,
   ComponentCatalogLibraryAsset
 } from './component-catalog'
-export { ALL_TOOLS, CORE_TOOLS, EXTENDED_TOOLS } from './registry'
+export { ALL_TOOLS, CORE_TOOLS, EXTENDED_TOOLS, FORK_TOOLS } from './registry'
 export const CODEGEN_PROMPT: string = codegenPrompt
 export { exportImage } from './vector'
 export {

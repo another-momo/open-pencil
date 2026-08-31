@@ -35,7 +35,7 @@ const clientAlias = {
 // css-tree（unifont 的传递依赖）：主入口是 CJS lib/，其 data 模块 eval 期即跑
 // createRequire 装 mdn-data——浏览器岛必炸（E2 三跑实测）。重定向到官方
 // dist/csstree.esm.js（数据内联的自包含 ESM 构建，功能无损）。
-const unifontEntry = req.resolve("unifont", { paths: [path.join(here, "../packages/core")] });
+const unifontEntry = req.resolve("unifont", { paths: [path.join(here, "../../packages/core")] });
 const cssTreeRoot = path.dirname(createRequire(unifontEntry).resolve("css-tree/package.json"));
 const cssTreeEsm = path.join(cssTreeRoot, "dist/csstree.esm.js");
 

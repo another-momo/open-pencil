@@ -56,7 +56,8 @@
     "tests/engine/text/fonts/allowlist.test.ts",
     "tests/engine/text/fonts/variable-fonts.test.ts",
     "packages/core/src/text/font/cn-catalog.ts",
-    "tests/engine/text/fonts/cn-catalog.test.ts"
+    "tests/engine/text/fonts/cn-catalog.test.ts",
+    "packages/kiwi/src/schema-runtime/interpreter.ts"
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
@@ -643,6 +644,13 @@
       "reason": "T47：no-console off override 扩至 tools/**/*.mjs——workbench/ 迁入 tools/rebuild/ 的 .mjs 核验/构建脚本带入 lint 视野；tools/**/*.ts 本已 off，.mjs 同为 CLI 脚本口径一致",
       "disposition": "permanent",
       "lastReviewed": "2026-08-31"
+    },
+    {
+      "id": "P125",
+      "file": "packages/kiwi/src/schema-runtime/index.ts",
+      "reason": "CI 修复（2026-08-31）：同步 upstream dd15190f——CSP-safe Kiwi interpreter 取代 eval 版 js.ts（export 改自 './interpreter' 的 compileSchemaRuntime as compileSchema；伴随新增 interpreter.ts 入 ownedFiles、js.ts 入 deletedPaths）。下个 base bump 越过 2026-08-29 后此 patch 自然消解",
+      "disposition": "permanent",
+      "lastReviewed": "2026-08-31"
     }
   ],
   "deletedPaths": [
@@ -759,7 +767,11 @@
     "tests/e2e/scene/cache.spec.ts-snapshots/text-after-hover-cycle-openpencil-darwin.png",
     "tests/e2e/scene/cache.spec.ts-snapshots/text-after-multiple-hover-cycles-openpencil-darwin.png",
     "tests/e2e/scene/cache.spec.ts-snapshots/text-after-real-hover-cycle-openpencil-darwin.png",
-    "tests/e2e/scene/cache.spec.ts-snapshots/text-after-scene-change-hover-openpencil-darwin.png"
+    "tests/e2e/scene/cache.spec.ts-snapshots/text-after-scene-change-hover-openpencil-darwin.png",
+    "packages/kiwi/src/schema-runtime/js.ts",
+    "scripts/export-fixture-visuals.ts",
+    "scripts/visual-bisect.ts",
+    "scripts/visual-compare.ts"
   ],
   "upstreamMergeTarball": [
     {

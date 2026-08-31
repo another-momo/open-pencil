@@ -10,32 +10,34 @@
  *  - Inter-Regular.ttf ← 仓根 public/（E2：renderer loadFonts 必装 Inter Regular，
  *    原路径是根相对 /Inter-Regular.ttf 字面量，island 场景由 markLoaded 预填挡掉该 fetch）
  */
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const repoRoot = path.resolve(root, "..");
-const destDir = path.join(root, "assets");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const repoRoot = path.resolve(root, '..', '..')
+const destDir = path.join(root, 'assets')
 
 const ASSETS = [
-	{ src: path.join(root, "node_modules", "canvaskit-wasm", "bin", "canvaskit.wasm"), name: "canvaskit.wasm" },
-	{ src: path.join(repoRoot, "public", "Inter-Regular.ttf"), name: "Inter-Regular.ttf" },
-];
+  {
+    src: path.join(root, 'node_modules', 'canvaskit-wasm', 'bin', 'canvaskit.wasm'),
+    name: 'canvaskit.wasm'
+  },
+  { src: path.join(repoRoot, 'public', 'Inter-Regular.ttf'), name: 'Inter-Regular.ttf' }
+]
 
-fs.mkdirSync(destDir, { recursive: true });
+fs.mkdirSync(destDir, { recursive: true })
 for (const { src, name } of ASSETS) {
-	if (!fs.existsSync(src)) {
-		console.error(`copy-assets: 找不到 ${src}`);
-		process.exit(1);
-	}
-	const dest = path.join(destDir, name);
-	const srcSize = fs.statSync(src).size;
-	if (fs.existsSync(dest) && fs.statSync(dest).size === srcSize) {
-		console.log(`copy-assets: ${name} 已是最新（${srcSize} bytes）`);
-		continue;
-	}
-	fs.copyFileSync(src, dest);
-	console.log(`copy-assets: ${name} → assets/（${srcSize} bytes）`);
+  if (!fs.existsSync(src)) {
+    console.error(`copy-assets: 找不到 ${src}`)
+    process.exit(1)
+  }
+  const dest = path.join(destDir, name)
+  const srcSize = fs.statSync(src).size
+  if (fs.existsSync(dest) && fs.statSync(dest).size === srcSize) {
+    console.log(`copy-assets: ${name} 已是最新（${srcSize} bytes）`)
+    continue
+  }
+  fs.copyFileSync(src, dest)
+  console.log(`copy-assets: ${name} → assets/（${srcSize} bytes）`)
 }
-

@@ -38,8 +38,8 @@
     "bridge": "node scripts/bridge-server.mjs"
   },
   "dependencies": {
-    "@open-pencil/core": "file:../packages/core",
-    "@open-pencil/vue": "file:../packages/vue",
+    "@open-pencil/core": "file:../../packages/core",
+    "@open-pencil/vue": "file:../../packages/vue",
     "canvaskit-wasm": "0.41.1",
     "vue": "3.5.41",
     "ws": "8.18.3"

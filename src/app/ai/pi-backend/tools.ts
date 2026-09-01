@@ -50,6 +50,12 @@ import type { SetupDesignContext } from './setup-catalog'
 /** T53：schema 外注入缝仅服务此工具（catalog + 新建意图确认旗标） */
 const SETUP_DESIGN_TOOL = 'setup_design'
 
+/** T60：setup_design 成功移槽回调缝（事件①宿主移槽；service 装配闭包） */
+export type SetupDesignHooks = {
+  /** 桥执行成功（结果含 rootId 且无 error）后调用；可异步，失败归调用方自理 */
+  onDesignCreated?: (rootId: string) => void | Promise<void>
+}
+
 const EXTENDED_WHITELIST = [
   'get_components',
   'list_libraries',
@@ -178,7 +184,8 @@ function defineBridgeTool(
   def: ToolDef,
   budget: StepBudgetSource | undefined,
   target?: ToolTargetSource,
-  setupDesign?: SetupDesignContext
+  setupDesign?: SetupDesignContext,
+  setupDesignHooks?: SetupDesignHooks
 ) {
   const shape: Record<string, TSchema> = {}
   for (const [key, param] of Object.entries(def.params)) {
@@ -203,6 +210,20 @@ function defineBridgeTool(
         await callBridgeTool(def.name, { ...params, ...extra }, target),
         budget
       )
+      // T60 事件①：setup_design 成功（结果含新 root id 且无 error）→ 宿主移槽
+      // 回调；失败只 warn（设计已创建成功，移槽落空下回合探针读穿仍准）
+      if (def.name === SETUP_DESIGN_TOOL && setupDesignHooks?.onDesignCreated) {
+        if (typeof result.rootId === 'string' && !('error' in result)) {
+          try {
+            await setupDesignHooks.onDesignCreated(result.rootId)
+          } catch (error) {
+            console.warn(
+              '[pi-backend] setup_design 成功后的 active_design 移槽回调失败（忽略）：' +
+                (error instanceof Error ? error.message : String(error))
+            )
+          }
+        }
+      }
       // T55（S3 §5 通道 A）：登记媒体工具的结果把 base64 图像提升为 pi
       // ImageContent——模型收到的是真图像模态而非 JSON 内嵌字符串；
       // 文本副本脱敏（base64 → 尺寸标记）保留 note/node/exportInfo 元数据
@@ -226,7 +247,8 @@ function defineBridgeTool(
 export function createOpenPencilTools(
   budget?: StepBudgetSource,
   target?: ToolTargetSource,
-  setupDesign?: SetupDesignContext
+  setupDesign?: SetupDesignContext,
+  setupDesignHooks?: SetupDesignHooks
 ) {
   const toolSet = [
     ...CORE_TOOLS,
@@ -236,5 +258,5 @@ export function createOpenPencilTools(
     // service 后端段另行装配）
     ...FORK_TOOLS
   ]
-  return toolSet.map((def) => defineBridgeTool(def, budget, target, setupDesign))
+  return toolSet.map((def) => defineBridgeTool(def, budget, target, setupDesign, setupDesignHooks))
 }

@@ -34,7 +34,7 @@ export const BRIEF_TEXTS = {
 
   /** tombstone 标注：关联设计已删除时追加在条目名后（保痕，不物理清除） */
   deletedMark: '（已删除）',
-  /** 关联设计区投影缺省显示（设计身份四元组由 T53 写入，此前无数据可投影） */
+  /** 关联设计区投影缺省显示（设计身份三元组由 T53 写入，此前无数据可投影） */
   missingProjection: '—'
 } as const
 
@@ -44,25 +44,41 @@ export const BRIEF_TEXTS = {
  * 注入缝参数名（__catalog / __confirmedNewIntent 不进用户视野）。
  */
 export const SETUP_TEXTS = {
-  /** general mode（无 type 蓝图）根 frame 的命名基底 */
+  /** general mode 根 frame 的命名基底 */
   generalDesignName: '营销设计',
 
   unconfirmedNewIntent:
     '新建设计需要先获得用户确认——请询问用户是否要新建一张设计，用户确认后宿主会带上新建意图再调用。',
   catalogUnavailable:
-    '设计模式注册表不可用（当前环境未注入注册表快照）——仅 modeId=general 且不带 typeId/profileId 时可用。',
+    '设计模式注册表不可用（当前环境未注入注册表快照）——仅 modeId=general 且不带 profileId 时可用。',
   briefNone: '文档里还没有需求单——请先 create_brief，再新建设计。',
   ambiguousBrief: '页面上有多份需求单且未指定 briefId——请询问用户使用哪一份，然后带 briefId 重试。',
   briefNotFound: (briefId: string) =>
     `找不到需求单「${briefId}」——请确认 briefId 是否正确，或先 create_brief。`,
   unknownMode: (modeId: string) =>
     `未知的设计模式「${modeId}」（不在注册表内）——通用长图请用 modeId=general。`,
-  typeNotInMode: (typeId: string, modeLabel: string) =>
-    `类型「${typeId}」不在模式「${modeLabel}」的蓝图列表内——请从该模式的类型列表中选择。`,
-  typeForbidden: (modeId: string, typeId: string) =>
-    `模式「${modeId}」没有 type 蓝图，不应传 typeId「${typeId}」。`,
-  typeRequired: (modeLabel: string) =>
-    `模式「${modeLabel}」要求指定 typeId——请从该模式的蓝图类型列表中选择一个。`,
   unknownProfile: (profileId: string) =>
     `未知的风格档案「${profileId}」（不在注册表 profileIds 内）。`
+} as const
+
+/**
+ * active_design 单槽文案（T60，S3 §9 / S1 §5）：端点合法性驳回的
+ * 用户语言化 message + 宿主注入 context 的一行系统提示（zh-cn 外置）。
+ */
+export const ACTIVE_DESIGN_TEXTS = {
+  notFound: (nodeId: string) =>
+    `找不到节点「${nodeId}」——它可能已被删除；请从设计列表另选目标或新建设计。`,
+  notDesignRoot: (nodeId: string) =>
+    `节点「${nodeId}」不是设计区根框——只能在营销设计区之间切换当前目标。`,
+  crossPage: '只能切换到当前画布页上的设计区——跨页设计暂不支持设为当前目标。',
+  briefMismatch:
+    '该设计区与它声明关联的需求单不一致（需求单已删除、跨页或未登记该设计区）——请从设计列表另选目标。',
+  /** 槽位节点删除（或不再是设计区根框）→ 清槽后注入 context 的一行提示 */
+  slotCleared:
+    '当前设计目标已在画布上被删除，已自动清除设计目标——可新建设计，或在设计列表中另选目标。',
+  /** brief 悬空（设计区仍在、需求单被删）→ 组装时注入的一行提示（S1 §5 显式提示，不静默降级） */
+  briefMissing: '当前设计目标关联的需求单已被删除——可新建需求单绑定，或不走需求单直接聊天修改。',
+  /** 落盘 mode 的 workflow 文件缺失 → 按 general 组装 + 本行提示（S1 §5 显式报错路径） */
+  workflowMissing: (modeId: string) =>
+    `当前设计落盘的模式「${modeId}」对应的 workflow 文件缺失——本回合按通用模式进行；装回该文件后可按原模式续作，或确认切换到通用模式。`
 } as const

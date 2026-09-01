@@ -12,12 +12,12 @@
  *  - T21：模型/凭据装配移交 provider-admin.ts（pi 原生 ModelRuntime +
  *    auth.json，无 key 可起服务）；prompt 可带 model 档位（前端 design role
  *    解析结果），缺省回退 openrouter/free 种子路由
- *  - T24：prompt 四层装配（T24-plan D1-D4）——AgentMode 注册表（modes.ts）
- *    建会话期烘焙 base prompt + 工具集；marketing 模式每 run 经 inline
- *    extension 的 before_agent_start 注入工作流段 + profile overlay
- *    （ephemeral、不落盘、run 后自清）；chatMode 请求级，切换即驱逐
- *    SessionEntry 重建（同 sessionId、JSONL 历史无损——JSONL 不存
- *    systemPrompt）
+ *  - T60（S3 §9 / PD-19）：active_design 单槽宿主路由——chatMode 双模式链
+ *    （T24 注册表烘焙 + 驱逐重建）退役；每回合组装 = base + workflow(落盘
+ *    mode body) + profile 全文（active-design-host.ts，before_agent_start
+ *    钩子 per-run 返回），身份封套/系统提示经 result.message custom 通道
+ *    进 context；新建意图一次性旗标接 setup_design 注入缝；setup_design
+ *    成功移槽回调、ask formId 映射、删除悬空清槽皆由 host 承担
  *  - T28：会话 GC（决策单 #2，session-gc.ts）——铸新会话后检查，超量
  *    （OPENPENCIL_MAX_SESSIONS，默认 200）/超龄（OPENPENCIL_SESSION_MAX_AGE_DAYS，
  *    默认 30）会话**移动**到 pi-sessions-archive/（保持文件名，index 除条），
@@ -45,33 +45,35 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import type { UIMessage, UIMessageChunk } from 'ai'
 
+import {
+  createActiveDesignHost,
+  createBridgeSlotIO,
+  setActiveDesignViaBridge,
+  type SetActiveDesignResult
+} from './active-design-host'
 import { createAskUserQuestionTool } from './ask-user-question'
-import type { PiChatMode } from './chat-mode'
 import { readPiHistoryFile } from './history'
 import type { ImageGenCredentialStore } from './image-gen/credentials'
 import { createImageGenTool } from './image-gen/generate'
 import { createPiEventMapper } from './mapping'
-import { isPiChatMode, loadModeSegment, PI_CHAT_MODES } from './modes'
-import { buildMarketingOverlay, studioOverlayInput } from './prompt-overlay'
 import type { ModelSpec, ProviderAdmin } from './provider-admin'
 import { runSessionGc } from './session-gc'
 import type { PiSessionSummary } from './session-summary'
 import { buildSetupCatalog, type SetupDesignContext } from './setup-catalog'
 import { getStudioRegistry } from './studio'
 import { toStudioManifest, type PiStudioManifest } from './studio/manifest'
-import type { StudioRegistry } from './studio/types'
 import { createOpenPencilTools } from './tools'
 import { sendUndoGroupSignal } from './undo-group'
 
 export type { PiSessionSummary }
 
-/** T24：prompt 请求的可选装配参数（chatMode 缺省 ui；pickedProfileId 仅
- * marketing 模式生效——注册表 acceptsProfile 决定，ui 模式忽略） */
+/**
+ * prompt 请求的可选装配参数。T60 起 chatMode/pickedProfileId 退役（active_design
+ * 单槽取代请求级模式）；请求面残留字段由 server.ts 兼容窗忽略不报错。
+ */
 export type PiPromptOptions = {
   model?: ModelSpec
   documentId?: string
-  chatMode?: PiChatMode
-  pickedProfileId?: string | null
 }
 
 export type PiChatService = {
@@ -89,6 +91,8 @@ export type PiChatService = {
   listSessionFamily(docKeyPrefix: string): PiSessionSummary[]
   /** T45：studio manifest（注册表脱敏投影，无 profile 正文/绝对路径；S2 §8 failures 数据面） */
   getStudioManifest(): PiStudioManifest
+  /** T60：active_design 端点（②面板点选 / ③AI 声明+同意）——四条件校验 → 移槽 → 身份三元组 */
+  setActiveDesign(nodeId: string, documentId?: string): Promise<SetActiveDesignResult>
   /** T27：取消该 session 进行中的 run（SSE 断连锁停后端烧 token）；无活跃 run 时 no-op */
   abort(sessionId: string): Promise<void>
 }
@@ -100,10 +104,8 @@ type SessionEntry = {
   budget: { current: number }
   /** T22 工具目标：当次请求的 documentId（桥 document_id 注入，T22-plan D4） */
   target: { documentId?: string }
-  /** T24：建会话时烘焙的模式（base prompt + 工具集随其定型）；切换 = 驱逐重建 */
-  mode: PiChatMode
-  /** T24：当次请求的 profile 选择（per-run 注入，before_agent_start 闭包读取） */
-  overlay: { pickedProfileId: string | null }
+  /** T60：active_design 宿主会话态（旗标/formId 映射/每回合组装缓存袋） */
+  host: ReturnType<typeof createActiveDesignHost>
   /** T27：run 进行中标记——abort 只打活跃 run（空闲 session 调 pi abort 无意义） */
   running: boolean
 }
@@ -128,11 +130,11 @@ export function createPiChatService({
   const maxSessions = Number(process.env.OPENPENCIL_MAX_SESSIONS ?? 200)
   const sessionMaxAgeDays = Number(process.env.OPENPENCIL_SESSION_MAX_AGE_DAYS ?? 30)
 
-  // T45（S4 W1 / T-A3）：studio 注册表启动加载（T43 机制；base.md 未落位前
-  // failures 恒含 base 缺失一条——显式暴露数据面，非阻断态）。
-  // 快照语义：本引用在启动期固定——将来 reloadStudio 接上触发面后，此处须改为
-  // 请求时取值（getStudioRegistry()），否则 manifest/overlay 会持续投影旧快照而无信号
-  const studio: StudioRegistry = getStudioRegistry(rootDir)
+  // T60：studio 注册表每回合读单例（getStudioRegistry 进程级缓存已在；
+  // reloadStudio 触发面接上后天然跟随）——不再启动期快照固化。
+  // base.md 未落位前 failures 恒含 base 缺失一条（manifest 显式暴露数据面）。
+  // T60：active_design 桥探针/写槽 IO（无状态单例，session 间共享）
+  const activeDesignBridge = createBridgeSlotIO()
 
   const sessions = new Map<string, SessionEntry>()
 
@@ -183,8 +185,7 @@ export function createPiChatService({
 
   async function createSession(
     sessionId: string,
-    modelSpec: ModelSpec | undefined,
-    chatMode: PiChatMode
+    modelSpec: ModelSpec | undefined
   ): Promise<SessionEntry> {
     const { modelRuntime, model } = await admin.resolveModel(modelSpec)
     mkdirSync(sessionsDir, { recursive: true })
@@ -201,15 +202,22 @@ export function createPiChatService({
     // T22：documentId 以当次请求为准（session 复用、target 可变），
     // 工具经闭包读取注入桥 args.document_id
     const target: { documentId?: string } = {}
-    // T53（S3 §2）：setup_design 注入缝——catalog 请求时投影（getStudioRegistry
-    // 现取，跟随 reload 语义方向）；新建意图确认真源 = T61 UI 指令块，落地前
-    // 恒 false（契约内行为，S4 §7 尾巴表登记）
+    // T60：active_design 宿主会话态（注册表每回合读单例；桥 IO 共享无状态单例）
+    const host = createActiveDesignHost({
+      registry: () => getStudioRegistry(rootDir),
+      bridge: activeDesignBridge
+    })
+    // T53（S3 §2）+ T60：setup_design 注入缝——catalog 请求时投影；新建意图
+    // 确认真源 = 当回合信封旗标（active-design-host，run 结束 finally 复位）
     const setupDesign: SetupDesignContext = {
       catalogJSON: () => JSON.stringify(buildSetupCatalog(getStudioRegistry(rootDir))),
-      newIntentConfirmed: () => false
+      newIntentConfirmed: () => host.newIntentConfirmed()
     }
     const customTools = [
-      ...createOpenPencilTools({ current: () => budget.current }, target, setupDesign),
+      ...createOpenPencilTools({ current: () => budget.current }, target, setupDesign, {
+        // T60 事件①：setup_design 桥执行成功（结果含新 root id）→ 移槽
+        onDesignCreated: (rootId) => host.onDesignCreated(rootId, target.documentId)
+      }),
       // T54：generate_image 后端段（生成 HTTP 不经桥、落图经桥；凭证单实例
       // 由 server.ts 注入，与设置路由同视图）
       createImageGenTool({ credentials: imageGenCredentials, target }),
@@ -218,28 +226,27 @@ export function createPiChatService({
       createAskUserQuestionTool()
     ]
 
-    // T24：模式注册表烘焙 base prompt；overlay 袋每 prompt 刷新，
-    // before_agent_start 闭包读取（per-run 注入，不落盘）
-    const mode = PI_CHAT_MODES[chatMode]
-    const overlay: SessionEntry['overlay'] = { pickedProfileId: null }
-
-    // T24 D3：四层装配的 per-run 层——工作流段（base 之后）+ profile overlay
-    // （末位）。ui 模式注册表两项皆空 → 钩子不返回 → 基底 byte 级原样。
-    // runner 链式语义：返回的 systemPrompt 仅当 run 生效，run 后回基底
-    // （agent-session.js emitBeforeAgentStart / else 分支复位）。
+    // T60：每回合组装 = active-design-host prepareTurn 产出的
+    // { systemPrompt, contextLines }；本钩子只做搬运（systemPrompt per-run 替换，
+    // contextLines 经 result.message custom 通道进 context——convertToLlm 转
+    // user role 进模型上下文，不进 UI 流/历史回填）。runner 链式语义：run 后
+    // 回基底（agent-session.js emitBeforeAgentStart / else 分支复位）。
     const assembly: InlineExtension = (pi) => {
-      pi.on('before_agent_start', (event) => {
-        let assembled = event.systemPrompt
-        if (mode.workflowSegmentPath) {
-          assembled += loadModeSegment(rootDir, mode.workflowSegmentPath)
+      pi.on('before_agent_start', () => {
+        const turn = host.turnAssembly()
+        if (!turn) return undefined
+        return {
+          systemPrompt: turn.systemPrompt,
+          ...(turn.contextLines.length > 0
+            ? {
+                message: {
+                  customType: 'active-design-context',
+                  content: turn.contextLines.join('\n'),
+                  display: false
+                }
+              }
+            : {})
         }
-        if (mode.acceptsProfile) {
-          assembled += buildMarketingOverlay({
-            ...studioOverlayInput(studio),
-            pickedProfileId: overlay.pickedProfileId
-          })
-        }
-        return assembled === event.systemPrompt ? undefined : { systemPrompt: assembled }
       })
     }
     const extensionFactories: InlineExtension[] = [assembly]
@@ -261,14 +268,15 @@ export function createPiChatService({
       model,
       modelRuntime,
       sessionManager,
-      // T21：静态 system prompt 经 resourceLoader 烘焙（T24：按模式注册表选
-      // base 段）+ 关闭 pi 侧上下文文件/skills/prompt 模板加载——否则 repo
+      // T21：静态 system prompt 经 resourceLoader 烘焙（T60：烘焙 studio base
+      // body 作兜底基底——per-run 钩子恒返回完整组装，基底只在无 prepareTurn
+      // 的异常路径露面）+ 关闭 pi 侧上下文文件/skills/prompt 模板加载——否则 repo
       // 的 AGENTS.md 等会混入设计会话（旧 ToolLoop 只有静态 prompt，对齐）
       resourceLoader: await (async () => {
         const loader = new DefaultResourceLoader({
           cwd: rootDir,
           agentDir,
-          systemPrompt: loadModeSegment(rootDir, mode.basePromptPath),
+          systemPrompt: getStudioRegistry(rootDir).base?.body ?? '',
           noContextFiles: true,
           noSkills: true,
           noPromptTemplates: true,
@@ -302,8 +310,7 @@ export function createPiChatService({
       queue: Promise.resolve(),
       budget,
       target,
-      mode: chatMode,
-      overlay,
+      host,
       running: false
     }
     sessions.set(sessionId, entry)
@@ -316,29 +323,13 @@ export function createPiChatService({
     emit: (chunk: UIMessageChunk) => void,
     options: PiPromptOptions = {}
   ): Promise<void> {
-    const chatMode: PiChatMode = isPiChatMode(options.chatMode) ? options.chatMode : 'ui'
-    // T24 D4：模式切换 = 驱逐缓存 SessionEntry，createSession 经
-    // SessionManager.open 重建（同 sessionId、JSONL 历史无损；新对象携带
-    // 新模式的 base prompt 与工具集）。不开新 sessionId、不 fork。
-    const existing = sessions.get(sessionId)
-    if (existing && existing.mode !== chatMode) {
-      // 进行中的 run 收尾再驱逐（正常路径不会发生——前端流式中禁发，
-      // 这里是防御性排队，防 dispose 腰斩活跃流）
-      await existing.queue.catch(() => undefined)
-      existing.session.dispose()
-      sessions.delete(sessionId)
-    }
     // T27/B1 复核（2026-08-25）：`get ?? await createSession` 之间的并发双创建窗口
     // 在 dev 单用户拓扑下不可达——前端流式/提交中禁发（ChatInput isStreaming +
     // ChatPanel handleSubmit 双重守卫），同 sessionId 的第二个 POST 只能来自
     // 绕过 UI 的手工并发，代价是后者顶掉前者 entry（JSONL 文件各自独立、不串
     // 数据）。不做 promise 缓存去重：引入的复杂度大于 dev 场景收益。
-    const entry =
-      sessions.get(sessionId) ?? (await createSession(sessionId, options.model, chatMode))
+    const entry = sessions.get(sessionId) ?? (await createSession(sessionId, options.model))
     entry.target.documentId = options.documentId
-    entry.overlay.pickedProfileId = PI_CHAT_MODES[chatMode].acceptsProfile
-      ? (options.pickedProfileId ?? null)
-      : null
     // 同一 session 的 prompt 串行：pi 在 streaming 中再 prompt 需要 streamingBehavior，
     // dev 单用户场景直接排队即可
     // T27：rejection 接力——先吞掉前次 queue 的 rejection 再挂新 run；否则一次失败
@@ -362,6 +353,11 @@ export function createPiChatService({
     entry.running = true
     const unsubscribe = entry.session.subscribe((event) => {
       if (event.type === 'turn_start') entry.budget.current++
+      // T60 事件④：ask_user_question awaiting 信封 → 记录 formId→当时槽位
+      if (event.type === 'tool_execution_end') {
+        const details = (event.result as { details?: unknown } | undefined)?.details
+        entry.host.observeToolExecution(event.toolName, event.isError, details)
+      }
       if (debug) {
         const sub = event.type === 'message_update' ? `/${event.assistantMessageEvent.type}` : ''
         console.error(`[pi-backend:event] ${event.type}${sub}`)
@@ -369,16 +365,21 @@ export function createPiChatService({
       for (const chunk of mapper(event)) emit(chunk)
     })
     try {
+      // T60：回合入口——剥新建意图信封（置一次性旗标）→ ④表单作答移槽 →
+      // 槽位读穿（悬空清槽）→ 组装（host.turnAssembly 供 before_agent_start 读）
+      const prepared = await entry.host.prepareTurn(text, entry.target.documentId)
       // T59：回合 = 一次 prompt run；begin 先行 await（本地 HTTP 一跳，失败已内生
       // 吞掉）保证桥侧撤销组先于本回合首个工具调用打开，end 在 finally 兜底发送
       await sendUndoGroupSignal('begin', entry.target.documentId)
-      await entry.session.prompt(text)
+      await entry.session.prompt(prepared.promptText)
     } catch (error) {
       emit({ type: 'error', errorText: error instanceof Error ? error.message : String(error) })
       emit({ type: 'finish', finishReason: 'error' })
     } finally {
       entry.running = false
       unsubscribe()
+      // T60 定谳 5：一次性旗标 run 结束强制复位（信封永不跨回合滞留）
+      entry.host.finalizeTurn()
       void sendUndoGroupSignal('end', entry.target.documentId)
       // prompt 完成后 session 文件必然已落盘，补记 index（create 时 file 可能尚未生成）
       const file = entry.session.sessionManager.getSessionFile()
@@ -437,7 +438,14 @@ export function createPiChatService({
   }
 
   function getStudioManifest(): PiStudioManifest {
-    return toStudioManifest(studio)
+    return toStudioManifest(getStudioRegistry(rootDir))
+  }
+
+  async function setActiveDesign(
+    nodeId: string,
+    documentId?: string
+  ): Promise<SetActiveDesignResult> {
+    return setActiveDesignViaBridge(nodeId, documentId, activeDesignBridge)
   }
 
   async function abort(sessionId: string): Promise<void> {
@@ -463,6 +471,7 @@ export function createPiChatService({
     readHistory,
     listSessionFamily,
     getStudioManifest,
+    setActiveDesign,
     abort
   }
 }

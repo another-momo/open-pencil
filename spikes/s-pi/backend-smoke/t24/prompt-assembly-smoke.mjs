@@ -1,5 +1,7 @@
 /**
- * T24 prompt 四层装配冒烟（T24-plan §2 C1/C2/C3 的后端半 + manifest 路由）。
+ * T60（Phase 3 W3/T-B9）active_design 宿主路由 + 每回合组装冒烟——
+ * 前身 = T24 prompt 四层装配冒烟（chatMode 链随 T60 退役，C1/C2/C3 旧断言
+ * 整体改写为单槽语义）。
  *
  * 全程不需要真实 LLM key：
  *  - POST /api/pi/credentials 写 dummy key 过 pi 的 auth 预检（agent-session.js
@@ -10,20 +12,25 @@
  *  - provider 调用随后 401/断网失败无所谓——探针文件在 before_agent_start
  *    时已落盘；SSE 读到 error/finish 即收
  *
- * 断言：
- *  C1 ui 模式探针 == system-prompt.md byte 级原样；marketing = base + 工作流段
- *     + overlay（含 marketing 独有句式、不含 ui 独有的 Building top-down）
- *  C2 picked profile → Active style profile 段 + profile 正文；bogus id →
- *     re-pick 段；无资产后端 → fallback 段；ui 模式带 pickedProfileId 仍零 overlay
- *  C3 同 session 换 profile → 下一条 probe 反映新 overlay（不重建）；同 session
- *     切模式 → 驱逐重建（probe 回 ui 基底）且 index.json 映射/JSONL 文件不动
+ * 断言（冒烟环境无浏览器 → 桥不可达 → 恒空槽组装；有槽/移槽判定归 bun 层
+ * tests/engine/rebuild/pi-backend/active-design-host.test.ts）：
+ *  C1 空槽组装：探针 == studio base.md body byte 级一致（无 workflow 段、
+ *     无 profile、无 cwd 尾巴——钩子 per-run 整体替换，baked 基底不露面）
+ *  C2 新建意图信封：首行剥离 → 历史里用户消息 = 剥离后文本（信封不进 JSONL）；
+ *     表单作答信封不剥离（AI 须读答案原文）
+ *  C3 兼容窗：请求面残留 chatMode/pickedProfileId 字段忽略不报错（正常进 run）
+ *  端点 POST /api/pi/active-design：401 未鉴权 / 405 非 POST / 400 坏体 /
+ *     502 bridge_unavailable（无桥环境显式失败，红线 #8 不静默）
  *  路由 GET /api/pi/studio/manifest 形状 + 脱敏（无正文/无绝对路径）+ 405
  *
  * T45（S4 W1 / T-A3）改源：种子 config.yaml → studio 文件注册表（workflows/
  * + profiles/ 复制进 tempRoot）；端点更名 /api/pi/studio/manifest，契约改为
- * modes（展开 types）+ profiles（摘要）+ failures（相对路径）。
+ * modes + profiles（摘要）+ failures（相对路径）。
  * T46（S4 W1 / T-A5）：base.md 落位——资产后端 failures 收零（base 缺失 +
  * 整体态断言移交无资产后端半），fixture 复制 base.md。
+ * T62：type 机制删除——manifest modes 不再展开 types。
+ * T60：chatMode 双模式链（注册表烘焙 + 驱逐重建 + 请求级 pickedProfileId）
+ * 退役；组装数据源 = 落盘 active_design 三元组 + studio 注册表单例。
  *
  * 运行：bun spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs（仓根）
  *
@@ -39,8 +46,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
-  rmSync,
-  writeFileSync
+  rmSync
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -64,26 +70,21 @@ function check(name, ok, detail = '') {
   }
 }
 
-const UI_ONLY_MARKER = '## Building top-down (MANDATORY)'
-const MARKETING_MARKER = '# Marketing Design Workflow (MANDATORY)'
-const TYPES_MARKER = '## Material types in the current brand'
-const PROFILE_MARKER = '## Active style profile:'
+const BASE_MARKER = 'You are a design assistant inside a vector design editor'
+const WORKFLOW_MARKER = '# Marketing Design Workflow (MANDATORY)'
 
-// ── fixture 布置：真实 prompt 段 + studio 资产集复制进 tempRoot（T45 改源）
+/** studio 资产 body = 剥 frontmatter 后的全文（parse.ts splitFrontmatter 同律：不 trim） */
+function stripFrontmatter(raw) {
+  const lines = raw.replace(/^﻿/, '').split('\n')
+  if (lines[0]?.trim() !== '---') return raw
+  const closeIndex = lines.findIndex((line, i) => i > 0 && line.trim() === '---')
+  return closeIndex === -1 ? raw : lines.slice(closeIndex + 1).join('\n')
+}
+
+// ── fixture 布置：studio 资产集复制进 tempRoot（T45 改源；T60 起 prompt 段
+// 文件不再参与组装，不再复制 prompts/ 与旧 ui 基底）
 function layoutRoot(withStudioAssets) {
-  const tempRoot = mkdtempSync(join(tmpdir(), 't24-assembly-'))
-  mkdirSync(join(tempRoot, 'src/app/ai/chat'), { recursive: true })
-  mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/prompts'), { recursive: true })
-  copyFileSync(
-    join(repoRoot, 'src/app/ai/chat/system-prompt.md'),
-    join(tempRoot, 'src/app/ai/chat/system-prompt.md')
-  )
-  for (const f of ['system-prompt-base.md', 'system-prompt-marketing.md']) {
-    copyFileSync(
-      join(repoRoot, 'src/app/ai/pi-backend/prompts', f),
-      join(tempRoot, 'src/app/ai/pi-backend/prompts', f)
-    )
-  }
+  const tempRoot = mkdtempSync(join(tmpdir(), 't60-assembly-'))
   if (withStudioAssets) {
     mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/studio'), { recursive: true })
     copyFileSync(
@@ -104,12 +105,10 @@ function layoutRoot(withStudioAssets) {
 
 const tempRoot = layoutRoot(true)
 const emptyAssetsRoot = layoutRoot(false)
-const uiBase = readFileSync(join(repoRoot, 'src/app/ai/chat/system-prompt.md'), 'utf8')
-// pi buildSystemPrompt 固有尾巴（T21 起即如此，非 T24 引入）：自定义 systemPrompt
-// 之后追加 `\nCurrent working directory: <cwd>\n`（正斜杠规范化）。
-// 「byte 级原样」的精确口径 = 文件字节 + 该尾巴
-const cwdSuffix = (root) => `\nCurrent working directory: ${root.replaceAll('\\', '/')}\n`
-const uiBaseWithCwd = uiBase + cwdSuffix(tempRoot)
+// 空槽组装的精确口径 = base.md body（剥 frontmatter）全文
+const baseBody = stripFrontmatter(
+  readFileSync(join(repoRoot, 'src/app/ai/pi-backend/studio/base.md'), 'utf8')
+)
 
 // ── 起后端（显式剔除真实 key 防环境泄漏干扰；dummy key 经凭据路由写入）
 const backendEnv = {
@@ -129,7 +128,7 @@ backend.on('exit', () => {
 })
 backend.stderr.on('data', (d) => process.stderr.write(`[backend] ${d}`))
 
-// 无资产后端（fallback 断言）：同仓库代码、另一端口、另一 rootDir
+// 无资产后端（base 缺失断言）：同仓库代码、另一端口、另一 rootDir
 const PORT2 = PORT + 500 > 7989 ? PORT - 500 : PORT + 500
 const BASE2 = `http://127.0.0.1:${PORT2}`
 const backendEnv2 = {
@@ -197,8 +196,26 @@ function userMessage(text) {
   return [{ role: 'user', parts: [{ type: 'text', text }] }]
 }
 
+/** GET /api/pi/history?sessionId=… → 末条 user 文本（历史回填读取面，T22） */
+async function lastUserText(base, sessionId, token) {
+  const res = await fetch(`${base}/api/pi/history?sessionId=${encodeURIComponent(sessionId)}`, {
+    headers: authHeaders(token)
+  })
+  if (!res.ok) return null
+  const body = await res.json()
+  const users = (body.messages ?? []).filter((m) => m.role === 'user')
+  const last = users.at(-1)
+  return (last?.parts ?? [])
+    .filter((p) => p.type === 'text')
+    .map((p) => p.text)
+    .join('\n')
+}
+
 try {
-  check('后端就绪（注册表后端 + 无资产后端）', (await waitHealth(BASE, () => backendExited)) && (await waitHealth(BASE2, () => backend2Exited)))
+  check(
+    '后端就绪（注册表后端 + 无资产后端）',
+    (await waitHealth(BASE, () => backendExited)) && (await waitHealth(BASE2, () => backend2Exited))
+  )
 
   // T28：两个 standalone 后端各自的 token（只进请求头，不打印）
   const token = readBackendToken(tempRoot)
@@ -216,12 +233,12 @@ try {
   const manifestRes = await fetch(`${BASE}/api/pi/studio/manifest`, { headers: authHeaders(token) })
   const manifest = await manifestRes.json()
   check(
-    '路由 manifest：modes = general（空 types）+ longform（三 type 展开）',
+    '路由 manifest：modes = general + longform（T62：无 types 数据面）',
     manifestRes.ok &&
       Array.isArray(manifest.modes) &&
-      manifest.modes[0]?.id === 'general' && manifest.modes[0]?.types?.length === 0 &&
-      manifest.modes[1]?.id === 'longform' && manifest.modes[1]?.types?.length === 3 &&
-      manifest.modes[1].types.some((t) => t.id === 'ecommerce_detail' && t.size === '750x'),
+      manifest.modes[0]?.id === 'general' &&
+      manifest.modes[1]?.id === 'longform' &&
+      manifest.modes.every((m) => !('types' in m)),
     JSON.stringify(manifest).slice(0, 160)
   )
   check(
@@ -231,11 +248,22 @@ try {
   )
   check(
     '路由 manifest：profiles 四精品摘要含 watercolor_poster_v2/v3（applicableTo=[longform]，T48 补迁 v2）',
-    Array.isArray(manifest.profiles) && manifest.profiles.length === 4 &&
-      manifest.profiles.some((p) => p.id === 'watercolor_poster_v3' && p.label === '水彩海报 v3' &&
-        Array.isArray(p.applicableTo) && p.applicableTo[0] === 'longform') &&
-      manifest.profiles.some((p) => p.id === 'watercolor_poster_v2' && p.label === '水彩海报 v2' &&
-        Array.isArray(p.applicableTo) && p.applicableTo[0] === 'longform')
+    Array.isArray(manifest.profiles) &&
+      manifest.profiles.length === 4 &&
+      manifest.profiles.some(
+        (p) =>
+          p.id === 'watercolor_poster_v3' &&
+          p.label === '水彩海报 v3' &&
+          Array.isArray(p.applicableTo) &&
+          p.applicableTo[0] === 'longform'
+      ) &&
+      manifest.profiles.some(
+        (p) =>
+          p.id === 'watercolor_poster_v2' &&
+          p.label === '水彩海报 v2' &&
+          Array.isArray(p.applicableTo) &&
+          p.applicableTo[0] === 'longform'
+      )
   )
   check(
     '路由 manifest：脱敏——任何 profile 不带 body/markdown 正文',
@@ -252,9 +280,11 @@ try {
   ).json()
   check(
     '路由 manifest：无资产后端 → general 恒在 + 空 profiles + failures 非空（含整体态）',
-    Array.isArray(emptyManifest.modes) && emptyManifest.modes.length === 1 &&
+    Array.isArray(emptyManifest.modes) &&
+      emptyManifest.modes.length === 1 &&
       emptyManifest.modes[0]?.id === 'general' &&
-      Array.isArray(emptyManifest.profiles) && emptyManifest.profiles.length === 0 &&
+      Array.isArray(emptyManifest.profiles) &&
+      emptyManifest.profiles.length === 0 &&
       Array.isArray(emptyManifest.failures) &&
       emptyManifest.failures.some((f) => f.kind === 'studio')
   )
@@ -278,98 +308,107 @@ try {
   })
   check('前置：无资产后端 dummy 凭据写入', cred2.ok)
 
-  // ── C1a：ui 模式 → 探针 == system-prompt.md byte 级原样
-  await sendPrompt(BASE, { sessionId: 't24-probe-ui', messages: userMessage('probe ui'), chatMode: 'ui' }, token)
-  const uiProbe = probeText(tempRoot)
-  check('C1 ui：探针落盘', uiProbe !== null)
+  // ── C1：空槽（无桥）→ 探针 == base.md body byte 级一致（钩子整体替换，无 cwd 尾巴）
+  await sendPrompt(
+    BASE,
+    { sessionId: 't60-probe-empty-slot', messages: userMessage('你好') },
+    token
+  )
+  const emptySlotProbe = probeText(tempRoot)
+  check('C1 空槽：探针落盘', emptySlotProbe !== null)
   check(
-    'C1 ui：与 system-prompt.md byte 级一致（零 marketing 零 overlay；pi 固有 cwd 尾巴除外）',
-    uiProbe === uiBaseWithCwd,
-    uiProbe === null ? 'probe missing' : `len ${uiProbe.length} vs base ${uiBaseWithCwd.length}`
+    'C1 空槽：与 base.md body byte 级一致（无 workflow 段、无 profile、无 cwd 尾巴）',
+    emptySlotProbe === baseBody,
+    emptySlotProbe === null
+      ? 'probe missing'
+      : `len ${emptySlotProbe.length} vs base body ${baseBody.length}`
+  )
+  check('C1 空槽：不含旧 marketing 工作流段句式', !(emptySlotProbe ?? '').includes(WORKFLOW_MARKER))
+  check('C1 空槽：含 base 正文句式', (emptySlotProbe ?? '').includes(BASE_MARKER))
+
+  // ── C2：新建意图信封首行剥离 → 历史里用户消息 = 剥离后文本
+  await sendPrompt(
+    BASE,
+    {
+      sessionId: 't60-envelope',
+      messages: userMessage(
+        '[新建意图确认 modeId=longform profileId=watercolor_poster_v3]\n帮我做一张长图'
+      )
+    },
+    token
+  )
+  const strippedText = await lastUserText(BASE, 't60-envelope', token)
+  check(
+    'C2 信封剥离：历史中用户消息 = 剥离后文本（信封不进 JSONL/模型视野）',
+    strippedText === '帮我做一张长图',
+    JSON.stringify(strippedText)
   )
 
-  // ── C1b：marketing 模式 → base + 工作流段 + overlay（types 段恒在）
-  await sendPrompt(BASE, { sessionId: 't24-probe-mkt', messages: userMessage('probe marketing'), chatMode: 'marketing' }, token)
-  const mktProbe = probeText(tempRoot) ?? ''
-  check('C1 marketing：含工作流段独有句式', mktProbe.includes(MARKETING_MARKER))
-  check('C1 marketing：含 overlay types 段（未 picked 也恒在）', mktProbe.includes(TYPES_MARKER))
-  check('C1 marketing：含注册表 type 条目（ecommerce_detail，含尺寸）', mktProbe.includes('- ecommerce_detail (电商详情页) — 750x'))
-  check('C1 marketing：不含 ui 基底独有句式', !mktProbe.includes(UI_ONLY_MARKER))
-  check('C2 marketing 未 picked：无 Active style profile 段', !mktProbe.includes(PROFILE_MARKER))
-
-  // ── C2：picked profile → profile 段 + 注册表 profile 正文注入
-  await sendPrompt(BASE, {
-    sessionId: 't24-probe-mkt',
-    messages: userMessage('probe picked'),
-    chatMode: 'marketing',
-    pickedProfileId: 'watercolor_poster_v3'
-  }, token)
-  const pickedProbe = probeText(tempRoot) ?? ''
-  check('C2 picked：含 Active style profile: watercolor_poster_v3 段', pickedProbe.includes(`${PROFILE_MARKER} watercolor_poster_v3`))
-  check('C2 picked：含 profile 正文（水彩海报）', pickedProbe.includes('# 水彩海报'))
-
-  // ── C3a：同 session 换 profile（不重建）→ 下一条 probe 反映新 overlay
-  await sendPrompt(BASE, {
-    sessionId: 't24-probe-mkt',
-    messages: userMessage('probe re-pick'),
-    chatMode: 'marketing',
-    pickedProfileId: 'watercolor_poster_v3'
-  }, token)
-  const repickProbe = probeText(tempRoot) ?? ''
+  // ── C2：表单作答信封不剥离（AI 须读答案原文；无映射不移槽——未知 formId 静默）
+  const answerText =
+    '[表单作答 formId=form-smoke-aaaaaa]\n{"aborted":false,"answers":{"q1":"清爽方向"}}'
+  await sendPrompt(BASE, { sessionId: 't60-answer', messages: userMessage(answerText) }, token)
+  const answerReadBack = await lastUserText(BASE, 't60-answer', token)
   check(
-    'C3 同 session 换 profile：下一条 probe 即新 overlay（水彩海报 v3）',
-    repickProbe.includes(`${PROFILE_MARKER} watercolor_poster_v3`) && repickProbe.includes('# 水彩海报')
+    'C2 表单作答：信封原文不剥离（run 终止续跑语义，T56 链不动）',
+    answerReadBack === answerText,
+    JSON.stringify(answerReadBack)
   )
 
-  // ── C2：bogus profile id → re-pick 提示段
-  await sendPrompt(BASE, {
-    sessionId: 't24-probe-mkt',
-    messages: userMessage('probe bogus'),
-    chatMode: 'marketing',
-    pickedProfileId: 'bogus_profile'
-  }, token)
-  const bogusProbe = probeText(tempRoot) ?? ''
+  // ── C3 兼容窗：残留 chatMode/pickedProfileId 字段忽略不报错，组装不受影响
+  const legacyResult = await sendPrompt(
+    BASE,
+    {
+      sessionId: 't60-legacy-fields',
+      messages: userMessage('兼容窗消息'),
+      chatMode: 'marketing',
+      pickedProfileId: 'watercolor_poster_v3'
+    },
+    token
+  )
+  check('C3 兼容窗：带残留字段的请求正常进 run（SSE 排空）', legacyResult === 'done', legacyResult)
+  const legacyProbe = probeText(tempRoot)
   check(
-    'C2 bogus id：输出 (not in studio registry) re-pick 段',
-    bogusProbe.includes(`${PROFILE_MARKER} (not in studio registry)`) && bogusProbe.includes('bogus_profile')
+    'C3 兼容窗：残留字段不改变组装（仍空槽 = base body byte 级一致）',
+    legacyProbe === baseBody,
+    legacyProbe === null ? 'probe missing' : `len ${legacyProbe.length}`
   )
 
-  // ── C3b：同 session 切模式 → 驱逐重建（probe 回 ui 基底），index/JSONL 不动
-  const indexPath = join(tempRoot, '.openpencil', 'pi-sessions', 'index.json')
-  const indexBefore = existsSync(indexPath) ? readFileSync(indexPath, 'utf8') : ''
-  const fileBefore = indexBefore ? (JSON.parse(indexBefore)['t24-probe-mkt']?.file ?? null) : null
-  check('C3 前置：marketing session 已落盘 index', typeof fileBefore === 'string' && existsSync(fileBefore))
-  const jsonlBefore = fileBefore && existsSync(fileBefore) ? readFileSync(fileBefore, 'utf8') : ''
-  await sendPrompt(BASE, { sessionId: 't24-probe-mkt', messages: userMessage('probe switched to ui'), chatMode: 'ui' }, token)
-  const switchedProbe = probeText(tempRoot) ?? ''
-  check('C3 模式切换：probe 回 ui 基底 byte 级一致（驱逐重建携带新 base）', switchedProbe === uiBaseWithCwd)
-  const indexAfter = existsSync(indexPath) ? readFileSync(indexPath, 'utf8') : ''
+  // ── 端点 POST /api/pi/active-design（无桥环境）
+  const endpointNoAuth = await fetch(`${BASE}/api/pi/active-design`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ nodeId: '1:2' })
+  })
+  check('端点：未鉴权 → 401', endpointNoAuth.status === 401, `status=${endpointNoAuth.status}`)
+  const endpointGet = await fetch(`${BASE}/api/pi/active-design`, { headers: authHeaders(token) })
+  check('端点：非 POST → 405', endpointGet.status === 405, `status=${endpointGet.status}`)
+  const endpointBad = await fetch(`${BASE}/api/pi/active-design`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({})
+  })
+  check('端点：缺 nodeId → 400', endpointBad.status === 400, `status=${endpointBad.status}`)
+  const endpointNoBridge = await fetch(`${BASE}/api/pi/active-design`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ nodeId: '1:2' })
+  })
+  const endpointBody = await endpointNoBridge.json().catch(() => null)
   check(
-    'C3 模式切换：index.json 映射不动（同 sessionId 同文件）',
-    indexAfter === indexBefore,
-    'index.json changed'
-  )
-  const jsonlAfter = fileBefore && existsSync(fileBefore) ? readFileSync(fileBefore, 'utf8') : ''
-  check(
-    'C3 模式切换：JSONL 历史保留且追加（文件增长不回撤）',
-    jsonlAfter.length >= jsonlBefore.length && jsonlAfter.startsWith(jsonlBefore.slice(0, Math.min(200, jsonlBefore.length)))
+    '端点：桥不可达 → 502 + bridge_unavailable（显式失败不静默）',
+    endpointNoBridge.status === 502 && endpointBody?.error === 'bridge_unavailable',
+    `status=${endpointNoBridge.status} body=${JSON.stringify(endpointBody)}`
   )
 
-  // ── C2：ui 模式带 pickedProfileId → 注册表 acceptsProfile=false，零 overlay
-  await sendPrompt(BASE, {
-    sessionId: 't24-probe-ui-profile',
-    messages: userMessage('probe ui with profile'),
-    chatMode: 'ui',
-    pickedProfileId: 'watercolor_poster_v3'
-  }, token)
-  const uiProfileProbe = probeText(tempRoot) ?? ''
-  check('C2 ui 模式忽略 pickedProfileId：仍与基底 byte 级一致', uiProfileProbe === uiBaseWithCwd)
-
-  // ── C2：无资产后端 → fallback 引导段
-  await sendPrompt(BASE2, { sessionId: 't24-probe-empty', messages: userMessage('probe empty assets'), chatMode: 'marketing' }, token2)
-  const emptyProbe = probeText(emptyAssetsRoot) ?? ''
-  check('C2 无资产：overlay 输出 fallback 引导段', emptyProbe.includes('No material types available'))
-  check('C2 无资产：工作流段仍在（资产缺失只降级 overlay）', emptyProbe.includes(MARKETING_MARKER))
+  // ── 无资产后端：base 缺失 → 空槽组装 = 空 systemPrompt（failures 数据面已断言）
+  await sendPrompt(
+    BASE2,
+    { sessionId: 't60-probe-empty', messages: userMessage('probe empty') },
+    token2
+  )
+  const noBaseProbe = probeText(emptyAssetsRoot)
+  check('无资产后端：base 缺失 → 探针为空串（不崩溃、不混入旧基底）', noBaseProbe === '')
 } finally {
   // Windows 清理纪律：bun run 是 wrapper + 孙进程两段——SIGTERM 只杀 wrapper
   // （信号致死 exitCode 恒 null，「exitCode===null 再升级」判据事后失效），

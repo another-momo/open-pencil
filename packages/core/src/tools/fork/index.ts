@@ -11,11 +11,19 @@
  * lookTool（T55）、HERO_TOOLS（T57 prepare_hero_scaffold）、
  * IMAGE_GEN_TOOLS（T54 落图段桥端点——generate_image 本体在 pi-backend
  * 后端段装配，不经此表）。
+ * W3 登记者：COMPOSE_TOOLS（T58 compose_backdrop）、
+ * ACTIVE_DESIGN_TOOLS（T60 set_active_design——宿主路由声明原语）。
  */
 import type { ToolDef } from '#core/tools/schema'
 
 import { IMAGE_GEN_TOOLS } from './image-gen'
-import { BRIEF_TOOLS, HERO_TOOLS, SETUP_TOOLS } from './marketing'
+import {
+  ACTIVE_DESIGN_TOOLS,
+  BRIEF_TOOLS,
+  COMPOSE_TOOLS,
+  HERO_TOOLS,
+  SETUP_TOOLS
+} from './marketing'
 import { lookTool } from './marketing/look'
 
 export const FORK_TOOLS: ToolDef[] = [
@@ -23,5 +31,7 @@ export const FORK_TOOLS: ToolDef[] = [
   ...SETUP_TOOLS,
   lookTool,
   ...HERO_TOOLS,
-  ...IMAGE_GEN_TOOLS
+  ...IMAGE_GEN_TOOLS,
+  ...COMPOSE_TOOLS,
+  ...ACTIVE_DESIGN_TOOLS
 ]

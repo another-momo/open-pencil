@@ -12,11 +12,16 @@
  *    ——无任何回读 key 的端点
  *
  * 请求体：{ sessionId: string, messages: UIMessage[], model?: ModelSpec,
- * documentId?: string, chatMode?: 'ui'|'marketing', pickedProfileId?: string|null }
+ * documentId?: string }
  * （ai SDK Chat 默认全量 messages 上报；本 service 只取末条 user 文本，
  * 历史由后端 SessionManager 持有。model 为前端 design role 解析结果，T21。
- * documentId 为桥目标注入，T22。chatMode/pickedProfileId 为 T24 四层装配
- * 的最小载荷——types/profiles/工作流段永远后端读，T24-plan D7）。
+ * documentId 为桥目标注入，T22。T60 起 chatMode/pickedProfileId 退役——
+ * active_design 单槽取代请求级模式；请求面残留字段忽略不报错（兼容窗，
+ * 前端生产侧删除归 T61）。）
+ *
+ * T60：POST /api/pi/active-design {nodeId} → 四条件校验 → 移槽 → 身份三元组
+ * {modeId, profileId, briefId}（②面板点选 / ③set_active_design 同意卡共用；
+ * 校验驳回 422 {error, message}，桥不可达 502）。
  *
  * T22：GET /api/pi/history?docKey=<族谱前缀>（或 ?sessionId=<完整 id>）→
  * { sessionId, messages }——会话族谱解析 + 历史回填（T22-plan D2/D3）。
@@ -41,7 +46,6 @@ import { isAuthorized } from './auth'
 import { PI_BACKEND_DEFAULT_PORT } from './config'
 import { createImageGenCredentialStore } from './image-gen/credentials'
 import { handleImageGenAdminRequest } from './image-gen/routes'
-import { isPiChatMode } from './modes'
 import { createProviderAdmin, type ModelSpec } from './provider-admin'
 import { createPiChatService } from './service'
 
@@ -55,6 +59,7 @@ type PiChatRequestBody = {
   }>
   model?: ModelSpec
   documentId?: string
+  /** T60 兼容窗：残留字段忽略不报错（前端停发归 T61） */
   chatMode?: string
   pickedProfileId?: string | null
 }
@@ -145,9 +150,7 @@ async function handlePiChatRequest(
   try {
     await service.prompt(sessionId, text, emit, {
       model: body.model,
-      documentId: body.documentId,
-      chatMode: isPiChatMode(body.chatMode) ? body.chatMode : undefined,
-      pickedProfileId: typeof body.pickedProfileId === 'string' ? body.pickedProfileId : null
+      documentId: body.documentId
     })
   } catch (error) {
     emit({
@@ -163,6 +166,51 @@ async function handlePiChatRequest(
 function sendJSON(res: ServerResponse, status: number, payload: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json' })
   res.end(JSON.stringify(payload))
+}
+
+/**
+ * T60：POST /api/pi/active-design {nodeId}——②面板点选 / ③AI 声明+同意共用
+ * 的移槽端点（非聊天消息）。成功 200 身份三元组；四条件驳回 422；桥不可达 502。
+ */
+async function handleActiveDesignRequest(
+  service: ReturnType<typeof createPiChatService>,
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  if (req.method !== 'POST') {
+    res.writeHead(405).end('Method Not Allowed')
+    return
+  }
+  let body: { nodeId?: unknown }
+  try {
+    body = JSON.parse(await readBody(req)) as { nodeId?: unknown }
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      res.writeHead(413).end('Payload Too Large')
+      return
+    }
+    res.writeHead(400).end('Bad Request: invalid JSON')
+    return
+  }
+  if (typeof body.nodeId !== 'string' || body.nodeId.trim() === '') {
+    res.writeHead(400).end('Bad Request: nodeId required')
+    return
+  }
+  const result = await service.setActiveDesign(body.nodeId)
+  if (result.ok) {
+    sendJSON(res, 200, {
+      modeId: result.modeId,
+      profileId: result.profileId,
+      briefId: result.briefId,
+      name: result.name,
+      materialized: result.materialized
+    })
+    return
+  }
+  sendJSON(res, result.error === 'bridge_unavailable' ? 502 : 422, {
+    error: result.error,
+    message: result.message
+  })
 }
 
 async function handleAdminRequest(
@@ -310,6 +358,11 @@ export function createPiBackendServer({
     }
     if (url.pathname === '/api/pi-chat') {
       void handlePiChatRequest(service, req, res)
+      return
+    }
+    // T60：active_design 移槽端点（须在 /api/pi/ 管理面前缀之前匹配）
+    if (url.pathname === '/api/pi/active-design') {
+      void handleActiveDesignRequest(service, req, res)
       return
     }
     // T22/T23/T24 只读路由（须在 /api/pi/ 管理面前缀之前匹配）

@@ -28,8 +28,6 @@ import type { UIMessage } from 'ai'
 
 import type { EditorStore } from '@/app/editor/active-store'
 
-import type { PiChatMode } from './chat-mode'
-import { piChatMode, piPickedProfileId } from './mode-selection'
 import type { PiSessionSummary } from './session-summary'
 
 /** T23 族谱清单条目：单一事实源在 ./session-summary（type-only，构建期擦除） */
@@ -44,9 +42,8 @@ const storeSessions = new WeakMap<EditorStore, string>()
 export type PiRequestContext = {
   sessionId: string
   documentId?: string
-  /** T24：四层装配最小载荷（T24-plan D7——manifest/工作流段永不随请求走） */
-  chatMode: PiChatMode
-  pickedProfileId: string | null
+  // T61：chatMode/pickedProfileId 出列（T24 链退役）——模式身份由宿主按
+  // active_design 单槽读穿（T60），不再随请求走
 }
 
 function findDocIdEntry(store: EditorStore): string | null {
@@ -143,17 +140,15 @@ export async function loadPiChatHistory(store: EditorStore): Promise<UIMessage[]
  * 每次发送时解析请求上下文：sessionId 取当前会话（无则此时铸造 docId +
  * 铸新会话——发送时刻图已稳定）；documentId 取当前活动 tab.id（运行期值
  * 随发随取，T22-plan D4；动态 import 避免 tabs ↔ ai 环依赖）。
- * T24：chatMode/pickedProfileId 读全局选择态（mode-selection.ts）。
+ * T61：chatMode/pickedProfileId 消费删除（T24 链退役）。
  */
 export async function getPiRequestContext(store: EditorStore): Promise<PiRequestContext> {
   const sessionId = await resolvePiSessionId(store)
-  const chatMode = piChatMode.value
-  const pickedProfileId = piPickedProfileId.value
   try {
     const { getActiveTabId } = await import('@/app/tabs')
-    return { sessionId, documentId: getActiveTabId(), chatMode, pickedProfileId }
+    return { sessionId, documentId: getActiveTabId() }
   } catch {
-    return { sessionId, chatMode, pickedProfileId }
+    return { sessionId }
   }
 }
 

@@ -178,7 +178,9 @@ onBeforeUnmount(() => {
         <div class="text-[11px] text-surface">
           <span v-if="question.required" class="mr-0.5 text-accent">*</span>
           {{ question.label }}
-          <span v-else class="ml-1 text-[10px] text-muted">{{ askDialogs.askOptional }}</span>
+          <span v-if="!question.required" class="ml-1 text-[10px] text-muted">{{
+            askDialogs.askOptional
+          }}</span>
         </div>
 
         <!-- single_select：选项卡片组 -->

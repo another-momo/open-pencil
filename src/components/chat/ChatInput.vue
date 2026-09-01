@@ -2,18 +2,25 @@
 import { TooltipProvider } from 'reka-ui'
 import { computed, onMounted, ref } from 'vue'
 
-import ChatModeSelect from '@/components/chat/ChatModeSelect.vue'
-import ChatStyleProfileSelect from '@/components/chat/ChatStyleProfileSelect.vue'
+import ChatBriefPanel from '@/components/chat/ChatBriefPanel.vue'
+import ChatDesignListPanel from '@/components/chat/ChatDesignListPanel.vue'
+import ChatGalleryPanel from '@/components/chat/ChatGalleryPanel.vue'
+import ChatModeChips from '@/components/chat/ChatModeChips.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import InputGroup from '@/components/ui/InputGroup.vue'
 import { piDesignAssignment } from '@/app/ai/pi-backend/assignment'
-import { ensurePiStudioManifest, piChatMode } from '@/app/ai/pi-backend/mode-selection'
+import {
+  ensurePiStudioManifest,
+  piStudioManifestFailed,
+  retryPiStudioManifest
+} from '@/app/ai/pi-backend/mode-selection'
 import { openSettingsDialog } from '@/app/settings/dialog'
 import { useI18n } from '@open-pencil/vue'
 
-import { useForkPi } from '@/app/i18n/fork'
+import { useForkChips, useForkPi } from '@/app/i18n/fork'
 const { dialogs } = useI18n()
 const piDialogs = useForkPi()
+const chipsText = useForkChips()
 
 const { status, disabled = false } = defineProps<{
   status: 'ready' | 'submitted' | 'streaming' | 'error'
@@ -32,9 +39,10 @@ const isStreaming = computed(() => disabled || status === 'streaming' || status 
 // T21：模型由后端 catalog/指派决定，聊天输入只读展示当前指派
 // T25：pi 已是唯一路径（门退役），旧模型/资料切换臂与图片附件流已切除
 // （图片从不进 pi 后端——analyze 直通已随旧面删除，C4a 通道 B 落地时恢复）
-const isMarketingMode = computed(() => piChatMode.value === 'marketing')
+// T61：T24 ChatModeSelect/ChatStyleProfileSelect 退役——mode/type/profile 改由
+// chips（active_design 回显 + 新建意图暂存）+ 面板承载（ChatModeChips 等四件）
 
-// T24：profile 下拉数据源（失败 → null → 空态降级，C5）
+// T24→T61：manifest 数据源不变；失败改显式暴露（错误条 + 重试，08 P0-2）
 onMounted(() => {
   void ensurePiStudioManifest()
 })
@@ -63,12 +71,35 @@ function handleSubmit(e: Event) {
 function restoreDraft(text: string) {
   if (!input.value.trim()) input.value = text
 }
-defineExpose({ restoreDraft })
+// T61：新建意图确认卡「确认并发送」经父级清掉拦截时回填的草稿
+function clearDraft() {
+  input.value = ''
+}
+defineExpose({ restoreDraft, clearDraft })
 </script>
 
 <template>
   <TooltipProvider>
     <div class="shrink-0 border-t border-border p-2.5">
+      <!-- T61：manifest 失败显式暴露（chips 禁用联动 ChatModeChips） -->
+      <div
+        v-if="piStudioManifestFailed"
+        data-test-id="chat-manifest-error"
+        class="mb-2 flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-2.5 py-1.5"
+      >
+        <icon-lucide-triangle-alert class="size-3.5 shrink-0 text-red-400" />
+        <span class="min-w-0 flex-1 text-[11px] text-red-300">
+          {{ chipsText.chipsManifestFailed }}
+        </span>
+        <button
+          type="button"
+          data-test-id="chat-manifest-retry"
+          class="shrink-0 rounded-md border border-red-500/40 px-2 py-0.5 text-[11px] text-red-300 hover:bg-red-500/20"
+          @click="retryPiStudioManifest"
+        >
+          {{ chipsText.chipsRetry }}
+        </button>
+      </div>
       <form @submit="handleSubmit">
         <InputGroup :disabled="isStreaming">
           <textarea
@@ -92,10 +123,11 @@ defineExpose({ restoreDraft })
               >
                 <icon-lucide-bot class="size-3 shrink-0" />
                 <span class="truncate">{{ piModelLabel }}</span>
-                <!-- T24：AgentMode 切换 + profile 下拉（后者仅 marketing 模式，
-                     注册表 acceptsProfile 语义） -->
-                <ChatModeSelect :disabled="isStreaming" />
-                <ChatStyleProfileSelect v-if="isMarketingMode" :disabled="isStreaming" />
+                <!-- T61：chips（active_design 回显 + 新建意图）+ 设计/需求单/gallery 面板 -->
+                <ChatModeChips :disabled="isStreaming" />
+                <ChatDesignListPanel :disabled="isStreaming" />
+                <ChatBriefPanel :disabled="isStreaming" />
+                <ChatGalleryPanel :disabled="isStreaming" />
               </div>
             </div>
           </template>

@@ -12,20 +12,31 @@ import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from 'ai'
 import type { AskFormSubmission } from '@open-pencil/core/tools/fork/marketing/ask-user-question'
 
 import AskUserQuestionCard from './AskUserQuestionCard.vue'
+import { NEW_INTENT_PART_TYPE, type NewIntentPartData } from './active-design'
+import ChatNewIntentCard from './ChatNewIntentCard.vue'
+import ChatSetActiveDesignCard from './ChatSetActiveDesignCard.vue'
 import { classifyToolState } from './tool-state'
 
 const {
   message,
   streaming = false,
-  answeredFormIds
+  answeredFormIds,
+  consentDecisions
 } = defineProps<{
   message: UIMessage
   streaming?: boolean
   /** T56：已作答/已跳过表单的 formId 集（ChatPanel 扫用户消息信封派生） */
   answeredFormIds?: ReadonlySet<string>
+  /** T61：set_active_design 同意决定（ChatPanel 扫 data part 记录派生，按 toolCallId） */
+  consentDecisions?: ReadonlyMap<string, 'agreed' | 'declined'>
 }>()
 const emit = defineEmits<{
   formSubmit: [submission: AskFormSubmission]
+  /** T61：新建意图确认卡决断（ChatPanel 发信封 / 回滚 chips） */
+  intentConfirm: [payload: { messageId: string; referenceNodeIds: string[] }]
+  intentCancel: [payload: { messageId: string }]
+  /** T61：set_active_design 同意卡决断（同意调端点 / 不同意本地系统行） */
+  consentDecide: [payload: { toolCallId: string; agree: boolean }]
 }>()
 const { dialogs } = useI18n()
 const isDark = computed(() => resolvedAppTheme.value === 'dark')
@@ -47,6 +58,23 @@ function askFormId(part: ToolPart): string | null {
 function isAskFormAnswered(part: ToolPart): boolean {
   const id = askFormId(part)
   return id !== null && (answeredFormIds?.has(id) ?? false)
+}
+
+/** T61：宿主发起的新建意图确认卡 data part 判定 + 载荷防御性归一 */
+function isNewIntentPart(part: UIMessagePart<UIDataTypes, UITools>): boolean {
+  return part.type === NEW_INTENT_PART_TYPE && 'data' in part
+}
+
+function newIntentData(part: UIMessagePart<UIDataTypes, UITools>): NewIntentPartData {
+  const raw = ('data' in part ? part.data : null) as Partial<NewIntentPartData> | null
+  return {
+    modeId: typeof raw?.modeId === 'string' ? raw.modeId : null,
+    profileId: typeof raw?.profileId === 'string' ? raw.profileId : null,
+    caseKind: raw?.caseKind === 'B' ? 'B' : 'A',
+    activeDesignName: typeof raw?.activeDesignName === 'string' ? raw.activeDesignName : null,
+    references: Array.isArray(raw?.references) ? raw.references : [],
+    resolved: raw?.resolved === 'confirmed' || raw?.resolved === 'cancelled' ? raw.resolved : null
+  }
 }
 
 function toolDisplayName(part: ToolPart): string {
@@ -98,6 +126,22 @@ function partKey(part: UIMessagePart<UIDataTypes, UITools>, index: number): stri
             :answered="isAskFormAnswered(part)"
             :disabled="streaming"
             @submit="emit('formSubmit', $event)"
+          />
+          <!-- T61：set_active_design → 同意卡（同意/不同意均不伪装用户消息） -->
+          <ChatSetActiveDesignCard
+            v-else-if="isToolUIPart(part) && getToolName(part) === 'set_active_design'"
+            :part="part"
+            :resolved="consentDecisions?.get(part.toolCallId) ?? null"
+            :disabled="streaming"
+            @decide="emit('consentDecide', { toolCallId: part.toolCallId, agree: $event })"
+          />
+          <!-- T61：宿主发起的新建意图确认卡（data part，非工具 part） -->
+          <ChatNewIntentCard
+            v-else-if="isNewIntentPart(part)"
+            :data="newIntentData(part)"
+            :disabled="streaming"
+            @confirm="emit('intentConfirm', { messageId: message.id, referenceNodeIds: $event })"
+            @cancel="emit('intentCancel', { messageId: message.id })"
           />
           <!-- Tool call -->
           <div v-else-if="isToolUIPart(part)" class="rounded-lg border border-border bg-canvas p-2">

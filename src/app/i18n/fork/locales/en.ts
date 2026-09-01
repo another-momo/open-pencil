@@ -71,6 +71,78 @@ export const askMessageDefaults = {
   askInvalidDefinition: 'This form definition is invalid and cannot be answered.'
 } as const
 
+/** T61：输入条 chips（mode/type/profile 两级数据驱动）+ gallery + manifest 失败条 英文默认值 */
+export const chipsMessageDefaults = {
+  chipsMode: 'Mode',
+  chipsProfile: 'Style',
+  chipsNoProfile: 'No style profile',
+  chipsPendingBadge: 'New design intent',
+  chipsManifestFailed: 'AI studio failed to load — selectors are disabled.',
+  chipsRetry: 'Retry',
+  chipsDesigns: 'Designs',
+  chipsBriefs: 'Briefs',
+  chipsGallery: 'Gallery',
+  galleryTitle: 'Mode & profile gallery',
+  galleryModes: 'Modes',
+  galleryProfiles: 'Style profiles',
+  galleryEmpty: 'Nothing to show — the studio manifest is empty.',
+  galleryReadonlyHint: 'Read-only. Modes and profiles are local files on disk.'
+} as const
+
+/** T61：设计列表面板 + 需求单面板（S1 §5 三段结构）英文默认值 */
+export const panelsMessageDefaults = {
+  designsTitle: 'Designs on this page',
+  designsEmpty: 'No marketing designs on this page yet.',
+  designsActive: 'Current',
+  designsSetCurrent: 'Set as current',
+  designsSetting: 'Switching…',
+  designsLocateHint:
+    'Click an entry to locate it on the canvas — switching only happens via the button.',
+  designsSwitchFailed: 'Failed to set the current design.',
+  briefsTitle: 'Briefs',
+  briefCurrentTarget: 'Current target',
+  briefNoActive: 'No active design yet.',
+  briefNoBriefBound: 'No brief bound',
+  briefListSection: 'All briefs',
+  briefListEmpty: 'No briefs in this document yet.',
+  briefContainsActive: 'Contains current target',
+  briefBack: 'Back',
+  briefOpenFailed: 'This brief could not be read (structure incomplete).',
+  briefContent: 'Content',
+  briefMaterials: 'Materials',
+  briefConclusions: 'AI conclusions',
+  briefDesigns: 'Linked designs',
+  briefEmptySection: 'Empty',
+  briefSave: 'Save',
+  briefSaved: 'Saved',
+  briefSaveFailed: 'Save failed'
+} as const
+
+/** T61：新建意图确认卡 + set_active_design 同意卡 英文默认值 */
+export const confirmMessageDefaults = {
+  intentTitle: 'Start a new design?',
+  intentCaseALine: 'The current direction draft will be discarded; a new design area starts fresh.',
+  intentCaseBKeep: 'Existing artifacts stay on the canvas — nothing is overwritten.',
+  intentCaseBNew: 'A new design area starts with the selected mode / profile.',
+  intentCaseBMaterials: 'Brief materials carry over automatically.',
+  intentCaseBReferences: 'Include already-generated images as references',
+  intentCaseBRadius:
+    'Abandonment radius: only the previous direction — everything produced so far is kept.',
+  intentConfirm: 'Confirm & send',
+  intentCancel: 'Cancel',
+  intentConfirmedBadge: 'Confirmed',
+  intentCancelledBadge: 'Cancelled',
+  consentTitle: 'The AI asks to switch the current design',
+  consentTarget: params('Target: {name}'),
+  consentAgree: 'Switch to it',
+  consentDecline: 'Keep current',
+  consentAgreedBadge: 'Switched',
+  consentDeclinedBadge: 'Declined',
+  consentAgreedLine: params('Current design switched to {name}.'),
+  consentDeclinedLine: params('Declined switching to {name} — the current design is unchanged.'),
+  consentFailedLine: 'Switch failed — the target design may have been moved or deleted.'
+} as const
+
 /** T41：字体白名单设置面板（SettingsDialog fonts 分区）英文默认值；T42：来源开关 + 目录组 + 筛选/折叠/批量 */
 export const fontsMessageDefaults = {
   settingsFonts: 'Fonts',

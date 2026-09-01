@@ -36,9 +36,8 @@ export class PiBackendChatTransport implements ChatTransport<UIMessage> {
         sessionId: context.sessionId,
         messages,
         ...(context.documentId ? { documentId: context.documentId } : {}),
-        // T24：四层装配最小载荷（D7）
-        chatMode: context.chatMode,
-        pickedProfileId: context.pickedProfileId,
+        // T61：T24 四层装配载荷退役（PD-16 翻案）——chatMode/pickedProfileId 停发；
+        // 模式身份改由 active_design 单槽宿主侧读穿（T60）
         ...(model ? { model } : {})
       }),
       signal: abortSignal ?? null

@@ -19,8 +19,11 @@ import { locale, type Locale } from '@open-pencil/vue'
 
 import {
   askMessageDefaults,
+  chipsMessageDefaults,
+  confirmMessageDefaults,
   fontsMessageDefaults,
   imageGenMessageDefaults,
+  panelsMessageDefaults,
   piMessageDefaults
 } from './locales/en'
 
@@ -34,7 +37,10 @@ export const forkI18n = createI18n<Locale, 'en'>(locale, {
         pi: mod.default.pi,
         fonts: mod.default.fonts,
         imagegen: mod.default.imagegen,
-        ask: mod.default.ask
+        ask: mod.default.ask,
+        chips: mod.default.chips,
+        panels: mod.default.panels,
+        confirm: mod.default.confirm
       }
     }
     return {}
@@ -52,6 +58,15 @@ export const forkImageGenMessages = forkI18n('imagegen', imageGenMessageDefaults
 /** T56：ask_user_question 聊天内表单卡片文案域（AskUserQuestionCard） */
 export const forkAskMessages = forkI18n('ask', askMessageDefaults)
 
+/** T61：chips + gallery + manifest 失败条文案域（ChatModeChips / ChatGalleryPanel） */
+export const forkChipsMessages = forkI18n('chips', chipsMessageDefaults)
+
+/** T61：设计列表 / 需求单面板文案域（ChatDesignListPanel / ChatBriefPanel） */
+export const forkPanelsMessages = forkI18n('panels', panelsMessageDefaults)
+
+/** T61：新建意图确认卡 + set_active_design 同意卡文案域（ChatNewIntentCard / ChatSetActiveDesignCard） */
+export const forkConfirmMessages = forkI18n('confirm', confirmMessageDefaults)
+
 export function useForkFonts() {
   return useStore(forkFontsMessages)
 }
@@ -64,6 +79,21 @@ export function useForkImageGen() {
 /** T56：同 useForkPi 形态——返回诚实 Ref，script 内访问写 .value */
 export function useForkAsk() {
   return useStore(forkAskMessages)
+}
+
+/** T61：同 useForkPi 形态——返回诚实 Ref，script 内访问写 .value */
+export function useForkChips() {
+  return useStore(forkChipsMessages)
+}
+
+/** T61：同 useForkPi 形态 */
+export function useForkPanels() {
+  return useStore(forkPanelsMessages)
+}
+
+/** T61：同 useForkPi 形态 */
+export function useForkConfirm() {
+  return useStore(forkConfirmMessages)
 }
 
 // T38 修：返回诚实 Ref（照抄上游 useNotificationMessages 形态，类型推断保留

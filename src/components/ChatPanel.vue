@@ -22,10 +22,27 @@ import {
   switchPiSession,
   type PiSessionSummary
 } from '@/app/ai/pi-backend/document-key'
+import {
+  clearPiPendingNewIntent,
+  piActiveDesign,
+  piPendingNewIntent,
+  resyncPiActiveDesign
+} from '@/app/ai/pi-backend/mode-selection'
 import { activeTab } from '@/app/tabs'
 import { getActiveEditorStore } from '@/app/editor/active-store'
 import ChatInput from '@/components/chat/ChatInput.vue'
 import ChatMessage from '@/components/chat/ChatMessage.vue'
+import {
+  ACTIVE_DESIGN_DECISION_PART_TYPE,
+  NEW_INTENT_PART_TYPE,
+  collectDesignImageRefs,
+  isDesignRootMaterialized,
+  parseSetActiveDesignProposed,
+  postActiveDesign,
+  serializeNewIntentEnvelope,
+  type ActiveDesignDecisionPartData,
+  type NewIntentPartData
+} from '@/components/chat/active-design'
 import AppPlaceholder from '@/components/ui/AppPlaceholder.vue'
 import AppTextButton from '@/components/ui/AppTextButton.vue'
 import Tip from '@/components/ui/Tip.vue'
@@ -34,6 +51,7 @@ import { useAIChat } from '@/app/ai/chat/use'
 import { toast } from '@/app/shell/ui'
 import { useI18n } from '@open-pencil/vue'
 
+import { useForkConfirm } from '@/app/i18n/fork'
 import { useNotificationMessages } from '@/app/i18n/notifications'
 
 import {
@@ -51,11 +69,14 @@ const IS_DEV = import.meta.env.DEV
 const { ensureChat, resetChat, chatFailure, clearChatFailure } = useAIChat()
 const { dialogs } = useI18n()
 const notifications = useNotificationMessages()
+const confirmText = useForkConfirm()
 
 const chat = ref<Chat<UIMessage> | null>(null)
 // T27：提交失败时经此把草稿回填进输入框（ChatInput 提交即清空——见 restoreDraft）；
 // 结构化类型即可，不 import 组件类型（避免 script 侧只剩类型引用触发 consistent-type-imports）
-const chatInputRef = ref<{ restoreDraft: (text: string) => void } | null>(null)
+const chatInputRef = ref<{ restoreDraft: (text: string) => void; clearDraft: () => void } | null>(
+  null
+)
 
 void ensureChat()
   .then((c) => {
@@ -224,6 +245,15 @@ async function handleSwitchSession(sessionId: string) {
 
 async function handleSubmit(text: string) {
   if (status.value === 'streaming' || status.value === 'submitted') return
+  // T61：chips 未确认新建意向存在 → 发送前拦为聊天内确认卡（宿主发起非工具
+  // part；共享契约 1/4）。消息留输入框，chips 暂存不清——确认/取消由卡片决断。
+  const intent = piPendingNewIntent.value
+  if (intent) {
+    const intercepted = await interceptNewIntent(text, intent)
+    if (intercepted) return
+    // chat 不可用（ensureChat 失败）→ 不发送，草稿回填由 interceptNewIntent 兜底
+    return
+  }
   clearChatFailure()
   try {
     // 恒走 ensureChat：transport dirty（如 e2e mock 后注入）时重建会话，
@@ -257,6 +287,169 @@ async function handleFormSubmit(submission: AskFormSubmission) {
   if (status.value === 'streaming' || status.value === 'submitted') return
   const { formId, ...payload } = submission
   await handleSubmit(serializeAskAnswer(formId, payload))
+}
+
+// ── T61：新建意图确认卡（宿主发起 data part） ──────────────────────────────
+
+/** 拦截时刻的草稿（确认发出时的正文；取消时输入框已回填同文） */
+const pendingIntentDraft = ref<string | null>(null)
+
+/** 追加宿主发起的 assistant 消息（本地，不经 transport 发送） */
+async function appendHostMessage(parts: UIMessage['parts']): Promise<UIMessage | null> {
+  const currentChat = await ensureChat()
+  if (!currentChat) return null
+  const message: UIMessage = {
+    id: `host-${crypto.randomUUID()}`,
+    role: 'assistant',
+    parts
+  }
+  currentChat.messages = [...currentChat.messages, message]
+  chat.value = markRaw(currentChat)
+  return message
+}
+
+async function interceptNewIntent(
+  text: string,
+  intent: { modeId: string; profileId: string | null }
+): Promise<boolean> {
+  const store = getActiveEditorStore()
+  const active = piActiveDesign.value
+  // 共享契约 4 物化判据（core active-design.ts 单源；active-design.ts 钉扎）：Case A/B 话术分叉
+  const materialized = active ? isDesignRootMaterialized(store, active.nodeId) : false
+  const data: NewIntentPartData = {
+    modeId: intent.modeId,
+    profileId: intent.profileId,
+    caseKind: materialized ? 'B' : 'A',
+    activeDesignName: active?.name ?? null,
+    references: materialized && active ? collectDesignImageRefs(store, active.nodeId) : [],
+    resolved: null
+  }
+  const message = await appendHostMessage([{ type: NEW_INTENT_PART_TYPE, data }])
+  if (!message) {
+    toast.error(dialogs.value.chatRequestFailed)
+    chatInputRef.value?.restoreDraft(text)
+    return false
+  }
+  pendingIntentDraft.value = text
+  // 消息留输入框（ChatInput 提交即清空——拦截不等于发送）
+  chatInputRef.value?.restoreDraft(text)
+  return true
+}
+
+/** 决断写回 part data.resolved——重载后卡片置灰的派生源（同 answeredFormIds 纪律） */
+function resolveIntentPart(messageId: string, resolved: 'confirmed' | 'cancelled') {
+  const currentChat = chat.value
+  if (!currentChat) return
+  currentChat.messages = currentChat.messages.map((message) =>
+    message.id === messageId
+      ? {
+          ...message,
+          parts: message.parts.map((part) =>
+            part.type === NEW_INTENT_PART_TYPE && 'data' in part
+              ? {
+                  ...part,
+                  data: { ...(part.data as NewIntentPartData), resolved }
+                }
+              : part
+          )
+        }
+      : message
+  )
+  chat.value = markRaw(currentChat)
+}
+
+async function handleIntentConfirm(payload: { messageId: string; referenceNodeIds: string[] }) {
+  if (status.value === 'streaming' || status.value === 'submitted') return
+  const intent = piPendingNewIntent.value
+  const draft = pendingIntentDraft.value ?? ''
+  resolveIntentPart(payload.messageId, 'confirmed')
+  pendingIntentDraft.value = null
+  clearPiPendingNewIntent()
+  chatInputRef.value?.clearDraft()
+  // 共享契约 1 逐字信封（字段可缺省）+ 用户消息；宿主（T60）剥离置旗标
+  const envelope = serializeNewIntentEnvelope({
+    modeId: intent?.modeId ?? null,
+    profileId: intent?.profileId ?? null
+  })
+  // 携带物：已生成图片 references（信封字段不动契约，节点 id 以正文行携带进 run）
+  const referencesLine =
+    payload.referenceNodeIds.length > 0
+      ? `\n\n参考图片（已生成产物，作为 references 携带）：${payload.referenceNodeIds.join('、')}`
+      : ''
+  await handleSubmit(`${envelope}\n${draft}${referencesLine}`)
+}
+
+function handleIntentCancel(payload: { messageId: string }) {
+  if (status.value === 'streaming' || status.value === 'submitted') return
+  resolveIntentPart(payload.messageId, 'cancelled')
+  pendingIntentDraft.value = null
+  // 取消 → chips 回滚回显（清空暂存即回落 active 回显）；消息留输入框
+  clearPiPendingNewIntent()
+}
+
+// ── T61：set_active_design 同意卡（共享契约 3） ─────────────────────────────
+
+/** 已决断 toolCallId → decision（扫宿主决定记录 data part 派生，重载后保持置灰） */
+const consentDecisions = computed(() => {
+  const map = new Map<string, 'agreed' | 'declined'>()
+  for (const message of messages.value) {
+    for (const part of message.parts) {
+      if (part.type !== ACTIVE_DESIGN_DECISION_PART_TYPE || !('data' in part)) continue
+      const data = part.data as Partial<ActiveDesignDecisionPartData> | undefined
+      if (typeof data?.toolCallId !== 'string') continue
+      map.set(data.toolCallId, data.decision === 'agreed' ? 'agreed' : 'declined')
+    }
+  }
+  return map
+})
+
+/** 从工具 part output 取 proposed（{proposed:{nodeId,...}}，共享契约 3；解析单源在 active-design.ts。
+ *  注意读 output 不读 input——input 是工具入参 {node_id}，proposed 在结果里（核验钉死）） */
+function consentProposed(toolCallId: string): { nodeId: string | null; name: string | null } {
+  for (const message of messages.value) {
+    for (const part of message.parts) {
+      if (!('toolCallId' in part) || part.toolCallId !== toolCallId) continue
+      const output = (part as { state?: string; output?: unknown }).output
+      const proposed = parseSetActiveDesignProposed(output)
+      if (proposed.nodeId !== null || proposed.name !== null) return proposed
+    }
+  }
+  return { nodeId: null, name: null }
+}
+
+async function handleConsentDecide(payload: { toolCallId: string; agree: boolean }) {
+  if (status.value === 'streaming' || status.value === 'submitted') return
+  if (consentDecisions.value.has(payload.toolCallId)) return
+  const proposed = consentProposed(payload.toolCallId)
+  const designName = proposed.name ?? proposed.nodeId ?? payload.toolCallId
+
+  let line: string
+  if (payload.agree && proposed.nodeId) {
+    // 同意 → 切换端点（共享契约 2，与设计列表面板「设为当前」共用）
+    const result = await postActiveDesign(proposed.nodeId)
+    if (result) {
+      resyncPiActiveDesign()
+      line = confirmText.value.consentAgreedLine({ name: designName })
+    } else {
+      line = confirmText.value.consentFailedLine
+    }
+  } else if (payload.agree) {
+    line = confirmText.value.consentFailedLine
+  } else {
+    line = confirmText.value.consentDeclinedLine({ name: designName })
+  }
+  // 两侧均不伪装用户消息：决定记录 data part（置灰派生源）+ 本地系统行
+  await appendHostMessage([
+    {
+      type: ACTIVE_DESIGN_DECISION_PART_TYPE,
+      data: {
+        toolCallId: payload.toolCallId,
+        decision: payload.agree ? 'agreed' : 'declined',
+        designName
+      } satisfies ActiveDesignDecisionPartData
+    },
+    { type: 'text', text: line }
+  ])
 }
 
 async function handleCopyDebug() {
@@ -368,7 +561,11 @@ function handleClearChat() {
             :message="msg"
             :streaming="isStreamingMessage(msg, index)"
             :answered-form-ids="answeredFormIds"
+            :consent-decisions="consentDecisions"
             @form-submit="handleFormSubmit"
+            @intent-confirm="handleIntentConfirm"
+            @intent-cancel="handleIntentCancel"
+            @consent-decide="handleConsentDecide"
           />
 
           <!-- Thinking indicator: shown when AI is working but no visible activity -->

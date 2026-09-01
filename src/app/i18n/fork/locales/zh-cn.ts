@@ -15,14 +15,81 @@ import type { ComponentsJSON } from '@nanostores/i18n'
 
 import type {
   askMessageDefaults,
+  chipsMessageDefaults,
+  confirmMessageDefaults,
   fontsMessageDefaults,
   imageGenMessageDefaults,
+  panelsMessageDefaults,
   piMessageDefaults
 } from './en'
 
 const zhCN = {
   rebuild: {
     seamProbe: 'fork i18n 缝已接通'
+  },
+  chips: {
+    chipsMode: '模式',
+    chipsProfile: '风格',
+    chipsNoProfile: '无风格档案',
+    chipsPendingBadge: '新设计意图',
+    chipsManifestFailed: 'AI 工作室加载失败——选择器已禁用。',
+    chipsRetry: '重试',
+    chipsDesigns: '设计',
+    chipsBriefs: '需求单',
+    chipsGallery: '浏览',
+    galleryTitle: '模式与风格档案浏览',
+    galleryModes: '模式',
+    galleryProfiles: '风格档案',
+    galleryEmpty: '暂无可浏览内容——工作室清单为空。',
+    galleryReadonlyHint: '只读浏览。模式与风格档案是磁盘上的本地文件。'
+  },
+  panels: {
+    designsTitle: '本页设计区',
+    designsEmpty: '当前页还没有营销设计区。',
+    designsActive: '当前',
+    designsSetCurrent: '设为当前',
+    designsSetting: '切换中…',
+    designsLocateHint: '点击条目 = 画布定位；切换只走显式按钮。',
+    designsSwitchFailed: '设为当前失败。',
+    briefsTitle: '需求单',
+    briefCurrentTarget: '当前目标',
+    briefNoActive: '暂无当前目标设计。',
+    briefNoBriefBound: '未绑定需求单',
+    briefListSection: '全部需求单',
+    briefListEmpty: '本文档还没有需求单。',
+    briefContainsActive: '含当前目标',
+    briefBack: '返回',
+    briefOpenFailed: '该需求单结构不完整，无法读取。',
+    briefContent: '需求内容',
+    briefMaterials: '素材区',
+    briefConclusions: 'AI 结论',
+    briefDesigns: '关联设计区',
+    briefEmptySection: '空',
+    briefSave: '保存',
+    briefSaved: '已保存',
+    briefSaveFailed: '保存失败'
+  },
+  confirm: {
+    intentTitle: '以新身份开始新设计？',
+    intentCaseALine: '当前方向草稿将作废——新设计区从零开始。',
+    intentCaseBKeep: '旧产物原样保留在画布上——不会被改写。',
+    intentCaseBNew: '将按选中的模式 / 风格启动新的设计区。',
+    intentCaseBMaterials: '需求单素材区自动继承。',
+    intentCaseBReferences: '把已生成的图片作为 references 携带',
+    intentCaseBRadius: '废弃半径：仅作废旧方向——已产出的一切保留。',
+    intentConfirm: '确认并发送',
+    intentCancel: '取消',
+    intentConfirmedBadge: '已确认',
+    intentCancelledBadge: '已取消',
+    consentTitle: 'AI 请求切换当前目标设计',
+    consentTarget: '目标：{name}',
+    consentAgree: '切换过去',
+    consentDecline: '保持当前',
+    consentAgreedBadge: '已切换',
+    consentDeclinedBadge: '已拒绝',
+    consentAgreedLine: '当前目标已切换为 {name}。',
+    consentDeclinedLine: '已拒绝切换到 {name}——当前目标不变。',
+    consentFailedLine: '切换失败——目标设计可能已被移动或删除。'
   },
   ask: {
     askFormTitle: 'AI 向你提问',
@@ -121,3 +188,6 @@ export type PiNamespace = typeof piMessageDefaults
 export type FontsNamespace = typeof fontsMessageDefaults
 export type ImageGenNamespace = typeof imageGenMessageDefaults
 export type AskNamespace = typeof askMessageDefaults
+export type ChipsNamespace = typeof chipsMessageDefaults
+export type PanelsNamespace = typeof panelsMessageDefaults
+export type ConfirmNamespace = typeof confirmMessageDefaults

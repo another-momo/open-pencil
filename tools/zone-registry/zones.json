@@ -14,8 +14,6 @@
     "tools/cn-font-catalog/"
   ],
   "ownedFiles": [
-    "src/components/chat/ChatModeSelect.vue",
-    "src/components/chat/ChatStyleProfileSelect.vue",
     "src/components/settings/models/PiModelsPanel.vue",
     "src/app/settings/credentials/stock-photo-keys.ts",
     "src/app/settings/credentials/media-credentials.ts",
@@ -62,7 +60,14 @@
     "packages/core/src/bytes/image-mime.ts",
     "src/components/settings/provider/ImageGenKeysSection.vue",
     "src/components/chat/AskUserQuestionCard.vue",
-    ".github/workflows/upstream-drift.yml"
+    ".github/workflows/upstream-drift.yml",
+    "src/components/chat/ChatBriefPanel.vue",
+    "src/components/chat/ChatDesignListPanel.vue",
+    "src/components/chat/ChatGalleryPanel.vue",
+    "src/components/chat/ChatModeChips.vue",
+    "src/components/chat/ChatNewIntentCard.vue",
+    "src/components/chat/ChatSetActiveDesignCard.vue",
+    "src/components/chat/active-design.ts"
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [

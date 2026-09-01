@@ -3,7 +3,11 @@ id: longform
 label: 长图设计
 subtitle: 电商详情 / 产品长文 / 小红书长图的分区物料
 step_budget: 50
-canvas: 750x
+sizes:
+  - label: 电商详情长图
+    canvas: 750x
+  - label: 小红书长图
+    canvas: 1080x
 ---
 
 ## 阶段定义
@@ -14,10 +18,12 @@ hero-first 五阶段执行序（S1 §3）：**阶段 0 需求接入**（brief �
 
 ## 画布尺寸
 
-mode 级尺寸说明（T62）：画布 750 宽、高度随内容生长（HUG）。尺寸真源 =
-frontmatter 可选 `canvas` 键（`宽x高` 定高 / `宽x` 高度随内容），缺省
-750 宽 + 高度随内容（同 general）。分区章节序与每节内容要求随内容精品化
-定稿（W3 T-C2）。
+mode 级尺寸预设（T65）：frontmatter `sizes` 清单 = `[{label, canvas}]`——canvas
+`宽x` 高度随内容（HUG）/ `宽x高` 定高；本 mode 预设 = 电商详情长图 750x +
+小红书长图 1080x。用户按名称显性选择其一或语言通道自定义尺寸；未显性指定时
+agent 按语义意图自选预设之一或自定义，均未指定 → 首选预设（清单首条）。
+sizes 缺席的 mode → 缺省 750 宽 + 高度随内容（同 general）。分区章节序与
+每节内容要求随内容精品化定稿（W3 T-C2）。
 
 ## 纪律
 

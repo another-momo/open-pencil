@@ -12,8 +12,10 @@
  */
 
 import { fontRegistryEntry } from '@open-pencil/core/text'
+import { parseCanvasSize } from '@open-pencil/core/tools/fork/marketing/setup'
 
-import { isAssetId, type ParsedAsset } from './parse'
+import { isAssetId, isRecord, type ParsedAsset } from './parse'
+import type { StudioSizePreset } from './types'
 
 export interface ValidationIssue {
   reason: string
@@ -52,8 +54,10 @@ export function validateCommon(
 }
 
 /**
- * workflow 校验：step_budget 若存在须正整数；subtitle 提取（T62：type 层级
- * 校验段整体删除——frontmatter 尺寸语义改由可选 `canvas` 键承载，T-C 批次接线）。
+ * workflow 校验：step_budget 若存在须正整数；subtitle 提取；sizes 尺寸预设清单
+ * （T65 §2.1：非空 [{label, canvas}]，label 非空中文名、canvas 格式 `宽x`/`宽x高`
+ * ——canvas 解析单源在 core setup.ts parseCanvasSize）。
+ * （T62：type 层级校验段整体删除——未知 frontmatter 键容忍不校验。）
  */
 export function validateWorkflow(
   parsed: ParsedAsset & { ok: true },
@@ -62,6 +66,7 @@ export function validateWorkflow(
   issues: ValidationIssue[]
   stepBudget?: number
   subtitle?: string
+  sizes?: StudioSizePreset[]
 } {
   const { frontmatter: fm } = parsed
   const issues = validateCommon(fm, filenameId, 'mode')
@@ -79,7 +84,52 @@ export function validateWorkflow(
     }
   }
 
-  return { issues, stepBudget, subtitle: stringField(fm.subtitle) }
+  return { issues, stepBudget, subtitle: stringField(fm.subtitle), ...parseSizes(fm, issues) }
+}
+
+/** sizes 清单解析：全部条目合法才产出（任一非法 → 整条不注册，issues 已逐条记录） */
+function parseSizes(
+  fm: Record<string, unknown>,
+  issues: ValidationIssue[]
+): { sizes?: StudioSizePreset[] } {
+  if (!('sizes' in fm)) return {}
+  const raw = fm.sizes
+  if (!Array.isArray(raw) || raw.length === 0) {
+    issues.push({
+      reason: '`sizes` 不是非空预设清单',
+      hint: '形如 `sizes: [{label: 电商详情长图, canvas: 750x}]`——label 中文名 + canvas `宽x`（高度随内容）或 `宽x高`（定高）'
+    })
+    return {}
+  }
+  const before = issues.length
+  const sizes: StudioSizePreset[] = []
+  for (const entry of raw as unknown[]) {
+    if (!isRecord(entry)) {
+      issues.push({
+        reason: '`sizes` 含非键值条目',
+        hint: '每条预设必须是 `{label, canvas}` 键值对（如 `{label: 电商详情长图, canvas: 750x}`）'
+      })
+      continue
+    }
+    const label = stringField(entry.label)
+    const canvas = stringField(entry.canvas)
+    if (!label) {
+      issues.push({
+        reason: '`sizes` 条目缺 `label` 或为空',
+        hint: '每条预设须含中文名（如 `{label: 小红书长图, canvas: 1080x}`）'
+      })
+      continue
+    }
+    if (!canvas || parseCanvasSize(canvas) === null) {
+      issues.push({
+        reason: `\`sizes\` 条目「${label}」的 canvas 格式非法`,
+        hint: 'canvas 只接受 `宽x`（如 750x，高度随内容）或 `宽x高`（如 750x2000，定高）'
+      })
+      continue
+    }
+    sizes.push({ label, canvas })
+  }
+  return issues.length === before ? { sizes } : {}
 }
 
 /** profile 必需小节（S2 §5；节空但显式写 `no-op` 合法——09 §C-1 空节矛盾的解法） */

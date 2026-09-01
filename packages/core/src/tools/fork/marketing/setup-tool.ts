@@ -27,7 +27,7 @@ export const setupDesignTool = defineTool({
   name: 'setup_design',
   mutates: true,
   description:
-    'Create a NEW marketing design root frame for the given mode and register it in the 关联设计区 of the 需求单 (design brief) it serves. Call this ONLY when the user wants a new design — the host must confirm the new-design intent out-of-band first; without that confirmation the call returns { error: "unconfirmed_new_intent" } and nothing is created (ask the user whether they want a new design, then retry). There is no adopt/continue here: repeat calls always create another frame (named "<label> 2", "3", ...). Canvas size is the default for every mode (750-wide, height HUG long image). Height null in the result means HUG — the canvas grows with content. Placement is automatic (right of existing page content) and the viewport scrolls to the new frame.',
+    'Create a NEW marketing design root frame for the given mode and register it in the 关联设计区 of the 需求单 (design brief) it serves. Call this ONLY when the user wants a new design — the host must confirm the new-design intent out-of-band first; without that confirmation the call returns { error: "unconfirmed_new_intent" } and nothing is created (ask the user whether they want a new design, then retry). There is no adopt/continue here: repeat calls always create another frame (named "<label> 2", "3", ...). Canvas size: each mode may declare size presets in the host catalog (modes[].sizes — pick the preset whose label matches the user intent, e.g. 小红书长图), overridable via the canvas param; with neither, the default is 750-wide with HUG height (grows with content). Height null in the result means HUG. Placement is automatic (right of existing page content) and the viewport scrolls to the new frame.',
   params: {
     modeId: {
       type: 'string',
@@ -44,6 +44,11 @@ export const setupDesignTool = defineTool({
       required: true,
       description:
         'Id of the 需求单 (design brief) this design serves — the new design is bound to it and registered in its 关联设计区.'
+    },
+    canvas: {
+      type: 'string',
+      description:
+        'Canvas size override (optional) — a canvas value from the mode\'s sizes presets in the host catalog, or a free value: "<width>x" (height grows with content) or "<width>x<height>" (fixed height), e.g. "750x" / "750x2000". Invalid format returns { error: "invalid_canvas" } and nothing is created. Omit to use the mode\'s first preset, or the 750-wide HUG default when the mode has no presets.'
     }
   },
   execute: (figma, args) => {
@@ -54,6 +59,7 @@ export const setupDesignTool = defineTool({
         modeId: args.modeId,
         profileId: args.profileId,
         briefId: args.briefId,
+        canvas: args.canvas,
         confirmedNewIntent: injected.__confirmedNewIntent === 'true'
       },
       parseInjectedCatalog(injected.__catalog)

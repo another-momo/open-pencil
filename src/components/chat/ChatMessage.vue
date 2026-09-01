@@ -12,10 +12,18 @@ import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from 'ai'
 import type { AskFormSubmission } from '@open-pencil/core/tools/fork/marketing/ask-user-question'
 
 import AskUserQuestionCard from './AskUserQuestionCard.vue'
-import { NEW_INTENT_PART_TYPE, type NewIntentPartData } from './active-design'
+import {
+  CONTEXT_SWITCH_PART_TYPE,
+  NEW_INTENT_PART_TYPE,
+  normalizeSizeChoices,
+  type ContextSwitchPartData,
+  type NewIntentPartData
+} from './active-design'
 import ChatNewIntentCard from './ChatNewIntentCard.vue'
 import ChatSetActiveDesignCard from './ChatSetActiveDesignCard.vue'
 import { classifyToolState } from './tool-state'
+
+import { useForkConfirm } from '@/app/i18n/fork'
 
 const {
   message,
@@ -32,13 +40,14 @@ const {
 }>()
 const emit = defineEmits<{
   formSubmit: [submission: AskFormSubmission]
-  /** T61：新建意图确认卡决断（ChatPanel 发信封 / 回滚 chips） */
-  intentConfirm: [payload: { messageId: string; referenceNodeIds: string[] }]
+  /** T61：新建意图确认卡决断（ChatPanel 发信封 / 回滚 chips）；T65：canvas 随确认进信封 */
+  intentConfirm: [payload: { messageId: string; referenceNodeIds: string[]; canvas: string | null }]
   intentCancel: [payload: { messageId: string }]
   /** T61：set_active_design 同意卡决断（同意调端点 / 不同意本地系统行） */
   consentDecide: [payload: { toolCallId: string; agree: boolean }]
 }>()
 const { dialogs } = useI18n()
+const confirmText = useForkConfirm()
 const isDark = computed(() => resolvedAppTheme.value === 'dark')
 const markdownMode = computed(() => (streaming ? 'streaming' : 'static'))
 
@@ -72,9 +81,20 @@ function newIntentData(part: UIMessagePart<UIDataTypes, UITools>): NewIntentPart
     profileId: typeof raw?.profileId === 'string' ? raw.profileId : null,
     caseKind: raw?.caseKind === 'B' ? 'B' : 'A',
     activeDesignName: typeof raw?.activeDesignName === 'string' ? raw.activeDesignName : null,
+    sizeChoices: normalizeSizeChoices(raw?.sizeChoices),
     references: Array.isArray(raw?.references) ? raw.references : [],
     resolved: raw?.resolved === 'confirmed' || raw?.resolved === 'cancelled' ? raw.resolved : null
   }
+}
+
+/** T65（决策 D3）：上下文切换分割线 data part 判定 + 载荷防御性归一 */
+function isContextSwitchPart(part: UIMessagePart<UIDataTypes, UITools>): boolean {
+  return part.type === CONTEXT_SWITCH_PART_TYPE && 'data' in part
+}
+
+function contextSwitchName(part: UIMessagePart<UIDataTypes, UITools>): string {
+  const raw = ('data' in part ? part.data : null) as Partial<ContextSwitchPartData> | null
+  return typeof raw?.name === 'string' && raw.name !== '' ? raw.name : '—'
 }
 
 function toolDisplayName(part: ToolPart): string {
@@ -140,9 +160,27 @@ function partKey(part: UIMessagePart<UIDataTypes, UITools>, index: number): stri
             v-else-if="isNewIntentPart(part)"
             :data="newIntentData(part)"
             :disabled="streaming"
-            @confirm="emit('intentConfirm', { messageId: message.id, referenceNodeIds: $event })"
+            @confirm="
+              emit('intentConfirm', {
+                messageId: message.id,
+                referenceNodeIds: $event.referenceNodeIds,
+                canvas: $event.canvas
+              })
+            "
             @cancel="emit('intentCancel', { messageId: message.id })"
           />
+          <!-- T65（决策 D3）：上下文切换回执 → 对话流分割线（非气泡） -->
+          <div
+            v-else-if="isContextSwitchPart(part)"
+            data-test-id="chat-context-switch"
+            class="flex items-center gap-2 py-0.5"
+          >
+            <div class="h-px flex-1 bg-border" />
+            <span class="shrink-0 text-[11px] text-muted">{{
+              confirmText.contextSwitchLine({ name: contextSwitchName(part) })
+            }}</span>
+            <div class="h-px flex-1 bg-border" />
+          </div>
           <!-- Tool call -->
           <div v-else-if="isToolUIPart(part)" class="rounded-lg border border-border bg-canvas p-2">
             <CollapsibleRoot>

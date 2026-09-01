@@ -24,7 +24,8 @@ export function isAssetId(id: string): boolean {
   return ASSET_ID_RE.test(id)
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+/** frontmatter map 与清单条目（validate.ts sizes 条目）共用的 record 判定 */
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 

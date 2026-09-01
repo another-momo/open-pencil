@@ -1,5 +1,5 @@
 {
-  "$comment": "Zone registry for rebuild/v2 (docs/rebuild/02-phase-0.md). Truth for path ownership; CI-enforced via tools/zone-registry/src/check.ts (check:zones). Rules: modified upstream files must be registered patches; new files only under ownedRoots (or upstreamMergeTarball.paths for byte-identical tarball merges); deletedPaths must not exist. upstreamMergeTarball (T32): structured whitelist for byte-identical tarball-merge copies, one entry per merge with base SHA; any local drift from base is a violation — see docs/rebuild/04-porting-discipline.md §5. Patch id gaps P62-P73/P75-P82: migrated to upstreamMergeTarball by T32; P83-P97: reserved by T32 plan but superseded by the tarball field, never issued. P8: removed by T36 — target src/app/ai/chat/storage.ts already deleted and in deletedPaths (double accounting). P60/P61: removed by T36 — both test files byte-identical to base 88c10770 (T32 migration miss; phantom patches). P98-P102: removed by T36 — the five objects are fork-new files already in ownedFiles (double accounting, no base to anchor); ownership truth stays in ownedFiles. pendingReclass is planning metadata (files stay follow-pure until the reclassification ritual; note: a file may carry a deletion-cut patch while still pending reclassification).",
+  "$comment": "Zone registry for rebuild/v2 (docs/rebuild/02-phase-0.md). Truth for path ownership; CI-enforced via tools/zone-registry/src/check.ts (check:zones). Rules: modified upstream files must be registered patches; new files only under ownedRoots (or upstreamMergeTarball.paths for byte-identical tarball merges); deletedPaths must not exist. upstreamMergeTarball (T32): structured whitelist for byte-identical tarball-merge copies, one entry per merge with base SHA; any local drift from base is a violation — see docs/rebuild/04-porting-discipline.md §5. Patch id gaps P62-P73/P75-P82: migrated to upstreamMergeTarball by T32; P83-P97: reserved by T32 plan but superseded by the tarball field, never issued. P8: removed by T36 — target src/app/ai/chat/storage.ts already deleted and in deletedPaths (double accounting). P60/P61: removed by T36 — both test files byte-identical to base 88c10770 (T32 migration miss; phantom patches). P98-P102: removed by T36 — the five objects are fork-new files already in ownedFiles (double accounting, no base to anchor); ownership truth stays in ownedFiles. pendingReclass is planning metadata (files stay follow-pure until the reclassification ritual; note: a file may carry a deletion-cut patch while still pending reclassification). P4/P5/P47: removed by T65 (2026-09-01) — src/components/chat/ promoted to ownedRoot and src/components/ChatPanel.vue to ownedFiles (ChatPanel 族改动幅度已远超 patch 语义，owner 拍板转 owned 区); patches retired as double accounting, their history stays in git. tool-state.ts removed from T32 tarball.paths (now covered by chat/ ownedRoot; byte-identical to base 88c10770 at promotion time).",
   "ownedRoots": [
     "docs/",
     "tools/zone-registry/",
@@ -11,7 +11,8 @@
     "attic/",
     "tools/rebuild/",
     "src/app/ai/pi-backend/",
-    "tools/cn-font-catalog/"
+    "tools/cn-font-catalog/",
+    "src/components/chat/"
   ],
   "ownedFiles": [
     "src/components/settings/models/PiModelsPanel.vue",
@@ -59,22 +60,13 @@
     "packages/kiwi/NOTICE",
     "packages/core/src/bytes/image-mime.ts",
     "src/components/settings/provider/ImageGenKeysSection.vue",
-    "src/components/chat/AskUserQuestionCard.vue",
     ".github/workflows/upstream-drift.yml",
-    "src/components/chat/ChatBriefPanel.vue",
-    "src/components/chat/ChatDesignListPanel.vue",
-    "src/components/chat/ChatGalleryPanel.vue",
-    "src/components/chat/ChatModeChips.vue",
-    "src/components/chat/ChatNewIntentCard.vue",
-    "src/components/chat/ChatSetActiveDesignCard.vue",
-    "src/components/chat/active-design.ts"
+    "src/components/ChatPanel.vue"
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
     "src/app/ai/chat/",
     "src/app/ai/debug/index.ts",
-    "src/components/chat/",
-    "src/components/ChatPanel.vue",
     "src/app/automation/",
     "packages/mcp/",
     "src/app/browser-bridge.ts",
@@ -100,20 +92,6 @@
       "id": "P3",
       "file": "src/constants.ts",
       "reason": "remove ACP_DESIGN_CONTEXT import/export and ACP_PERMISSION_TIMEOUT_MS",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P4",
-      "file": "src/components/ChatPanel.vue",
-      "reason": "remove ACPPermissionDialog and ACP log UI T25: attachment 分析流与 ProviderSetup 门切除（pi 单通道），会话栏恒挂 T27(2026-08-25): 死 UI 清理（showContinue/Continue 按钮随旧 ToolLoop step 计数面切除）+ 提交失败草稿回填（chatInputRef.restoreDraft）+ clear 后刷新改 resetChat().then 确定性等待（去 setTimeout(100)） T56（2026-09-01）: ask_user_question 表单作答回流——answeredFormIds 派生（parseAskAnswer 扫用户消息标记行）+ handleFormSubmit 序列化信封复用既有提交路径",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-01"
-    },
-    {
-      "id": "P5",
-      "file": "src/components/chat/ChatInput.vue",
-      "reason": "remove ACP provider branch T25: 附件 UI 与旧模型臂切除，submit 仅文本 T27(2026-08-25): 提交即清空保留但 defineExpose restoreDraft——失败时父级回填草稿",
       "disposition": "permanent",
       "lastReviewed": "2026-08-25"
     },
@@ -398,13 +376,6 @@
       "reason": "T25: appCredentialRefs 收敛 stock-photo+vectorize+storage（AI provider/模型连接/MCP 连接三类 ref 随旧面切除）",
       "disposition": "permanent",
       "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P47",
-      "file": "src/components/chat/ChatMessage.vue",
-      "reason": "T25: 附件呈现切除（attachment presentation/ImageAttachment 随 attachment 族删除） T56（2026-09-01）: ask_user_question 工具 part 分支挂 AskUserQuestionCard（先于通用折叠卡）+ answeredFormIds prop 与 formSubmit emit 透传",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-01"
     },
     {
       "id": "P48",
@@ -918,7 +889,6 @@
         "src/app/editor/vector/types.ts",
         "src/app/settings/preferences/store.ts",
         "src/app/shell/keyboard/clipboard.ts",
-        "src/components/chat/tool-state.ts",
         "src/components/recovery/RecoveryDialog.vue",
         "src/components/settings/general/GeneralSettingsPanel.vue",
         "src/components/ui/AppButton.stories.ts",

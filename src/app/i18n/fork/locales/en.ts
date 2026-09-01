@@ -71,41 +71,49 @@ export const askMessageDefaults = {
   askInvalidDefinition: 'This form definition is invalid and cannot be answered.'
 } as const
 
-/** T61：输入条 chips（mode/type/profile 两级数据驱动）+ gallery + manifest 失败条 英文默认值 */
+/**
+ * T61：输入条 chips（mode/profile 两级数据驱动）+ manifest 失败条 英文默认值。
+ * T65：gallery 键删除（组件退役，决策 B3）；pending badge 内容化「将新建：…」
+ * + 可撤销（决策 E）；chips 区空槽引导一行（决策 E/B2）。
+ */
 export const chipsMessageDefaults = {
   chipsMode: 'Mode',
   chipsProfile: 'Style',
   chipsNoProfile: 'No style profile',
-  chipsPendingBadge: 'New design intent',
+  chipsPendingLabel: params('Will create: {mode} · {profile}'),
+  chipsPendingUndo: 'Undo the new-design intent',
+  chipsEmptyHint: 'No current design — sending a message starts a new one.',
   chipsManifestFailed: 'AI studio failed to load — selectors are disabled.',
-  chipsRetry: 'Retry',
-  chipsDesigns: 'Designs',
-  chipsBriefs: 'Briefs',
-  chipsGallery: 'Gallery',
-  galleryTitle: 'Mode & profile gallery',
-  galleryModes: 'Modes',
-  galleryProfiles: 'Style profiles',
-  galleryEmpty: 'Nothing to show — the studio manifest is empty.',
-  galleryReadonlyHint: 'Read-only. Modes and profiles are local files on disk.'
+  chipsRetry: 'Retry'
 } as const
 
-/** T61：设计列表面板 + 需求单面板（S1 §5 三段结构）英文默认值 */
+/**
+ * T61：设计列表面板 + 需求单面板英文默认值；T65 重写：三合一为画布工作状态
+ * 面板（ChatContextBar，决策 B2）——①当前目标卡 ②设计区列表 ③需求单列表 +
+ * 详情编辑视图。扫描统一只扫当前页（决策 D4），标题文案明示「当前页面」。
+ */
 export const panelsMessageDefaults = {
-  designsTitle: 'Designs on this page',
+  contextTriggerLabel: 'Canvas state',
+  contextTriggerEmpty: 'New design',
+  targetSection: 'Current target',
+  targetNoActive: 'No active design yet — pick a mode / style and send a message to start one.',
+  targetNoBriefBound: 'No brief bound',
+  designsSection: 'Designs on this page',
   designsEmpty: 'No marketing designs on this page yet.',
   designsActive: 'Current',
   designsSetCurrent: 'Set as current',
   designsSetting: 'Switching…',
   designsLocateHint:
-    'Click an entry to locate it on the canvas — switching only happens via the button.',
+    'Current page only. Click an entry to locate it on the canvas — switching only happens via the button.',
   designsSwitchFailed: 'Failed to set the current design.',
-  briefsTitle: 'Briefs',
-  briefCurrentTarget: 'Current target',
-  briefNoActive: 'No active design yet.',
-  briefNoBriefBound: 'No brief bound',
-  briefListSection: 'All briefs',
-  briefListEmpty: 'No briefs in this document yet.',
+  briefsSection: 'Briefs on this page',
+  briefListEmpty: 'No briefs on this page yet.',
   briefContainsActive: 'Contains current target',
+  briefNew: 'New brief',
+  briefNewPlaceholder: 'Requirement content (optional)…',
+  briefCreate: 'Create',
+  briefCreateCancel: 'Cancel',
+  briefCreateFailed: 'Failed to create the brief.',
   briefBack: 'Back',
   briefOpenFailed: 'This brief could not be read (structure incomplete).',
   briefContent: 'Content',
@@ -115,10 +123,18 @@ export const panelsMessageDefaults = {
   briefEmptySection: 'Empty',
   briefSave: 'Save',
   briefSaved: 'Saved',
-  briefSaveFailed: 'Save failed'
+  briefSaveFailed: 'Save failed',
+  briefDirtyHint: 'Unsaved brief edits.',
+  briefDiscardClose: 'Discard & close',
+  briefDiscardBack: 'Discard & go back',
+  briefKeepEditing: 'Keep editing'
 } as const
 
-/** T61：新建意图确认卡 + set_active_design 同意卡 英文默认值 */
+/**
+ * T61：新建意图确认卡 + set_active_design 同意卡 英文默认值。
+ * T65：确认卡尺寸行（决策 C：预设 chips + 自定义输入）；切换成功回执 =
+ * 对话流分割线（决策 D3，consentAgreedLine 随之退役）；卡片降权为系统视觉。
+ */
 export const confirmMessageDefaults = {
   intentTitle: 'Start a new design?',
   intentCaseALine: 'The current direction draft will be discarded; a new design area starts fresh.',
@@ -128,6 +144,10 @@ export const confirmMessageDefaults = {
   intentCaseBReferences: 'Include already-generated images as references',
   intentCaseBRadius:
     'Abandonment radius: only the previous direction — everything produced so far is kept.',
+  intentSizeSection: 'Canvas size',
+  intentSizeAuto: 'Auto (AI decides)',
+  intentSizeCustomPlaceholder: 'Custom, e.g. 750x or 750x2000',
+  intentSizeInvalid: 'Size format: Wx or WxH (e.g. 750x2000).',
   intentConfirm: 'Confirm & send',
   intentCancel: 'Cancel',
   intentConfirmedBadge: 'Confirmed',
@@ -138,9 +158,9 @@ export const confirmMessageDefaults = {
   consentDecline: 'Keep current',
   consentAgreedBadge: 'Switched',
   consentDeclinedBadge: 'Declined',
-  consentAgreedLine: params('Current design switched to {name}.'),
   consentDeclinedLine: params('Declined switching to {name} — the current design is unchanged.'),
-  consentFailedLine: 'Switch failed — the target design may have been moved or deleted.'
+  consentFailedLine: 'Switch failed — the target design may have been moved or deleted.',
+  contextSwitchLine: params('—— Switched to {name} ——')
 } as const
 
 /** T41：字体白名单设置面板（SettingsDialog fonts 分区）英文默认值；T42：来源开关 + 目录组 + 筛选/折叠/批量 */

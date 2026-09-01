@@ -96,6 +96,7 @@
 | [T62](../tasks/T62-plan.md) | Phase 3 · W3/T-B11 type 蓝图机制删除 | setup_design 去 typeId + studio types 退役 + manifest 收两级 + canvas 尺寸重钉 | ✅ 已完成（2026-09-01 收口） | [T62-plan](../tasks/T62-plan.md) | [T62-self-check](../tasks/T62-self-check.md) | [T62-verify](../tasks/T62-verify.md) |
 | [T63](../tasks/T63-plan.md) | CI 第四轮修复：上游 i18n 重构 GHOST 双件合规化 | 两 dialogs 文件 importer-dependent 保活进 tarball 白名单 | ✅ 已完成（2026-09-01 收口） | [T63-plan](../tasks/T63-plan.md) | [T63-self-check](../tasks/T63-self-check.md) | [T63-verify](../tasks/T63-verify.md) |
 | [T64](../tasks/T64-plan.md) | CI 门禁分层：GHOST 窗口规则改 drift 雷达 | check:zones 静态/漂移拆分 + nightly 自动建档 | ✅ 已完成（2026-09-01 收口） | [T64-plan](../tasks/T64-plan.md) | [T64-self-check](../tasks/T64-self-check.md) | [T64-verify](../tasks/T64-verify.md) |
+| [T65](../tasks/T65-plan.md) | UI 交互修整批（owner 十二条拍板） | 输入条瘦身 + 状态面板三合一 + 尺寸预设清单 + 新建需求单 + 分割线回执 + ChatPanel 族转 owned | ✅ 已完成（2026-09-01 收口） | [T65-plan](../tasks/T65-plan.md) | [T65-self-check](../tasks/T65-self-check.md) | [T65-verify](../tasks/T65-verify.md) |
 | (后续 task 按顺序登记)      | —                          | —                                                                                                                       | —                                                                                                                                            | —                                | —                                            | —                                    |
 
 ## 3. 三件套结构（强制）

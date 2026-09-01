@@ -19,9 +19,12 @@
  *    result.message custom 通道注入——convertToLlm 转 user role 进模型上下文，
  *    不进 UI 流、不进历史回填）。空槽 = general（无 workflow 段）+ 无 profile
  *    + 无封套；落盘 mode 的 workflow 缺失 → 一行提示 + 按 general 组装。
- *  - 新建意图一次性旗标：首行信封 `[新建意图确认 modeId=<id> profileId=<id>]`
- *    （字段可缺省）剥离 → 本回合 newIntentConfirmed() 返真 → run 结束
- *    finalizeTurn（runPrompt finally）强制复位。
+ *  - 新建意图一次性旗标：首行信封 `[新建意图确认 modeId=<id> profileId=<id>
+ *    canvas=<值>]`（字段可缺省，顺序固定；canvas 自 T65 起）剥离 → 本回合
+ *    newIntentConfirmed() 返真 → run 结束 finalizeTurn（runPrompt finally）
+ *    强制复位。T65 集成缺口修复：剥离时把确认参数组装成一行系统提示注入
+ *    本回合 context（「用户已为本次新建确认参数：…（选择即锁定，不得覆盖）」，
+ *    缺省字段省略；裸信封无参数不注入）——确认参数此前对 AI 不可见。
  *
  * 桥失败语义：探针不可达（无 discovery / 桥 502 / 无活动文档）→ 本回合按空槽
  * 组装并 warn（冒烟环境无浏览器即此路径；工具调用届时会各自显式失败）；
@@ -46,14 +49,17 @@ import { readDiscoveryFile } from '@open-pencil/mcp/discovery'
 import { postBridgeRPC } from './bridge-rpc'
 import type { StudioRegistry } from './studio/types'
 
-// ── 新建意图信封（共享契约：首行 `[新建意图确认 modeId=<id> profileId=<id>]`，字段可缺省）──
+// ── 新建意图信封（共享契约：首行 `[新建意图确认 modeId=<id> profileId=<id> canvas=<值>]`，
+//    字段可缺省、顺序固定；canvas = 尺寸覆盖值，T65 §2.4）──────────────────────────
 
 const NEW_INTENT_MARKER =
-  /^\[新建意图确认(?:\s+modeId=([^\]\s]+))?(?:\s+profileId=([^\]\s]+))?\]\r?$/
+  /^\[新建意图确认(?:\s+modeId=([^\]\s]+))?(?:\s+profileId=([^\]\s]+))?(?:\s+canvas=([^\]\s]+))?\]\r?$/
 
 export interface NewIntentEnvelope {
   modeId?: string
   profileId?: string
+  /** 尺寸覆盖值（canvas 串原样透传；格式校验在 core setup_design，非法 → invalid_canvas） */
+  canvas?: string
 }
 
 /** 剥首行信封；仅首行精确命中才剥离（容错：非首行/畸形一律不动原文） */
@@ -65,12 +71,13 @@ export function stripNewIntentEnvelope(text: string): {
   const firstLine = newline === -1 ? text : text.slice(0, newline)
   const match = NEW_INTENT_MARKER.exec(firstLine)
   if (!match) return { envelope: null, stripped: text }
-  const [, modeId, profileId] = match
+  const [, modeId, profileId, canvas] = match
   return {
     envelope: {
       // 可选捕获组运行时可为 undefined（索引签名类型不含），truthy 守卫兼排两种
       ...(modeId ? { modeId } : {}),
-      ...(profileId ? { profileId } : {})
+      ...(profileId ? { profileId } : {}),
+      ...(canvas ? { canvas } : {})
     },
     stripped: newline === -1 ? '' : text.slice(newline + 1)
   }
@@ -312,7 +319,7 @@ export interface ActiveDesignHost {
   observeToolExecution(toolName: string, isError: boolean, details: unknown): void
   /** 事件①：setup_design 成功（结果含新 root id）→ 移槽（失败只 warn，设计已建不回吐） */
   onDesignCreated(rootId: string, documentId?: string): Promise<void>
-  /** 回合入口：剥信封 → 置旗标 → ④移槽 → 槽位读穿/清悬空 → 组装 */
+  /** 回合入口：剥信封 → 置旗标 + 确认参数系统提示行（T65）→ ④移槽 → 槽位读穿/清悬空 → 组装 */
   prepareTurn(text: string, documentId?: string): Promise<{ promptText: string }>
   /** before_agent_start 钩子读取的当回合组装结果（prepareTurn 后恒非空） */
   turnAssembly(): TurnAssembly | null
@@ -377,11 +384,18 @@ export function createActiveDesignHost(deps: ActiveDesignHostDeps): ActiveDesign
       // 回合开始强制清零（防御：finalizeTurn 遗漏也不跨回合滞留）
       intentConfirmed = false
       const { envelope, stripped } = stripNewIntentEnvelope(text)
-      if (envelope) intentConfirmed = true
+      const intentNotices: string[] = []
+      if (envelope) {
+        intentConfirmed = true
+        // T65 集成缺口修复：确认参数随本回合 context 对 AI 可见（选择即锁定）；
+        // 裸信封（无任何参数）不注入——无可锁定字段
+        const confirmedLine = ACTIVE_DESIGN_TEXTS.newIntentConfirmed(envelope)
+        if (confirmedLine !== '') intentNotices.push(confirmedLine)
+      }
       await resolveFormAnswer(text, documentId)
       const { slot, notices } = await probeSlotState(documentId)
       currentSlotNodeId = slot.status === 'ok' ? slot.design.nodeId : ''
-      turn = assembleTurn(deps.registry(), slot, notices)
+      turn = assembleTurn(deps.registry(), slot, [...intentNotices, ...notices])
       return { promptText: stripped }
     },
     turnAssembly: () => turn,

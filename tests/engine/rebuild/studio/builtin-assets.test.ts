@@ -40,6 +40,13 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
     expect(longform.stepBudget).toBe(50)
     expect(longform.sections['画布尺寸']).toBeTruthy()
 
+    // T65：sizes 尺寸预设清单（原三蓝图 750x/750x/1080x 证据——同尺寸只收一条）
+    expect(longform.sizes).toEqual([
+      { label: '电商详情长图', canvas: '750x' },
+      { label: '小红书长图', canvas: '1080x' }
+    ])
+    expect(r.modes.find((m) => m.id === 'longform')?.sizes).toEqual(longform.sizes)
+
     // profiles：恰好四份精品（T48 补迁 watercolor_poster_v2），applicable_to 均指向 longform
     expect([...r.profiles.keys()].sort()).toEqual([
       'editorial_poster_v1',

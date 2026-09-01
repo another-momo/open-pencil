@@ -52,7 +52,11 @@ id: longform
 label: 长图设计
 subtitle: 电商详情 / 产品长文 / 小红书长图
 step_budget: 50
-canvas: 750x
+sizes:
+  - label: 电商详情长图
+    canvas: 750x
+  - label: 小红书长图
+    canvas: 1080x
 ---
 
 ## 阶段定义
@@ -67,6 +71,11 @@ canvas: 750x
 
 Fix Playbook。
 `
+
+const LONGFORM_SIZES = [
+  { label: '电商详情长图', canvas: '750x' },
+  { label: '小红书长图', canvas: '1080x' }
+]
 
 const PROFILE_MD = `---
 id: watercolor-poster-v3
@@ -114,9 +123,13 @@ test('C1: 内置三类资产注册成功，modes 含 general + workflow 派生 m
   expect(r.base?.origin).toBe('builtin')
   expect(r.workflows.get('longform')?.label).toBe('长图设计')
   expect(r.workflows.get('longform')?.stepBudget).toBe(50)
+  expect(r.workflows.get('longform')?.sizes).toEqual(LONGFORM_SIZES)
   expect(r.profiles.get('watercolor-poster-v3')?.heroComposition).toBe('center_left_counterweight')
   expect(r.modes.map((m) => m.id)).toEqual(['general', 'longform'])
   expect(r.modes[0].source).toBe('general')
+  // T65：sizes 透传进 mode 投影；general 无文件 → 无 sizes 字段
+  expect(r.modes[1].sizes).toEqual(LONGFORM_SIZES)
+  expect('sizes' in r.modes[0]).toBe(false)
 })
 
 test('C1: 用户目录同 id 覆盖内置（workflow 与 base 各一例），用户独有 profile 追加注册', () => {
@@ -214,7 +227,7 @@ test('C3: 旧 types 键残留不影响注册；step_budget 非正整数 → 失�
     builtinDir,
     join('workflows', 'longform.md'),
     LONGFORM_MD.replace(
-      'canvas: 750x\n---',
+      'sizes:\n  - label: 电商详情长图\n    canvas: 750x\n  - label: 小红书长图\n    canvas: 1080x\n---',
       'types:\n  - id: ecommerce_detail\n    label: 电商详情页\n    size: 750x\n---'
     )
   )
@@ -231,6 +244,115 @@ test('C3: 旧 types 键残留不影响注册；step_budget 非正整数 → 失�
   )
   r = loadBoth()
   expect(r.failures.some((f) => f.reason.includes('step_budget'))).toBe(true)
+})
+
+// T65 §2.1：sizes 尺寸预设清单校验——非空 [{label, canvas}]，label 非空、
+// canvas 格式 `宽x`/`宽x高`（解析单源 = core parseCanvasSize）；任一非法整条不注册
+test('C3: sizes 合法清单注册并透传；缺席 → 无字段（缺省语义不变）', () => {
+  put(builtinDir, 'base.md', BASE_MD)
+  put(builtinDir, join('workflows', 'longform.md'), LONGFORM_MD)
+  // 无 sizes 键的 workflow 照常注册（750 宽 HUG 缺省语义由 core 承载）
+  put(
+    builtinDir,
+    join('workflows', 'plain.md'),
+    LONGFORM_MD.replace('id: longform', 'id: plain')
+      .replace('label: 长图设计', 'label: 朴素')
+      .replace(
+        'sizes:\n  - label: 电商详情长图\n    canvas: 750x\n  - label: 小红书长图\n    canvas: 1080x\n',
+        ''
+      )
+  )
+  const r = loadBoth()
+  expect(r.failures).toEqual([])
+  expect(r.workflows.get('longform')?.sizes).toEqual(LONGFORM_SIZES)
+  expect('sizes' in (r.workflows.get('plain') ?? {})).toBe(false)
+  expect('sizes' in (r.modes.find((m) => m.id === 'plain') ?? {})).toBe(false)
+})
+
+test('C3: sizes 非法形态 → 不注册 + failure 带指引（非清单/空清单/非键值条目）', () => {
+  put(builtinDir, 'base.md', BASE_MD)
+  put(
+    builtinDir,
+    join('workflows', 'longform.md'),
+    LONGFORM_MD.replace(
+      'sizes:\n  - label: 电商详情长图\n    canvas: 750x\n  - label: 小红书长图\n    canvas: 1080x',
+      'sizes: 750x'
+    )
+  )
+  let r = loadBoth()
+  expect(r.workflows.size).toBe(0)
+  expect(r.failures.some((f) => f.reason.includes('`sizes` 不是非空预设清单'))).toBe(true)
+
+  put(
+    builtinDir,
+    join('workflows', 'longform.md'),
+    LONGFORM_MD.replace(
+      'sizes:\n  - label: 电商详情长图\n    canvas: 750x\n  - label: 小红书长图\n    canvas: 1080x',
+      'sizes: []'
+    )
+  )
+  r = loadBoth()
+  expect(r.failures.some((f) => f.reason.includes('不是非空预设清单'))).toBe(true)
+
+  put(
+    builtinDir,
+    join('workflows', 'longform.md'),
+    LONGFORM_MD.replace(
+      'sizes:\n  - label: 电商详情长图\n    canvas: 750x\n  - label: 小红书长图\n    canvas: 1080x',
+      'sizes:\n  - 750x'
+    )
+  )
+  r = loadBoth()
+  expect(r.failures.some((f) => f.reason.includes('非键值条目'))).toBe(true)
+  for (const f of r.failures) expect(f.hint.length).toBeGreaterThan(0)
+})
+
+test('C3: sizes 条目级非法 → 不注册（缺 label / label 空 / canvas 格式非法）', () => {
+  put(builtinDir, 'base.md', BASE_MD)
+  const withSizes = (sizesYaml: string) =>
+    LONGFORM_MD.replace(
+      'sizes:\n  - label: 电商详情长图\n    canvas: 750x\n  - label: 小红书长图\n    canvas: 1080x',
+      sizesYaml
+    )
+
+  put(builtinDir, join('workflows', 'longform.md'), withSizes('sizes:\n  - canvas: 750x'))
+  let r = loadBoth()
+  expect(r.workflows.size).toBe(0)
+  expect(r.failures.some((f) => f.reason.includes('缺 `label`'))).toBe(true)
+
+  put(
+    builtinDir,
+    join('workflows', 'longform.md'),
+    withSizes('sizes:\n  - label: ""\n    canvas: 750x')
+  )
+  r = loadBoth()
+  expect(r.failures.some((f) => f.reason.includes('缺 `label` 或为空'))).toBe(true)
+
+  // canvas 非法三例：非数字宽 / 缺 x / 三段
+  for (const bad of ['abc', '750', '750x2000x3']) {
+    put(
+      builtinDir,
+      join('workflows', 'longform.md'),
+      withSizes(`sizes:\n  - label: 电商详情长图\n    canvas: ${bad}`)
+    )
+    r = loadBoth()
+    expect(r.workflows.size).toBe(0)
+    expect(
+      r.failures.some(
+        (f) => f.reason.includes('canvas 格式非法') && f.reason.includes('电商详情长图')
+      )
+    ).toBe(true)
+  }
+
+  // 定高预设合法（`宽x高`）
+  put(
+    builtinDir,
+    join('workflows', 'longform.md'),
+    withSizes('sizes:\n  - label: 定高详情\n    canvas: 750x2000')
+  )
+  r = loadBoth()
+  expect(r.failures).toEqual([])
+  expect(r.workflows.get('longform')?.sizes).toEqual([{ label: '定高详情', canvas: '750x2000' }])
 })
 
 // ── C4：profile 校验 ──────────────────────────────────────────────────────

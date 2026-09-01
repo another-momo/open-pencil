@@ -46,7 +46,11 @@ const LONGFORM_MD = `---
 id: longform
 label: 长图设计
 subtitle: 分区物料
-canvas: 750x
+sizes:
+  - label: 电商详情长图
+    canvas: 750x
+  - label: 小红书长图
+    canvas: 1080x
 ---
 
 ## 阶段定义
@@ -61,6 +65,11 @@ canvas: 750x
 
 纪律。
 `
+
+const LONGFORM_SIZES = [
+  { label: '电商详情长图', canvas: '750x' },
+  { label: '小红书长图', canvas: '1080x' }
+]
 
 const PROFILE_MD = `---
 id: watercolor_poster_v3
@@ -132,6 +141,9 @@ test('投影：modes 收两级（general 首位 + longform 带 subtitle，无 ty
   expect(longform.subtitle).toBe('分区物料')
   // T62：types 数据面删除（chips 按数据驱动渲染自然两级）
   for (const mode of m.modes) expect('types' in mode).toBe(false)
+  // T65：sizes 清单透传进 manifest modes[]（前端确认卡尺寸行消费）；general 无 sizes 字段
+  expect(longform.sizes).toEqual(LONGFORM_SIZES)
+  expect('sizes' in general).toBe(false)
 })
 
 test('投影：profiles 摘要无 body；deprecated 不进数据面', () => {

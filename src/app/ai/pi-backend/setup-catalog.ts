@@ -12,18 +12,22 @@
  *
  * T62：type 机制删除——投影收为 {modes:[{id,label}], profileIds[]}（尺寸
  * 语义重钉为 workflow frontmatter 可选 canvas 键，core 侧恒用缺省）。
+ *
+ * T65（owner 2026-09-01 拍板 C）：modes[] 条目带 `sizes: [{label, canvas}]`
+ * 尺寸预设清单（workflow frontmatter 透传，首条 = 首选预设）——catalogJSON
+ * 注入后 AI 据此按语义选尺寸（setup_design 可选 canvas 参数覆盖，core 侧
+ * 优先序：显式 canvas > 首选预设 > 750 宽 HUG 缺省）。
  */
+
+import type { SetupCatalog } from '@open-pencil/core/tools/fork/marketing/setup'
 
 import type { StudioRegistry } from './studio/types'
 
-/** catalog 投影形状——消费侧契约见 packages/core/src/tools/fork/marketing/setup.ts（SetupCatalog） */
-export interface SetupCatalogProjection {
-  modes: {
-    id: string
-    label: string
-  }[]
-  profileIds: string[]
-}
+/**
+ * catalog 投影形状 = core SetupCatalog（消费侧契约单源——别名不双写，
+ * type-shapes 门禁；见 packages/core/src/tools/fork/marketing/setup.ts）。
+ */
+export type SetupCatalogProjection = SetupCatalog
 
 /**
  * 注册表 → catalog 投影。只列 workflow 来源 mode（general 是无文件内置特例，
@@ -33,7 +37,8 @@ export interface SetupCatalogProjection {
 export function buildSetupCatalog(registry: StudioRegistry): SetupCatalogProjection {
   const modes = [...registry.workflows.values()].map((workflow) => ({
     id: workflow.id,
-    label: workflow.label
+    label: workflow.label,
+    ...(workflow.sizes ? { sizes: workflow.sizes } : {})
   }))
   return { modes, profileIds: [...registry.profiles.keys()] }
 }

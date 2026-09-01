@@ -8,9 +8,12 @@
  *
  * 同意 → emit decide(true)（ChatPanel 调 POST /api/pi/active-design，共享契约 2，
  * 与设计列表面板「设为当前」共用端点）；不同意 → emit decide(false)。
- * 两侧均不伪装用户消息——结果走本地系统行（ChatPanel 落地）。
+ * 两侧均不伪装用户消息——同意后回执走 data-context-switch 分割线（T65 决策 D3，
+ * ChatPanel 落地）。
  * 决断记录（data-active-design-decision part）由 ChatPanel 扫描派生 resolved
  * 传入，重载后保持置灰。
+ *
+ * T65：视觉从气泡降权为系统样式（决策 D3 衍生：虚线边框 + 无填充）。
  */
 import { computed } from 'vue'
 
@@ -69,17 +72,18 @@ function handleDecide(agree: boolean) {
 </script>
 
 <template>
+  <!-- T65：系统视觉（虚线边框无填充）——宿主决定卡，区别于用户/AI 气泡 -->
   <div
     data-test-id="set-active-design-card"
-    class="space-y-2 rounded-lg border border-border bg-canvas p-3"
+    class="space-y-2 rounded-md border border-dashed border-border px-3 py-2.5"
   >
     <div class="flex items-center gap-2">
-      <icon-lucide-pin class="size-3.5 shrink-0 text-accent" />
-      <span class="text-[11px] font-medium text-surface">{{ confirmText.consentTitle }}</span>
+      <icon-lucide-pin class="size-3.5 shrink-0 text-muted" />
+      <span class="text-[12px] font-medium text-surface">{{ confirmText.consentTitle }}</span>
       <span
         v-if="resolved !== null"
         data-test-id="set-active-design-resolved-badge"
-        class="rounded bg-hover px-1.5 py-0.5 text-[10px] text-muted"
+        class="rounded bg-hover px-1.5 py-0.5 text-[11px] text-muted"
       >
         {{
           resolved === 'agreed' ? confirmText.consentAgreedBadge : confirmText.consentDeclinedBadge

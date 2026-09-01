@@ -58,7 +58,9 @@ export const SETUP_TEXTS = {
   unknownMode: (modeId: string) =>
     `未知的设计模式「${modeId}」（不在注册表内）——通用长图请用 modeId=general。`,
   unknownProfile: (profileId: string) =>
-    `未知的风格档案「${profileId}」（不在注册表 profileIds 内）。`
+    `未知的风格档案「${profileId}」（不在注册表 profileIds 内）。`,
+  invalidCanvas: (canvas: string) =>
+    `尺寸「${canvas}」格式非法——应为 \`宽x\`（如 750x，高度随内容生长）或 \`宽x高\`（如 750x2000，定高）。`
 } as const
 
 /**
@@ -80,5 +82,18 @@ export const ACTIVE_DESIGN_TEXTS = {
   briefMissing: '当前设计目标关联的需求单已被删除——可新建需求单绑定，或不走需求单直接聊天修改。',
   /** 落盘 mode 的 workflow 文件缺失 → 按 general 组装 + 本行提示（S1 §5 显式报错路径） */
   workflowMissing: (modeId: string) =>
-    `当前设计落盘的模式「${modeId}」对应的 workflow 文件缺失——本回合按通用模式进行；装回该文件后可按原模式续作，或确认切换到通用模式。`
+    `当前设计落盘的模式「${modeId}」对应的 workflow 文件缺失——本回合按通用模式进行；装回该文件后可按原模式续作，或确认切换到通用模式。`,
+  /**
+   * T65（修 T60 集成缺口）：新建意图信封剥离后注入本回合 context 的确认参数行——
+   * 确认参数对 AI 可见（此前旗标只真假）。缺省字段省略；全缺省 → 空串（宿主不注入）。
+   */
+  newIntentConfirmed: (fields: { modeId?: string; profileId?: string; canvas?: string }) => {
+    const parts = [
+      ...(fields.modeId ? [`modeId=${fields.modeId}`] : []),
+      ...(fields.profileId ? [`profileId=${fields.profileId}`] : []),
+      ...(fields.canvas ? [`尺寸=${fields.canvas}`] : [])
+    ]
+    if (parts.length === 0) return ''
+    return `用户已为本次新建确认参数：${parts.join(' ')}（选择即锁定，不得覆盖）`
+  }
 } as const

@@ -2,15 +2,13 @@
 import { TooltipProvider } from 'reka-ui'
 import { computed, onMounted, ref } from 'vue'
 
-import ChatBriefPanel from '@/components/chat/ChatBriefPanel.vue'
-import ChatDesignListPanel from '@/components/chat/ChatDesignListPanel.vue'
-import ChatGalleryPanel from '@/components/chat/ChatGalleryPanel.vue'
 import ChatModeChips from '@/components/chat/ChatModeChips.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import InputGroup from '@/components/ui/InputGroup.vue'
 import { piDesignAssignment } from '@/app/ai/pi-backend/assignment'
 import {
   ensurePiStudioManifest,
+  piActiveDesign,
   piStudioManifestFailed,
   retryPiStudioManifest
 } from '@/app/ai/pi-backend/mode-selection'
@@ -39,8 +37,11 @@ const isStreaming = computed(() => disabled || status === 'streaming' || status 
 // T21：模型由后端 catalog/指派决定，聊天输入只读展示当前指派
 // T25：pi 已是唯一路径（门退役），旧模型/资料切换臂与图片附件流已切除
 // （图片从不进 pi 后端——analyze 直通已随旧面删除，C4a 通道 B 落地时恢复）
-// T61：T24 ChatModeSelect/ChatStyleProfileSelect 退役——mode/type/profile 改由
-// chips（active_design 回显 + 新建意图暂存）+ 面板承载（ChatModeChips 等四件）
+// T61：T24 ChatModeSelect/ChatStyleProfileSelect 退役——mode/profile 由 chips
+// （active_design 回显 + 新建意图暂存）承载
+// T65（决策 A/B）：输入条瘦身——只放随下次发送生效的内容（mode/profile chips +
+// 模型名 label 暂留）；设计/需求单/gallery 三面板按钮移出，状态查看归 header 的
+// 画布工作状态面板（ChatContextBar），gallery 组件删除
 
 // T24→T61：manifest 数据源不变；失败改显式暴露（错误条 + 重试，08 P0-2）
 onMounted(() => {
@@ -50,6 +51,10 @@ const piModelLabel = computed(
   // T38：useForkPi() 返回 Ref——script 内访问必须 .value（T35 曾丢 .value 致标签空白）
   () => piDesignAssignment.value?.modelId ?? piDialogs.value.designModelDefault
 )
+
+// T65（决策 B2/E）：空槽引导——无 active 时 chips 区一行提示（主引导在 header
+// 状态面板 trigger 的空槽文案）
+const showEmptySlotHint = computed(() => piActiveDesign.value === null)
 
 function handleInputKeydown(event: KeyboardEvent) {
   if (event.code !== 'Enter' || event.shiftKey || event.isComposing) return
@@ -100,6 +105,14 @@ defineExpose({ restoreDraft, clearDraft })
           {{ chipsText.chipsRetry }}
         </button>
       </div>
+      <!-- T65：空槽引导一行（无 active 时常显；chips 区） -->
+      <div
+        v-else-if="showEmptySlotHint"
+        data-test-id="chat-empty-slot-hint"
+        class="mb-1.5 px-1 text-[11px] text-muted"
+      >
+        {{ chipsText.chipsEmptyHint }}
+      </div>
       <form @submit="handleSubmit">
         <InputGroup :disabled="isStreaming">
           <textarea
@@ -123,11 +136,9 @@ defineExpose({ restoreDraft, clearDraft })
               >
                 <icon-lucide-bot class="size-3 shrink-0" />
                 <span class="truncate">{{ piModelLabel }}</span>
-                <!-- T61：chips（active_design 回显 + 新建意图）+ 设计/需求单/gallery 面板 -->
+                <!-- T61：chips（active_design 回显 + 新建意图暂存）——输入条终态
+                     = mode chip + profile chip + 模型名（T65 决策 B4 暂留） -->
                 <ChatModeChips :disabled="isStreaming" />
-                <ChatDesignListPanel :disabled="isStreaming" />
-                <ChatBriefPanel :disabled="isStreaming" />
-                <ChatGalleryPanel :disabled="isStreaming" />
               </div>
             </div>
           </template>

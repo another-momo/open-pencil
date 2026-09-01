@@ -12,8 +12,12 @@
  *    旧文档残留键天然忽略）。指针任何移动后自动同步（sceneVersion watch +
  *    graph:replaced + tab 切换）；系统同步不触发意图。无 active（槽空 /
  *    节点被删 / 标记缺失）→ null → chips 回显默认态（general + 无 profile）。
+ *    T65：null 同时是画布工作状态面板（ChatContextBar，ChatPanel header）的
+ *    空槽信号——trigger 回落引导文案；resyncPiActiveDesign 是切换端点 200 后
+ *    的显式兜底（分割线回执经 ChatPanel 注入，不在本模块）。
  *  - piPendingNewIntent：用户手动拨 chip 的未确认暂存（不持久化）——发消息时
- *    ChatPanel 拦为新建意图确认卡；确认发出或取消回滚后清空。
+ *    ChatPanel 拦为新建意图确认卡；确认发出或取消回滚后清空。T65：badge
+ *    内容化「将新建：mode·profile」+ 可点 × 经 clearPiPendingNewIntent 撤销。
  *  - piStudioManifest：数据源不变（GET /api/pi/studio/manifest），但失败按
  *    08 P0-2 纪律显式暴露（piStudioManifestFailed=true → chips 禁用 + 错误条
  *    + 重试），不再静默 null 降级。

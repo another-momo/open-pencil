@@ -11,7 +11,7 @@
 import type { StudioFailure, StudioMode, StudioRegistry } from './types'
 
 /** mode 条目：general 恒在首位 + 每注册 workflow 一条（T62：types 数据面删除；
- *  形状与 StudioMode 全等 → 别名不双写（type-shapes 门禁）） */
+ *  T65：sizes 尺寸预设清单透传——形状与 StudioMode 全等 → 别名不双写（type-shapes 门禁）） */
 export type PiStudioModeEntry = StudioMode
 
 /** profile 摘要（gallery 展示用；applicableTo 为描述性元信息，PD-17 不构成过滤） */
@@ -46,6 +46,7 @@ export function toStudioManifest(registry: StudioRegistry): PiStudioManifest {
     id: mode.id,
     label: mode.label,
     ...(mode.subtitle ? { subtitle: mode.subtitle } : {}),
+    ...(mode.sizes ? { sizes: mode.sizes } : {}),
     source: mode.source
   }))
   const profiles: PiStudioProfileSummary[] = [...registry.profiles.values()]

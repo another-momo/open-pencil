@@ -163,7 +163,7 @@ function loadWorkflows(
       fail(failures, candidate, 'workflow', parsed.reason, parsed.hint)
       continue
     }
-    const { issues, stepBudget, subtitle } = validateWorkflow(parsed, candidate.id)
+    const { issues, stepBudget, subtitle, sizes } = validateWorkflow(parsed, candidate.id)
     if (issues.length > 0) {
       for (const issue of issues) fail(failures, candidate, 'workflow', issue.reason, issue.hint)
       continue
@@ -174,6 +174,7 @@ function loadWorkflows(
       label: String(parsed.frontmatter.label),
       ...(subtitle ? { subtitle } : {}),
       ...(stepBudget !== undefined ? { stepBudget } : {}),
+      ...(sizes ? { sizes } : {}),
       body: parsed.body,
       sections: parsed.sections,
       origin: candidate.origin,
@@ -240,6 +241,7 @@ export function loadStudioFromDirs(builtinDir: string, userDir: string): StudioR
       id: w.id,
       label: w.label,
       ...(w.subtitle ? { subtitle: w.subtitle } : {}),
+      ...(w.sizes ? { sizes: w.sizes } : {}),
       source: 'workflow' as const
     }))
   ]

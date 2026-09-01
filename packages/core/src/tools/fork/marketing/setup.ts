@@ -12,15 +12,20 @@
  * - 放置走共享 findPlacementPosition（页面 bounds 右侧 +100、y 跟随），
  *   创建后 scrollAndZoomIntoView。
  *
- * 四职责（S3 §2）：① 以缺省尺寸（750 宽 + HUG 高）建根 frame；
- * ② 设尺寸与最小空闲「label N」名；③ 设计身份三元组 + schemaVersion 落盘；
- * ④ brief 关联设计区登记（registerBriefDesignEntry）。
+ * 四职责（S3 §2）：① 以解析尺寸建根 frame（T65 优先序：显式 canvas 参数 >
+ * mode 首选预设 > 750 宽 + HUG 高缺省）；② 设尺寸与最小空闲「label N」名；
+ * ③ 设计身份三元组 + schemaVersion 落盘；④ brief 关联设计区登记
+ * （registerBriefDesignEntry）。
  *
- * T62：type 机制整体删除（owner 2026-09-01 v8 拍板过度设计）——尺寸语义
- * 重钉为 workflow frontmatter 可选 canvas 键（T-C 批次接线），catalog 投影
- * 收为 {modes:[{id,label}], profileIds[]}，本层恒用缺省尺寸；设计身份 =
+ * T62：type 机制整体删除（owner 2026-09-01 v8 拍板过度设计）——设计身份 =
  * 三元组 {modeId, profileId, briefId}，读穿侧容忍旧画布残留键（天然忽略，
  * schemaVersion 不 bump）。
+ *
+ * T65（owner 2026-09-01 拍板 C）：尺寸语义落地——workflow frontmatter
+ * `sizes: [{label, canvas}]` 预设清单经 catalog 投影透传（sizes[0] = 首选
+ * 预设），可选 `canvas` 参数覆盖（预设值或自由值 `宽x`/`宽x高`，非法 →
+ * invalid_canvas）；缺省恒为 750 宽 + HUG。落盘 size 语义不变
+ * （{width, height|null}，null = HUG）。
  */
 
 import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
@@ -56,11 +61,37 @@ const SETUP_GENERAL_DEFAULT_WIDTH = 750
 /** HUG 高根 frame 的初始高度（随内容生长前的占位） */
 const SETUP_HUG_INITIAL_HEIGHT = 400
 
+// ── 尺寸契约（T65 §2）：预设清单 + canvas 串解析（前后端校验共用单源）────────────
+
+/**
+ * 尺寸预设：label 中文名 + canvas 串（`宽x` = 高 HUG 随内容生长 / `宽x高` = 定高）。
+ * studio frontmatter `sizes` 清单、catalog 投影、确认卡尺寸行共用本形状
+ * （type-shapes 门禁禁同构双写——消费侧一律 import type 或别名）。
+ */
+export interface CanvasSizePreset {
+  label: string
+  canvas: string
+}
+
+/** canvas 串格式（T65 §2.1/§2.2）：`宽x`（HUG 高）或 `宽x高`（定高） */
+const CANVAS_SIZE_RE = /^(\d+)x(\d+)?$/
+
+/** canvas 串 → 落盘尺寸语义（height null = HUG）；格式非法 → null */
+export function parseCanvasSize(canvas: string): { width: number; height: number | null } | null {
+  const match = CANVAS_SIZE_RE.exec(canvas)
+  if (!match) return null
+  const [, width, height] = match
+  // 可选捕获组运行时可为 undefined（索引签名类型不含），truthy 守卫兼排两种
+  return { width: Number(width), height: height ? Number(height) : null }
+}
+
 // ── catalog 注入契约（宿主快照，不进模型视野）────────────────────────────────
 
 export interface SetupCatalogMode {
   id: string
   label: string
+  /** mode 尺寸预设清单（T65：workflow frontmatter sizes 透传；首条 = 首选预设；缺席 → 缺省 750 宽 HUG） */
+  sizes?: CanvasSizePreset[]
 }
 
 /** 宿主注入的注册表快照；缺省（MCP/headless 无注入）时仅 general 可用 */
@@ -73,6 +104,8 @@ export interface SetupDesignArgs {
   modeId: string
   profileId?: string
   briefId: string
+  /** 尺寸覆盖（T65）：预设 canvas 值或自由值 `宽x`/`宽x高`；格式非法 → invalid_canvas */
+  canvas?: string
   /** 宿主随 args 外层注入的新建意图确认（缺省 false；!== true → 不建框） */
   confirmedNewIntent?: boolean
 }
@@ -84,6 +117,7 @@ export type SetupDesignErrorCode =
   | 'ambiguous_brief'
   | 'unknown_mode'
   | 'unknown_profile'
+  | 'invalid_canvas'
   | 'unconfirmed_new_intent'
   | 'catalog_unavailable'
 
@@ -149,21 +183,44 @@ interface ResolvedMode {
   size: { width: number; height: number | null }
 }
 
-/** mode 校验 + 命名基底解析；尺寸恒为缺省 750 宽 + HUG 高（T62 定谳 1） */
+/**
+ * 尺寸解析优先序（T65 §2.2）：显式 canvas 参数（非法 → invalid_canvas）>
+ * mode 首选预设（catalog sizes[0]；宿主注入数据绕过加载期校验时容忍落缺省）>
+ * 750 宽 + HUG 缺省。
+ */
+function resolveSize(
+  args: SetupDesignArgs,
+  mode?: SetupCatalogMode
+): { width: number; height: number | null } | SetupDesignError {
+  if (args.canvas !== undefined) {
+    const parsed = parseCanvasSize(args.canvas)
+    if (!parsed) {
+      return { error: 'invalid_canvas', message: SETUP_TEXTS.invalidCanvas(args.canvas) }
+    }
+    return parsed
+  }
+  const preset = mode?.sizes?.[0]
+  if (preset) {
+    const parsed = parseCanvasSize(preset.canvas)
+    if (parsed) return parsed
+  }
+  return { width: SETUP_GENERAL_DEFAULT_WIDTH, height: null }
+}
+
+/** mode 校验 + 命名基底与尺寸解析（T65：尺寸三段优先序，见 resolveSize） */
 function resolveMode(
   args: SetupDesignArgs,
   catalog: SetupCatalog | undefined
 ): ResolvedMode | SetupDesignError {
   const { modeId } = args
 
-  // general 恒过校验（内置缺省尺寸，不查 catalog）
+  // general 恒过校验（无文件内置特例：无预设清单，不查 catalog）
   if (modeId === SETUP_GENERAL_MODE_ID) {
     const profileError = validateProfileId(args.profileId, catalog)
     if (profileError) return profileError
-    return {
-      label: SETUP_TEXTS.generalDesignName,
-      size: { width: SETUP_GENERAL_DEFAULT_WIDTH, height: null }
-    }
+    const size = resolveSize(args)
+    if ('error' in size) return size
+    return { label: SETUP_TEXTS.generalDesignName, size }
   }
 
   if (!catalog) {
@@ -175,7 +232,9 @@ function resolveMode(
   }
   const profileError = validateProfileId(args.profileId, catalog)
   if (profileError) return profileError
-  return { label: mode.label, size: { width: SETUP_GENERAL_DEFAULT_WIDTH, height: null } }
+  const size = resolveSize(args, mode)
+  if ('error' in size) return size
+  return { label: mode.label, size }
 }
 
 // ── 建框 ───────────────────────────────────────────────────────────────────

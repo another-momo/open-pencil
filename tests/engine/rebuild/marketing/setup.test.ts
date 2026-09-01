@@ -1,23 +1,18 @@
 /**
  * T53（S4 W2 / T-B2）setup_design 契约测试（S3 §10 九契约改写版 + 三态解析）。
- * T62：type 机制整体删除——⑦ 三态整例删除；①② 尺寸语义重钉为缺省
- * （750 宽 + HUG，全 mode 同口径）；信封/落盘/读穿/命名/注入缝用例去 type 维度；
- * 错误面九码收六码；设计身份三元组。
+ * T62：type 机制整体删除——⑦ 三态整例删除；①② 尺寸重钉缺省（750 宽 + HUG）；错误面九码收六码；设计身份三元组。
+ * T65：尺寸契约落地——catalog modes[] 带 sizes 预设清单；canvas 覆盖参数三态（预设/自由/非法 → invalid_canvas，六码收七码）；
+ * 优先序 = 显式 canvas > mode 首选预设（sizes[0]）> 750 宽 HUG 缺省。
  *
- * 验收映射（T53-plan §3 + T62-plan §2）：
- * ① 缺省尺寸建框（750 宽）；② HUG 语义（初始高 400 / primaryAxisSizing HUG）；
- * ③ 标记五键读穿（role + 三元组 + schemaVersion）；
+ * 验收映射（T53-plan §3 + T62-plan §2 + T65-plan §2.2）：
+ * ① 缺省尺寸建框（750 宽）；② HUG 语义（初始高 400 / primaryAxisSizing HUG）；③ 标记五键读穿（role + 三元组 + schemaVersion）；
  * ④ 最小空闲「label N」命名（去重域 = 仅 modeId）；⑤ briefId 不存在 → brief_not_found；
- * ⑥ modeId 校验（general 恒过 / unknown_mode / 无尺寸 mode 同走缺省）；
- * ⑧ 未确认 → unconfirmed_new_intent 且无框落地；
+ * ⑥ modeId 校验（general 恒过 / unknown_mode / 无尺寸 mode 同走缺省）；⑧ 未确认 → unconfirmed_new_intent 且无框落地；
  * ⑨ 关联设计区登记 + bound-designs 指针 + 读穿投影。
- * 另钉：信封字段、恒新建、放置右 +100/y 跟随、scrollAndZoomIntoView、
- * catalog 缺省仅 general 可用、unknown_profile、__catalog/__confirmedNewIntent
- * 注入缝（ToolDef 层）、scan/resolve 三态（none/ok/ambiguous/显式 id/死节点/
- * 两次扫描独立）。
+ * 另钉：信封字段、恒新建、放置右 +100/y 跟随、scrollAndZoomIntoView、catalog 缺省仅 general 可用、unknown_profile、
+ * __catalog/__confirmedNewIntent 注入缝（ToolDef 层）、scan/resolve 三态、canvas 三态与优先序。
  *
- * SETUP_TOOLS 未注册进 FORK_TOOLS（fork/index.ts 是集成期主 agent 领土），
- * catalog fixture 直接注入 core 函数（S3 §10 校验断言落 bun 层）。
+ * SETUP_TOOLS 未注册进 FORK_TOOLS（fork/index.ts 是集成期主 agent 领土），catalog fixture 直接注入 core 函数（S3 §10 校验断言落 bun 层）。
  */
 
 import { describe, expect, test } from 'bun:test'
@@ -60,8 +55,17 @@ import { setupToolTest } from '#tests/helpers/tools'
 
 const CATALOG: SetupCatalog = {
   modes: [
-    { id: 'longform', label: '长图' },
-    { id: 'workflow', label: '工作流' }
+    // longform 预设首选 = 750x 与缺省同值——既有缺省断言不因透传翻转（T65）
+    {
+      id: 'longform',
+      label: '长图',
+      sizes: [
+        { label: '电商详情长图', canvas: '750x' },
+        { label: '小红书长图', canvas: '1080x' }
+      ]
+    },
+    { id: 'workflow', label: '工作流' },
+    { id: 'fixed', label: '定高图', sizes: [{ label: '详情定高', canvas: '750x2000' }] }
   ],
   profileIds: ['profile-a']
 }
@@ -82,10 +86,13 @@ function err(result: SetupDesignResult, code: SetupDesignErrorCode): SetupDesign
 function setupPage() {
   const { graph, figma } = setupToolTest()
   const brief = createBrief(figma)
-  const call = (args: { modeId: string; profileId?: string }, catalog: SetupCatalog | undefined) =>
-    setupDesign(figma, { briefId: brief.id, confirmedNewIntent: true, ...args }, catalog)
-  const run = (args: { modeId: string; profileId?: string }) => call(args, CATALOG)
-  const runWithoutCatalog = (args: { modeId: string; profileId?: string }) => call(args, undefined)
+  const call = (
+    args: { modeId: string; profileId?: string; canvas?: string },
+    catalog: SetupCatalog | undefined
+  ) => setupDesign(figma, { briefId: brief.id, confirmedNewIntent: true, ...args }, catalog)
+  const run = (args: { modeId: string; profileId?: string; canvas?: string }) => call(args, CATALOG)
+  const runWithoutCatalog = (args: { modeId: string; profileId?: string; canvas?: string }) =>
+    call(args, undefined)
   return { graph, figma, brief, run, runWithoutCatalog }
 }
 
@@ -341,6 +348,58 @@ describe('setup_design core：契约组', () => {
   })
 })
 
+describe('setup_design 尺寸解析（T65 §2.2）：canvas 三态 + 优先序', () => {
+  test('缺省：mode 首选预设生效（sizes[0] 定高 → FIXED 2000）；无预设 mode 走 750 宽 HUG', () => {
+    const { graph, run } = setupPage()
+    const fixed = ok(run({ modeId: 'fixed' }))
+    expect(fixed.size).toEqual({ width: 750, height: 2000 })
+    const fixedRoot = expectDefined(graph.getNode(fixed.rootId))
+    expect(fixedRoot.height).toBe(2000)
+    expect(fixedRoot.primaryAxisSizing).toBe('FIXED')
+    // 无 sizes → 缺省
+    const plain = ok(run({ modeId: 'workflow' }))
+    expect(plain.size).toEqual({ width: 750, height: null })
+    expect(expectDefined(graph.getNode(plain.rootId)).primaryAxisSizing).toBe('HUG')
+  })
+
+  test('显式 canvas 覆盖首选预设：预设值与自由值（HUG / 定高）均可', () => {
+    const { graph, run } = setupPage()
+    // 预设值（longform sizes[1]）
+    const preset = ok(run({ modeId: 'longform', canvas: '1080x' }))
+    expect(preset.size).toEqual({ width: 1080, height: null })
+    expect(expectDefined(graph.getNode(preset.rootId)).width).toBe(1080)
+    // 自由定高值覆盖 fixed 的 750x2000 首选预设
+    const free = ok(run({ modeId: 'fixed', canvas: '1080x1920' }))
+    expect(free.size).toEqual({ width: 1080, height: 1920 })
+    const freeRoot = expectDefined(graph.getNode(free.rootId))
+    expect(freeRoot.height).toBe(1920)
+    expect(freeRoot.primaryAxisSizing).toBe('FIXED')
+    // general 无预设清单也可显式覆盖（恒过校验不查 catalog）
+    const general = ok(run({ modeId: 'general', canvas: '500x800' }))
+    expect(general.size).toEqual({ width: 500, height: 800 })
+  })
+
+  test('catalog 缺省：general 仍可显式 canvas；非 general 依旧 catalog_unavailable', () => {
+    const { runWithoutCatalog } = setupPage()
+    const general = ok(runWithoutCatalog({ modeId: 'general', canvas: '900x' }))
+    expect(general.size).toEqual({ width: 900, height: null })
+    err(runWithoutCatalog({ modeId: 'longform', canvas: '1080x' }), 'catalog_unavailable')
+  })
+
+  test('非法 canvas → invalid_canvas 且无框落地（非数字宽 / 缺 x / 三段 / 空串）', () => {
+    const { graph, figma, run } = setupPage()
+    const before = expectDefined(graph.getNode(figma.currentPage.id)).childIds.length
+    for (const bad of ['abc', '750', '750x2000x3', '']) {
+      const failure = err(run({ modeId: 'longform', canvas: bad }), 'invalid_canvas')
+      expect(failure.message).toBe(SETUP_TEXTS.invalidCanvas(bad))
+    }
+    // general 路径同走校验
+    err(run({ modeId: 'general', canvas: '宽750' }), 'invalid_canvas')
+    expect(expectDefined(graph.getNode(figma.currentPage.id)).childIds.length).toBe(before)
+    expect(scanMarketingDesigns(figma)).toEqual([])
+  })
+})
+
 describe('scanMarketingDesigns / resolveMarketingDesign 无状态三态', () => {
   test('空页 → scan 空 + resolve none；brief/普通 frame 不被误认', () => {
     const { graph, figma } = setupToolTest()
@@ -440,11 +499,16 @@ describe('scanMarketingDesigns / resolveMarketingDesign 无状态三态', () => 
 })
 
 describe('setup_design ToolDef：schema 与注入缝', () => {
-  test('SETUP_TOOLS 交付面 + mutates 钉扎 + schema 仅三参数', () => {
+  test('SETUP_TOOLS 交付面 + mutates 钉扎 + schema 四参数（T65 加 canvas 可选）', () => {
     expect(SETUP_TOOLS).toEqual([setupDesignTool])
     expect(setupDesignTool.name).toBe('setup_design')
     expect(setupDesignTool.mutates).toBe(true)
-    expect(Object.keys(setupDesignTool.params)).toEqual(['modeId', 'profileId', 'briefId'])
+    expect(Object.keys(setupDesignTool.params)).toEqual([
+      'modeId',
+      'profileId',
+      'briefId',
+      'canvas'
+    ])
     expect(setupDesignTool.params.modeId?.required).toBe(true)
     expect(setupDesignTool.params.briefId?.required).toBe(true)
   })
@@ -462,6 +526,31 @@ describe('setup_design ToolDef：schema 与注入缝', () => {
     const success = ok(result)
     const root = expectDefined(graph.getNode(success.rootId))
     expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_MODE_KEY)).toBe('longform')
+  })
+
+  test('canvas schema 参数透传 core：预设值生效；非法值 → invalid_canvas', () => {
+    const { graph, figma } = setupToolTest()
+    const brief = createBrief(figma)
+
+    const result = setupDesignTool.execute(figma, {
+      modeId: 'longform',
+      briefId: brief.id,
+      canvas: '1080x',
+      __catalog: JSON.stringify(CATALOG),
+      __confirmedNewIntent: 'true'
+    }) as SetupDesignResult
+    const success = ok(result)
+    expect(success.size).toEqual({ width: 1080, height: null })
+    expect(expectDefined(graph.getNode(success.rootId)).width).toBe(1080)
+
+    const invalid = setupDesignTool.execute(figma, {
+      modeId: 'longform',
+      briefId: brief.id,
+      canvas: 'not-a-size',
+      __catalog: JSON.stringify(CATALOG),
+      __confirmedNewIntent: 'true'
+    }) as SetupDesignResult
+    err(invalid, 'invalid_canvas')
   })
 
   test('无 __confirmedNewIntent → unconfirmed_new_intent（T-B10 落地前 AI 恒表现）', () => {

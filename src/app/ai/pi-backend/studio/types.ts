@@ -7,7 +7,16 @@
  *
  * 正文小节索引口径（parse.ts 产出，validate 与后续组装共用单源）：
  * `## X` 与 `### X` 标题均入索引，节内容 = 标题行之后到下一个标题（任意级）之间的文本。
+ *
+ * T65（owner 2026-09-01 拍板 C）：workflow frontmatter 可选 `sizes: [{label, canvas}]`
+ * 尺寸预设清单（label 中文名 + canvas `宽x` 高 HUG / `宽x高` 定高），registry 透传进
+ * StudioMode → manifest/catalog 投影；缺席 → 缺省 750 宽 HUG（语义不变）。
  */
+
+import type { CanvasSizePreset } from '@open-pencil/core/tools/fork/marketing/setup'
+
+/** 尺寸预设（T65 §2.1）——形状单源在 core setup.ts（type-shapes 门禁禁同构双写） */
+export type StudioSizePreset = CanvasSizePreset
 
 export type StudioAssetKind = 'base' | 'workflow' | 'profile'
 
@@ -29,6 +38,8 @@ export interface StudioWorkflow {
   label: string
   subtitle?: string
   stepBudget?: number
+  /** 尺寸预设清单（T65：frontmatter `sizes`；首条 = 首选预设；缺席 → 缺省 750 宽 HUG） */
+  sizes?: StudioSizePreset[]
   body: string
   sections: Record<string, string>
   origin: StudioOrigin
@@ -67,6 +78,8 @@ export interface StudioMode {
   id: string
   label: string
   subtitle?: string
+  /** workflow 来源 mode 透传 frontmatter sizes（T65）；general 无此字段（消费侧走缺省 750 宽 HUG） */
+  sizes?: StudioSizePreset[]
   source: 'general' | 'workflow'
 }
 

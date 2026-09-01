@@ -11,6 +11,8 @@
  *    同步，系统同步不触发意图。
  *  - 拨 chip = setPiChipSelection 暂存未确认意向（与回显相同则清空）；
  *    发消息时 ChatPanel 拦为新建意图确认卡。只拨 chip 浏览不发消息 = 无意图事件。
+ *  - T65（决策 E）：pending badge 内容化「将新建：mode·profile」（拨 chip 即见
+ *    意向内容，不等发送）+ 可点 × 一键撤销（clearPiPendingNewIntent）。
  *  - manifest 失败（piStudioManifestFailed）→ chips 禁用（错误条 + 重试在
  *    ChatInput 错误条区，08 P0-2）。
  */
@@ -24,6 +26,7 @@ import {
 import { computed } from 'vue'
 
 import {
+  clearPiPendingNewIntent,
   piChipSelection,
   piPendingNewIntent,
   piStudioManifest,
@@ -54,7 +57,22 @@ const selectedProfile = computed(
 const chipsDisabled = computed(
   () => disabled || piStudioManifestFailed.value || piStudioManifest.value === null
 )
-const hasPendingIntent = computed(() => piPendingNewIntent.value !== null)
+
+// T65：pending badge 内容化——拨 chip 即见「将新建：mode·profile」（不等发送）
+const pending = computed(() => piPendingNewIntent.value)
+const pendingModeLabel = computed(() => {
+  const intent = pending.value
+  if (!intent) return ''
+  return modes.value.find((mode) => mode.id === intent.modeId)?.label ?? intent.modeId
+})
+const pendingProfileLabel = computed(() => {
+  const intent = pending.value
+  if (!intent) return ''
+  if (intent.profileId === null) return chipsText.value.chipsNoProfile
+  return (
+    profiles.value.find((profile) => profile.id === intent.profileId)?.label ?? intent.profileId
+  )
+})
 
 function pickMode(modeId: string) {
   setPiChipSelection({ modeId, profileId: selection.value.profileId })
@@ -65,7 +83,7 @@ function pickProfile(profileId: string | null) {
 }
 
 const triggerCls =
-  'flex min-w-0 max-w-28 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted outline-none hover:bg-hover data-[state=open]:bg-hover disabled:cursor-not-allowed disabled:opacity-50'
+  'flex min-w-0 max-w-28 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted outline-none hover:bg-hover data-[state=open]:bg-hover disabled:cursor-not-allowed disabled:opacity-50'
 </script>
 
 <template>
@@ -153,13 +171,24 @@ const triggerCls =
       </DropdownMenuPortal>
     </DropdownMenuRoot>
 
-    <!-- 未确认新建意向标记（发送前可见信号；确认卡见 ChatNewIntentCard） -->
+    <!-- T65：未确认新建意向标记——内容化「将新建：mode·profile」+ 可点 × 一键撤销 -->
     <span
-      v-if="hasPendingIntent"
+      v-if="pending"
       data-test-id="chat-chips-pending-badge"
-      class="shrink-0 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] text-accent"
+      class="flex shrink-0 items-center gap-0.5 rounded bg-accent/15 py-0.5 pr-0.5 pl-1.5 text-[11px] text-accent"
     >
-      {{ chipsText.chipsPendingBadge }}
+      <span class="max-w-36 truncate">{{
+        chipsText.chipsPendingLabel({ mode: pendingModeLabel, profile: pendingProfileLabel })
+      }}</span>
+      <button
+        type="button"
+        data-test-id="chat-chips-pending-undo"
+        :aria-label="chipsText.chipsPendingUndo"
+        class="flex size-3.5 shrink-0 items-center justify-center rounded hover:bg-accent/20"
+        @click="clearPiPendingNewIntent"
+      >
+        <icon-lucide-x class="size-2.5" />
+      </button>
     </span>
   </div>
 </template>

@@ -26,21 +26,26 @@ import {
   clearPiPendingNewIntent,
   piActiveDesign,
   piPendingNewIntent,
+  piStudioManifest,
   resyncPiActiveDesign
 } from '@/app/ai/pi-backend/mode-selection'
 import { activeTab } from '@/app/tabs'
 import { getActiveEditorStore } from '@/app/editor/active-store'
+import ChatContextBar from '@/components/chat/ChatContextBar.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
 import ChatMessage from '@/components/chat/ChatMessage.vue'
 import {
   ACTIVE_DESIGN_DECISION_PART_TYPE,
+  CONTEXT_SWITCH_PART_TYPE,
   NEW_INTENT_PART_TYPE,
   collectDesignImageRefs,
   isDesignRootMaterialized,
+  modeSizeChoices,
   parseSetActiveDesignProposed,
   postActiveDesign,
   serializeNewIntentEnvelope,
   type ActiveDesignDecisionPartData,
+  type ContextSwitchPartData,
   type NewIntentPartData
 } from '@/components/chat/active-design'
 import AppPlaceholder from '@/components/ui/AppPlaceholder.vue'
@@ -316,11 +321,15 @@ async function interceptNewIntent(
   const active = piActiveDesign.value
   // 共享契约 4 物化判据（core active-design.ts 单源；active-design.ts 钉扎）：Case A/B 话术分叉
   const materialized = active ? isDesignRootMaterialized(store, active.nodeId) : false
+  // T65：尺寸行预设 = 选中 mode 的 manifest.sizes 投影（[{label,canvas}] 契约，
+  // 防御性归一在 modeSizeChoices；数据面由 core/manifest 侧落地）
+  const modeEntry = piStudioManifest.value?.modes.find((mode) => mode.id === intent.modeId) ?? null
   const data: NewIntentPartData = {
     modeId: intent.modeId,
     profileId: intent.profileId,
     caseKind: materialized ? 'B' : 'A',
     activeDesignName: active?.name ?? null,
+    sizeChoices: modeSizeChoices(modeEntry),
     references: materialized && active ? collectDesignImageRefs(store, active.nodeId) : [],
     resolved: null
   }
@@ -358,7 +367,11 @@ function resolveIntentPart(messageId: string, resolved: 'confirmed' | 'cancelled
   chat.value = markRaw(currentChat)
 }
 
-async function handleIntentConfirm(payload: { messageId: string; referenceNodeIds: string[] }) {
+async function handleIntentConfirm(payload: {
+  messageId: string
+  referenceNodeIds: string[]
+  canvas: string | null
+}) {
   if (status.value === 'streaming' || status.value === 'submitted') return
   const intent = piPendingNewIntent.value
   const draft = pendingIntentDraft.value ?? ''
@@ -366,10 +379,12 @@ async function handleIntentConfirm(payload: { messageId: string; referenceNodeId
   pendingIntentDraft.value = null
   clearPiPendingNewIntent()
   chatInputRef.value?.clearDraft()
-  // 共享契约 1 逐字信封（字段可缺省）+ 用户消息；宿主（T60）剥离置旗标
+  // 共享契约 1 逐字信封（全字段可缺省；T65 §2.4 扩展 canvas）+ 用户消息；
+  // 宿主（T60/T65）剥离置旗标
   const envelope = serializeNewIntentEnvelope({
     modeId: intent?.modeId ?? null,
-    profileId: intent?.profileId ?? null
+    profileId: intent?.profileId ?? null,
+    canvas: payload.canvas
   })
   // 携带物：已生成图片 references（信封字段不动契约，节点 id 以正文行携带进 run）
   const referencesLine =
@@ -423,13 +438,14 @@ async function handleConsentDecide(payload: { toolCallId: string; agree: boolean
   const proposed = consentProposed(payload.toolCallId)
   const designName = proposed.name ?? proposed.nodeId ?? payload.toolCallId
 
-  let line: string
+  let switched = false
+  let line: string | null = null
   if (payload.agree && proposed.nodeId) {
-    // 同意 → 切换端点（共享契约 2，与设计列表面板「设为当前」共用）
+    // 同意 → 切换端点（共享契约 2，与画布状态面板「设为当前」共用）
     const result = await postActiveDesign(proposed.nodeId)
     if (result) {
       resyncPiActiveDesign()
-      line = confirmText.value.consentAgreedLine({ name: designName })
+      switched = true
     } else {
       line = confirmText.value.consentFailedLine
     }
@@ -438,8 +454,10 @@ async function handleConsentDecide(payload: { toolCallId: string; agree: boolean
   } else {
     line = confirmText.value.consentDeclinedLine({ name: designName })
   }
-  // 两侧均不伪装用户消息：决定记录 data part（置灰派生源）+ 本地系统行
-  await appendHostMessage([
+  // 两侧均不伪装用户消息：决定记录 data part（置灰派生源）+ 回执。
+  // T65（决策 D3）：同意成功的回执 = 对话流分割线（data-context-switch），
+  // 替换原本地系统行；失败 / 拒绝仍走文本行。
+  const parts: UIMessage['parts'] = [
     {
       type: ACTIVE_DESIGN_DECISION_PART_TYPE,
       data: {
@@ -447,8 +465,26 @@ async function handleConsentDecide(payload: { toolCallId: string; agree: boolean
         decision: payload.agree ? 'agreed' : 'declined',
         designName
       } satisfies ActiveDesignDecisionPartData
-    },
-    { type: 'text', text: line }
+    }
+  ]
+  if (switched) {
+    parts.push({
+      type: CONTEXT_SWITCH_PART_TYPE,
+      data: { name: designName } satisfies ContextSwitchPartData
+    })
+  } else if (line !== null) {
+    parts.push({ type: 'text', text: line })
+  }
+  await appendHostMessage(parts)
+}
+
+/** T65（决策 D3）：画布状态面板「设为当前」端点 200 后注入分割线回执 */
+async function handleContextSwitch(payload: { name: string }) {
+  await appendHostMessage([
+    {
+      type: CONTEXT_SWITCH_PART_TYPE,
+      data: { name: payload.name } satisfies ContextSwitchPartData
+    }
   ])
 }
 
@@ -475,10 +511,12 @@ function handleClearChat() {
 
 <template>
   <div data-test-id="chat-panel" class="flex min-w-0 flex-1 flex-col overflow-hidden select-text">
-    <!-- T23 会话栏：族谱查看/切换（docId 未铸造或族为空时菜单内空态项） -->
+    <!-- T23 会话栏：族谱查看/切换（docId 未铸造或族为空时菜单内空态项）；
+         T65：旁挂画布工作状态面板（ChatContextBar 三合一，决策 B2——trigger =
+         当前设计名，无 active = 空槽引导） -->
     <div
       data-test-id="chat-session-bar"
-      class="flex shrink-0 items-center border-b border-border px-3 py-1"
+      class="flex shrink-0 items-center gap-1 border-b border-border px-3 py-1"
     >
       <DropdownMenuRoot @update:open="handleSessionMenuOpen">
         <Tip :label="currentSessionId ?? undefined">
@@ -538,6 +576,12 @@ function handleClearChat() {
           </DropdownMenuContent>
         </DropdownMenuPortal>
       </DropdownMenuRoot>
+
+      <!-- T65：画布工作状态面板（三合一）；切换成功 → 分割线回执 -->
+      <ChatContextBar
+        :disabled="status === 'streaming' || status === 'submitted'"
+        @switched="handleContextSwitch"
+      />
     </div>
 
     <ScrollAreaRoot class="min-h-0 flex-1">

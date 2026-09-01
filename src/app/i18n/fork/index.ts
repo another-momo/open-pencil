@@ -58,10 +58,10 @@ export const forkImageGenMessages = forkI18n('imagegen', imageGenMessageDefaults
 /** T56：ask_user_question 聊天内表单卡片文案域（AskUserQuestionCard） */
 export const forkAskMessages = forkI18n('ask', askMessageDefaults)
 
-/** T61：chips + gallery + manifest 失败条文案域（ChatModeChips / ChatGalleryPanel） */
+/** T61：chips + manifest 失败条文案域（ChatModeChips）；T65：gallery 键随组件退役删除 */
 export const forkChipsMessages = forkI18n('chips', chipsMessageDefaults)
 
-/** T61：设计列表 / 需求单面板文案域（ChatDesignListPanel / ChatBriefPanel） */
+/** T61→T65：画布工作状态面板文案域（ChatContextBar 三合一：目标卡 / 设计区 / 需求单） */
 export const forkPanelsMessages = forkI18n('panels', panelsMessageDefaults)
 
 /** T61：新建意图确认卡 + set_active_design 同意卡文案域（ChatNewIntentCard / ChatSetActiveDesignCard） */

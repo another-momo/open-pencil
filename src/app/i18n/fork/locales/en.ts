@@ -56,6 +56,21 @@ export const imageGenMessageDefaults = {
   imageGenOffline: 'pi backend unreachable — start the dev server with `bun run dev`.'
 } as const
 
+/** T56：ask_user_question 聊天内表单卡片（AskUserQuestionCard）英文默认值 */
+export const askMessageDefaults = {
+  askFormTitle: 'The AI is asking a few questions',
+  askSubmit: 'Submit answers',
+  askSkip: 'Skip this form',
+  askSkipPlaceholder: 'Other / additional notes (optional)…',
+  askRequiredHint: 'Please answer the required questions first',
+  askOptional: 'Optional',
+  askTextPlaceholder: 'Type your answer…',
+  askAnswered: 'Answered',
+  askSkipped: 'Skipped',
+  askImageUnavailable: 'Preview unavailable',
+  askInvalidDefinition: 'This form definition is invalid and cannot be answered.'
+} as const
+
 /** T41：字体白名单设置面板（SettingsDialog fonts 分区）英文默认值；T42：来源开关 + 目录组 + 筛选/折叠/批量 */
 export const fontsMessageDefaults = {
   settingsFonts: 'Fonts',

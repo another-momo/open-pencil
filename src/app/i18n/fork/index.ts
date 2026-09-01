@@ -17,7 +17,12 @@ import { useStore } from '@nanostores/vue'
 
 import { locale, type Locale } from '@open-pencil/vue'
 
-import { fontsMessageDefaults, imageGenMessageDefaults, piMessageDefaults } from './locales/en'
+import {
+  askMessageDefaults,
+  fontsMessageDefaults,
+  imageGenMessageDefaults,
+  piMessageDefaults
+} from './locales/en'
 
 export const forkI18n = createI18n<Locale, 'en'>(locale, {
   baseLocale: 'en',
@@ -28,7 +33,8 @@ export const forkI18n = createI18n<Locale, 'en'>(locale, {
         rebuild: mod.default.rebuild,
         pi: mod.default.pi,
         fonts: mod.default.fonts,
-        imagegen: mod.default.imagegen
+        imagegen: mod.default.imagegen,
+        ask: mod.default.ask
       }
     }
     return {}
@@ -43,6 +49,9 @@ export const forkFontsMessages = forkI18n('fonts', fontsMessageDefaults)
 /** T54：generate_image 凭证面板文案域（SettingsDialog media 分区） */
 export const forkImageGenMessages = forkI18n('imagegen', imageGenMessageDefaults)
 
+/** T56：ask_user_question 聊天内表单卡片文案域（AskUserQuestionCard） */
+export const forkAskMessages = forkI18n('ask', askMessageDefaults)
+
 export function useForkFonts() {
   return useStore(forkFontsMessages)
 }
@@ -50,6 +59,11 @@ export function useForkFonts() {
 /** T54：同 useForkPi 形态——返回诚实 Ref，script 内访问写 .value */
 export function useForkImageGen() {
   return useStore(forkImageGenMessages)
+}
+
+/** T56：同 useForkPi 形态——返回诚实 Ref，script 内访问写 .value */
+export function useForkAsk() {
+  return useStore(forkAskMessages)
 }
 
 // T38 修：返回诚实 Ref（照抄上游 useNotificationMessages 形态，类型推断保留

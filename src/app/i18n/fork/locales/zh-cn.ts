@@ -13,11 +13,29 @@
  */
 import type { ComponentsJSON } from '@nanostores/i18n'
 
-import type { fontsMessageDefaults, imageGenMessageDefaults, piMessageDefaults } from './en'
+import type {
+  askMessageDefaults,
+  fontsMessageDefaults,
+  imageGenMessageDefaults,
+  piMessageDefaults
+} from './en'
 
 const zhCN = {
   rebuild: {
     seamProbe: 'fork i18n 缝已接通'
+  },
+  ask: {
+    askFormTitle: 'AI 向你提问',
+    askSubmit: '提交作答',
+    askSkip: '跳过表单',
+    askSkipPlaceholder: '其他 / 补充说明（可选）…',
+    askRequiredHint: '请先作答必填题',
+    askOptional: '选答',
+    askTextPlaceholder: '输入你的回答…',
+    askAnswered: '已作答',
+    askSkipped: '已跳过',
+    askImageUnavailable: '预览不可用',
+    askInvalidDefinition: '表单定义无效，无法作答。'
   },
   imagegen: {
     imageGenTitle: '图像生成',
@@ -102,3 +120,4 @@ export default zhCN
 export type PiNamespace = typeof piMessageDefaults
 export type FontsNamespace = typeof fontsMessageDefaults
 export type ImageGenNamespace = typeof imageGenMessageDefaults
+export type AskNamespace = typeof askMessageDefaults

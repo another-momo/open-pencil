@@ -12,6 +12,7 @@ import {
 } from 'reka-ui'
 import { refAutoReset } from '@vueuse/core'
 import { computed, markRaw, nextTick, ref, watch } from 'vue'
+import { isTextUIPart } from 'ai'
 
 import { copyChatLog } from '@/app/ai/debug'
 import {
@@ -35,9 +36,15 @@ import { useI18n } from '@open-pencil/vue'
 
 import { useNotificationMessages } from '@/app/i18n/notifications'
 
+import {
+  parseAskAnswer,
+  serializeAskAnswer
+} from '@open-pencil/core/tools/fork/marketing/ask-user-question'
+
 import type { Chat } from '@ai-sdk/vue'
 import type { UIMessage } from 'ai'
 import type { JSONObject } from '@open-pencil/scene-graph/primitives'
+import type { AskFormSubmission } from '@open-pencil/core/tools/fork/marketing/ask-user-question'
 
 const IS_DEV = import.meta.env.DEV
 
@@ -67,6 +74,21 @@ const messagesEnd = ref<HTMLDivElement>()
 const debugCopied = refAutoReset(false, 1500)
 
 const messages = computed(() => chat.value?.messages ?? [])
+
+// T56：已作答/已跳过表单 formId 集——扫 user 消息文本首行信封标记
+// （重载后已答表单置灰的唯一信号，formId 相关性降级口径见 T56-plan §1 定谳 6）
+const answeredFormIds = computed(() => {
+  const ids = new Set<string>()
+  for (const message of messages.value) {
+    if (message.role !== 'user') continue
+    for (const part of message.parts) {
+      if (!isTextUIPart(part)) continue
+      const parsed = parseAskAnswer(part.text)
+      if (parsed) ids.add(parsed.formId)
+    }
+  }
+  return ids
+})
 const failureMessage = computed(() => {
   switch (chatFailure.value?.reason) {
     case 'insufficient-credit':
@@ -229,6 +251,14 @@ function handleStop() {
   chat.value?.stop()
 }
 
+// T56：表单作答/跳过 → 文本信封（serializeAskAnswer）→ 复用既有提交路径；
+// streaming guard 与 handleSubmit 同律
+async function handleFormSubmit(submission: AskFormSubmission) {
+  if (status.value === 'streaming' || status.value === 'submitted') return
+  const { formId, ...payload } = submission
+  await handleSubmit(serializeAskAnswer(formId, payload))
+}
+
 async function handleCopyDebug() {
   await copyChatLog(messages.value, chatFailure.value)
   debugCopied.value = true
@@ -337,6 +367,8 @@ function handleClearChat() {
             :key="msg.id"
             :message="msg"
             :streaming="isStreamingMessage(msg, index)"
+            :answered-form-ids="answeredFormIds"
+            @form-submit="handleFormSubmit"
           />
 
           <!-- Thinking indicator: shown when AI is working but no visible activity -->

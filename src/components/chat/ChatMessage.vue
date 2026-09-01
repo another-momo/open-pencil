@@ -9,18 +9,45 @@ import 'vue-stream-markdown/index.css'
 import { resolvedAppTheme } from '@/app/shell/theme'
 
 import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from 'ai'
+import type { AskFormSubmission } from '@open-pencil/core/tools/fork/marketing/ask-user-question'
 
+import AskUserQuestionCard from './AskUserQuestionCard.vue'
 import { classifyToolState } from './tool-state'
 
-const { message, streaming = false } = defineProps<{
+const {
+  message,
+  streaming = false,
+  answeredFormIds
+} = defineProps<{
   message: UIMessage
   streaming?: boolean
+  /** T56：已作答/已跳过表单的 formId 集（ChatPanel 扫用户消息信封派生） */
+  answeredFormIds?: ReadonlySet<string>
+}>()
+const emit = defineEmits<{
+  formSubmit: [submission: AskFormSubmission]
 }>()
 const { dialogs } = useI18n()
 const isDark = computed(() => resolvedAppTheme.value === 'dark')
 const markdownMode = computed(() => (streaming ? 'streaming' : 'static'))
 
 type ToolPart = Extract<UIMessagePart<UIDataTypes, UITools>, { toolCallId: string }>
+
+/** T56：awaiting 信封 details（骑 mapping 到 part.output）里的 formId */
+function askFormId(part: ToolPart): string | null {
+  if (part.state !== 'output-available') return null
+  const output = part.output
+  if (typeof output === 'object' && output !== null && 'formId' in output) {
+    const id = (output as { formId?: unknown }).formId
+    return typeof id === 'string' ? id : null
+  }
+  return null
+}
+
+function isAskFormAnswered(part: ToolPart): boolean {
+  const id = askFormId(part)
+  return id !== null && (answeredFormIds?.has(id) ?? false)
+}
 
 function toolDisplayName(part: ToolPart): string {
   return getToolName(part)
@@ -64,8 +91,16 @@ function partKey(part: UIMessagePart<UIDataTypes, UITools>, index: number): stri
     >
       <template v-if="message.role === 'assistant'">
         <template v-for="(part, i) in message.parts" :key="partKey(part, i)">
+          <!-- T56：ask_user_question → 聊天内表单卡片（先于通用折叠工具卡） -->
+          <AskUserQuestionCard
+            v-if="isToolUIPart(part) && getToolName(part) === 'ask_user_question'"
+            :part="part"
+            :answered="isAskFormAnswered(part)"
+            :disabled="streaming"
+            @submit="emit('formSubmit', $event)"
+          />
           <!-- Tool call -->
-          <div v-if="isToolUIPart(part)" class="rounded-lg border border-border bg-canvas p-2">
+          <div v-else-if="isToolUIPart(part)" class="rounded-lg border border-border bg-canvas p-2">
             <CollapsibleRoot>
               <CollapsibleTrigger
                 class="flex w-full items-center gap-2 rounded px-1 py-0.5 hover:bg-hover"

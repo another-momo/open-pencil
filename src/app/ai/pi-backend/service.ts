@@ -45,6 +45,7 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import type { UIMessage, UIMessageChunk } from 'ai'
 
+import { createAskUserQuestionTool } from './ask-user-question'
 import type { PiChatMode } from './chat-mode'
 import { readPiHistoryFile } from './history'
 import type { ImageGenCredentialStore } from './image-gen/credentials'
@@ -55,6 +56,7 @@ import { buildMarketingOverlay, studioOverlayInput } from './prompt-overlay'
 import type { ModelSpec, ProviderAdmin } from './provider-admin'
 import { runSessionGc } from './session-gc'
 import type { PiSessionSummary } from './session-summary'
+import { buildSetupCatalog, type SetupDesignContext } from './setup-catalog'
 import { getStudioRegistry } from './studio'
 import { toStudioManifest, type PiStudioManifest } from './studio/manifest'
 import type { StudioRegistry } from './studio/types'
@@ -199,11 +201,21 @@ export function createPiChatService({
     // T22：documentId 以当次请求为准（session 复用、target 可变），
     // 工具经闭包读取注入桥 args.document_id
     const target: { documentId?: string } = {}
+    // T53（S3 §2）：setup_design 注入缝——catalog 请求时投影（getStudioRegistry
+    // 现取，跟随 reload 语义方向）；新建意图确认真源 = T61 UI 指令块，落地前
+    // 恒 false（契约内行为，S4 §7 尾巴表登记）
+    const setupDesign: SetupDesignContext = {
+      catalogJSON: () => JSON.stringify(buildSetupCatalog(getStudioRegistry(rootDir))),
+      newIntentConfirmed: () => false
+    }
     const customTools = [
-      ...createOpenPencilTools({ current: () => budget.current }, target),
+      ...createOpenPencilTools({ current: () => budget.current }, target, setupDesign),
       // T54：generate_image 后端段（生成 HTTP 不经桥、落图经桥；凭证单实例
       // 由 server.ts 注入，与设置路由同视图）
-      createImageGenTool({ credentials: imageGenCredentials, target })
+      createImageGenTool({ credentials: imageGenCredentials, target }),
+      // T56：ask_user_question 后端本地工具（不经桥——表单卡片由前端读 tool
+      // part 渲染，作答序列化为新回合用户消息回流；run 终止续跑，无挂起态）
+      createAskUserQuestionTool()
     ]
 
     // T24：模式注册表烘焙 base prompt；overlay 袋每 prompt 刷新，

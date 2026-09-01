@@ -45,6 +45,10 @@ import { readDiscoveryFile } from '@open-pencil/mcp/discovery'
 
 import { postBridgeRPC } from './bridge-rpc'
 import { isMediaToolOutput, MEDIA_OUTPUT_TOOLS, sanitizeMediaToolOutput } from './media-output'
+import type { SetupDesignContext } from './setup-catalog'
+
+/** T53：schema 外注入缝仅服务此工具（catalog + 新建意图确认旗标） */
+const SETUP_DESIGN_TOOL = 'setup_design'
 
 const EXTENDED_WHITELIST = [
   'get_components',
@@ -173,7 +177,8 @@ function toolLabel(name: string): string {
 function defineBridgeTool(
   def: ToolDef,
   budget: StepBudgetSource | undefined,
-  target?: ToolTargetSource
+  target?: ToolTargetSource,
+  setupDesign?: SetupDesignContext
 ) {
   const shape: Record<string, TSchema> = {}
   for (const [key, param] of Object.entries(def.params)) {
@@ -185,8 +190,17 @@ function defineBridgeTool(
     description: def.description,
     parameters: Type.Object(shape),
     async execute(_toolCallId, params): Promise<AgentToolResult<BridgeToolResult>> {
+      // T53（S3 §2）：catalog 投影 + 新建意图确认旗标随桥 args 外层注入
+      // （T22 document_id 同缝）——不进 schema；core 侧解析容错（注入缺失/
+      // 畸形 → catalog-less 语义 + 未确认拒绝）
+      const extra: Record<string, unknown> = {}
+      if (def.name === SETUP_DESIGN_TOOL && setupDesign) {
+        const catalog = setupDesign.catalogJSON()
+        if (catalog !== undefined) extra.__catalog = catalog
+        if (setupDesign.newIntentConfirmed()) extra.__confirmedNewIntent = 'true'
+      }
       const result = maybeAppendStepWarning(
-        await callBridgeTool(def.name, { ...params }, target),
+        await callBridgeTool(def.name, { ...params, ...extra }, target),
         budget
       )
       // T55（S3 §5 通道 A）：登记媒体工具的结果把 base64 图像提升为 pi
@@ -209,13 +223,18 @@ function defineBridgeTool(
   })
 }
 
-export function createOpenPencilTools(budget?: StepBudgetSource, target?: ToolTargetSource) {
+export function createOpenPencilTools(
+  budget?: StepBudgetSource,
+  target?: ToolTargetSource,
+  setupDesign?: SetupDesignContext
+) {
   const toolSet = [
     ...CORE_TOOLS,
     ...EXTENDED_TOOLS.filter((def) => (EXTENDED_WHITELIST as readonly string[]).includes(def.name)),
-    // T52/T54/T55（S4 W2）：fork 工具全量暴露——brief 三件套 / look /
-    // image-gen 落图段端点（generate_image 本体由 service 后端段另行装配）
+    // T52-T57（S4 W2）：fork 工具全量暴露——brief 三件套 / setup_design / look /
+    // prepare_hero_scaffold / image-gen 落图段端点（generate_image 本体由
+    // service 后端段另行装配）
     ...FORK_TOOLS
   ]
-  return toolSet.map((def) => defineBridgeTool(def, budget, target))
+  return toolSet.map((def) => defineBridgeTool(def, budget, target, setupDesign))
 }

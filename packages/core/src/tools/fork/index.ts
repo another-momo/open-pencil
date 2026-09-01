@@ -7,14 +7,21 @@
  * registry.ts (registered patch P22). Precedent in upstream's own style:
  * component-catalog.ts's registerComponentCatalog.
  *
- * W2 登记者：BRIEF_TOOLS（T52 brief 三件套）、lookTool（T55）、
+ * W2 登记者：BRIEF_TOOLS（T52 brief 三件套）、SETUP_TOOLS（T53 setup_design）、
+ * lookTool（T55）、HERO_TOOLS（T57 prepare_hero_scaffold）、
  * IMAGE_GEN_TOOLS（T54 落图段桥端点——generate_image 本体在 pi-backend
  * 后端段装配，不经此表）。
  */
 import type { ToolDef } from '#core/tools/schema'
 
 import { IMAGE_GEN_TOOLS } from './image-gen'
-import { BRIEF_TOOLS } from './marketing'
+import { BRIEF_TOOLS, HERO_TOOLS, SETUP_TOOLS } from './marketing'
 import { lookTool } from './marketing/look'
 
-export const FORK_TOOLS: ToolDef[] = [...BRIEF_TOOLS, lookTool, ...IMAGE_GEN_TOOLS]
+export const FORK_TOOLS: ToolDef[] = [
+  ...BRIEF_TOOLS,
+  ...SETUP_TOOLS,
+  lookTool,
+  ...HERO_TOOLS,
+  ...IMAGE_GEN_TOOLS
+]

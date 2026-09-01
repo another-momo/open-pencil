@@ -60,7 +60,8 @@
     "packages/kiwi/src/schema-runtime/interpreter.ts",
     "packages/kiwi/NOTICE",
     "packages/core/src/bytes/image-mime.ts",
-    "src/components/settings/provider/ImageGenKeysSection.vue"
+    "src/components/settings/provider/ImageGenKeysSection.vue",
+    "src/components/chat/AskUserQuestionCard.vue"
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
@@ -99,9 +100,9 @@
     {
       "id": "P4",
       "file": "src/components/ChatPanel.vue",
-      "reason": "remove ACPPermissionDialog and ACP log UI T25: attachment 分析流与 ProviderSetup 门切除（pi 单通道），会话栏恒挂 T27(2026-08-25): 死 UI 清理（showContinue/Continue 按钮随旧 ToolLoop step 计数面切除）+ 提交失败草稿回填（chatInputRef.restoreDraft）+ clear 后刷新改 resetChat().then 确定性等待（去 setTimeout(100)）",
+      "reason": "remove ACPPermissionDialog and ACP log UI T25: attachment 分析流与 ProviderSetup 门切除（pi 单通道），会话栏恒挂 T27(2026-08-25): 死 UI 清理（showContinue/Continue 按钮随旧 ToolLoop step 计数面切除）+ 提交失败草稿回填（chatInputRef.restoreDraft）+ clear 后刷新改 resetChat().then 确定性等待（去 setTimeout(100)） T56（2026-09-01）: ask_user_question 表单作答回流——answeredFormIds 派生（parseAskAnswer 扫用户消息标记行）+ handleFormSubmit 序列化信封复用既有提交路径",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "lastReviewed": "2026-09-01"
     },
     {
       "id": "P5",
@@ -394,9 +395,9 @@
     {
       "id": "P47",
       "file": "src/components/chat/ChatMessage.vue",
-      "reason": "T25: 附件呈现切除（attachment presentation/ImageAttachment 随 attachment 族删除）",
+      "reason": "T25: 附件呈现切除（attachment presentation/ImageAttachment 随 attachment 族删除） T56（2026-09-01）: ask_user_question 工具 part 分支挂 AskUserQuestionCard（先于通用折叠卡）+ answeredFormIds prop 与 formSubmit emit 透传",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "lastReviewed": "2026-09-01"
     },
     {
       "id": "P48",

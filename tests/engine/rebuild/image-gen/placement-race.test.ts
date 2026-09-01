@@ -12,7 +12,9 @@ import { FigmaAPI, SceneGraph } from '@open-pencil/core'
 import { IMAGE_GEN_TOOLS } from '@open-pencil/core/tools/fork/image-gen'
 import {
   findPlacementPosition,
+  findPlacementPositionOnPage,
   getPageContentBounds,
+  getPageContentBoundsOnPage,
   PLACEMENT_GAP
 } from '@open-pencil/core/tools/fork/placement'
 
@@ -60,6 +62,34 @@ describe('findPlacementPosition', () => {
     const position = findPlacementPosition(figma, { width: 100, height: 100 })
     // bounds: x=-500..450, y=300..1000 → x = 450+100, y = 300
     expect(position).toEqual({ x: 450 + PLACEMENT_GAP, y: 300 })
+  })
+})
+
+describe('findPlacementPositionOnPage（T66 ⑤ 跨页 seam）', () => {
+  test('读指定页顶层 bounds，与 currentPage 无关；空页 → 原点', () => {
+    const { graph, figma, pageId } = setup()
+    const page2 = graph.addPage('Page 2')
+    graph.createNode('FRAME', page2.id, { name: 'x', x: 10, y: 5, width: 90, height: 50 })
+
+    // currentPage 仍是 pageId（空页），seam 读取的是显式指定的 page2
+    expect(figma.currentPageId).toBe(pageId)
+    expect(getPageContentBoundsOnPage(graph, page2.id)).toEqual({
+      x: 10,
+      y: 5,
+      width: 90,
+      height: 50
+    })
+    expect(findPlacementPositionOnPage(graph, page2.id, { width: 10, height: 10 })).toEqual({
+      x: 10 + 90 + PLACEMENT_GAP,
+      y: 5
+    })
+
+    // 空的指定页 → null / 原点
+    expect(getPageContentBoundsOnPage(graph, pageId)).toBeNull()
+    expect(findPlacementPositionOnPage(graph, pageId, { width: 1, height: 1 })).toEqual({
+      x: 0,
+      y: 0
+    })
   })
 })
 

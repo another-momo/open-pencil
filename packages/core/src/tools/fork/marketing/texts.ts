@@ -17,7 +17,7 @@ export const BRIEF_TEXTS = {
   contentZoneBadge: '支持长文本 · 双击替换示例',
   contentExample:
     '例如：「XX奶茶」夏季新品买一送一，主推芒果冰沙，单价 9.9 元，活动时间 6 月 1 日 — 6 月 7 日。文案方向：年轻、清爽、突出「夏日解暑」的感觉。',
-  fieldsHint: '需要的字段：品牌名 · 优惠活动 · 价格 · 时间 · 想要的文案',
+  fieldsHint: '把需求写在这里：要做什么、给谁看、必须出现的内容、素材怎么用——写得越完整，AI 越少猜',
 
   materialsZoneName: '素材区',
   materialsZoneBadge: '在需求单面板中添加',

@@ -31,6 +31,7 @@ import {
 } from '@/app/ai/pi-backend/mode-selection'
 import { activeTab } from '@/app/tabs'
 import { getActiveEditorStore } from '@/app/editor/active-store'
+import ChatBriefDialog from '@/components/chat/ChatBriefDialog.vue'
 import ChatContextBar from '@/components/chat/ChatContextBar.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
 import ChatMessage from '@/components/chat/ChatMessage.vue'
@@ -677,5 +678,9 @@ function handleClearChat() {
       @stop="handleStop"
       @error="toast.error"
     />
+
+    <!-- T66（决策②）：需求单大面板——ChatContextBar 列表条目点击打开；
+         开关状态在 chat/active-design.ts 模块级 ref（settings/dialog.ts 先例） -->
+    <ChatBriefDialog />
   </div>
 </template>

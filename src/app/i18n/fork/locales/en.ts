@@ -41,16 +41,24 @@ export const piMessageDefaults = {
   thinkingExtraHigh: 'Extra high'
 } as const
 
-/** T54：generate_image 凭证面板（SettingsDialog media 分区；预设下拉 + 单 key 输入）英文默认值 */
+/** T54→T66：generate_image 凭证面板（SettingsDialog media 分区；Provider 类型下拉 + baseUrl/model/key 输入 + 测试连接）英文默认值 */
 export const imageGenMessageDefaults = {
   imageGenTitle: 'Image generation',
   imageGenDescription:
-    'Credentials for the generate_image tool, held by the local pi backend (separate from the chat LLM key). Pick a provider preset, then paste its API key.',
-  imageGenProvider: 'Provider preset',
+    'Credentials for the generate_image tool, held by the local pi backend (separate from the chat LLM key). Pick the provider type, then enter its base URL, model and API key.',
+  imageGenProvider: 'Provider type',
+  imageGenBaseUrl: 'Base URL',
+  imageGenBaseUrlPlaceholder: 'https://api.openai.com/v1',
+  imageGenModel: 'Model',
+  imageGenModelPlaceholder: 'gpt-image-1',
   imageGenKeyPlaceholderConfigured: 'Key saved — enter a new key to replace',
   imageGenKeyPlaceholderMissing: 'Paste API key',
   imageGenKeySave: 'Save key',
   imageGenKeyClear: 'Clear key',
+  imageGenTestConnection: 'Test connection',
+  imageGenTesting: 'Testing…',
+  imageGenTestSuccess: 'Connection OK',
+  imageGenTestFailed: 'Connection failed',
   imageGenConfigured: 'Configured',
   imageGenNotConfigured: 'Not configured',
   imageGenOffline: 'pi backend unreachable — start the dev server with `bun run dev`.'
@@ -74,7 +82,8 @@ export const askMessageDefaults = {
 /**
  * T61：输入条 chips（mode/profile 两级数据驱动）+ manifest 失败条 英文默认值。
  * T65：gallery 键删除（组件退役，决策 B3）；pending badge 内容化「将新建：…」
- * + 可撤销（决策 E）；chips 区空槽引导一行（决策 E/B2）。
+ * + 可撤销（决策 E）。T66：chipsEmptyHint 删除——空槽引导收敛进 ChatContextBar
+ * 双段式 trigger（决策①），输入条零状态显示。
  */
 export const chipsMessageDefaults = {
   chipsMode: 'Mode',
@@ -82,19 +91,25 @@ export const chipsMessageDefaults = {
   chipsNoProfile: 'No style profile',
   chipsPendingLabel: params('Will create: {mode} · {profile}'),
   chipsPendingUndo: 'Undo the new-design intent',
-  chipsEmptyHint: 'No current design — sending a message starts a new one.',
   chipsManifestFailed: 'AI studio failed to load — selectors are disabled.',
   chipsRetry: 'Retry'
 } as const
 
 /**
  * T61：设计列表面板 + 需求单面板英文默认值；T65 重写：三合一为画布工作状态
- * 面板（ChatContextBar，决策 B2）——①当前目标卡 ②设计区列表 ③需求单列表 +
- * 详情编辑视图。扫描统一只扫当前页（决策 D4），标题文案明示「当前页面」。
+ * 面板（ChatContextBar，决策 B2）——①当前目标卡 ②设计区列表 ③需求单列表。
+ * 扫描统一只扫当前页（决策 D4），标题文案明示「当前页面」。
+ * T66：trigger 双段式状态文案（决策①，「当前设计区：X | 需求单：N」）；
+ * 详情编辑迁出 popover 进 ChatBriefDialog 大面板（决策②）——briefBack /
+ * briefDiscardBack / briefSave 随 popover 详情视图退役，新增 dialog 素材四能力
+ * 键组（上传 / 选区添加 / 删除 / 缩略图 caption）。
  */
 export const panelsMessageDefaults = {
   contextTriggerLabel: 'Canvas state',
-  contextTriggerEmpty: 'New design',
+  contextTriggerDesignLabel: 'Design: ',
+  contextTriggerDesignEmpty: 'Not created',
+  contextTriggerBriefsLabel: 'Briefs: ',
+  contextTriggerBriefsEmpty: 'None',
   targetSection: 'Current target',
   targetNoActive: 'No active design yet — pick a mode / style and send a message to start one.',
   targetNoBriefBound: 'No brief bound',
@@ -114,20 +129,28 @@ export const panelsMessageDefaults = {
   briefCreate: 'Create',
   briefCreateCancel: 'Cancel',
   briefCreateFailed: 'Failed to create the brief.',
-  briefBack: 'Back',
+  briefDirtyHint: 'Unsaved brief edits.',
+  briefDiscardClose: 'Discard & close',
+  briefKeepEditing: 'Keep editing',
+  briefDialogTitle: 'Brief',
+  briefDialogDescription:
+    'Content and materials are written back to the canvas brief — the canvas stays the single source of truth.',
   briefOpenFailed: 'This brief could not be read (structure incomplete).',
+  briefDialogMissing: 'This brief is no longer on the canvas (it may have been deleted).',
   briefContent: 'Content',
+  briefContentPlaceholder:
+    'What to make, who it is for, must-include content, how to use the materials — the more complete, the less the AI has to guess.',
   briefMaterials: 'Materials',
+  briefMaterialCaptionPlaceholder: 'Note its use (e.g. hero / style reference only)…',
+  briefMaterialAdd: 'Upload image',
+  briefMaterialAddSelection: params('Add from selection ({count})'),
+  briefMaterialRemove: 'Remove material',
   briefConclusions: 'AI conclusions',
   briefDesigns: 'Linked designs',
   briefEmptySection: 'Empty',
-  briefSave: 'Save',
   briefSaved: 'Saved',
   briefSaveFailed: 'Save failed',
-  briefDirtyHint: 'Unsaved brief edits.',
-  briefDiscardClose: 'Discard & close',
-  briefDiscardBack: 'Discard & go back',
-  briefKeepEditing: 'Keep editing'
+  briefApplyFailed: 'Operation failed — please retry.'
 } as const
 
 /**

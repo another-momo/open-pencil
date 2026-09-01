@@ -1,7 +1,9 @@
 /**
- * T54：generate_image requests 纯函数层钉扎（移植自源 image-gen/requests.ts）。
+ * T54→T66：generate_image requests 纯函数层钉扎（移植自源 image-gen/requests.ts）。
  * 验收锚（T54-plan §3.1）：尺寸/数量校验——16px 对齐、边长/纵横比/像素钳制、
  * 枚举校验与别名归一、references 形状、replace_id/id 别名。
+ * T66 P4：工具 schema 化后原生数组直通（主通道）；字符串宽容解析保留为
+ * 兼容降级（两类输入共用同一语义校验层）。
  */
 import { describe, expect, test } from 'bun:test'
 
@@ -121,6 +123,31 @@ describe('parseImageGenRequests', () => {
     const result = parseImageGenRequests('{"prompt":"a","width":1024,"height":1024}')
     if ('error' in result) throw new Error(result.error)
     expect(result.requests).toHaveLength(1)
+  })
+})
+
+describe('parseImageGenRequests（T66 P4：原生数组通道——schema 化后运行时交付形状）', () => {
+  test('数组输入直通语义校验（尺寸归一 + 枚举 + replace_id）', () => {
+    const result = parseImageGenRequests([
+      { prompt: 'hero', width: 1000, height: 500, quality: 'high', output_format: 'webp' },
+      { prompt: 'swap', replace_id: '0:7', references: [{ id: '0:7' }] }
+    ])
+    if ('error' in result) throw new Error(result.error)
+    expect(result.requests).toHaveLength(2)
+    expect(result.requests[0].width).toBe(1168)
+    expect(result.requests[0].quality).toBe('high')
+    expect(result.requests[1].replaceId).toBe('0:7')
+    expect(result.requests[1].references).toEqual([{ id: '0:7' }])
+  })
+
+  test('数组输入的空数组/坏条目同样拒绝', () => {
+    expect('error' in (parseImageGenRequests([]) as { error: string })).toBe(true)
+    const bad = parseImageGenRequests([
+      { prompt: 'a', width: 1024, height: 1024, quality: 'ultra' }
+    ])
+    expect('error' in bad && bad.error).toContain('Invalid quality')
+    const noDims = parseImageGenRequests([{ prompt: 'a' }])
+    expect('error' in noDims && noDims.error).toContain('width')
   })
 })
 

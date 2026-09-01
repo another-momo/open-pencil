@@ -3,7 +3,8 @@
  * feature/agent-backend @ 5d38aa4e 的 tools/image-gen/requests.ts 移植。
  *
  * 职责：尺寸归一（16px 对齐 + 边长/纵横比/像素数钳制，保宽高比）与
- * requests JSON 参数解析（枚举校验、别名归一、references 形状）。
+ * requests 参数解析（枚举校验、别名归一、references 形状；T66 起原生
+ * 数组直通 + 字符串宽容解析双通道）。
  * 纯函数、零 figma/graph 依赖——后端编排与 core 落图段共用本层。
  *
  * 与源的差异：
@@ -56,10 +57,11 @@ export interface ImageGenResult {
 }
 
 /**
- * Provider 接口槽（S4 T-B3 路线乙：自写 DMX GPT-image-2 为核心，
- * pi-ai generateImages 为扩展位——扩展位契约见 spikes/probes/sp/
- * a1-images-contract.mjs 钉扎，本任务不实现）。core 仅声明形状，
- * 实现在 src/app/ai/pi-backend/image-gen/（凭证不出后端进程）。
+ * Provider 接口槽（S4 T-B3 路线乙：自写 OpenAI 兼容 provider 为核心——
+ * T66 起去 DMX 命名，实现与任何特定中转商无关；pi-ai generateImages 为
+ * 扩展位——扩展位契约见 spikes/probes/sp/a1-images-contract.mjs 钉扎，
+ * 本任务不实现）。core 仅声明形状，实现在 src/app/ai/pi-backend/image-gen/
+ * （凭证不出后端进程）。
  */
 export interface ImageGenProvider {
   name: string
@@ -98,6 +100,12 @@ function tryParse(text: string, strictJSON: boolean): unknown {
  * in the middle still fail loudly instead of being silently truncated.
  */
 function parseJSONArrayParam(raw: unknown, label: string): JSONArrayParam | { error: string } {
+  // T66 P4：工具 schema 化后运行时直接交付数组（pi validateToolArguments 已
+  // 校验形状）——原生数组直通；字符串输入走旧宽容解析（兼容降级，保留
+  // 尾部垃圾打捞语义，供字符串形态的调用方/旧测试路径使用）。
+  if (Array.isArray(raw)) {
+    return { items: raw }
+  }
   const text = String(raw)
   const parsed = tryParse(text, false)
   if (parsed !== undefined) {

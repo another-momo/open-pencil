@@ -97,6 +97,10 @@
 | [T63](../tasks/T63-plan.md) | CI 第四轮修复：上游 i18n 重构 GHOST 双件合规化 | 两 dialogs 文件 importer-dependent 保活进 tarball 白名单 | ✅ 已完成（2026-09-01 收口） | [T63-plan](../tasks/T63-plan.md) | [T63-self-check](../tasks/T63-self-check.md) | [T63-verify](../tasks/T63-verify.md) |
 | [T64](../tasks/T64-plan.md) | CI 门禁分层：GHOST 窗口规则改 drift 雷达 | check:zones 静态/漂移拆分 + nightly 自动建档 | ✅ 已完成（2026-09-01 收口） | [T64-plan](../tasks/T64-plan.md) | [T64-self-check](../tasks/T64-self-check.md) | [T64-verify](../tasks/T64-verify.md) |
 | [T65](../tasks/T65-plan.md) | UI 交互修整批（owner 十二条拍板） | 输入条瘦身 + 状态面板三合一 + 尺寸预设清单 + 新建需求单 + 分割线回执 + ChatPanel 族转 owned | ✅ 已完成（2026-09-01 收口） | [T65-plan](../tasks/T65-plan.md) | [T65-self-check](../tasks/T65-self-check.md) | [T65-verify](../tasks/T65-verify.md) |
+| [T66](../tasks/T66-plan.md) | T65 回归修整批 + 生图/备份优化提案 | 双段式 trigger + 需求单大面板四能力 + 排版错乱修复 + fieldsHint 引导化 + abort 链路修复 + 备份容器迁专用页 + 生图 provider 去 preset/去 DMX/连接测试/schema 化 + 内部设施不外露 | ✅ 已完成（2026-09-01 收口） | [T66-plan](../tasks/T66-plan.md) | [T66-self-check](../tasks/T66-self-check.md) | [T66-verify](../tasks/T66-verify.md) |
+| [T67](../tasks/T67-plan.md) | T-C1 prompt 分流定稿 + S 文档同步 | 五类死口径清除 + Phase 段移出 + brief 协议四区重写 + base 候选补记 + S1-S4 触点同步 | 🔄 进行中（2026-09-01 立项） | [T67-plan](../tasks/T67-plan.md) | — | — |
+| [T68](../tasks/T68-plan.md) | T-C2 longform.md 内容填充 | 五阶段全文化 + 工具白名单 + CP 表单结构 + 脱困阀 + resume 协议 + Fix Playbook + 字阶规则 | 🔄 进行中（2026-09-01 立项） | [T68-plan](../tasks/T68-plan.md) | — | — |
+| [T69](../tasks/T69-plan.md) | T-C3 精品 profile 做透 + golden 场景 | v2 七必改 + golden 场景（程序性断言优先） | 🔄 进行中（2026-09-01 立项） | [T69-plan](../tasks/T69-plan.md) | — | — |
 | (后续 task 按顺序登记)      | —                          | —                                                                                                                       | —                                                                                                                                            | —                                | —                                            | —                                    |
 
 ## 3. 三件套结构（强制）

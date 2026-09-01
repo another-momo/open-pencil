@@ -1,18 +1,21 @@
 /**
- * T54（Phase 3 W2/T-B3）：DMX GPT-image-2 provider 核心（自写，路线乙
+ * T54（Phase 3 W2/T-B3）：OpenAI 兼容图像 API provider 核心（自写，路线乙
  * 主路线）——自 open-pencil 仓 feature/agent-backend @ 5d38aa4e 的
- * tools/image-gen/providers.ts dmxImageProvider 移植。
+ * tools/image-gen/providers.ts 移植。T66 起去 DMX 命名（P1）：本实现是通用
+ * OpenAI 兼容端（/images/generations + /images/edits，Bearer 鉴权），
+ * 与任何特定中转商无关；凭证四键（providerType/baseUrl/model/apiKey）
+ * 全部由用户手填（T66 P0 删预设表）。
  *
  * 与源的差异：
  * - ofetch → 原生 fetch（红线：不引入新 npm 依赖；pi-backend 进程不经
  *   vite 打包，原生 fetch/FormData/Blob 均可用）
  * - 模块级可变凭证（setImageGenCredentials）→ 依赖注入：凭证经
- *   createDmxImageGenProvider({credentials}) 传入，fetch 可注入（测试 mock）
+ *   createImageGenProvider({credentials}) 传入，fetch 可注入（测试 mock）
  * - 超时：源 timeout 选项保留语义，改 AbortSignal.timeout；默认 240s
  *   （生图 HTTP 超时独立于桥超时，S3 §4），env OPENPENCIL_IMAGE_GEN_TIMEOUT_MS
  *   可覆盖（调用时读取）
  *
- * key 卫生：本模块不打印 key；错误信息取自响应体（DMX/OpenAI 兼容端点的
+ * key 卫生：本模块不打印 key；错误信息取自响应体（OpenAI 兼容端点的
  * error.message），不含请求头。
  */
 
@@ -65,6 +68,11 @@ interface APIErrorBody {
   message?: string
 }
 
+/** GET /models 列表响应（OpenAI 兼容 { data: [...] } 形状） */
+interface ModelsListResponseBody {
+  data?: unknown[]
+}
+
 /** 非 2xx 时从响应体提取真实错误文案（OpenAI 兼容 error.message / detail / 纯文本） */
 async function apiErrorMessage(response: Response): Promise<string> {
   const fallback = `Image API: HTTP ${response.status}`
@@ -87,7 +95,7 @@ async function apiErrorMessage(response: Response): Promise<string> {
   return text.slice(0, 500)
 }
 
-export interface DmxImageGenProviderOptions {
+export interface ImageGenProviderOptions {
   credentials: ImageGenCredentials
   /** 测试注入点（CI 凭证链 mock，D34）；缺省用全局 fetch */
   fetchImpl?: FetchLike
@@ -95,14 +103,25 @@ export interface DmxImageGenProviderOptions {
   timeoutMs?: number
 }
 
-export function createDmxImageGenProvider(options: DmxImageGenProviderOptions): ImageGenProvider {
+/**
+ * T66 P3：显式 response_format: 'url'。依据 = OpenAI 兼容端惯例（OpenAI
+ * images API 与各类中转代理均识别该参数且默认即为 url；显式写出消除
+ * 「依赖各端默认值」的隐式假设，extractImageBytes 的 url 分支即消费路径，
+ * b64_json 分支保留为端间差异兜底）。
+ * 风险在案：不识别该参数的端点（如未来接入的 Seedream 协议族）按 JSON
+ * 惯例应忽略未知字段——若某端因此报错，属该端不守兼容惯例，届时在
+ * provider 层按 providerType 分派处理（T66 只有 openai-compatible 一族）。
+ */
+const RESPONSE_FORMAT = 'url'
+
+export function createImageGenProvider(options: ImageGenProviderOptions): ImageGenProvider {
   const { credentials } = options
   const fetchImpl: FetchLike = options.fetchImpl ?? fetch
   const timeoutMs = options.timeoutMs ?? imageGenTimeoutMs()
   const baseURL = credentials.baseUrl.replace(/\/$/, '')
 
   return {
-    name: `dmx-gpt-image-2(${credentials.presetId})`,
+    name: `openai-compatible(${credentials.model})`,
     async generate(req: ImageGenRequest, images?: Uint8Array[]): Promise<ImageGenResult> {
       if (!credentials.apiKey) throw new Error('Image-gen API key not configured')
       const hasDims =
@@ -137,6 +156,7 @@ export function createDmxImageGenProvider(options: DmxImageGenProviderOptions): 
         withCompression(form)
         form.append('background', req.background ?? 'auto')
         form.append('moderation', 'auto')
+        form.append('response_format', RESPONSE_FORMAT)
         images.forEach((bytes, index) => {
           form.append(
             'image[]',
@@ -160,7 +180,8 @@ export function createDmxImageGenProvider(options: DmxImageGenProviderOptions): 
           quality: req.quality ?? 'auto',
           output_format: req.outputFormat ?? 'png',
           background: req.background ?? 'auto',
-          moderation: 'auto'
+          moderation: 'auto',
+          response_format: RESPONSE_FORMAT
         }
         withCompression(body)
 
@@ -181,4 +202,48 @@ export function createDmxImageGenProvider(options: DmxImageGenProviderOptions): 
       return { bytes, width: resultWidth, height: resultHeight }
     }
   }
+}
+
+/** 连接探针超时（远短于生图 240s——探针只验证可达 + 鉴权，不等待生成） */
+export const IMAGE_GEN_PROBE_TIMEOUT_MS = 15_000
+
+export type ImageGenProbeResult = { ok: true; modelCount?: number } | { ok: false; error: string }
+
+/**
+ * T66 P2：连接测试探针——GET {baseUrl}/models 带 Bearer（OpenAI 兼容端
+ * 惯例：官方 API、中转代理、vLLM/Ollama 等兼容端均实现该列表端点，是
+ * 最小代价的「端点可达 + key 有效」验证；不选小尺寸生成——会产生计费
+ * 且耗时高出两个数量级）。错误文案取自响应体但绝不回显 key。
+ */
+export async function probeImageGenEndpoint(options: {
+  baseUrl: string
+  apiKey: string
+  /** 测试注入点；缺省用全局 fetch */
+  fetchImpl?: FetchLike
+  timeoutMs?: number
+}): Promise<ImageGenProbeResult> {
+  const fetchImpl: FetchLike = options.fetchImpl ?? fetch
+  const timeoutMs = options.timeoutMs ?? IMAGE_GEN_PROBE_TIMEOUT_MS
+  const baseURL = options.baseUrl.trim().replace(/\/$/, '')
+  if (!baseURL) return { ok: false, error: 'Base URL 不能为空' }
+  if (!options.apiKey) return { ok: false, error: 'Image-gen API key not configured' }
+  let response: Response
+  try {
+    response = await fetchImpl(`${baseURL}/models`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${options.apiKey}` },
+      signal: AbortSignal.timeout(timeoutMs)
+    })
+  } catch (error) {
+    return {
+      ok: false,
+      error: `端点不可达：${error instanceof Error ? error.message : String(error)}`
+    }
+  }
+  if (!response.ok) {
+    return { ok: false, error: await apiErrorMessage(response) }
+  }
+  const body = (await response.json().catch(() => null)) as ModelsListResponseBody | null
+  const modelCount = Array.isArray(body?.data) ? body.data.length : undefined
+  return { ok: true, ...(modelCount !== undefined ? { modelCount } : {}) }
 }

@@ -106,7 +106,10 @@ type SessionEntry = {
   target: { documentId?: string }
   /** T60：active_design 宿主会话态（旗标/formId 映射/每回合组装缓存袋） */
   host: ReturnType<typeof createActiveDesignHost>
-  /** T27：run 进行中标记——abort 只打活跃 run（空闲 session 调 pi abort 无意义） */
+  /**
+   * T27：run 进行中标记。T66 起不再作 abort 守卫（时序竞争实证见 abort()
+   * 注释）——保留仅供 abort 确认日志区分「命中活跃 run / idle no-op」。
+   */
   running: boolean
 }
 
@@ -450,13 +453,31 @@ export function createPiChatService({
 
   async function abort(sessionId: string): Promise<void> {
     const entry = sessions.get(sessionId)
-    if (!entry?.running) return
+    // T66（T66-plan ④）：守卫去 running 布尔依赖——原 `if (!entry?.running)
+    // return` 与 runPrompt finally（entry.running = false）存在时序竞争：前端
+    // stop 断连触发 server.ts res.on('close') 时 run 可能已收尾，abort 被整体
+    // 跳过（停止按钮假死根因，2026-09-01 链路实证）。
+    // 改无条件 abort：pi 对 idle session 的 abort 是无害 no-op（实证：
+    // pi-agent-core agent.js `abort() { this.activeRun?.abortController.abort() }`
+    // 可选链空转；agent-session.js abort() = abortRetry()（同可选链）+
+    // agent.abort() + waitForIdle()（isIdle 即返回））。entry 存在即可打。
+    // 已知限制：run 卡在长工具调用（图像生成 HTTP，240s 超时）时 abort 只置
+    // 信号、等当前工具收尾（agent-loop.js 工具批 `if (signal?.aborted) break`），
+    // 不打断进行中的 HTTP——generate.ts execute 未接 pi abort signal，
+    // provider（image-gen/provider.ts）用独立 AbortSignal.timeout。工具层 signal 透传留后续。
+    if (!entry) return
+    const hitRunningRun = entry.running
     // T27：pi abort() 语义 = 取消当前操作并等 agent 回 idle
     // （agent-session.d.ts:433）；排队中的后续 run 会照常接着跑。
     // abort 抛错（如 session 已 dispose / agent 未响应）不该冒成 unhandled
     // rejection（server.ts 用 void 丢弃本 promise）——吞掉并出声即可。
     try {
       await entry.session.abort()
+      // T66：abort 确认回显——后端日志（触发面 = SSE 断连，连接已死，无既有
+      // 回前端通路；不做新 SSE 通道，T66-plan ④ 复杂度红线）
+      console.debug(
+        `[pi-backend] abort(${sessionId}) 已送达 session（命中进行中 run：${hitRunningRun}）`
+      )
     } catch (error) {
       console.warn(
         `[pi-backend] abort(${sessionId}) 失败（忽略）:`,

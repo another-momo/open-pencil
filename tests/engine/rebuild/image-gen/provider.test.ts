@@ -1,23 +1,26 @@
 /**
- * T54：DMX GPT-image-2 provider mock fetch 钉请求形状（验收锚 T54-plan §3.1，
- * D34 凭证链 mock 进 CI）。请求形状以移植源 providers.ts dmxImageProvider 为据
- * （OpenAI 兼容 /images/generations + /images/edits）；SP-a1 探针钉的是 pi-ai
- * openrouter-images 扩展槽契约（本任务不实现，见 T54 报告偏差节）。
+ * T54→T66：OpenAI 兼容 provider mock fetch 钉请求形状（验收锚 T54-plan §3.1，
+ * D34 凭证链 mock 进 CI；T66 P1 去 DMX 命名/P3 response_format/P2 连接探针）。
+ * 请求形状以移植源 providers.ts 为据（OpenAI 兼容 /images/generations +
+ * /images/edits），fixture 用通用 example.com 端点——本实现与任何特定
+ * 中转商无关；SP-a1 探针钉的是 pi-ai openrouter-images 扩展槽契约
+ * （本任务不实现，见 T54 报告偏差节）。
  */
 import { describe, expect, test } from 'bun:test'
 
 import {
-  createDmxImageGenProvider,
+  createImageGenProvider,
   IMAGE_GEN_DEFAULT_TIMEOUT_MS,
-  imageGenTimeoutMs
-} from '@/app/ai/pi-backend/image-gen/provider-dmx'
+  imageGenTimeoutMs,
+  probeImageGenEndpoint
+} from '@/app/ai/pi-backend/image-gen/provider'
 
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
 
 const CREDENTIALS = {
-  presetId: 'dmx',
-  baseUrl: 'https://www.dmxapi.cn/v1',
-  model: 'gpt-image-2-ssvip',
+  providerType: 'openai-compatible' as const,
+  baseUrl: 'https://api.example.com/v1',
+  model: 'gpt-image-1',
   apiKey: 'sk-test-image-key'
 }
 
@@ -61,12 +64,13 @@ interface GenerationsRequestBody {
   output_compression?: number
   background?: string
   moderation?: string
+  response_format?: string
 }
 
-describe('provider-dmx 请求形状', () => {
-  test('文生图：POST /images/generations JSON（契约字段全集）', async () => {
+describe('provider 请求形状', () => {
+  test('文生图：POST /images/generations JSON（契约字段全集 + 显式 response_format）', async () => {
     const { calls, fetchImpl } = mockFetch(B64_RESPONSE)
-    const provider = createDmxImageGenProvider({ credentials: CREDENTIALS, fetchImpl })
+    const provider = createImageGenProvider({ credentials: CREDENTIALS, fetchImpl })
     const result = await provider.generate({
       prompt: 'hero shot',
       width: 1024,
@@ -78,21 +82,22 @@ describe('provider-dmx 请求形状', () => {
 
     expect(calls).toHaveLength(1)
     const call = calls[0]
-    expect(call.url).toBe('https://www.dmxapi.cn/v1/images/generations')
+    expect(call.url).toBe('https://api.example.com/v1/images/generations')
     expect(call.method).toBe('POST')
     const headers = new Headers(call.headers)
     expect(headers.get('authorization')).toBe('Bearer sk-test-image-key')
     expect(headers.get('content-type')).toBe('application/json')
     const body = JSON.parse(String(call.body)) as GenerationsRequestBody
     expect(body).toEqual({
-      model: 'gpt-image-2-ssvip',
+      model: 'gpt-image-1',
       prompt: 'hero shot',
       size: '1024x1024',
       n: 1,
       quality: 'high',
       output_format: 'png',
       background: 'opaque',
-      moderation: 'auto'
+      moderation: 'auto',
+      response_format: 'url'
     })
     expect(call.signal).toBeInstanceOf(AbortSignal)
     expect([...result.bytes]).toEqual([...PNG_BYTES])
@@ -101,7 +106,7 @@ describe('provider-dmx 请求形状', () => {
 
   test('output_compression 仅 jpeg/webp 携带', async () => {
     const { calls, fetchImpl } = mockFetch(B64_RESPONSE)
-    const provider = createDmxImageGenProvider({ credentials: CREDENTIALS, fetchImpl })
+    const provider = createImageGenProvider({ credentials: CREDENTIALS, fetchImpl })
     await provider.generate({
       prompt: 'a',
       width: 1024,
@@ -116,18 +121,18 @@ describe('provider-dmx 请求形状', () => {
     expect('output_compression' in body).toBe(false)
   })
 
-  test('图生图：POST /images/edits multipart，image[] 字段带文件名', async () => {
+  test('图生图：POST /images/edits multipart，image[] 字段带文件名 + 显式 response_format', async () => {
     const { calls, fetchImpl } = mockFetch(B64_RESPONSE)
-    const provider = createDmxImageGenProvider({ credentials: CREDENTIALS, fetchImpl })
+    const provider = createImageGenProvider({ credentials: CREDENTIALS, fetchImpl })
     const refA = new Uint8Array([1, 1, 1])
     const refB = new Uint8Array([2, 2, 2])
     await provider.generate({ prompt: 'edit', width: 1024, height: 1024 }, [refA, refB])
 
     const call = calls[0]
-    expect(call.url).toBe('https://www.dmxapi.cn/v1/images/edits')
+    expect(call.url).toBe('https://api.example.com/v1/images/edits')
     expect(call.body).toBeInstanceOf(FormData)
     const form = call.body as FormData
-    expect(form.get('model')).toBe('gpt-image-2-ssvip')
+    expect(form.get('model')).toBe('gpt-image-1')
     expect(form.get('prompt')).toBe('edit')
     expect(form.get('size')).toBe('1024x1024')
     expect(form.get('n')).toBe('1')
@@ -135,6 +140,7 @@ describe('provider-dmx 请求形状', () => {
     expect(form.get('output_format')).toBe('png')
     expect(form.get('background')).toBe('auto')
     expect(form.get('moderation')).toBe('auto')
+    expect(form.get('response_format')).toBe('url')
     const images = form.getAll('image[]')
     expect(images).toHaveLength(2)
     expect((images[0] as File).name).toBe('input-1.png')
@@ -147,12 +153,12 @@ describe('provider-dmx 请求形状', () => {
 
   test('baseUrl 尾斜杠归一', async () => {
     const { calls, fetchImpl } = mockFetch(B64_RESPONSE)
-    const provider = createDmxImageGenProvider({
-      credentials: { ...CREDENTIALS, baseUrl: 'https://www.dmxapi.cn/v1/' },
+    const provider = createImageGenProvider({
+      credentials: { ...CREDENTIALS, baseUrl: 'https://api.example.com/v1/' },
       fetchImpl
     })
     await provider.generate({ prompt: 'a', width: 1024, height: 1024 })
-    expect(calls[0].url).toBe('https://www.dmxapi.cn/v1/images/generations')
+    expect(calls[0].url).toBe('https://api.example.com/v1/images/generations')
   })
 
   test('响应 url 回退：二次 fetch 下载图像字节', async () => {
@@ -168,18 +174,18 @@ describe('provider-dmx 请求形状', () => {
       }
       return new Response(PNG_BYTES, { status: 200 })
     }) as typeof fetch
-    const provider = createDmxImageGenProvider({
+    const provider = createImageGenProvider({
       credentials: CREDENTIALS,
       fetchImpl: downloadFetch
     })
     const result = await provider.generate({ prompt: 'a', width: 1024, height: 1024 })
     expect([...result.bytes]).toEqual([...PNG_BYTES])
-    expect(urls).toEqual(['https://www.dmxapi.cn/v1/images/generations', imageURL])
+    expect(urls).toEqual(['https://api.example.com/v1/images/generations', imageURL])
   })
 
   test('非 2xx：错误文案取响应体 error.message（401 凭证错误可被工具层引导配置）', async () => {
     const { fetchImpl } = mockFetch({ error: { message: 'Invalid API key' } }, 401)
-    const provider = createDmxImageGenProvider({ credentials: CREDENTIALS, fetchImpl })
+    const provider = createImageGenProvider({ credentials: CREDENTIALS, fetchImpl })
     await expect(provider.generate({ prompt: 'a', width: 1024, height: 1024 })).rejects.toThrow(
       'Invalid API key'
     )
@@ -187,7 +193,7 @@ describe('provider-dmx 请求形状', () => {
 
   test('无 key → 即抛未配置（不发 HTTP）', async () => {
     const { calls, fetchImpl } = mockFetch(B64_RESPONSE)
-    const provider = createDmxImageGenProvider({
+    const provider = createImageGenProvider({
       credentials: { ...CREDENTIALS, apiKey: '' },
       fetchImpl
     })
@@ -199,11 +205,71 @@ describe('provider-dmx 请求形状', () => {
 
   test('错误信息/请求不带 key 泄露路径（响应体不回显请求头）', async () => {
     const { fetchImpl } = mockFetch('Unauthorized', 401)
-    const provider = createDmxImageGenProvider({ credentials: CREDENTIALS, fetchImpl })
+    const provider = createImageGenProvider({ credentials: CREDENTIALS, fetchImpl })
     const error = await provider
       .generate({ prompt: 'a', width: 1024, height: 1024 })
       .catch((err: unknown) => err)
     expect(error instanceof Error ? error.message : '').not.toContain(CREDENTIALS.apiKey)
+  })
+})
+
+describe('连接探针（T66 P2：GET {baseUrl}/models，Bearer 鉴权）', () => {
+  test('成功：2xx + models 列表计数', async () => {
+    const { calls, fetchImpl } = mockFetch({ data: [{ id: 'gpt-image-1' }, { id: 'other' }] })
+    const result = await probeImageGenEndpoint({
+      baseUrl: CREDENTIALS.baseUrl,
+      apiKey: CREDENTIALS.apiKey,
+      fetchImpl
+    })
+    expect(result).toEqual({ ok: true, modelCount: 2 })
+    expect(calls).toHaveLength(1)
+    expect(calls[0].url).toBe('https://api.example.com/v1/models')
+    expect(calls[0].method).toBe('GET')
+    expect(new Headers(calls[0].headers).get('authorization')).toBe('Bearer sk-test-image-key')
+  })
+
+  test('401：错误文案取响应体 error.message，不回显 key', async () => {
+    const { fetchImpl } = mockFetch({ error: { message: 'Invalid API key' } }, 401)
+    const result = await probeImageGenEndpoint({
+      baseUrl: CREDENTIALS.baseUrl,
+      apiKey: CREDENTIALS.apiKey,
+      fetchImpl
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('Invalid API key')
+      expect(result.error).not.toContain(CREDENTIALS.apiKey)
+    }
+  })
+
+  test('网络失败：fetch 抛错 → 端点不可达', async () => {
+    const failingFetch = (async () => {
+      throw new Error('connect ECONNREFUSED 10.0.0.1:443')
+    }) as typeof fetch
+    const result = await probeImageGenEndpoint({
+      baseUrl: CREDENTIALS.baseUrl,
+      apiKey: CREDENTIALS.apiKey,
+      fetchImpl: failingFetch
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toContain('端点不可达')
+  })
+
+  test('缺 key/空 baseUrl → 即返错误（不发 HTTP）', async () => {
+    const { calls, fetchImpl } = mockFetch({ data: [] })
+    const noKey = await probeImageGenEndpoint({
+      baseUrl: CREDENTIALS.baseUrl,
+      apiKey: '',
+      fetchImpl
+    })
+    expect(noKey.ok).toBe(false)
+    const noURL = await probeImageGenEndpoint({
+      baseUrl: ' ',
+      apiKey: CREDENTIALS.apiKey,
+      fetchImpl
+    })
+    expect(noURL.ok).toBe(false)
+    expect(calls).toHaveLength(0)
   })
 })
 

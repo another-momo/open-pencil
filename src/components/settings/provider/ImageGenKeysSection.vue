@@ -1,40 +1,69 @@
 <script setup lang="ts">
 /**
- * T54（Phase 3 W2/T-B3）：generate_image 凭证面板——预设下拉 + 单 key 输入
- * （08 §I 收敛形态）。key 直送 pi 后端凭证面（image-gen/routes.ts），前端
- * 不持久化、不回显（状态只有 configured/presetId/baseUrl/model 元数据）。
- * 空 key 保存 = 清除（00 #7：清除必须生效）。默认预设 = OpenAI 官方端点
- * （默认无第三方中转，08 P0-5b）。
+ * T54→T66：generate_image 凭证面板——Provider 类型下拉 + baseUrl/model/key
+ * 自由输入 + 测试连接（T66 P0/P1/P2：预设下拉退役，预设表已删）。
+ * key 直送 pi 后端凭证面（image-gen/routes.ts），前端不持久化、不回显
+ * （状态只有 configured/providerType/baseUrl/model 元数据）。
+ * 空 key 保存 = 清除（00 #7：清除必须生效）。
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import {
   clearImageGenCredential,
-  DEFAULT_IMAGE_GEN_PRESET_ID,
-  IMAGE_GEN_PRESETS,
+  DEFAULT_IMAGE_GEN_PROVIDER_TYPE,
+  IMAGE_GEN_PROVIDER_TYPES,
   imageGenCredentialError,
   imageGenCredentialLoading,
   imageGenCredentialStatus,
   refreshImageGenCredentialStatus,
-  setImageGenCredential
+  setImageGenCredential,
+  testImageGenConnection,
+  type ImageGenProviderType
 } from '@/app/ai/pi-backend/image-gen/client'
 import { useForkImageGen } from '@/app/i18n/fork'
 
 const msgs = useForkImageGen()
 
-const presetId = ref(imageGenCredentialStatus.value?.presetId ?? DEFAULT_IMAGE_GEN_PRESET_ID)
+const providerType = ref<ImageGenProviderType>(
+  (imageGenCredentialStatus.value?.providerType as ImageGenProviderType | undefined) ??
+    DEFAULT_IMAGE_GEN_PROVIDER_TYPE
+)
+const baseURL = ref(imageGenCredentialStatus.value?.baseUrl ?? '')
+const model = ref(imageGenCredentialStatus.value?.model ?? '')
 const keyInput = ref('')
 const busy = ref(false)
 const actionError = ref<string | null>(null)
+const testing = ref(false)
+const testResult = ref<{ ok: boolean; detail: string | null } | null>(null)
 
 const configured = computed(() => imageGenCredentialStatus.value?.configured === true)
+
+// 状态回读即回填表单（已配置时 baseUrl/model/providerType 可直接复测/改存；
+// key 永不回显——测试连接空 key 时后端回落已存 key）
+watch(
+  imageGenCredentialStatus,
+  (status) => {
+    if (status?.configured) {
+      if (status.providerType) providerType.value = status.providerType as ImageGenProviderType
+      baseURL.value = status.baseUrl ?? ''
+      model.value = status.model ?? ''
+    }
+  },
+  { immediate: false }
+)
 
 async function save(): Promise<void> {
   busy.value = true
   actionError.value = null
+  testResult.value = null
   try {
-    // 空 key = 清除（后端 store.set 内部分派）
-    await setImageGenCredential(presetId.value, keyInput.value.trim())
+    // 空 key = 清除（后端 store 内部分派）
+    await setImageGenCredential({
+      providerType: providerType.value,
+      baseUrl: baseURL.value.trim(),
+      model: model.value.trim(),
+      apiKey: keyInput.value.trim()
+    })
     keyInput.value = ''
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : String(error)
@@ -46,6 +75,7 @@ async function save(): Promise<void> {
 async function clear(): Promise<void> {
   busy.value = true
   actionError.value = null
+  testResult.value = null
   try {
     await clearImageGenCredential()
     keyInput.value = ''
@@ -53,6 +83,34 @@ async function clear(): Promise<void> {
     actionError.value = error instanceof Error ? error.message : String(error)
   } finally {
     busy.value = false
+  }
+}
+
+async function testConnection(): Promise<void> {
+  testing.value = true
+  actionError.value = null
+  try {
+    const result = await testImageGenConnection({
+      baseUrl: baseURL.value.trim(),
+      // 空 keyInput → 后端回落已存 key（key 不回前端，已存配置可直接探）
+      ...(keyInput.value.trim() ? { apiKey: keyInput.value.trim() } : {})
+    })
+    testResult.value = result.ok
+      ? {
+          ok: true,
+          detail:
+            result.modelCount !== undefined
+              ? `${msgs.value.imageGenTestSuccess} · ${result.modelCount} models`
+              : msgs.value.imageGenTestSuccess
+        }
+      : { ok: false, detail: result.error }
+  } catch (error) {
+    testResult.value = {
+      ok: false,
+      detail: error instanceof Error ? error.message : String(error)
+    }
+  } finally {
+    testing.value = false
   }
 }
 
@@ -76,14 +134,34 @@ onMounted(() => void refreshImageGenCredentialStatus())
 
     <label class="text-[10px] text-muted">{{ msgs.imageGenProvider }}</label>
     <select
-      v-model="presetId"
+      v-model="providerType"
       class="rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none"
-      data-test-id="image-gen-preset-select"
+      data-test-id="image-gen-provider-type-select"
     >
-      <option v-for="preset in IMAGE_GEN_PRESETS" :key="preset.id" :value="preset.id">
-        {{ preset.label }}
+      <option v-for="entry in IMAGE_GEN_PROVIDER_TYPES" :key="entry.id" :value="entry.id">
+        {{ entry.label }}
       </option>
     </select>
+
+    <label class="text-[10px] text-muted">{{ msgs.imageGenBaseUrl }}</label>
+    <input
+      v-model="baseURL"
+      type="text"
+      spellcheck="false"
+      class="rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none focus:border-panel-focus"
+      :placeholder="msgs.imageGenBaseUrlPlaceholder"
+      data-test-id="image-gen-base-url-input"
+    />
+
+    <label class="text-[10px] text-muted">{{ msgs.imageGenModel }}</label>
+    <input
+      v-model="model"
+      type="text"
+      spellcheck="false"
+      class="rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none focus:border-panel-focus"
+      :placeholder="msgs.imageGenModelPlaceholder"
+      data-test-id="image-gen-model-input"
+    />
 
     <div class="flex items-center gap-1.5">
       <input
@@ -115,6 +193,27 @@ onMounted(() => void refreshImageGenCredentialStatus())
       >
         {{ msgs.imageGenKeyClear }}
       </button>
+    </div>
+
+    <div class="flex items-center gap-1.5">
+      <button
+        type="button"
+        class="rounded border border-border px-2 py-1.5 text-[10px] text-muted hover:text-surface disabled:opacity-50"
+        data-test-id="image-gen-test-connection"
+        :disabled="testing || busy || imageGenCredentialLoading"
+        @click="testConnection"
+      >
+        {{ testing ? msgs.imageGenTesting : msgs.imageGenTestConnection }}
+      </button>
+      <p
+        v-if="testResult"
+        class="text-[10px]"
+        :class="testResult.ok ? 'text-[var(--color-success)]' : 'text-red-400'"
+        :data-state="testResult.ok ? 'ok' : 'failed'"
+        data-test-id="image-gen-test-result"
+      >
+        {{ testResult.ok ? testResult.detail : `${msgs.imageGenTestFailed}：${testResult.detail}` }}
+      </p>
     </div>
 
     <p

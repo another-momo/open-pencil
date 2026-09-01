@@ -8,7 +8,6 @@ import InputGroup from '@/components/ui/InputGroup.vue'
 import { piDesignAssignment } from '@/app/ai/pi-backend/assignment'
 import {
   ensurePiStudioManifest,
-  piActiveDesign,
   piStudioManifestFailed,
   retryPiStudioManifest
 } from '@/app/ai/pi-backend/mode-selection'
@@ -52,9 +51,8 @@ const piModelLabel = computed(
   () => piDesignAssignment.value?.modelId ?? piDialogs.value.designModelDefault
 )
 
-// T65（决策 B2/E）：空槽引导——无 active 时 chips 区一行提示（主引导在 header
-// 状态面板 trigger 的空槽文案）
-const showEmptySlotHint = computed(() => piActiveDesign.value === null)
+// T65（决策 B2/E）→ T66（决策①）：空槽引导从输入条删除——状态显示收敛为
+// header ChatContextBar 双段式 trigger 一处（trigger 文案本身即引导）
 
 function handleInputKeydown(event: KeyboardEvent) {
   if (event.code !== 'Enter' || event.shiftKey || event.isComposing) return
@@ -104,14 +102,6 @@ defineExpose({ restoreDraft, clearDraft })
         >
           {{ chipsText.chipsRetry }}
         </button>
-      </div>
-      <!-- T65：空槽引导一行（无 active 时常显；chips 区） -->
-      <div
-        v-else-if="showEmptySlotHint"
-        data-test-id="chat-empty-slot-hint"
-        class="mb-1.5 px-1 text-[11px] text-muted"
-      >
-        {{ chipsText.chipsEmptyHint }}
       </div>
       <form @submit="handleSubmit">
         <InputGroup :disabled="isStreaming">

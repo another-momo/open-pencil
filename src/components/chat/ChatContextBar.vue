@@ -3,52 +3,50 @@
  * T65（决策 B1/B2）：画布工作状态面板三合一——当前设计显示 + 设计区列表 +
  * 需求单面板合一，挂在 ChatPanel header（会话下拉旁边）。
  *
- *  - trigger 按钮本身 = 当前设计名显示（无 active = 空槽引导文案
- *    contextTriggerEmpty）——状态可见性与入口合一，零新增控件。
+ *  - trigger 按钮 = 双段式状态文案（T66 决策①）：「当前设计区：<设计名> |
+ *    需求单：<N>」，空槽「待新建 / 无」text-muted 弱色——状态可见性与入口
+ *    合一，且直接承担空槽引导职责（输入条引导条已删，UI 只此一处状态显示）。
+ *  - 需求单计数口径 = 当前页（拍板⑩沿用 T65 D4；scanCurrentPageBriefs 即面板
+ *    列表同一口径），sceneVersion watcher 保持新鲜（mode-selection 同范式）。
  *  - popover 内分节不分 tab：①当前目标卡 ②设计区列表（active 徽标 + 点击
- *    打开定位不切换 + 显式「设为当前」→ 端点）③需求单列表 + 详情编辑视图。
- *  - 扫描统一只扫当前页（决策 D4，需求单从全文档收回），标题文案明示
- *    「当前页面」。
+ *    打开定位不切换 + 显式「设为当前」→ 端点）③需求单列表 + 新建入口。
+ *  - 需求单详情编辑迁出 popover（T66 决策②）：点击条目 → ChatBriefDialog
+ *    独立大面板（素材四能力在那）；popover 不再内嵌详情视图。
  *  - 「+ 新建需求单」（决策 D1）：列表顶部入口 → 内联内容编辑 → core
- *    create_brief 原语经 makeFigmaFromStore 桥直调（不触发 setup_design）
- *    → 列表重扫 + 画布定位。
+ *    create_brief 原语经 makeFigmaFromStore 桥直调（不触发 setup_design），
+ *    createBriefOnPage 收尾含排版结算 + 选中定位 + undo 登记（T66 修复）。
  *  - 切换成功回执（决策 D3）：端点 200 后 emit switched → ChatPanel 注入
  *    data-context-switch 分割线（非 assistant 气泡）。
- *  - 编辑防丢（决策 E）：popover 重开不重置 detailView/草稿；有未保存草稿时
- *    关闭/返回需经内联 dirty 守卫确认（不用 window.confirm——Tauri WKWebView
- *    不支持）。
+ *  - 编辑防丢（决策 E）：有未保存新建草稿时关闭 popover 需经内联 dirty 守卫
+ *    确认（不用 window.confirm——Tauri WKWebView 不支持）。
  *
- * 面板纪律（沿 T61）：零自有事实源——打开/进入详情/保存后重读画布；编辑写回
- * 走 core brief-edit 原语（画布节点单一事实源）。常驻非模态、仅用户打开。
+ * 面板纪律（沿 T61）：零自有事实源——打开/保存后重读画布；编辑写回走 core
+ * brief-edit 原语（画布节点单一事实源）。常驻非模态、仅用户打开。
  */
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import {
   piActiveDesign,
   piStudioManifest,
   resyncPiActiveDesign
 } from '@/app/ai/pi-backend/mode-selection'
-import { getActiveEditorStoreOrNull } from '@/app/editor/active-store'
+import { getActiveEditorStoreOrNull, useActiveEditorStoreRef } from '@/app/editor/active-store'
 import { useForkPanels } from '@/app/i18n/fork'
 import { toast } from '@/app/shell/ui'
-import AppInput from '@/components/ui/AppInput.vue'
 import AppTextarea from '@/components/ui/AppTextarea.vue'
 import AppTextButton from '@/components/ui/AppTextButton.vue'
 import { usePopoverUI } from '@/components/ui/popover'
 
 import {
   createBriefOnPage,
+  openBriefDialog,
   postActiveDesign,
-  readBriefView,
-  saveBriefContent,
-  saveMaterialCaption,
   scanCurrentPageBriefs,
   scanCurrentPageDesigns,
   type BriefListEntry
 } from './active-design'
 
-import type { BriefView } from '@open-pencil/core/tools/fork/marketing/brief-edit'
 import type { MarketingDesignRef } from '@open-pencil/core/tools/fork/marketing/setup'
 
 const { disabled = false } = defineProps<{ disabled?: boolean }>()
@@ -125,7 +123,7 @@ async function setCurrent(design: MarketingDesignRef) {
   }
 }
 
-// ── ③ 需求单列表（当前页）+ 新建 + 详情编辑 ──
+// ── ③ 需求单列表（当前页）+ 新建；详情编辑在 ChatBriefDialog（T66 决策②） ──
 
 const briefs = ref<BriefListEntry[]>([])
 
@@ -134,12 +132,39 @@ function rescanBriefs() {
   briefs.value = store ? scanCurrentPageBriefs(store) : []
 }
 
+/**
+ * trigger 双段式的需求单计数（T66 决策①）：与面板列表同口径（当前页，
+ * scanCurrentPageBriefs）；sceneVersion watcher 保新鲜——图变更即重扫
+ * （mode-selection.ts:126-148 同范式，含 graph:replaced 与 store 切换）。
+ */
+const briefCount = ref(0)
+const activeStoreRef = useActiveEditorStoreRef()
+watch(
+  activeStoreRef,
+  (store, _prev, onCleanup) => {
+    briefCount.value = store ? scanCurrentPageBriefs(store).length : 0
+    if (!store) return
+    const currentStore = store
+    const recount = () => {
+      briefCount.value = scanCurrentPageBriefs(currentStore).length
+    }
+    const stopGraphReplaced = currentStore.onEditorEvent('graph:replaced', recount)
+    const stopSceneWatch = watch(() => currentStore.state.sceneVersion, recount)
+    onCleanup(() => {
+      stopGraphReplaced()
+      stopSceneWatch()
+    })
+  },
+  { immediate: true }
+)
+
 function containsActive(entry: BriefListEntry): boolean {
   const nodeId = active.value?.nodeId
   return nodeId !== undefined && nodeId !== null && entry.boundDesignIds.includes(nodeId)
 }
 
-// 新建需求单（内联内容编辑 → 桥直调 → 重扫 + 定位）
+// 新建需求单（内联内容编辑 → 桥直调 → 重扫；选中定位/排版结算/undo 在
+// createBriefOnPage 收尾里——T66 修复后不再由面板重复定位）
 
 const creating = ref(false)
 const createDraft = ref('')
@@ -161,12 +186,10 @@ function confirmCreateBrief() {
   if (!store || creatingBusy.value) return
   creatingBusy.value = true
   try {
-    const briefId = createBriefOnPage(store, createDraft.value)
+    createBriefOnPage(store, createDraft.value)
     creating.value = false
     createDraft.value = ''
     rescanBriefs()
-    store.select([briefId])
-    store.zoomToSelection()
   } catch (error) {
     console.error('Brief create error:', error)
     toast.error(panelsText.value.briefCreateFailed)
@@ -175,108 +198,27 @@ function confirmCreateBrief() {
   }
 }
 
-// 详情编辑视图（编辑是第一功能；写回走 core brief-edit 原语）
-
-const detailView = ref<BriefView | null>(null)
-const detailBroken = ref(false)
-const contentDraft = ref('')
-/** 素材标题草稿：entryId → 编辑中文本（整对象替换重建，不用动态 delete） */
-const captionDrafts = ref<Record<string, string>>({})
-const saving = ref(false)
-const savedTick = ref(false)
-let savedTimer: ReturnType<typeof setTimeout> | undefined
-
-function openDetail(briefId: string) {
-  const store = getActiveEditorStoreOrNull()
-  if (!store) return
-  const view = readBriefView(store, briefId)
-  detailView.value = view
-  detailBroken.value = view === null
-  contentDraft.value = view?.content ?? ''
-  captionDrafts.value = Object.fromEntries(
-    (view?.materials ?? []).map((material) => [material.entryId, material.caption])
-  )
+/** 列表条目点击 → 打开需求单大面板（T66：详情迁出 popover；popover 随之关闭） */
+function openBriefDetail(briefId: string) {
+  open.value = false
+  openBriefDialog(briefId)
 }
 
-function flashSaved() {
-  savedTick.value = true
-  clearTimeout(savedTimer)
-  savedTimer = setTimeout(() => {
-    savedTick.value = false
-  }, 1500)
-}
+// ── dirty 守卫（T65 决策 E：未保存新建草稿时关闭需内联确认；详情草稿守卫
+//    随详情视图迁出删除——dialog 侧 @change 即提交，无悬挂草稿） ──
 
-async function saveContent() {
-  const store = getActiveEditorStoreOrNull()
-  const view = detailView.value
-  if (!store || !view || saving.value) return
-  saving.value = true
-  try {
-    if (!saveBriefContent(store, view.briefId, contentDraft.value)) {
-      toast.error(panelsText.value.briefSaveFailed)
-      return
-    }
-    openDetail(view.briefId)
-    flashSaved()
-  } finally {
-    saving.value = false
-  }
-}
-
-function saveCaption(entryId: string) {
-  const store = getActiveEditorStoreOrNull()
-  const view = detailView.value
-  if (!store || !view) return
-  const caption = captionDrafts.value[entryId] ?? ''
-  if (!saveMaterialCaption(store, entryId, caption)) {
-    toast.error(panelsText.value.briefSaveFailed)
-    return
-  }
-  const material = view.materials.find((entry) => entry.entryId === entryId)
-  if (material) material.caption = caption
-  flashSaved()
-}
-
-// ── dirty 守卫（T65 决策 E：未保存草稿时关闭/返回需内联确认） ──
-
-const detailDirty = computed(() => {
-  const view = detailView.value
-  if (!view) return false
-  if (contentDraft.value !== view.content) return true
-  return view.materials.some(
-    (material) => (captionDrafts.value[material.entryId] ?? material.caption) !== material.caption
-  )
-})
 const createDirty = computed(() => creating.value && createDraft.value.trim() !== '')
-const isDirty = computed(() => detailDirty.value || createDirty.value)
+const isDirty = computed(() => createDirty.value)
 
-/** 待确认的丢弃动作（内联确认条显隐；'close' = 关 popover，'back' = 返回列表） */
-const pendingDiscard = ref<'close' | 'back' | null>(null)
-
-function discardDrafts() {
-  detailView.value = null
-  detailBroken.value = false
-  creating.value = false
-  createDraft.value = ''
-}
+/** 待确认的丢弃动作（内联确认条显隐；'close' = 关 popover） */
+const pendingDiscard = ref<'close' | null>(null)
 
 /** 丢弃确认条「丢弃」按钮：执行挂起动作 */
 function confirmDiscard() {
-  const action = pendingDiscard.value
   pendingDiscard.value = null
-  discardDrafts()
-  if (action === 'back') rescanBriefs()
-  if (action === 'close') open.value = false
-}
-
-function backToList() {
-  if (detailDirty.value) {
-    pendingDiscard.value = 'back'
-    return
-  }
-  detailView.value = null
-  detailBroken.value = false
-  rescanBriefs()
+  creating.value = false
+  createDraft.value = ''
+  open.value = false
 }
 
 function handleOpen(value: boolean) {
@@ -287,7 +229,6 @@ function handleOpen(value: boolean) {
   }
   open.value = value
   pendingDiscard.value = null
-  // 防丢：重开只重扫列表，不重置 detailView/草稿（决策 E）
   if (value) {
     rescanDesigns()
     rescanBriefs()
@@ -303,11 +244,22 @@ function handleOpen(value: boolean) {
         :disabled="disabled"
         :aria-label="panelsText.contextTriggerLabel"
         :ui="{
-          base: 'flex max-w-44 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] hover:bg-hover'
+          base: 'flex max-w-80 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] hover:bg-hover'
         }"
       >
         <icon-lucide-pin class="size-3 shrink-0" />
-        <span class="min-w-0 truncate">{{ active?.name ?? panelsText.contextTriggerEmpty }}</span>
+        <!-- T66 决策①双段式：「当前设计区：X | 需求单：N」；空槽值 text-muted 弱色 -->
+        <span class="min-w-0 truncate" data-test-id="chat-context-trigger-design">
+          <span class="text-muted">{{ panelsText.contextTriggerDesignLabel }}</span>
+          <template v-if="active">{{ active.name }}</template>
+          <span v-else class="text-muted">{{ panelsText.contextTriggerDesignEmpty }}</span>
+        </span>
+        <span class="shrink-0 text-muted">|</span>
+        <span class="shrink-0" data-test-id="chat-context-trigger-briefs">
+          <span class="text-muted">{{ panelsText.contextTriggerBriefsLabel }}</span>
+          <template v-if="briefCount > 0">{{ briefCount }}</template>
+          <span v-else class="text-muted">{{ panelsText.contextTriggerBriefsEmpty }}</span>
+        </span>
         <icon-lucide-chevron-down class="size-2.5 shrink-0" />
       </AppTextButton>
     </PopoverTrigger>
@@ -329,11 +281,7 @@ function handleOpen(value: boolean) {
               class="shrink-0 rounded-md border border-amber-500/40 px-2 py-0.5 text-[11px] text-amber-200 hover:bg-amber-500/20"
               @click="confirmDiscard"
             >
-              {{
-                pendingDiscard === 'close'
-                  ? panelsText.briefDiscardClose
-                  : panelsText.briefDiscardBack
-              }}
+              {{ panelsText.briefDiscardClose }}
             </button>
             <button
               type="button"
@@ -375,268 +323,152 @@ function handleOpen(value: boolean) {
             </div>
           </div>
 
-          <!-- 详情编辑视图（替换 ②③ 两节；返回带 dirty 守卫） -->
-          <template v-if="detailView || detailBroken">
-            <div class="space-y-3 border-t border-border pt-3">
-              <div class="flex items-center gap-2">
-                <AppTextButton
-                  data-test-id="chat-brief-back"
-                  :ui="{
-                    base: 'flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] hover:bg-hover'
-                  }"
-                  @click="backToList"
-                >
-                  <icon-lucide-chevron-left class="size-3" />
-                  {{ panelsText.briefBack }}
-                </AppTextButton>
-                <span
-                  v-if="savedTick"
-                  data-test-id="chat-brief-saved"
-                  class="text-[11px] text-green-400"
-                >
-                  {{ panelsText.briefSaved }}
-                </span>
-              </div>
-
-              <div v-if="detailBroken" class="text-[11px] text-muted">
-                {{ panelsText.briefOpenFailed }}
-              </div>
-
-              <template v-else-if="detailView">
-                <div class="space-y-1">
-                  <div class="text-[11px] font-medium text-muted">
-                    {{ panelsText.briefContent }}
-                  </div>
-                  <AppTextarea
-                    v-model="contentDraft"
-                    :rows="4"
-                    :disabled="saving"
-                    data-test-id="chat-brief-content-editor"
-                  />
-                  <div class="flex justify-end">
-                    <button
-                      type="button"
-                      :disabled="saving"
-                      data-test-id="chat-brief-content-save"
-                      class="rounded-md bg-accent px-2 py-1 text-[11px] text-white hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
-                      @click="saveContent"
-                    >
-                      {{ panelsText.briefSave }}
-                    </button>
-                  </div>
-                </div>
-
-                <div class="space-y-1">
-                  <div class="text-[11px] font-medium text-muted">
-                    {{ panelsText.briefMaterials }}
-                  </div>
-                  <div v-if="detailView.materials.length === 0" class="text-[11px] text-muted">
-                    {{ panelsText.briefEmptySection }}
-                  </div>
-                  <div
-                    v-for="material in detailView.materials"
-                    :key="material.entryId"
-                    class="flex items-center gap-1.5"
-                    :data-test-id="`chat-brief-material`"
-                  >
-                    <icon-lucide-file-image class="size-3 shrink-0 text-muted" />
-                    <AppInput
-                      v-model="captionDrafts[material.entryId]"
-                      class="min-w-0 flex-1"
-                      @blur="saveCaption(material.entryId)"
-                      @keydown.enter="saveCaption(material.entryId)"
-                    />
-                  </div>
-                </div>
-
-                <div class="space-y-1">
-                  <div class="text-[11px] font-medium text-muted">
-                    {{ panelsText.briefConclusions }}
-                  </div>
-                  <div v-if="detailView.conclusions.length === 0" class="text-[11px] text-muted">
-                    {{ panelsText.briefEmptySection }}
-                  </div>
-                  <div
-                    v-for="(conclusion, index) in detailView.conclusions"
-                    :key="index"
-                    class="text-[11px] text-surface"
-                  >
-                    · {{ conclusion.text }}
-                    <span v-if="conclusion.designName" class="text-[11px] text-muted">
-                      （{{ conclusion.designName }}）
-                    </span>
-                  </div>
-                </div>
-
-                <div class="space-y-1">
-                  <div class="text-[11px] font-medium text-muted">
-                    {{ panelsText.briefDesigns }}
-                  </div>
-                  <div v-if="detailView.designs.length === 0" class="text-[11px] text-muted">
-                    {{ panelsText.briefEmptySection }}
-                  </div>
-                  <div
-                    v-for="design in detailView.designs"
-                    :key="design.designId"
-                    class="truncate text-[11px] text-surface"
-                    :data-design-id="design.designId"
-                  >
-                    {{ design.name }}
-                    <span class="text-[11px] text-muted">{{ modeLabel(design.modeId) }}</span>
-                  </div>
-                </div>
-              </template>
-            </div>
-          </template>
-
-          <template v-else>
-            <!-- ② 设计区列表（当前页；点击 = 定位不切换） -->
-            <div class="space-y-1 border-t border-border pt-3">
-              <div class="flex items-center gap-2">
-                <icon-lucide-layout-grid class="size-3.5 shrink-0 text-accent" />
-                <span class="text-[12px] font-medium text-surface">{{
-                  panelsText.designsSection
-                }}</span>
-              </div>
-
-              <div v-if="designs.length === 0" class="text-[11px] text-muted">
-                {{ panelsText.designsEmpty }}
-              </div>
-
-              <div
-                v-for="design in designs"
-                :key="design.rootId"
-                class="rounded-md border px-2 py-1.5 transition-colors"
-                :class="
-                  design.rootId === activeNodeId
-                    ? 'border-accent bg-accent/5'
-                    : 'border-border bg-canvas'
-                "
-                :data-test-id="`chat-design-item`"
-                :data-design-node-id="design.rootId"
-              >
-                <button type="button" class="block w-full text-left" @click="locateDesign(design)">
-                  <div class="flex items-center gap-1.5">
-                    <span class="min-w-0 flex-1 truncate text-[11px] text-surface">
-                      {{ design.name }}
-                    </span>
-                    <span
-                      v-if="design.rootId === activeNodeId"
-                      data-test-id="chat-design-active-badge"
-                      class="shrink-0 rounded bg-accent/15 px-1.5 py-0.5 text-[11px] text-accent"
-                    >
-                      {{ panelsText.designsActive }}
-                    </span>
-                  </div>
-                  <div class="mt-0.5 truncate text-[11px] text-muted">
-                    {{ modeLabel(design.modeId) }}
-                    <template v-if="design.profileId">
-                      · {{ profileLabel(design.profileId) }}
-                    </template>
-                  </div>
-                </button>
-                <div v-if="design.rootId !== activeNodeId" class="mt-1 flex justify-end">
-                  <button
-                    type="button"
-                    :disabled="switchingNodeId !== null"
-                    :data-test-id="`chat-design-set-current`"
-                    :data-design-node-id="design.rootId"
-                    class="rounded-md border border-border px-2 py-0.5 text-[11px] text-surface hover:bg-hover disabled:cursor-not-allowed disabled:opacity-60"
-                    @click="setCurrent(design)"
-                  >
-                    {{
-                      switchingNodeId === design.rootId
-                        ? panelsText.designsSetting
-                        : panelsText.designsSetCurrent
-                    }}
-                  </button>
-                </div>
-              </div>
-
-              <div class="text-[11px] text-muted">{{ panelsText.designsLocateHint }}</div>
+          <!-- ② 设计区列表（当前页；点击 = 定位不切换） -->
+          <div class="space-y-1 border-t border-border pt-3">
+            <div class="flex items-center gap-2">
+              <icon-lucide-layout-grid class="size-3.5 shrink-0 text-accent" />
+              <span class="text-[12px] font-medium text-surface">{{
+                panelsText.designsSection
+              }}</span>
             </div>
 
-            <!-- ③ 需求单列表（当前页）+ 新建入口 -->
-            <div class="space-y-1 border-t border-border pt-3">
-              <div class="flex items-center gap-2">
-                <icon-lucide-book-open class="size-3.5 shrink-0 text-accent" />
-                <span class="min-w-0 flex-1 text-[12px] font-medium text-surface">{{
-                  panelsText.briefsSection
-                }}</span>
-                <button
-                  v-if="!creating"
-                  type="button"
-                  data-test-id="chat-brief-new"
-                  class="flex shrink-0 items-center gap-0.5 rounded-md border border-border px-1.5 py-0.5 text-[11px] text-surface hover:bg-hover"
-                  @click="startCreate"
-                >
-                  <icon-lucide-plus class="size-3" />
-                  {{ panelsText.briefNew }}
-                </button>
-              </div>
+            <div v-if="designs.length === 0" class="text-[11px] text-muted">
+              {{ panelsText.designsEmpty }}
+            </div>
 
-              <!-- 新建需求单内联编辑（core create_brief 桥直调，不触发 setup_design） -->
-              <div
-                v-if="creating"
-                class="space-y-1.5 rounded-md border border-border bg-canvas px-2 py-1.5"
-                data-test-id="chat-brief-create-form"
-              >
-                <AppTextarea
-                  v-model="createDraft"
-                  :rows="3"
-                  :disabled="creatingBusy"
-                  :placeholder="panelsText.briefNewPlaceholder"
-                  data-test-id="chat-brief-create-editor"
-                />
-                <div class="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    :disabled="creatingBusy"
-                    data-test-id="chat-brief-create-cancel"
-                    class="rounded-md border border-border px-2 py-0.5 text-[11px] text-muted hover:bg-hover disabled:cursor-not-allowed disabled:opacity-60"
-                    @click="cancelCreate"
-                  >
-                    {{ panelsText.briefCreateCancel }}
-                  </button>
-                  <button
-                    type="button"
-                    :disabled="creatingBusy"
-                    data-test-id="chat-brief-create-confirm"
-                    class="rounded-md bg-accent px-2 py-0.5 text-[11px] text-white hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
-                    @click="confirmCreateBrief"
-                  >
-                    {{ panelsText.briefCreate }}
-                  </button>
-                </div>
-              </div>
-
-              <div v-if="briefs.length === 0 && !creating" class="text-[11px] text-muted">
-                {{ panelsText.briefListEmpty }}
-              </div>
-              <button
-                v-for="entry in briefs"
-                :key="entry.briefId"
-                type="button"
-                class="block w-full rounded-md border border-border bg-canvas px-2 py-1.5 text-left transition-colors hover:bg-hover"
-                :data-test-id="`chat-brief-item`"
-                :data-brief-id="entry.briefId"
-                @click="openDetail(entry.briefId)"
-              >
+            <div
+              v-for="design in designs"
+              :key="design.rootId"
+              class="rounded-md border px-2 py-1.5 transition-colors"
+              :class="
+                design.rootId === activeNodeId
+                  ? 'border-accent bg-accent/5'
+                  : 'border-border bg-canvas'
+              "
+              :data-test-id="`chat-design-item`"
+              :data-design-node-id="design.rootId"
+            >
+              <button type="button" class="block w-full text-left" @click="locateDesign(design)">
                 <div class="flex items-center gap-1.5">
                   <span class="min-w-0 flex-1 truncate text-[11px] text-surface">
-                    {{ entry.name }}
+                    {{ design.name }}
                   </span>
                   <span
-                    v-if="containsActive(entry)"
-                    data-test-id="chat-brief-contains-active"
+                    v-if="design.rootId === activeNodeId"
+                    data-test-id="chat-design-active-badge"
                     class="shrink-0 rounded bg-accent/15 px-1.5 py-0.5 text-[11px] text-accent"
                   >
-                    {{ panelsText.briefContainsActive }}
+                    {{ panelsText.designsActive }}
                   </span>
                 </div>
+                <div class="mt-0.5 truncate text-[11px] text-muted">
+                  {{ modeLabel(design.modeId) }}
+                  <template v-if="design.profileId">
+                    · {{ profileLabel(design.profileId) }}
+                  </template>
+                </div>
+              </button>
+              <div v-if="design.rootId !== activeNodeId" class="mt-1 flex justify-end">
+                <button
+                  type="button"
+                  :disabled="switchingNodeId !== null"
+                  :data-test-id="`chat-design-set-current`"
+                  :data-design-node-id="design.rootId"
+                  class="rounded-md border border-border px-2 py-0.5 text-[11px] text-surface hover:bg-hover disabled:cursor-not-allowed disabled:opacity-60"
+                  @click="setCurrent(design)"
+                >
+                  {{
+                    switchingNodeId === design.rootId
+                      ? panelsText.designsSetting
+                      : panelsText.designsSetCurrent
+                  }}
+                </button>
+              </div>
+            </div>
+
+            <div class="text-[11px] text-muted">{{ panelsText.designsLocateHint }}</div>
+          </div>
+
+          <!-- ③ 需求单列表（当前页）+ 新建入口；条目点击 → ChatBriefDialog（T66） -->
+          <div class="space-y-1 border-t border-border pt-3">
+            <div class="flex items-center gap-2">
+              <icon-lucide-book-open class="size-3.5 shrink-0 text-accent" />
+              <span class="min-w-0 flex-1 text-[12px] font-medium text-surface">{{
+                panelsText.briefsSection
+              }}</span>
+              <button
+                v-if="!creating"
+                type="button"
+                data-test-id="chat-brief-new"
+                class="flex shrink-0 items-center gap-0.5 rounded-md border border-border px-1.5 py-0.5 text-[11px] text-surface hover:bg-hover"
+                @click="startCreate"
+              >
+                <icon-lucide-plus class="size-3" />
+                {{ panelsText.briefNew }}
               </button>
             </div>
-          </template>
+
+            <!-- 新建需求单内联编辑（core create_brief 桥直调，不触发 setup_design） -->
+            <div
+              v-if="creating"
+              class="space-y-1.5 rounded-md border border-border bg-canvas px-2 py-1.5"
+              data-test-id="chat-brief-create-form"
+            >
+              <AppTextarea
+                v-model="createDraft"
+                :rows="3"
+                :disabled="creatingBusy"
+                :placeholder="panelsText.briefNewPlaceholder"
+                data-test-id="chat-brief-create-editor"
+              />
+              <div class="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  :disabled="creatingBusy"
+                  data-test-id="chat-brief-create-cancel"
+                  class="rounded-md border border-border px-2 py-0.5 text-[11px] text-muted hover:bg-hover disabled:cursor-not-allowed disabled:opacity-60"
+                  @click="cancelCreate"
+                >
+                  {{ panelsText.briefCreateCancel }}
+                </button>
+                <button
+                  type="button"
+                  :disabled="creatingBusy"
+                  data-test-id="chat-brief-create-confirm"
+                  class="rounded-md bg-accent px-2 py-0.5 text-[11px] text-white hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
+                  @click="confirmCreateBrief"
+                >
+                  {{ panelsText.briefCreate }}
+                </button>
+              </div>
+            </div>
+
+            <div v-if="briefs.length === 0 && !creating" class="text-[11px] text-muted">
+              {{ panelsText.briefListEmpty }}
+            </div>
+            <button
+              v-for="entry in briefs"
+              :key="entry.briefId"
+              type="button"
+              class="block w-full rounded-md border border-border bg-canvas px-2 py-1.5 text-left transition-colors hover:bg-hover"
+              :data-test-id="`chat-brief-item`"
+              :data-brief-id="entry.briefId"
+              @click="openBriefDetail(entry.briefId)"
+            >
+              <div class="flex items-center gap-1.5">
+                <span class="min-w-0 flex-1 truncate text-[11px] text-surface">
+                  {{ entry.name }}
+                </span>
+                <span
+                  v-if="containsActive(entry)"
+                  data-test-id="chat-brief-contains-active"
+                  class="shrink-0 rounded bg-accent/15 px-1.5 py-0.5 text-[11px] text-accent"
+                >
+                  {{ panelsText.briefContainsActive }}
+                </span>
+              </div>
+            </button>
+          </div>
         </div>
       </PopoverContent>
     </PopoverPortal>

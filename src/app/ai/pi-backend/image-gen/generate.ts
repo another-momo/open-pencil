@@ -4,12 +4,18 @@
  * 拓扑（S3 §4 / 01 B.3 裁决 2）：
  *   AI 工具调用 → 本模块 execute（pi-backend 进程）
  *     1. 凭证读取（credentials store，缺 key → 结构化错误引导设置页配置）
- *     2. parseImageGenRequests（core 纯函数层，尺寸/枚举校验）
+ *     2. parseImageGenRequests（core 纯函数层，尺寸/枚举语义校验）
  *     3. begin 段串行经桥（image_gen_begin：误传保护/参考图提取/目标解析；
  *        串行 = 00 #10 并发放置竞态修复——每次 begin 重读页面 bounds，
  *        后一帧看到前一帧）
  *     4. provider HTTP 并行直发（不经桥；key 不出本进程）
  *     5. commit 段串行经桥（image_gen_commit：覆盖前快照 + 写 IMAGE fill）
+ *
+ * T66（P4/P5）：工具参数从单 JSON 字符串拆为 schema 化数组（9 字段，
+ * additionalProperties: false——字段拼错/类型/嵌套/枚举四类错误由 pi
+ * 运行时 schema 校验在 execute 前拒绝并回执模型自纠，pi-ai
+ * validateToolArguments 实证）；description 瘦身至 2000 字符内。
+ * parseImageGenRequests 保留字符串宽容解析为兼容降级（见 core requests.ts）。
  *
  * 装配形态：createImageGenTool(deps) 工厂返回 pi AgentTool——由主 agent
  * 集成期在 service.ts 装配进 customTools（本任务不改 service.ts/tools.ts）。
@@ -35,21 +41,34 @@ import {
 
 import { createBridgeCaller, type BridgeCaller } from './bridge-call'
 import type { ImageGenCredentials, ImageGenCredentialStore } from './credentials'
-import { createDmxImageGenProvider } from './provider-dmx'
+import { createImageGenProvider } from './provider'
 
 /** 与 fork/image-gen/tools.ts 的桥端点对齐 */
 const BEGIN_TOOL = 'image_gen_begin'
 const COMMIT_TOOL = 'image_gen_commit'
 
-/** 源 image-gen.ts 的 AI 面向契约文案（双段执行对模型透明，语义不变） */
-const GENERATE_IMAGE_DESCRIPTION =
-  'Generate or edit images via an OpenAI-compatible image API (gpt-image-2) and place them on the canvas as editable image nodes. Pass a JSON array for batch. Each item: {prompt, width, height, quality?, output_format?, output_compression?, replace_id?, references?, background?}. quality: low|medium|high|auto — default to auto for speed; use high only when image quality is critical ("hd" is auto-corrected to "auto"); output_format: png|jpeg|webp; background: auto|opaque. `replace_id` is ONLY the output target — never an input: provide it to fill that node with the generated image, replacing its current fill (works on leaf shapes AND on Frames, where the image becomes the frame background while children are kept — the standard way to build a text-over-image hero, and the standard way to regenerate/swap an existing canvas image); omit it to create a new image node (auto-placed right of existing page content, never overlapping). Replacing an image never loses it: when the target holds an image, the previous version is auto-preserved in the page\'s generation-history container ("历史图片备份", parked right of the root frame), and history entries are reusable as references. When generating a NEW image from references, omit `replace_id` — a reference\'s node id belongs in `references`, never in `replace_id`. `references` is the ONLY source of input images: an array of node ids. Each node contributes its original IMAGE bytes by default (lossless, zero-cost); nodes WITHOUT an IMAGE fill (layout Frames, groups) are rendered automatically. Pass {"id":"...","composite":true} to reference the node\'s rendered appearance instead — children, effects and rounded corners included (e.g. a hero Frame with overlay text). No references → text-to-image; with references → image-to-image. To EDIT an existing image, set `replace_id` to it AND include its node id in `references`; to REGENERATE a fresh replacement without being biased by the current one (e.g. retrying a rejected result), set `replace_id` but leave the target out of `references`. When passing multiple references, refer to them in the prompt as [image 1], [image 2], ... matching the references order. Any width/height is accepted — values are 16px-aligned and clipped to API constraints while preserving aspect ratio; adjustments are reported in note. Within one batch, references must not point at another item\'s output node — split dependent edits into separate calls. Generation is SLOW: batch ALL needed images in ONE call — never loop with repeated single calls. Returns node id metadata only (no image bytes): inspect structure with `describe`, and visually accept the content with `look` (right subject, no garbled or wrong-language text inside the image); if it misses, regenerate with an adjusted prompt (max 2 attempts). Prompts must never ask for rendered text. If the key is missing or the API returns 401, tell the user to add/check the Image Generation API key in AI chat settings (separate from the chat LLM key) — do NOT fall back to eval-drawn gradients; leave placeholder colors as-is.'
+/**
+ * AI 面向契约文案（双段执行对模型透明）。T66 P5：瘦身至 2000 字符内
+ * （测试断言钉扎上限）——参数细节由 schema 自带 description 承担，
+ * 本文只保留行为语义（replace/references/批量/验收/缺 key 引导）。
+ * 备份机制为内部设施——不向模型暴露页名/容器等落点细节，仅声明
+ * 「旧版本自动保留、可作 reference 复用」的功能语义（owner 2026-09-01 裁定）。
+ */
+export const GENERATE_IMAGE_DESCRIPTION = `Generate or edit images via the configured OpenAI-compatible image API and place them on the canvas as image nodes. Batch: pass multiple items in \`requests\`.
+
+REPLACE vs CREATE: set \`replace_id\` to fill an existing node, replacing its current fill (on Frames the image becomes the frame background with children kept — the standard text-over-image hero and image-swap pattern). Omit it to create a new node (auto-placed right of page content, never overlapping). Replacing never loses an image: the previous version is auto-preserved and stays reusable as a reference.
+
+REFERENCES are the ONLY input-image source: a node contributes its original IMAGE bytes by default (lossless); nodes WITHOUT an IMAGE fill (layout Frames, groups) are rendered automatically. Use {"id":"...","composite":true} for the rendered appearance (children, effects, rounded corners). No references = text-to-image; with references = image-to-image. To EDIT an image, set \`replace_id\` to it AND include its id in \`references\`; to REGENERATE unbiased (retrying a rejected result), set \`replace_id\` but omit the target from \`references\`. Name multiple references [image 1], [image 2], ... in the prompt in order. A reference must not point at another batch item's output — split dependent edits into separate calls.
+
+Generation is SLOW: batch ALL needed images in ONE call — never loop single calls. Any width/height is accepted — 16px-aligned and clipped to API constraints preserving aspect ratio; adjustments are reported in note.
+
+Returns node id metadata only (no image bytes): inspect with \`describe\`, visually accept with \`look\` (right subject, no garbled or wrong-language text); on miss, regenerate with an adjusted prompt (max 2 attempts). Never ask for rendered text in prompts. If the key is missing or the API returns 401, tell the user to add/check the Image Generation API key in AI chat settings (separate from the chat LLM key) — do NOT fall back to eval-drawn gradients.`
 
 export interface ImageGenToolDeps {
   credentials: ImageGenCredentialStore
   /** 桥调用（缺省 createBridgeCaller()）；测试注入 mock */
   callBridge?: BridgeCaller
-  /** provider 工厂（缺省 DMX 核心）；pi-ai generateImages 扩展槽/测试 mock */
+  /** provider 工厂（缺省 OpenAI 兼容 provider）；pi-ai generateImages 扩展槽/测试 mock */
   createProvider?: (credentials: ImageGenCredentials) => ImageGenProvider
   /** 当次请求的桥目标文档（service 集成期注入，同 tools.ts ToolTargetSource 语义） */
   target?: { documentId?: string }
@@ -210,17 +229,82 @@ async function runCommitPhase(
   return results
 }
 
+/**
+ * T66 P4：requests 拆为 schema 化数组（九字段，与 core requests.ts 解析层
+ * RawRequest 对齐）。additionalProperties: false 让字段拼错（target_id 等）
+ * 在 pi 运行时 schema 校验期即拒绝；width/height 的「新图必填」是条件约束，
+ * schema 表达不了，留在 parseImageGenRequests 语义层（错误文案引导补全）。
+ */
+export const GENERATE_IMAGE_PARAMETERS = Type.Object({
+  requests: Type.Array(
+    Type.Object(
+      {
+        prompt: Type.String({
+          description: 'Text prompt — never ask for rendered text inside the image'
+        }),
+        width: Type.Optional(
+          Type.Number({ description: 'Image width in pixels (required for new images)' })
+        ),
+        height: Type.Optional(
+          Type.Number({ description: 'Image height in pixels (required for new images)' })
+        ),
+        quality: Type.Optional(
+          Type.Union(
+            [
+              Type.Literal('auto'),
+              Type.Literal('low'),
+              Type.Literal('medium'),
+              Type.Literal('high')
+            ],
+            { description: 'Image quality (default: auto for speed)' }
+          )
+        ),
+        output_format: Type.Optional(
+          Type.Union([Type.Literal('png'), Type.Literal('jpeg'), Type.Literal('webp')], {
+            description: 'Output format (default: png)'
+          })
+        ),
+        output_compression: Type.Optional(
+          Type.Number({ description: 'JPEG/WebP compression 0-100 (only with jpeg/webp)' })
+        ),
+        background: Type.Optional(
+          Type.Union([Type.Literal('auto'), Type.Literal('opaque')], {
+            description: 'Background mode (default: auto)'
+          })
+        ),
+        replace_id: Type.Optional(
+          Type.String({ description: 'Existing node ID to fill (omit = create new node)' })
+        ),
+        references: Type.Optional(
+          Type.Array(
+            Type.Object(
+              {
+                id: Type.String({ description: 'Canvas node ID' }),
+                composite: Type.Optional(
+                  Type.Boolean({
+                    description:
+                      'true = rendered appearance (children/effects); default = original image bytes'
+                  })
+                )
+              },
+              { additionalProperties: false }
+            ),
+            { description: 'Input node IDs for image-to-image editing' }
+          )
+        )
+      },
+      { additionalProperties: false }
+    ),
+    { description: 'Generation/edit items — batch ALL needed images in one call' }
+  )
+})
+
 export function createImageGenTool(deps: ImageGenToolDeps) {
   return defineTool({
     name: 'generate_image',
     label: 'Generate Image',
     description: GENERATE_IMAGE_DESCRIPTION,
-    parameters: Type.Object({
-      requests: Type.String({
-        description:
-          'JSON array: [{"prompt":"product hero shot","width":1080,"height":1080},{"prompt":"banner bg","width":1080,"height":500}]'
-      })
-    }),
+    parameters: GENERATE_IMAGE_PARAMETERS,
     async execute(_toolCallId, params): Promise<AgentToolResult<Record<string, unknown>>> {
       const credentials = deps.credentials.get()
       if (!credentials) {
@@ -231,7 +315,7 @@ export function createImageGenTool(deps: ImageGenToolDeps) {
       }
       const providerFactory =
         deps.createProvider ??
-        ((creds: ImageGenCredentials) => createDmxImageGenProvider({ credentials: creds }))
+        ((creds: ImageGenCredentials) => createImageGenProvider({ credentials: creds }))
       const provider = providerFactory(credentials)
       const callBridge = deps.callBridge ?? createBridgeCaller()
 

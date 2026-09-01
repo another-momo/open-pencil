@@ -3,9 +3,9 @@
  * feature/agent-backend @ 5d38aa4e 的 tools/image-gen/history.ts 移植。
  *
  * Before generate_image overwrites a node that holds an image, the old
- * subtree is cloned into a per-page history container so no superseded
- * version is ever lost — and a mistaken overwrite (e.g. a reference image
- * passed as `replace_id`) stays recoverable.
+ * subtree is cloned into the history container so no superseded version is
+ * ever lost — and a mistaken overwrite (e.g. a reference image passed as
+ * `replace_id`) stays recoverable.
  * Only IMAGE fills are preserved: children survive a fill replacement and
  * solid/gradient fills are trivially recreatable.
  *
@@ -16,28 +16,38 @@
  * Entries and the container carry pluginData markers (rename-proof) and must
  * not be used as overwrite targets — apply.ts redirects them to a new node.
  *
+ * T66 ⑤（备份容器迁专用页，仓外提案 202609010000-history-container-placement）：
+ * 容器不再锚定设计页 marketing root 右侧（干扰设计工作流、唯一不走统一放置
+ * 策略的创建路径），改落专用备份页「图片备份」——按 pluginData 标记幂等
+ * 查找/创建（rename-proof；materialize.ts 内部页先例的可见页版本），容器在
+ * 备份页内走统一放置策略（findPlacementPositionOnPage，placement.ts 跨页
+ * seam）。单容器全局复用：entry 以 source-target 标记键定源（节点 id 全文档
+ * 唯一），跨页无歧义。isMarketingDesignRoot 锚定逻辑与 import 随迁删除。
+ *
  * 与源的差异（目标仓适配）：
  * - upsertPluginData 内联（目标仓无 #core/tools/plugin-data；figma-api/
  *   plugin-data.ts 通用面的 shared 键编码形态与本标记协议不同，逐字保留源语义）
- * - marketing root 侦测收敛单源（T53 集成期归并）：isMarketingDesignRoot 走
- *   getSharedPluginData 通用面（编码键 + 旧格式兼容），本地常量副本删除
+ * - ~~marketing root 侦测收敛单源（T53 集成期归并）~~ T66 ⑤ 起锚定删除
  */
 
 import type { PluginDataEntry, SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
-import { isMarketingDesignRoot } from '#core/tools/fork/marketing/setup'
+import { findPlacementPositionOnPage } from '#core/tools/fork/placement'
 
 const HISTORY_PLUGIN_ID = 'open-pencil-image-gen'
 const ROLE_KEY = 'role'
 const ROLE_CONTAINER = 'image-history-container'
 const ROLE_ENTRY = 'image-history-entry'
+/** T66 ⑤：备份页自身的 pluginData 标记（rename-proof 幂等查找） */
+const ROLE_BACKUP_PAGE = 'image-history-backup-page'
 const SOURCE_TARGET_KEY = 'source-target'
 const SOURCE_HASH_KEY = 'source-hash'
 const VERSION_KEY = 'version'
 const CAPTURED_AT_KEY = 'captured-at'
 
 const CONTAINER_NAME = '历史图片备份'
-const CONTAINER_GUTTER = 100
+/** T66 ⑤：专用备份页名（仓内无既有备份页常量/文案约定，T66-plan ⑤ 定稿） */
+const BACKUP_PAGE_NAME = '图片备份'
 
 // ── 本地插件数据 upsert（源 tools/plugin-data.ts 语义逐字） ──
 
@@ -57,7 +67,7 @@ function upsertPluginData(
   })
 }
 
-// ── marketing root 侦测：单源 = fork/marketing/setup.ts（T53） ──
+// ── 快照数据形态 ──
 
 export interface HistorySnapshot {
   id: string
@@ -98,26 +108,6 @@ export function isInImageHistory(graph: SceneGraph, nodeId: string): boolean {
   return false
 }
 
-function pageIdOf(graph: SceneGraph, nodeId: string): string | undefined {
-  let current = graph.getNode(nodeId)
-  while (current) {
-    if (current.type === 'CANVAS') return current.id
-    current = current.parentId ? graph.getNode(current.parentId) : undefined
-  }
-  return undefined
-}
-
-/** Top-level ancestor of nodeId on its page (the direct child of the CANVAS) */
-function topLevelAncestor(graph: SceneGraph, nodeId: string): SceneNode | undefined {
-  let current = graph.getNode(nodeId)
-  let top = current
-  while (current?.parentId) {
-    current = graph.getNode(current.parentId)
-    if (current && current.type !== 'CANVAS') top = current
-  }
-  return top
-}
-
 function topImageHash(node: SceneNode): string | undefined {
   for (const fill of node.fills) {
     if (fill.type === 'IMAGE' && fill.visible && 'imageHash' in fill) {
@@ -125,6 +115,21 @@ function topImageHash(node: SceneNode): string | undefined {
     }
   }
   return undefined
+}
+
+/**
+ * T66 ⑤：专用备份页幂等查找/创建——按 pluginData 标记找（rename-proof，
+ * 用户改页名不丢关联）；找不到才新建并打标。可见普通页（非 internalOnly）：
+ * 备份是低频查看的恢复内容，用户须能在页列表里看到它（library 内部页先例
+ * materialize.ts 的可见页版本）。不随 currentPage 切换——图层级操作。
+ */
+function getOrCreateBackupPage(graph: SceneGraph): SceneNode {
+  for (const page of graph.getPages()) {
+    if (markerValue(page, ROLE_KEY) === ROLE_BACKUP_PAGE) return page
+  }
+  const page = graph.addPage(BACKUP_PAGE_NAME)
+  upsertMarkers(graph, page.id, [{ key: ROLE_KEY, value: ROLE_BACKUP_PAGE }])
+  return graph.getNode(page.id) ?? page
 }
 
 function findContainer(graph: SceneGraph, pageId: string): SceneNode | undefined {
@@ -137,26 +142,15 @@ function findContainer(graph: SceneGraph, pageId: string): SceneNode | undefined
   return undefined
 }
 
-function createContainer(graph: SceneGraph, pageId: string, targetId: string): SceneNode {
-  // Anchor next to the marketing root when the page has one; otherwise next
-  // to the target's top-level ancestor. Never moved after creation.
-  const page = graph.getNode(pageId)
-  let anchor: SceneNode | undefined
-  for (const childId of page?.childIds ?? []) {
-    const child = graph.getNode(childId)
-    if (isMarketingDesignRoot(child)) {
-      anchor = child
-      break
-    }
-  }
-  if (!anchor) anchor = topLevelAncestor(graph, targetId)
-  const x = anchor ? anchor.x + anchor.width + CONTAINER_GUTTER : 0
-  const y = anchor?.y ?? 0
+function createContainer(graph: SceneGraph, backupPageId: string): SceneNode {
+  // T66 ⑤：统一放置策略（备份页顶层 bounds 右侧 + PLACEMENT_GAP，空页原点）；
+  // 容器建后不再移动（备份页正常态只有这一个容器，实际恒落 (0,0)）。
+  const position = findPlacementPositionOnPage(graph, backupPageId, { width: 0, height: 0 })
 
-  const container = graph.createNode('FRAME', pageId, {
+  const container = graph.createNode('FRAME', backupPageId, {
     name: CONTAINER_NAME,
-    x,
-    y,
+    x: position.x,
+    y: position.y,
     layoutMode: 'VERTICAL',
     itemSpacing: 24,
     primaryAxisSizing: 'HUG',
@@ -186,9 +180,13 @@ function entriesOf(graph: SceneGraph, container: SceneNode, targetId: string): S
 }
 
 /**
- * Clone the target's current subtree into the page's history container.
+ * Clone the target's current subtree into the backup page's history container.
  * Returns the snapshot, or undefined when there is nothing worth keeping
  * (empty node, or the same image already snapshotted for this target).
+ *
+ * T66 ⑤：容器落专用备份页（跨页 cloneTree——clone 是图层级子树拷贝，无同页
+ * 假设）；entry 以 source-target 标记键定源（节点 id 全文档唯一），恢复/
+ * 复用读取均按 id 全文档解析，无同页依赖。
  */
 export function snapshotBeforeOverwrite(
   graph: SceneGraph,
@@ -204,17 +202,15 @@ export function snapshotBeforeOverwrite(
   const hash = topImageHash(target)
   if (!hash) return undefined
 
-  const pageId = pageIdOf(graph, targetId)
-  if (!pageId) return undefined
-
-  const existingContainer = findContainer(graph, pageId)
+  const backupPage = getOrCreateBackupPage(graph)
+  const existingContainer = findContainer(graph, backupPage.id)
   const prior = existingContainer ? entriesOf(graph, existingContainer, targetId) : []
   if (prior.length > 0) {
     const latestHash = markerValue(prior[prior.length - 1], SOURCE_HASH_KEY)
     if (latestHash === hash) return undefined
   }
 
-  const container = existingContainer ?? createContainer(graph, pageId, targetId)
+  const container = existingContainer ?? createContainer(graph, backupPage.id)
   const version = prior.length + 1
   const clone = graph.cloneTree(targetId, container.id, {
     name: `${target.name} · v${version}`,

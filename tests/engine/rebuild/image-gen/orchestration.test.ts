@@ -1,7 +1,9 @@
 /**
- * T54：createImageGenTool 后端编排钉扎——
+ * T54→T66：createImageGenTool 后端编排钉扎——
  * 双段执行顺序（begin 串行 / generate 并行 / commit 串行）、per-request
  * 失败隔离、无凭证结构化报错、key 不出后端进程（桥 payload + 结果零 key）。
+ * T66 P4：工具参数 schema 化——execute 直接收类型化数组（JSON 字符串形态
+ * 由 pi 运行时 schema 校验在 execute 前拒绝，见 tool-contract.test.ts）。
  */
 import { describe, expect, test } from 'bun:test'
 
@@ -15,9 +17,9 @@ const SECRET_KEY = 'sk-orchestrate-secret'
 function fakeStore(apiKey: string | null): ImageGenCredentialStore {
   let credentials = apiKey
     ? {
-        presetId: 'dmx',
-        baseUrl: 'https://www.dmxapi.cn/v1',
-        model: 'gpt-image-2-ssvip',
+        providerType: 'openai-compatible' as const,
+        baseUrl: 'https://api.example.com/v1',
+        model: 'gpt-image-1',
         apiKey
       }
     : null
@@ -33,7 +35,7 @@ function fakeStore(apiKey: string | null): ImageGenCredentialStore {
       credentials
         ? {
             configured: true,
-            presetId: credentials.presetId,
+            providerType: credentials.providerType,
             baseUrl: credentials.baseUrl,
             model: credentials.model
           }
@@ -118,10 +120,10 @@ function mockProvider(): {
   }
 }
 
-const TWO_REQUESTS = JSON.stringify([
+const TWO_REQUESTS = [
   { prompt: 'candidate A', width: 1024, height: 1024 },
   { prompt: 'candidate B', width: 1024, height: 1024 }
-])
+]
 
 describe('createImageGenTool 编排', () => {
   test('begin 串行 / generate 并行 / commit 携带生成字节', async () => {
@@ -200,7 +202,7 @@ describe('createImageGenTool 编排', () => {
     expect(calls).toHaveLength(0)
   })
 
-  test('requests 解析失败 → {error}，零桥调用', async () => {
+  test('requests 空数组 → {error}，零桥调用', async () => {
     const events: string[] = []
     const { calls, callBridge } = mockBridge(events)
     const tool = createImageGenTool({
@@ -208,7 +210,7 @@ describe('createImageGenTool 编排', () => {
       callBridge,
       createProvider: () => mockProvider().provider
     })
-    const result = await tool.execute('call-1', { requests: '[]' })
+    const result = await tool.execute('call-1', { requests: [] })
     expect((result.details as { error?: string }).error).toContain('Empty requests array')
     expect(calls).toHaveLength(0)
   })
@@ -267,9 +269,13 @@ describe('createImageGenTool 编排', () => {
       createProvider: () => provider
     })
     await tool.execute('call-1', {
-      requests: JSON.stringify([
-        { prompt: 'edit', replace_id: '0:7', references: ['0:7', { id: '0:9', composite: true }] }
-      ])
+      requests: [
+        {
+          prompt: 'edit',
+          replace_id: '0:7',
+          references: [{ id: '0:7' }, { id: '0:9', composite: true }]
+        }
+      ]
     })
     const begin = calls.find((call) => call.tool === 'image_gen_begin')
     expect(begin?.args.replace_id).toBe('0:7')

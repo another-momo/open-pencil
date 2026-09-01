@@ -92,7 +92,7 @@
 | [T59](../tasks/T59-plan.md) | Phase 3 · W2/T-B8 undo burst coalesce（按设计区独立） | 桥撤销组边界指令 + service 回合边界发信 + withAIUndo 组内合并 + 组键=documentId+设计区根 id + 悬挂组自闭合 | ✅ 已完成（2026-09-01 收口） | [T59-plan](../tasks/T59-plan.md) | [T59-self-check](../tasks/T59-self-check.md) | [T59-verify](../tasks/T59-verify.md) |
 | [T62](../tasks/T62-plan.md) | Phase 3 · W3/T-B11 type 蓝图机制删除 | setup_design 去 typeId + studio types 退役 + manifest 去 types + chips 收两级 + S1/S2/S3 同步 | ⬜ 未开始（排入 W3 批次） | — | — | — |
 | [T63](../tasks/T63-plan.md) | CI 第四轮修复：上游 i18n 重构 GHOST 双件合规化 | 两 dialogs 文件 importer-dependent 保活进 tarball 白名单 | ✅ 已完成（2026-09-01 收口） | [T63-plan](../tasks/T63-plan.md) | [T63-self-check](../tasks/T63-self-check.md) | [T63-verify](../tasks/T63-verify.md) |
-| [T64](../tasks/T64-plan.md) | CI 门禁分层：GHOST 窗口规则改 drift 雷达 | check:zones 静态/漂移拆分 + nightly 自动建档 | 🔄 进行中（2026-09-01 立项） | — | — | — |
+| [T64](../tasks/T64-plan.md) | CI 门禁分层：GHOST 窗口规则改 drift 雷达 | check:zones 静态/漂移拆分 + nightly 自动建档 | ✅ 已完成（2026-09-01 收口） | [T64-plan](../tasks/T64-plan.md) | [T64-self-check](../tasks/T64-self-check.md) | [T64-verify](../tasks/T64-verify.md) |
 | (后续 task 按顺序登记)      | —                          | —                                                                                                                       | —                                                                                                                                            | —                                | —                                            | —                                    |
 
 ## 3. 三件套结构（强制）

@@ -26,6 +26,8 @@
  *
  * Usage: bun tools/zone-registry/src/check.ts [--base <ref>]  (default base: merge-base with upstream/master)
  *        bun tools/zone-registry/src/check.ts --patches-report [--base <ref>]
+ *        bun tools/zone-registry/src/check.ts --drift  （T64：追加 GHOST 等上游活动窗口规则——
+ *          输入是外生的上游节奏，owner 2026-09-01 拍板降为雷达，不进 push 门禁）
  *          T28（决策单 #5，轻量过堂机制）：报告模式——逐条补丁输出相对
  *          upstream merge-base 的当前 diff 行数摘要（numstat），供过堂审视
  *          补丁腐烂度；只读报告，恒 exit 0，不参与主检查判红。
@@ -204,6 +206,11 @@ function checkRenames(zones: Zones, renames: Rename[]): string[] {
  * T32 L3：上游已删的 follow 文件本地若仍残留，视为 GHOST——根治 T10 留 vector-edit
  *  死目录这类历史遗留。用 upstream/master..upstreamBase log 列出上游自上次合并以来
  *  所有 deleted 文件，磁盘上仍存在且不属于我们自有的，报警。
+ *
+ * T64（owner 2026-09-01 拍板）：本规则输入 = 上游活动窗口（外生移动靶——上游任何
+ *  删除都会在我们零改动时转红），从 push 门禁降为 drift 雷达，仅 --drift 模式执行
+ * （nightly upstream-drift.yml + 失败自动建 issue）；push gate 只留静态 base diff 规则。
+ *  T63 实证：上游 be942783 i18n 重构删除两 dialogs 文件即触发本规则转红 run 33460844556。
  */
 function checkGhostDeleted(zones: Zones, base: string): string[] {
   // upstreamBase = 我们本地与上游的 merge-base（base 是它或 MERGE_HEAD）
@@ -461,14 +468,15 @@ function main() {
   // T32：rename 交叉一致性 + tarball drift（F1 收口评审：drift 判红，不 warn）
   const renames = collectRenames(base)
   // 装配顺序——violations 在前、Renames/Ghost/Drift 在中、Tarball 白名单在后兜底 ADDED；
-  // T36 登记健康三规则（R-exist/R-diff/R-mutex）殿后——它们审的是 zones.json 自身质量
+  // T36 登记健康三规则（R-exist/R-diff/R-mutex）殿后——它们审的是 zones.json 自身质量。
+  // T64：GHOST 窗口规则仅 --drift 雷达模式执行（owner 2026-09-01 拍板，函数头注在案）
   const violations = [
     ...changes.violations,
     ...checkRenames(zones, renames),
     ...checkModified(zones, changes.modified),
     ...checkDeletedRegistered(zones, changes.deleted),
     ...checkDeletedAbsent(zones),
-    ...checkGhostDeleted(zones, base),
+    ...(process.argv.includes('--drift') ? checkGhostDeleted(zones, base) : []),
     ...checkDriftTarball(zones),
     ...checkUpstreamMergeTarball(zones),
     ...checkAdded(zones, changes.added),

@@ -115,6 +115,8 @@ jobs:
           git remote add upstream https://github.com/open-pencil/open-pencil.git
           git fetch --no-tags upstream master
 
+      # T64（owner 2026-09-01 拍板）：本步骤只跑静态 base-diff 规则；GHOST 等
+      # 上游活动窗口规则 = 外生移动靶，拆出为 upstream-drift.yml nightly 雷达
       - name: Zone registry purity
         run: bun run check:zones
 

@@ -1,0 +1,65 @@
+# T64（owner 2026-09-01 拍板）：上游漂移雷达。
+# GHOST 等「上游活动窗口」规则（check.ts --drift）输入是外生的上游节奏——
+# 不属于 push 门禁（ci.yml rebuild-discipline 只跑静态规则），改由本 workflow
+# 每日巡检 + 失败自动建 issue 建档。雷达输出同时是下一轮 upstream 合并的备料清单。
+name: Upstream drift radar
+
+on:
+  schedule:
+    - cron: '17 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift:
+    name: Zone drift check
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Fetch upstream for drift window
+        run: |
+          git remote add upstream https://github.com/open-pencil/open-pencil.git
+          git fetch --no-tags upstream master
+
+      - name: Zone drift check
+        id: drift
+        run: bun run check:zones:drift
+
+      - name: File drift issue
+        if: failure() && steps.drift.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '[upstream-drift] zone 雷达违规（GHOST 窗口规则）'
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            })
+            if (open.some((i) => i.title === title)) {
+              core.info('drift issue already open — skip dedupe')
+              return
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body: [
+                'nightly drift 雷达红了：上游自上次合并以来删除/移动了我们仍持有的文件。',
+                '',
+                `证据：${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                '',
+                '处置 SOP：按违规提示逐条 remove / move under ownedRoots / register patch（importer-dependent）/ tarball 白名单（byte 一致）；参考 T63 实例。处置后本 issue 手工关闭。'
+              ].join('\n')
+            })

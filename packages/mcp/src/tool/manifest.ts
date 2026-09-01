@@ -42,7 +42,9 @@ function coreToolDescriptor(def: ToolDef): ToolDescriptor {
 }
 
 export function createToolDescriptors(filesystemEnabled: boolean): ToolDescriptor[] {
-  const descriptors = ALL_TOOLS.map(coreToolDescriptor)
+  // T72：internal 流水线段（image_gen_begin/commit）不进 MCP 清单——与
+  // registration.ts 的 internal 跳过同口径，两处同源过滤
+  const descriptors = ALL_TOOLS.filter((def) => !def.internal).map(coreToolDescriptor)
   descriptors.push(
     {
       name: 'list_documents',

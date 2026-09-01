@@ -27,3 +27,10 @@
 ## 4. 偏差
 
 - 净改动 21 行 +4/-7（加新测试文件）；小于大改动阈值但仍按三件套成文（owner 点名修的问题，留痕）。
+
+## 5. CI 红后补（2026-09-01）
+
+- commit b857f116 的 CI run 33516750532 **failure**：`tests/engine/mcp/server/index.test.ts > lists all registered tools` 挂——我首跑只跑了 tests/engine/rebuild + test:tools，**漏跑 tests/engine/mcp 全套**，而 MCP 侧 manifest.ts（createToolDescriptors）与 registration.ts 是两个独立面：注册循环滤了 internal，清单面仍列出 → 期望/实际差两件。
+- 修复：manifest.ts 同源过滤（P140 登记），清单面与注册面同口径。「lists all registered tools」复跑 22/22 绿。
+- 教训记门禁纪律：**碰 packages/mcp 注册面时，tests/engine/mcp 全套必须进本地门禁清单**。
+- 残余：本地 `BrowserRpcBridge reconnection` 两例 5s 超时（ws guard 计时类，Windows 本地时序抖动，与 T72 无关——CI Linux 面历史绿；本仓 macOS/Linux 为 CI 权威面）。

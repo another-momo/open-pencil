@@ -742,6 +742,14 @@
       "disposition": "permanent",
       "lastReviewed": "2026-09-01",
       "task": "T72"
+    },
+    {
+      "id": "P140",
+      "file": "packages/mcp/src/tool/manifest.ts",
+      "reason": "T72 续（2026-09-01，CI 33516750532 红后补）：createToolDescriptors 同源过滤 internal——注册面与清单面口径一致（原只滤注册循环，manifest 仍列出致 tests/engine/mcp/server/index.test.ts「lists all registered tools」挂）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-01",
+      "task": "T72"
     }
   ],
   "deletedPaths": [

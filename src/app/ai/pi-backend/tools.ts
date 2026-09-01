@@ -253,10 +253,11 @@ export function createOpenPencilTools(
   const toolSet = [
     ...CORE_TOOLS,
     ...EXTENDED_TOOLS.filter((def) => (EXTENDED_WHITELIST as readonly string[]).includes(def.name)),
-    // T52-T57（S4 W2）：fork 工具全量暴露——brief 三件套 / setup_design / look /
-    // prepare_hero_scaffold / image-gen 落图段端点（generate_image 本体由
-    // service 后端段另行装配）
-    ...FORK_TOOLS
+    // T52-T57（S4 W2）：fork 工具暴露——brief 三件套 / setup_design / look /
+    // prepare_hero_scaffold 等；T72：internal 段（image_gen_begin/commit）过滤——
+    // 它们是 generate_image 编排器的桥端点，agent 直调会绕过凭证检查与编排逻辑
+    // （generate_image 本体由 service 后端段另行装配，不在此面）。
+    ...FORK_TOOLS.filter((def) => !def.internal)
   ]
   return toolSet.map((def) => defineBridgeTool(def, budget, target, setupDesign, setupDesignHooks))
 }

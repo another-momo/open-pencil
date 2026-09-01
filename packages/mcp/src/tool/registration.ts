@@ -77,6 +77,9 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
   }
 
   for (const def of ALL_TOOLS) {
+    // T72：internal 流水线段（image_gen_begin/commit）不向 MCP 客户端注册——
+    // 它们只应由 generate_image 编排器经桥按名调用
+    if (def.internal) continue
     const shape: Record<string, z.ZodType> = {}
     for (const [key, param] of Object.entries(def.params)) {
       shape[key] = paramToZod(param)

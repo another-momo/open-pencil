@@ -1,0 +1,30 @@
+# T72 独立核验 · 内部工具泄露修复
+
+> 日期：2026-08-31。核验者 = 独立核验 subagent（只读，未改动任何文件）。
+> 材料：docs/rebuild/tasks/T72-plan.md、T72-self-check.md；
+> 源问题文档 docs/202609010000-tool-internal-visibility-review.md（方案 A）。
+> 环境：worktree open-pencil-mode，分支 rebuild/mode-arch。
+
+## 逐项核验
+
+| #   | 项                                                                                        | 结论 | 证据                                                                                                                                                                                                                                                                                                                                                                             |
+| --- | ----------------------------------------------------------------------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| V1  | schema.ts：ToolDef 与 defineTool 入参均有 `internal?: boolean`                            | PASS | packages/core/src/tools/schema.ts:35（ToolDef 字段，注释写明「agent/MCP 过滤、桥执行面不过滤」）与 :64-65（defineTool 入参同步）                                                                                                                                                                                                                                                 |
+| V2  | imageGenBegin/imageGenCommit 均 `internal: true`；描述中 INTERNAL 字样仍在                | PASS | packages/core/src/tools/fork/image-gen/tools.ts:23（begin）/:74（commit）均 `internal: true`；:25、:76 description 均以「INTERNAL pipeline segment」开头；头注 :8-10 从「集成期决策待定」改写为 T72 落地事实                                                                                                                                                                     |
+| V3  | pi-backend FORK_TOOLS 处有 `.filter((def) => !def.internal)`；编排器调用不经 agent 工具集 | PASS | src/app/ai/pi-backend/tools.ts:260 `...FORK_TOOLS.filter((def) => !def.internal)`（含 :257-259 理由注释）。generate.ts:47-48 定义 BEGIN_TOOL/COMMIT_TOOL 名字符串，:136-137、:203-204 经 `callBridge(BEGIN_TOOL/COMMIT_TOOL, ...)`（createBridgeCaller 桥 RPC 按名调用），不消费 createOpenPencilTools 产物——过滤不切断编排                                                      |
+| V4  | mcp/registration.ts 注册循环有 internal 跳过                                              | PASS | packages/mcp/src/tool/registration.ts:80-82 `if (def.internal) continue` + 注释                                                                                                                                                                                                                                                                                                  |
+| V5  | 桥执行面未过滤（tool-handlers ALL_TOOLS.find 按名分发）                                   | PASS | src/app/automation/bridge/tool-handlers.ts:172 `ALL_TOOLS.find((t) => t.name === toolName)`；全文件 grep `internal` 零命中——分发面无过滤，编排器 RPC 仍可达                                                                                                                                                                                                                      |
+| V6  | CLI 面无 ALL_TOOLS 消费                                                                   | PASS | `grep -rn "ALL_TOOLS" packages/cli --include="*.ts" --exclude-dir=node_modules` 零命中（排除 node_modules 后）                                                                                                                                                                                                                                                                   |
+| V7  | 钉扎测试 4 例语义正确                                                                     | PASS | tests/engine/rebuild/image-gen/internal-visibility.test.ts：①FORK_TOOLS 内 internal 名单精确等于两件（toEqual 排序数组，非恒真）；②createOpenPencilTools() 产物名集 not.toContain 两件 + toContain read_brief/setup_design 防误伤（负向+正向断言）；③ALL_TOOLS toContain 两件（桥可达）；④ALL_TOOLS 全仓 internal 清单精确等于两件（防静默新增）。4 例全部非恒真断言，且实测全绿 |
+| V8  | 门禁复跑                                                                                  | PASS | `bun test ./tests/engine/rebuild` exit 0，377 pass / 0 fail（含 T72 4 例在册）；`bun run lint` exit 0（0 errors，7 warnings 均为存量 max-lines，与 T72 无关）；`bun run typecheck` exit 0；`bun run format:check` exit 0；`bun run check:zones` exit 0（83 modified all registered）；`bun run smoke:pi` exit 0（19 passed）。全部 unpiped 记 exit code                          |
+| V9  | zones P138/P139 条目                                                                      | PASS | tools/zone-registry/zones.json:731-737 P138 file=packages/core/src/tools/schema.ts、task=T72；:738-745 P139 file=packages/mcp/src/tool/registration.ts、task=T72；reason 均含 T72 与日期                                                                                                                                                                                         |
+| V10 | 领土合规                                                                                  | PASS | `git status --porcelain`：M \_index.md、tracker.md、fork/image-gen/tools.ts、schema.ts、registration.ts、pi-backend/tools.ts、zones.json；?? T72-plan.md、T72-self-check.md、internal-visibility.test.ts。全部 ∈ 允许集，无越界文件                                                                                                                                              |
+
+## 附带核验（自检声称项）
+
+- 仓外评审文档 §9 决策记录已翻转：docs/202609010000-tool-internal-visibility-review.md:219 「~~待定~~ **方案 A 已实施（T72，2026-09-01）**」。
+- 自检记录的「build:packages 后 lint」问题：本次核验时 lint 直接 0 error（mcp 经 core 构建产物取类型的 TS2339 未复现，产物已重建在案）。
+
+## 总结论
+
+**PASS（V1-V10 全项通过）**。方案 A 落地与计划 §3 六项一致：internal 标记机器可读、agent 工具集与 MCP 注册面双双过滤、桥执行面刻意不过滤（编排器桥 RPC 按名调用不受影响，钉扎 ③ 显式保住）、CLI 无消费面无需改动、4 例钉扎语义正确且全绿、门禁全绿、领土合规。

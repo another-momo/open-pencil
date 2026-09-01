@@ -28,6 +28,11 @@ export interface ToolDef {
   /** Whether execution changes persisted document content. Defaults to `mutates`. */
   changesDocument?: boolean
   mutates?: boolean
+  /**
+   * T72：内部流水线段标记——不向 AI agent 工具集 / MCP 注册面暴露（消费方
+   * 自行 filter）；桥执行面（tool-handlers 按名分发）不过滤，编排器 RPC 仍可达。
+   */
+  internal?: boolean
   params: Record<string, ParamDef>
   execute: (figma: FigmaAPI, args: Record<string, unknown>) => unknown
 }
@@ -56,6 +61,8 @@ export function defineTool<P extends Record<string, ParamDef>>(def: {
   /** Whether execution changes persisted document content. Defaults to `mutates`. */
   changesDocument?: boolean
   mutates?: boolean
+  /** T72：内部流水线段（见 ToolDef.internal） */
+  internal?: boolean
   params: P
   execute: (figma: FigmaAPI, args: ResolvedParams<P>) => unknown
 }): ToolDef {

@@ -726,6 +726,22 @@
       "disposition": "permanent",
       "lastReviewed": "2026-09-01",
       "task": "T55"
+    },
+    {
+      "id": "P138",
+      "file": "packages/core/src/tools/schema.ts",
+      "reason": "T72（2026-09-01）：ToolDef/defineTool 增 internal?: boolean——内部流水线段机器可读标记（image_gen_begin/commit 不透出 agent/MCP 面；docs/202609010000-tool-internal-visibility-review.md 方案 A）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-01",
+      "task": "T72"
+    },
+    {
+      "id": "P139",
+      "file": "packages/mcp/src/tool/registration.ts",
+      "reason": "T72（2026-09-01）：MCP 注册循环跳过 internal 工具——内部流水线段不向 MCP 客户端注册",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-01",
+      "task": "T72"
     }
   ],
   "deletedPaths": [

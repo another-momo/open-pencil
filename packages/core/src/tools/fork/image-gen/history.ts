@@ -19,11 +19,13 @@
  * 与源的差异（目标仓适配）：
  * - upsertPluginData 内联（目标仓无 #core/tools/plugin-data；figma-api/
  *   plugin-data.ts 通用面的 shared 键编码形态与本标记协议不同，逐字保留源语义）
- * - isMarketingRoot 本地副本（fork/marketing 为并行任务 T52/T55 领土，不引用；
- *   标记协议常量与源 restore.ts 一致，集成期由主 agent 归并）
+ * - marketing root 侦测收敛单源（T53 集成期归并）：isMarketingDesignRoot 走
+ *   getSharedPluginData 通用面（编码键 + 旧格式兼容），本地常量副本删除
  */
 
 import type { PluginDataEntry, SceneGraph, SceneNode } from '@open-pencil/scene-graph'
+
+import { isMarketingDesignRoot } from '#core/tools/fork/marketing/setup'
 
 const HISTORY_PLUGIN_ID = 'open-pencil-image-gen'
 const ROLE_KEY = 'role'
@@ -55,20 +57,7 @@ function upsertPluginData(
   })
 }
 
-// ── 本地 marketing root 侦测（源 marketing/restore.ts 标记协议；T52 归并点） ──
-
-const MARKETING_PLUGIN_ID = 'open-pencil-marketing'
-const MARKETING_ROLE_ROOT = 'marketing-root'
-
-function isMarketingRoot(node: SceneNode | undefined): node is SceneNode {
-  return (
-    !!node &&
-    node.type === 'FRAME' &&
-    node.pluginData.find(
-      (entry: PluginDataEntry) => entry.pluginId === MARKETING_PLUGIN_ID && entry.key === ROLE_KEY
-    )?.value === MARKETING_ROLE_ROOT
-  )
-}
+// ── marketing root 侦测：单源 = fork/marketing/setup.ts（T53） ──
 
 export interface HistorySnapshot {
   id: string
@@ -155,7 +144,7 @@ function createContainer(graph: SceneGraph, pageId: string, targetId: string): S
   let anchor: SceneNode | undefined
   for (const childId of page?.childIds ?? []) {
     const child = graph.getNode(childId)
-    if (isMarketingRoot(child)) {
+    if (isMarketingDesignRoot(child)) {
       anchor = child
       break
     }

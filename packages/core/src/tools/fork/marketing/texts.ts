@@ -37,3 +37,32 @@ export const BRIEF_TEXTS = {
   /** 关联设计区投影缺省显示（设计身份四元组由 T53 写入，此前无数据可投影） */
   missingProjection: '—'
 } as const
+
+/**
+ * setup_design 文案（T53）：画布命名基底 + 结构化错误的用户语言化 message
+ * （zh-cn 外置）。参数化消息用函数形态，插值只发生在调用侧；文案不出现
+ * 注入缝参数名（__catalog / __confirmedNewIntent 不进用户视野）。
+ */
+export const SETUP_TEXTS = {
+  /** general mode（无 type 蓝图）根 frame 的命名基底 */
+  generalDesignName: '营销设计',
+
+  unconfirmedNewIntent:
+    '新建设计需要先获得用户确认——请询问用户是否要新建一张设计，用户确认后宿主会带上新建意图再调用。',
+  catalogUnavailable:
+    '设计模式注册表不可用（当前环境未注入注册表快照）——仅 modeId=general 且不带 typeId/profileId 时可用。',
+  briefNone: '文档里还没有需求单——请先 create_brief，再新建设计。',
+  ambiguousBrief: '页面上有多份需求单且未指定 briefId——请询问用户使用哪一份，然后带 briefId 重试。',
+  briefNotFound: (briefId: string) =>
+    `找不到需求单「${briefId}」——请确认 briefId 是否正确，或先 create_brief。`,
+  unknownMode: (modeId: string) =>
+    `未知的设计模式「${modeId}」（不在注册表内）——通用长图请用 modeId=general。`,
+  typeNotInMode: (typeId: string, modeLabel: string) =>
+    `类型「${typeId}」不在模式「${modeLabel}」的蓝图列表内——请从该模式的类型列表中选择。`,
+  typeForbidden: (modeId: string, typeId: string) =>
+    `模式「${modeId}」没有 type 蓝图，不应传 typeId「${typeId}」。`,
+  typeRequired: (modeLabel: string) =>
+    `模式「${modeLabel}」要求指定 typeId——请从该模式的蓝图类型列表中选择一个。`,
+  unknownProfile: (profileId: string) =>
+    `未知的风格档案「${profileId}」（不在注册表 profileIds 内）。`
+} as const

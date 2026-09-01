@@ -927,6 +927,15 @@
         "packages/vue/src/canvas/node-edit/",
         "packages/vue/src/shared/input/node-edit/"
       ]
+    },
+    {
+      "base": "88c1077071328b8df68f282543f16e20e97930b4",
+      "task": "T63",
+      "lastReviewed": "2026-09-01",
+      "paths": [
+        "packages/vue/src/i18n/locales/zh-cn/dialogs.json",
+        "packages/vue/src/i18n/messages/dialogs.ts"
+      ]
     }
   ]
 }

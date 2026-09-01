@@ -68,6 +68,8 @@
 | T57 | Phase 3 · W2/T-B6 prepare_hero_scaffold 移植 | 标题前置克隆源（显式 source_node_id，不扫描）+ findPlacementPosition 页面级放置 + 几何记录写入/钳制（hero-geometry pluginData，T58 硬依赖）+ note 三分解体 + 幂等 upsert/IMAGE fill 保留 | [T57-plan.md 验收标准](tasks/T57-plan.md) | ✅ 已完成（2026-09-01 收口） | ✅ | [T57-plan](tasks/T57-plan.md) | [T57-self-check](tasks/T57-self-check.md) | [T57-verify](tasks/T57-verify.md) |
 | T59 | Phase 3 · W2/T-B8 undo burst coalesce（按设计区独立） | 桥 RPC 增撤销组边界指令 + pi service 回合边界发信 + withAIUndo 组内合并（一 AI 回合=一撤销单元）+ 组键=documentId+设计区根 id（PD-19 分区独立）+ 悬挂组自闭合失效安全 | [T59-plan.md 验收标准](tasks/T59-plan.md) | ✅ 已完成（2026-09-01 收口） | ✅ | [T59-plan](tasks/T59-plan.md) | [T59-self-check](tasks/T59-self-check.md) | [T59-verify](tasks/T59-verify.md) |
 | T62 | Phase 3 · W3/T-B11 type 蓝图机制删除（owner 2026-09-01 v8：过度设计） | setup_design 去 typeId/蓝图快照（尺寸语义重钉）+ studio types 注册/校验退役 + manifest 投影去 types + chips 三级收两级（联动 T61）+ longform.md 蓝图节改写（联动 T-C2）+ S1/S2/S3 同步 | （S4 v8 立项；plan 随 W3 开工补） | ⬜ 未开始（排入 W3 批次） | — | — | — | — |
+| T63 | CI 第四轮修复：上游 i18n 重构 GHOST 双件合规化 | 上游 be942783 删除 dialogs.ts/zh-cn dialogs.json；importer-dependent（messages.ts:2,18 / zh-cn index.ts:4,18）故不跟随删除；与 base 字节一致走 upstreamMergeTarball 白名单（T63 条目），patch 形态被 R-diff phantom 规则实证拦 | [T63-plan.md 验收标准](tasks/T63-plan.md) | ✅ 已完成（2026-09-01 收口） | ✅ | [T63-plan](tasks/T63-plan.md) | [T63-self-check](tasks/T63-self-check.md) | [T63-verify](tasks/T63-verify.md) |
+| T64 | CI 门禁分层：GHOST 窗口规则改 drift 雷达（owner 2026-09-01 拍板） | check:zones 拆静态规则（push gate 保留）+ drift 子模式（GHOST 窗口扫描）进 nightly schedule workflow + 失败自动建 issue 建档；push gate 不再被上游外生变动阻断 | （plan 随开工补） | 🔄 进行中（2026-09-01 立项） | — | — | — | — |
 
 ## 3. 记录索引
 

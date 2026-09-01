@@ -1,8 +1,9 @@
 /**
  * T54（Phase 3 W2/T-B3）：generate_image 凭证面前端客户端（同构——
  * 只依赖 fetch/vue ref，不引 node 模块；vite proxy '/api/pi' → 7700）。
- * T66（P0/P1/P2）：preset 下拉退役——四键（providerType/baseUrl/model/apiKey）
- * 自由配置 + 连接测试探针。
+ * T66（P0/P1）：preset 下拉退役——四键（providerType/baseUrl/model/apiKey）
+ * 自由配置。T71：连接测试探针移除（owner 裁决 2026-09-01：并非所有
+ * provider 实现 /models 端点，探针结论不可靠）。
  *
  * 凭据只进不出：状态只有 configured/providerType/baseUrl/model 元数据，
  * 后端永不回传 key 本体（对应 image-gen/routes.ts）。
@@ -22,7 +23,6 @@ import type { ImageGenCredentialStatus } from './credentials'
 export type { ImageGenCredentialStatus }
 
 const API_PATH = '/api/pi/image-gen/credentials'
-const TEST_API_PATH = '/api/pi/image-gen/test'
 
 export const imageGenCredentialStatus = ref<ImageGenCredentialStatus | null>(null)
 export const imageGenCredentialError = ref<string | null>(null)
@@ -67,26 +67,4 @@ export async function setImageGenCredential(input: {
 export async function clearImageGenCredential(): Promise<void> {
   await requestJSON<{ ok: true }>({ method: 'DELETE' })
   await refreshImageGenCredentialStatus()
-}
-
-export type ImageGenConnectionTestResult =
-  | { ok: true; modelCount?: number }
-  | { ok: false; error: string }
-
-/**
- * 连接测试（T66 P2）：表单字段原样上送，后端缺省字段回落已存凭证——
- * 已保存的 key 不回前端，空 keyInput 时探的就是已存配置。
- */
-export async function testImageGenConnection(input: {
-  baseUrl?: string
-  apiKey?: string
-}): Promise<ImageGenConnectionTestResult> {
-  return requestJSON<ImageGenConnectionTestResult>(
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(input)
-    },
-    TEST_API_PATH
-  )
 }

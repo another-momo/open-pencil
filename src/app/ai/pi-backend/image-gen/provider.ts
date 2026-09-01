@@ -68,11 +68,6 @@ interface APIErrorBody {
   message?: string
 }
 
-/** GET /models 列表响应（OpenAI 兼容 { data: [...] } 形状） */
-interface ModelsListResponseBody {
-  data?: unknown[]
-}
-
 /** 非 2xx 时从响应体提取真实错误文案（OpenAI 兼容 error.message / detail / 纯文本） */
 async function apiErrorMessage(response: Response): Promise<string> {
   const fallback = `Image API: HTTP ${response.status}`
@@ -202,48 +197,4 @@ export function createImageGenProvider(options: ImageGenProviderOptions): ImageG
       return { bytes, width: resultWidth, height: resultHeight }
     }
   }
-}
-
-/** 连接探针超时（远短于生图 240s——探针只验证可达 + 鉴权，不等待生成） */
-export const IMAGE_GEN_PROBE_TIMEOUT_MS = 15_000
-
-export type ImageGenProbeResult = { ok: true; modelCount?: number } | { ok: false; error: string }
-
-/**
- * T66 P2：连接测试探针——GET {baseUrl}/models 带 Bearer（OpenAI 兼容端
- * 惯例：官方 API、中转代理、vLLM/Ollama 等兼容端均实现该列表端点，是
- * 最小代价的「端点可达 + key 有效」验证；不选小尺寸生成——会产生计费
- * 且耗时高出两个数量级）。错误文案取自响应体但绝不回显 key。
- */
-export async function probeImageGenEndpoint(options: {
-  baseUrl: string
-  apiKey: string
-  /** 测试注入点；缺省用全局 fetch */
-  fetchImpl?: FetchLike
-  timeoutMs?: number
-}): Promise<ImageGenProbeResult> {
-  const fetchImpl: FetchLike = options.fetchImpl ?? fetch
-  const timeoutMs = options.timeoutMs ?? IMAGE_GEN_PROBE_TIMEOUT_MS
-  const baseURL = options.baseUrl.trim().replace(/\/$/, '')
-  if (!baseURL) return { ok: false, error: 'Base URL 不能为空' }
-  if (!options.apiKey) return { ok: false, error: 'Image-gen API key not configured' }
-  let response: Response
-  try {
-    response = await fetchImpl(`${baseURL}/models`, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${options.apiKey}` },
-      signal: AbortSignal.timeout(timeoutMs)
-    })
-  } catch (error) {
-    return {
-      ok: false,
-      error: `端点不可达：${error instanceof Error ? error.message : String(error)}`
-    }
-  }
-  if (!response.ok) {
-    return { ok: false, error: await apiErrorMessage(response) }
-  }
-  const body = (await response.json().catch(() => null)) as ModelsListResponseBody | null
-  const modelCount = Array.isArray(body?.data) ? body.data.length : undefined
-  return { ok: true, ...(modelCount !== undefined ? { modelCount } : {}) }
 }

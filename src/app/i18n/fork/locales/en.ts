@@ -55,10 +55,6 @@ export const imageGenMessageDefaults = {
   imageGenKeyPlaceholderMissing: 'Paste API key',
   imageGenKeySave: 'Save key',
   imageGenKeyClear: 'Clear key',
-  imageGenTestConnection: 'Test connection',
-  imageGenTesting: 'Testing…',
-  imageGenTestSuccess: 'Connection OK',
-  imageGenTestFailed: 'Connection failed',
   imageGenConfigured: 'Configured',
   imageGenNotConfigured: 'Not configured',
   imageGenOffline: 'pi backend unreachable — start the dev server with `bun run dev`.'

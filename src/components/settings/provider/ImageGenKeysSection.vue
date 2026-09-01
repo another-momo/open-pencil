@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * T54→T66：generate_image 凭证面板——Provider 类型下拉 + baseUrl/model/key
- * 自由输入 + 测试连接（T66 P0/P1/P2：预设下拉退役，预设表已删）。
+ * 自由输入（T66 P0/P1：预设下拉退役，预设表已删）。T71：测试连接按钮移除
+ * （owner 裁决 2026-09-01：并非所有 provider 支持探针端点）。
  * key 直送 pi 后端凭证面（image-gen/routes.ts），前端不持久化、不回显
  * （状态只有 configured/providerType/baseUrl/model 元数据）。
  * 空 key 保存 = 清除（00 #7：清除必须生效）。
@@ -17,7 +18,6 @@ import {
   imageGenCredentialStatus,
   refreshImageGenCredentialStatus,
   setImageGenCredential,
-  testImageGenConnection,
   type ImageGenProviderType
 } from '@/app/ai/pi-backend/image-gen/client'
 import { useForkImageGen } from '@/app/i18n/fork'
@@ -33,13 +33,10 @@ const model = ref(imageGenCredentialStatus.value?.model ?? '')
 const keyInput = ref('')
 const busy = ref(false)
 const actionError = ref<string | null>(null)
-const testing = ref(false)
-const testResult = ref<{ ok: boolean; detail: string | null } | null>(null)
 
 const configured = computed(() => imageGenCredentialStatus.value?.configured === true)
 
-// 状态回读即回填表单（已配置时 baseUrl/model/providerType 可直接复测/改存；
-// key 永不回显——测试连接空 key 时后端回落已存 key）
+// 状态回读即回填表单（已配置时 baseUrl/model/providerType 可直接改存；key 永不回显）
 watch(
   imageGenCredentialStatus,
   (status) => {
@@ -55,7 +52,6 @@ watch(
 async function save(): Promise<void> {
   busy.value = true
   actionError.value = null
-  testResult.value = null
   try {
     // 空 key = 清除（后端 store 内部分派）
     await setImageGenCredential({
@@ -75,7 +71,6 @@ async function save(): Promise<void> {
 async function clear(): Promise<void> {
   busy.value = true
   actionError.value = null
-  testResult.value = null
   try {
     await clearImageGenCredential()
     keyInput.value = ''
@@ -83,34 +78,6 @@ async function clear(): Promise<void> {
     actionError.value = error instanceof Error ? error.message : String(error)
   } finally {
     busy.value = false
-  }
-}
-
-async function testConnection(): Promise<void> {
-  testing.value = true
-  actionError.value = null
-  try {
-    const result = await testImageGenConnection({
-      baseUrl: baseURL.value.trim(),
-      // 空 keyInput → 后端回落已存 key（key 不回前端，已存配置可直接探）
-      ...(keyInput.value.trim() ? { apiKey: keyInput.value.trim() } : {})
-    })
-    testResult.value = result.ok
-      ? {
-          ok: true,
-          detail:
-            result.modelCount !== undefined
-              ? `${msgs.value.imageGenTestSuccess} · ${result.modelCount} models`
-              : msgs.value.imageGenTestSuccess
-        }
-      : { ok: false, detail: result.error }
-  } catch (error) {
-    testResult.value = {
-      ok: false,
-      detail: error instanceof Error ? error.message : String(error)
-    }
-  } finally {
-    testing.value = false
   }
 }
 
@@ -193,27 +160,6 @@ onMounted(() => void refreshImageGenCredentialStatus())
       >
         {{ msgs.imageGenKeyClear }}
       </button>
-    </div>
-
-    <div class="flex items-center gap-1.5">
-      <button
-        type="button"
-        class="rounded border border-border px-2 py-1.5 text-[10px] text-muted hover:text-surface disabled:opacity-50"
-        data-test-id="image-gen-test-connection"
-        :disabled="testing || busy || imageGenCredentialLoading"
-        @click="testConnection"
-      >
-        {{ testing ? msgs.imageGenTesting : msgs.imageGenTestConnection }}
-      </button>
-      <p
-        v-if="testResult"
-        class="text-[10px]"
-        :class="testResult.ok ? 'text-[var(--color-success)]' : 'text-red-400'"
-        :data-state="testResult.ok ? 'ok' : 'failed'"
-        data-test-id="image-gen-test-result"
-      >
-        {{ testResult.ok ? testResult.detail : `${msgs.imageGenTestFailed}：${testResult.detail}` }}
-      </p>
     </div>
 
     <p

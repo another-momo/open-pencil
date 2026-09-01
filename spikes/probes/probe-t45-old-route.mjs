@@ -33,7 +33,8 @@ copyFileSync(
   join(repoRoot, 'src/app/ai/chat/system-prompt.md'),
   join(tempRoot, 'src/app/ai/chat/system-prompt.md')
 )
-for (const f of ['system-prompt-base.md', 'system-prompt-marketing.md']) {
+// T67（2026-09-01）：system-prompt-marketing.md 孤儿化退役删除，复制清单只余 base
+for (const f of ['system-prompt-base.md']) {
   copyFileSync(
     join(repoRoot, 'src/app/ai/pi-backend/prompts', f),
     join(tempRoot, 'src/app/ai/pi-backend/prompts', f)

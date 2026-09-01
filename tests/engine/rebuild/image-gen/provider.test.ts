@@ -1,6 +1,7 @@
 /**
  * T54→T66：OpenAI 兼容 provider mock fetch 钉请求形状（验收锚 T54-plan §3.1，
- * D34 凭证链 mock 进 CI；T66 P1 去 DMX 命名/P3 response_format/P2 连接探针）。
+ * D34 凭证链 mock 进 CI；T66 P1 去 DMX 命名/P3 response_format）。
+ * T71：连接探针移除（owner 裁决 2026-09-01：并非所有 provider 实现 /models）。
  * 请求形状以移植源 providers.ts 为据（OpenAI 兼容 /images/generations +
  * /images/edits），fixture 用通用 example.com 端点——本实现与任何特定
  * 中转商无关；SP-a1 探针钉的是 pi-ai openrouter-images 扩展槽契约
@@ -11,8 +12,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   createImageGenProvider,
   IMAGE_GEN_DEFAULT_TIMEOUT_MS,
-  imageGenTimeoutMs,
-  probeImageGenEndpoint
+  imageGenTimeoutMs
 } from '@/app/ai/pi-backend/image-gen/provider'
 
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
@@ -210,66 +210,6 @@ describe('provider 请求形状', () => {
       .generate({ prompt: 'a', width: 1024, height: 1024 })
       .catch((err: unknown) => err)
     expect(error instanceof Error ? error.message : '').not.toContain(CREDENTIALS.apiKey)
-  })
-})
-
-describe('连接探针（T66 P2：GET {baseUrl}/models，Bearer 鉴权）', () => {
-  test('成功：2xx + models 列表计数', async () => {
-    const { calls, fetchImpl } = mockFetch({ data: [{ id: 'gpt-image-1' }, { id: 'other' }] })
-    const result = await probeImageGenEndpoint({
-      baseUrl: CREDENTIALS.baseUrl,
-      apiKey: CREDENTIALS.apiKey,
-      fetchImpl
-    })
-    expect(result).toEqual({ ok: true, modelCount: 2 })
-    expect(calls).toHaveLength(1)
-    expect(calls[0].url).toBe('https://api.example.com/v1/models')
-    expect(calls[0].method).toBe('GET')
-    expect(new Headers(calls[0].headers).get('authorization')).toBe('Bearer sk-test-image-key')
-  })
-
-  test('401：错误文案取响应体 error.message，不回显 key', async () => {
-    const { fetchImpl } = mockFetch({ error: { message: 'Invalid API key' } }, 401)
-    const result = await probeImageGenEndpoint({
-      baseUrl: CREDENTIALS.baseUrl,
-      apiKey: CREDENTIALS.apiKey,
-      fetchImpl
-    })
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.error).toBe('Invalid API key')
-      expect(result.error).not.toContain(CREDENTIALS.apiKey)
-    }
-  })
-
-  test('网络失败：fetch 抛错 → 端点不可达', async () => {
-    const failingFetch = (async () => {
-      throw new Error('connect ECONNREFUSED 10.0.0.1:443')
-    }) as typeof fetch
-    const result = await probeImageGenEndpoint({
-      baseUrl: CREDENTIALS.baseUrl,
-      apiKey: CREDENTIALS.apiKey,
-      fetchImpl: failingFetch
-    })
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toContain('端点不可达')
-  })
-
-  test('缺 key/空 baseUrl → 即返错误（不发 HTTP）', async () => {
-    const { calls, fetchImpl } = mockFetch({ data: [] })
-    const noKey = await probeImageGenEndpoint({
-      baseUrl: CREDENTIALS.baseUrl,
-      apiKey: '',
-      fetchImpl
-    })
-    expect(noKey.ok).toBe(false)
-    const noURL = await probeImageGenEndpoint({
-      baseUrl: ' ',
-      apiKey: CREDENTIALS.apiKey,
-      fetchImpl
-    })
-    expect(noURL.ok).toBe(false)
-    expect(calls).toHaveLength(0)
   })
 })
 

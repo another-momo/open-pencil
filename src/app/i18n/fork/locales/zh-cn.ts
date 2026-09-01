@@ -134,10 +134,6 @@ const zhCN = {
     imageGenKeyPlaceholderMissing: '粘贴 API 密钥',
     imageGenKeySave: '保存密钥',
     imageGenKeyClear: '清除密钥',
-    imageGenTestConnection: '测试连接',
-    imageGenTesting: '测试中…',
-    imageGenTestSuccess: '连接成功',
-    imageGenTestFailed: '连接失败',
     imageGenConfigured: '已配置',
     imageGenNotConfigured: '未配置',
     imageGenOffline: '无法连接 pi 后端——请用 `bun run dev` 启动开发服务器。'

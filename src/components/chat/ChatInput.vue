@@ -1,8 +1,22 @@
 <script setup lang="ts">
+import { useTimeoutFn } from '@vueuse/core'
 import { TooltipProvider } from 'reka-ui'
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 
 import ChatModeChips from '@/components/chat/ChatModeChips.vue'
+import {
+  atomicTokenDeletionRange,
+  captureSelectionFromStore,
+  createSelectionDraftState,
+  resetSelectionDraftState,
+  restoreSelectionDraftState,
+  scanSelectionTokens,
+  selectionTokenText,
+  serializeSelectionManifest,
+  snapshotSelectionDraftState,
+  stripSelectionManifest,
+  type SelectionDraftState
+} from '@/components/chat/selection-capture'
 import IconButton from '@/components/ui/IconButton.vue'
 import InputGroup from '@/components/ui/InputGroup.vue'
 import { piDesignAssignment } from '@/app/ai/pi-backend/assignment'
@@ -11,6 +25,7 @@ import {
   piStudioManifestFailed,
   retryPiStudioManifest
 } from '@/app/ai/pi-backend/mode-selection'
+import { getActiveEditorStoreOrNull } from '@/app/editor/active-store'
 import { openSettingsDialog } from '@/app/settings/dialog'
 import { useI18n } from '@open-pencil/vue'
 
@@ -33,6 +48,113 @@ const emit = defineEmits<{
 const input = ref('')
 
 const isStreaming = computed(() => disabled || status === 'streaming' || status === 'submitted')
+
+// ── T70：画布选区采集（内联 token「@画布选区-N」，路线 A = overlay 高亮
+//    textarea；契约与格式钉扎在 selection-capture.ts 头部注释） ──────────────
+//
+// 草稿期 token 状态（登记表 + 序号）刻意不进响应式系统：模板渲染只依赖
+// input 文本实扫（backdropSegments），状态仅在采集/提交/回填时读写。
+const draftTokens = createSelectionDraftState()
+// T27 快照：提交即清空文本+登记表；失败回填时两者一并恢复（restoreDraft）
+let lastDraftSnapshot: SelectionDraftState | null = null
+
+const inputRef = ref<HTMLTextAreaElement | null>(null)
+const backdropRef = ref<HTMLElement | null>(null)
+
+/** 空选区轻提示：actionToast 桌面端无渲染面（仅 MobileHud 消费），按计划
+ *  退化为按钮短暂文案反馈（T70-plan §1.1「若无则按钮短暂文案反馈」） */
+const captureEmptyFlash = ref(false)
+const { start: scheduleCaptureFlashEnd, stop: cancelCaptureFlashEnd } = useTimeoutFn(
+  () => {
+    captureEmptyFlash.value = false
+  },
+  1600,
+  { immediate: false }
+)
+
+/** backdrop 高亮分段：文本流实扫占位串 → token 段染底色（glyph 由上层
+ *  textarea 提供，backdrop 全透明文字 + token 段背景块，Twitter mention 同款） */
+const backdropSegments = computed(() => {
+  const text = input.value
+  const tokens = scanSelectionTokens(text)
+  const segments: Array<{ key: number; text: string; token: boolean }> = []
+  let cursor = 0
+  for (const token of tokens) {
+    if (token.start > cursor) {
+      segments.push({ key: segments.length, text: text.slice(cursor, token.start), token: false })
+    }
+    segments.push({ key: segments.length, text: text.slice(token.start, token.end), token: true })
+    cursor = token.end
+  }
+  if (cursor < text.length) {
+    segments.push({ key: segments.length, text: text.slice(cursor), token: false })
+  }
+  // 尾部 ZWSP：末尾换行在 div 里塌缩不占高，补上以对齐 textarea 滚动度量
+  segments.push({ key: segments.length, text: '\u200B', token: false })
+  return segments
+})
+
+function syncBackdropScroll() {
+  const el = inputRef.value
+  const backdrop = backdropRef.value
+  if (el && backdrop) backdrop.scrollTop = el.scrollTop
+}
+
+function insertTokenAtCursor(token: string) {
+  const el = inputRef.value
+  const current = input.value
+  // 采集按钮 @mousedown.prevent 不抢焦点——仍聚焦 textarea 时插光标处；
+  // 无焦点（尚未点过输入框）追加文末
+  if (!el || document.activeElement !== el) {
+    input.value = current + token
+    void nextTick(() => {
+      el?.focus()
+      el?.setSelectionRange(input.value.length, input.value.length)
+    })
+    return
+  }
+  const start = el.selectionStart ?? current.length
+  const end = el.selectionEnd ?? current.length
+  input.value = current.slice(0, start) + token + current.slice(end)
+  void nextTick(() => {
+    el.setSelectionRange(start + token.length, start + token.length)
+  })
+}
+
+function handleCaptureSelection() {
+  const store = getActiveEditorStoreOrNull()
+  if (!store) return
+  const entry = captureSelectionFromStore(store, draftTokens.nextSeq)
+  if (!entry) {
+    captureEmptyFlash.value = true
+    cancelCaptureFlashEnd()
+    scheduleCaptureFlashEnd()
+    return
+  }
+  draftTokens.nextSeq += 1
+  draftTokens.registry.set(entry.n, entry)
+  insertTokenAtCursor(selectionTokenText(entry.n))
+}
+
+/** 原子删除：光标紧邻完整占位串时 Backspace/Delete 整段删除（路线 A 的
+ *  keydown 拦截面）；已拦截返回 true */
+function handleAtomicTokenDeletion(event: KeyboardEvent): boolean {
+  const el = event.currentTarget
+  if (!(el instanceof HTMLTextAreaElement)) return false
+  if (event.isComposing || el.selectionStart !== el.selectionEnd) return false
+  const range = atomicTokenDeletionRange(
+    input.value,
+    el.selectionStart,
+    event.code === 'Backspace' ? 'backward' : 'forward'
+  )
+  if (!range) return false
+  event.preventDefault()
+  input.value = input.value.slice(0, range.start) + input.value.slice(range.end)
+  void nextTick(() => {
+    el.setSelectionRange(range.start, range.start)
+  })
+  return true
+}
 // T21：模型由后端 catalog/指派决定，聊天输入只读展示当前指派
 // T25：pi 已是唯一路径（门退役），旧模型/资料切换臂与图片附件流已切除
 // （图片从不进 pi 后端——analyze 直通已随旧面删除，C4a 通道 B 落地时恢复）
@@ -55,6 +177,12 @@ const piModelLabel = computed(
 // header ChatContextBar 双段式 trigger 一处（trigger 文案本身即引导）
 
 function handleInputKeydown(event: KeyboardEvent) {
+  // T70：Backspace/Delete 先过原子删除拦截（紧邻完整占位串 → 整段删除）；
+  // IME 合成中/有选区时不拦（isComposing/selectionStart≠selectionEnd 在
+  // handleAtomicTokenDeletion 内判）
+  if (event.code === 'Backspace' || event.code === 'Delete') {
+    if (handleAtomicTokenDeletion(event)) return
+  }
   if (event.code !== 'Enter' || event.shiftKey || event.isComposing) return
   event.preventDefault()
   const target = event.currentTarget
@@ -65,18 +193,38 @@ function handleSubmit(e: Event) {
   e.preventDefault()
   const text = input.value.trim()
   if (!text) return
-  emit('submit', text)
+  // T70：文本流实扫占位串 → 尾部追加 [画布选区] 清单（发送瞬间 graph 状态
+  // 为准；无 token 时 serialize 原样返回）。store 缺席（storybook/测试面）
+  // 退化为原文提交。
+  const store = getActiveEditorStoreOrNull()
+  const submission = store
+    ? serializeSelectionManifest(text, draftTokens.registry, store.graph)
+    : { text }
+  // T27 快照先行：emit 即清空文本+登记表，失败回填（restoreDraft）整体恢复
+  lastDraftSnapshot = snapshotSelectionDraftState(draftTokens)
+  emit('submit', submission.text)
   input.value = ''
+  resetSelectionDraftState(draftTokens)
 }
 
 // T27：父级在提交失败时回填草稿（emit 即清空是即时反馈设计，失败不该丢稿）；
 // 用户已另起新输入时不覆盖
+// T70：回填文本 = 提交文本剥掉尾部 [画布选区] 清单（占位串本体保留）；
+// token 登记表 + 序号从快照一并恢复（快照只消费一次，防旧快照串新稿）
 function restoreDraft(text: string) {
-  if (!input.value.trim()) input.value = text
+  if (input.value.trim()) return
+  input.value = stripSelectionManifest(text)
+  if (lastDraftSnapshot) {
+    restoreSelectionDraftState(draftTokens, lastDraftSnapshot)
+    lastDraftSnapshot = null
+  }
 }
 // T61：新建意图确认卡「确认并发送」经父级清掉拦截时回填的草稿
+// T70：token 登记表/序号/快照随草稿一并清空（序号归 1）
 function clearDraft() {
   input.value = ''
+  resetSelectionDraftState(draftTokens)
+  lastDraftSnapshot = null
 }
 defineExpose({ restoreDraft, clearDraft })
 </script>
@@ -105,18 +253,64 @@ defineExpose({ restoreDraft, clearDraft })
       </div>
       <form @submit="handleSubmit">
         <InputGroup :disabled="isStreaming">
-          <textarea
-            v-model="input"
-            data-test-id="chat-input"
-            :placeholder="dialogs.describeChange"
-            :disabled="isStreaming"
-            rows="2"
-            aria-label="Describe a change"
-            class="block min-h-12 w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-xs leading-relaxed text-surface outline-none placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60"
-            @keydown="handleInputKeydown"
-            @copy.stop
-            @cut.stop
-          />
+          <!-- T70：采集画布选区——input 上方工具条区（InputGroup attachment 槽）。
+               空选区 → 按钮短暂文案反馈、不产生 token；非空 → 光标处插入
+               「@画布选区-N」内联 token（登记表见 script T70 段） -->
+          <template #attachment>
+            <div class="flex items-center">
+              <button
+                type="button"
+                data-test-id="chat-capture-selection"
+                :disabled="isStreaming"
+                class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-muted hover:bg-hover hover:text-surface disabled:cursor-not-allowed disabled:opacity-60"
+                @mousedown.prevent
+                @click="handleCaptureSelection"
+              >
+                <icon-lucide-scan class="size-3 shrink-0" />
+                <span>
+                  {{
+                    captureEmptyFlash
+                      ? chipsText.chipsCaptureEmpty
+                      : chipsText.chipsCaptureSelection
+                  }}
+                </span>
+              </button>
+            </div>
+          </template>
+          <!-- T70 路线 A：overlay 高亮 textarea——backdrop 在下层同步渲染文本流
+               （全透明字形 + token 段背景块），textarea 承载输入/IME/光标；
+               折行对齐靠同字号/行高/内边距 + whitespace-pre-wrap，滚动单向同步 -->
+          <div class="relative">
+            <div
+              ref="backdropRef"
+              aria-hidden="true"
+              class="pointer-events-none absolute inset-0 overflow-hidden px-3 pt-2.5 pb-1 text-xs leading-relaxed break-words whitespace-pre-wrap text-transparent select-none"
+              :class="{ 'opacity-60': isStreaming }"
+            >
+              <span
+                v-for="segment in backdropSegments"
+                :key="segment.key"
+                :class="
+                  segment.token ? 'box-decoration-clone rounded-[3px] bg-accent/25' : undefined
+                "
+                >{{ segment.text }}</span
+              >
+            </div>
+            <textarea
+              ref="inputRef"
+              v-model="input"
+              data-test-id="chat-input"
+              :placeholder="dialogs.describeChange"
+              :disabled="isStreaming"
+              rows="2"
+              aria-label="Describe a change"
+              class="relative block min-h-12 w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-xs leading-relaxed text-surface outline-none placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60"
+              @keydown="handleInputKeydown"
+              @scroll="syncBackdropScroll"
+              @copy.stop
+              @cut.stop
+            />
+          </div>
 
           <template #model>
             <div class="flex min-w-0 items-center">

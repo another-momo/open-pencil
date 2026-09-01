@@ -34,7 +34,9 @@ const zhCN = {
     chipsPendingLabel: '将新建：{mode} · {profile}',
     chipsPendingUndo: '撤销新建意图',
     chipsManifestFailed: 'AI 工作室加载失败——选择器已禁用。',
-    chipsRetry: '重试'
+    chipsRetry: '重试',
+    chipsCaptureSelection: '采集画布选区',
+    chipsCaptureEmpty: '画布上还没有选中节点'
   },
   panels: {
     contextTriggerLabel: '画布状态',

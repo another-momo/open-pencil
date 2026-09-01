@@ -80,6 +80,8 @@ export const askMessageDefaults = {
  * T65：gallery 键删除（组件退役，决策 B3）；pending badge 内容化「将新建：…」
  * + 可撤销（决策 E）。T66：chipsEmptyHint 删除——空槽引导收敛进 ChatContextBar
  * 双段式 trigger（决策①），输入条零状态显示。
+ * T70：chipsCaptureSelection / chipsCaptureEmpty——「采集画布选区」按钮 +
+ * 空选区轻提示（ChatInput attachment 槽；空选区不产生 token）。
  */
 export const chipsMessageDefaults = {
   chipsMode: 'Mode',
@@ -88,7 +90,9 @@ export const chipsMessageDefaults = {
   chipsPendingLabel: params('Will create: {mode} · {profile}'),
   chipsPendingUndo: 'Undo the new-design intent',
   chipsManifestFailed: 'AI studio failed to load — selectors are disabled.',
-  chipsRetry: 'Retry'
+  chipsRetry: 'Retry',
+  chipsCaptureSelection: 'Capture canvas selection',
+  chipsCaptureEmpty: 'Nothing selected on the canvas'
 } as const
 
 /**

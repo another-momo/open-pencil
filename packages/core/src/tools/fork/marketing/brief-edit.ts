@@ -35,7 +35,6 @@ import {
   BRIEF_ZONE_MATERIALS,
   DESIGN_BRIEF_KEY,
   DESIGN_MODE_KEY,
-  DESIGN_TYPE_KEY,
   briefBoundDesignIds,
   briefDesignEntryDesignId,
   briefDesignEntryIds,
@@ -71,15 +70,14 @@ export interface BriefConclusionView {
   designName: string | null
 }
 
-/** One designs-zone row: id authoritative, name/mode/type read through the design root */
+/** One designs-zone row: id authoritative, name/mode read through the design root */
 export interface BriefDesignEntryView {
   entryId: string | null
   designId: string
   /** Live design name; dead designs keep the entry's last projected text + 「（已删除）」 */
   name: string
-  /** mode/type projections off the design root identity tuple (T53); 缺省「—」 */
+  /** mode projection off the design root identity tuple (T53); 缺省「—」 */
   modeId: string
-  typeId: string
   /** Tombstone: the design root no longer exists — the entry row is kept, not removed */
   deleted: boolean
   /** false = design→brief pointer exists but the entry row is missing (读侧容错补显) */
@@ -189,7 +187,6 @@ function designProjection(graph: SceneGraph, designId: string, fallbackName: str
     return {
       name: `${fallbackName}${BRIEF_TEXTS.deletedMark}`,
       modeId: BRIEF_TEXTS.missingProjection,
-      typeId: BRIEF_TEXTS.missingProjection,
       deleted: true
     }
   }
@@ -197,9 +194,6 @@ function designProjection(graph: SceneGraph, designId: string, fallbackName: str
     name: design.name,
     modeId:
       getSharedPluginData(design, BRIEF_PLUGIN_NAMESPACE, DESIGN_MODE_KEY) ||
-      BRIEF_TEXTS.missingProjection,
-    typeId:
-      getSharedPluginData(design, BRIEF_PLUGIN_NAMESPACE, DESIGN_TYPE_KEY) ||
       BRIEF_TEXTS.missingProjection,
     deleted: false
   }

@@ -1,7 +1,7 @@
 /**
  * T53（S4 W2/T-B2）：setup_design 的 schema 外注入缝。
  *
- * mode/type/profile 注册表仅后端进程可达（studio/registry.ts 走 node:fs），而
+ * mode/profile 注册表仅后端进程可达（studio/registry.ts 走 node:fs），而
  * fork 工具在浏览器桥端执行——数据层 ≠ 执行层。裁决（T53-plan §1 定谳 1/2）：
  * 注册表投影（catalog）+ 新建意图确认旗标作为调用级参数经桥 args 外层注入
  * （T22 document_id 先例，tools.ts），不进工具 schema、不进模型视野。
@@ -9,6 +9,9 @@
  * confirmedNewIntent 的真源通道 = T61（T-B10）UI 指令块；落地前恒 false，
  * setup_design 对 AI 恒返回 unconfirmed_new_intent（S3 §2 契约内行为，
  * S4 §7 尾巴表已登记该依赖）。
+ *
+ * T62：type 机制删除——投影收为 {modes:[{id,label}], profileIds[]}（尺寸
+ * 语义重钉为 workflow frontmatter 可选 canvas 键，core 侧恒用缺省）。
  */
 
 import type { StudioRegistry } from './studio/types'
@@ -18,7 +21,6 @@ export interface SetupCatalogProjection {
   modes: {
     id: string
     label: string
-    types: 'none' | { id: string; label: string; size: string }[]
   }[]
   profileIds: string[]
 }
@@ -31,11 +33,7 @@ export interface SetupCatalogProjection {
 export function buildSetupCatalog(registry: StudioRegistry): SetupCatalogProjection {
   const modes = [...registry.workflows.values()].map((workflow) => ({
     id: workflow.id,
-    label: workflow.label,
-    types:
-      workflow.types === 'none'
-        ? ('none' as const)
-        : workflow.types.map((t) => ({ id: t.id, label: t.label, size: t.size }))
+    label: workflow.label
   }))
   return { modes, profileIds: [...registry.profiles.keys()] }
 }

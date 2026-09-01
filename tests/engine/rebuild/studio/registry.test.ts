@@ -52,21 +52,16 @@ id: longform
 label: 长图设计
 subtitle: 电商详情 / 产品长文 / 小红书长图
 step_budget: 50
-types:
-  - id: ecommerce_detail
-    label: 电商详情页
-    size: 750x
+canvas: 750x
 ---
 
 ## 阶段定义
 
 阶段 0-4。
 
-## type 蓝图
+## 画布尺寸
 
-### ecommerce_detail
-
-首屏 hero → 卖点分区 → 详情 → 行动区。
+750 宽，高度随内容。
 
 ## 纪律
 
@@ -210,57 +205,24 @@ test('C2: frontmatter id 与文件名不一致 → 失败（覆盖引用一致�
 
 // ── C3：workflow 校验 ─────────────────────────────────────────────────────
 
-test('C3: types 缺失 → 失败；types: none 合法', () => {
+// T62：types 校验段整体删除——frontmatter 残留旧 types 键不再参与校验（容忍
+// 未知键，读穿侧同口径）；workflow 必填仅 id/label，step_budget/subtitle 保留
+test('C3: 旧 types 键残留不影响注册；step_budget 非正整数 → 失败', () => {
   put(builtinDir, 'base.md', BASE_MD)
-  const noTypes = LONGFORM_MD.replace(/types:[\s\S]*?\n---/, '---')
-  put(builtinDir, join('workflows', 'longform.md'), noTypes)
-  let r = loadBoth()
-  expect(r.workflows.size).toBe(0)
-  expect(r.failures.some((f) => f.reason.includes('缺 `types`'))).toBe(true)
-
+  // 旧档 frontmatter 残留 types 列表 → 不再校验、照常注册、不进 workflow 对象
   put(
     builtinDir,
     join('workflows', 'longform.md'),
     LONGFORM_MD.replace(
-      /types:[\s\S]*?\n  - id: ecommerce_detail\n    label: 电商详情页\n    size: 750x/,
-      'types: none'
+      'canvas: 750x\n---',
+      'types:\n  - id: ecommerce_detail\n    label: 电商详情页\n    size: 750x\n---'
     )
   )
-  r = loadBoth()
-  expect(r.workflows.get('longform')?.types).toBe('none')
+  let r = loadBoth()
+  expect(r.workflows.get('longform')?.label).toBe('长图设计')
+  expect(r.workflows.get('longform')?.stepBudget).toBe(50)
+  expect('types' in (r.workflows.get('longform') ?? {})).toBe(false)
   expect(r.failures).toEqual([])
-})
-
-test('C3: type 缺同名蓝图节 / 蓝图节为空 → 失败', () => {
-  put(builtinDir, 'base.md', BASE_MD)
-  put(
-    builtinDir,
-    join('workflows', 'longform.md'),
-    LONGFORM_MD.replace('### ecommerce_detail', '### other_section')
-  )
-  let r = loadBoth()
-  expect(r.workflows.size).toBe(0)
-  expect(r.failures.some((f) => f.reason.includes('缺同名正文蓝图节'))).toBe(true)
-
-  put(
-    builtinDir,
-    join('workflows', 'longform.md'),
-    LONGFORM_MD.replace(
-      '### ecommerce_detail\n\n首屏 hero → 卖点分区 → 详情 → 行动区。',
-      '### ecommerce_detail'
-    )
-  )
-  r = loadBoth()
-  expect(r.failures.some((f) => f.reason.includes('蓝图节为空'))).toBe(true)
-})
-
-test('C3: size 非法 / step_budget 非正整数 → 失败', () => {
-  put(builtinDir, 'base.md', BASE_MD)
-  put(builtinDir, join('workflows', 'longform.md'), LONGFORM_MD.replace('size: 750x', 'size: 750*'))
-  let r = loadBoth()
-  expect(r.failures.some((f) => f.reason.includes('size') && f.reason.includes('不合法'))).toBe(
-    true
-  )
 
   put(
     builtinDir,

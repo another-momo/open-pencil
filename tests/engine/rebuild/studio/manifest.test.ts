@@ -1,9 +1,9 @@
 /**
  * T45（S4 W1 / T-A3）studio manifest 投影 + overlay 输入适配单测。
  *
- * 验收映射（T45-plan §4）：C1 的投影形状（modes 展开 / profiles 摘要 /
+ * 验收映射（T45-plan §4）：C1 的投影形状（modes 投影 / profiles 摘要 /
  * failures 相对路径脱敏 / deprecated 不进数据面 / 整体缺失态）+ C3 的
- * overlay 改源适配（types 展平、profiles markdown=body）。
+ * overlay 改源适配（profiles markdown=body；T62 起 types 数据面整段删除）。
  * 全程 tmp fixture 目录经 loadStudioFromDirs 构造真实注册表，不手糊对象。
  */
 
@@ -46,28 +46,16 @@ const LONGFORM_MD = `---
 id: longform
 label: 长图设计
 subtitle: 分区物料
-types:
-  - id: ecommerce_detail
-    label: 电商详情页
-    size: 750x
-  - id: product_long
-    label: 产品长图文
-    size: 750x
+canvas: 750x
 ---
 
 ## 阶段定义
 
 阶段序。
 
-## type 蓝图
+## 画布尺寸
 
-### ecommerce_detail
-
-蓝图 A。
-
-### product_long
-
-蓝图 B。
+750 宽，高度随内容。
 
 ## 纪律
 
@@ -130,7 +118,7 @@ deprecated: true
 配方。
 `
 
-test('投影：modes 展开（general 空 types 首位 + longform 三 type 带 subtitle）', () => {
+test('投影：modes 收两级（general 首位 + longform 带 subtitle，无 types 数据面）', () => {
   put(builtinDir, 'base.md', BASE_MD)
   put(builtinDir, join('workflows', 'longform.md'), LONGFORM_MD)
   put(builtinDir, join('profiles', 'watercolor_poster_v3.md'), PROFILE_MD)
@@ -139,14 +127,11 @@ test('投影：modes 展开（general 空 types 首位 + longform 三 type 带 s
   expect(m.modes.map((mode) => mode.id)).toEqual(['general', 'longform'])
   const general = m.modes[0]
   expect(general.source).toBe('general')
-  expect(general.types).toEqual([])
   const longform = m.modes[1]
   expect(longform.source).toBe('workflow')
   expect(longform.subtitle).toBe('分区物料')
-  expect(longform.types.map((t) => `${t.id}:${t.size}`)).toEqual([
-    'ecommerce_detail:750x',
-    'product_long:750x'
-  ])
+  // T62：types 数据面删除（chips 按数据驱动渲染自然两级）
+  for (const mode of m.modes) expect('types' in mode).toBe(false)
 })
 
 test('投影：profiles 摘要无 body；deprecated 不进数据面', () => {
@@ -200,28 +185,29 @@ test('整体缺失态：零注册且有失败 → studio 级 failure 入投影',
   rmSync(empty, { recursive: true, force: true })
 })
 
-test('overlay 适配：types 展平（none 无贡献）、profiles markdown=body', () => {
+test('overlay 适配：profiles markdown=body（types 段已随 T62 整段删除）', () => {
   put(builtinDir, 'base.md', BASE_MD)
   put(builtinDir, join('workflows', 'longform.md'), LONGFORM_MD)
   put(
     builtinDir,
     join('workflows', 'creative.md'),
     LONGFORM_MD.replace('id: longform', 'id: creative').replace(
-      /types:[\s\S]*?\n---/,
-      'types: none\n---'
+      'label: 长图设计',
+      'label: 创意生图'
     )
   )
   put(builtinDir, join('profiles', 'watercolor_poster_v3.md'), PROFILE_MD)
   const registry = loadStudioFromDirs(builtinDir, userDir)
   const input = studioOverlayInput(registry)
 
-  // types:none 的 creative 注册成功但对 overlay types 零贡献
+  // T62：overlay 输入仅余 profiles；无 types 键
+  expect('types' in input).toBe(false)
   expect(registry.workflows.has('creative')).toBe(true)
-  expect(input.types.map((t) => t.id)).toEqual(['ecommerce_detail', 'product_long'])
   expect(input.profiles.map((p) => p.id)).toEqual(['watercolor_poster_v3'])
   expect(input.profiles[0].markdown).toContain('配方正文')
 
-  // 投影侧：creative mode 在列且 types=[]（'none' → [] 分支钉扎）
+  // 投影侧：creative mode 在列且无 types 键
   const creativeMode = toStudioManifest(registry).modes.find((m) => m.id === 'creative')
-  expect(creativeMode?.types).toEqual([])
+  expect(creativeMode).toBeDefined()
+  expect('types' in (creativeMode ?? {})).toBe(false)
 })

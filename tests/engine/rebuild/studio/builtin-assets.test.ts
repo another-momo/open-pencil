@@ -20,7 +20,7 @@ import { loadStudioFromDirs } from '@/app/ai/pi-backend/studio'
 
 const BUILTIN_DIR = join(import.meta.dir, '../../../../src/app/ai/pi-backend/studio')
 
-test('内置资产集过校验面：failures 零、base 注册（免 label）、longform 三 type 蓝图非空、四 profile 注册、modes=[general, longform]', () => {
+test('内置资产集过校验面：failures 零、base 注册（免 label）、longform 注册（T62 后无 types 面、画布尺寸节非空）、四 profile 注册、modes=[general, longform]', () => {
   const userDir = mkdtempSync(join(tmpdir(), 'studio-user-empty-'))
   try {
     const r = loadStudioFromDirs(BUILTIN_DIR, userDir)
@@ -33,19 +33,12 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
     expect(r.base.id).toBe('base')
     expect(r.base.origin).toBe('builtin')
 
-    // workflow：longform 注册，三 type 齐全且蓝图节非空
+    // workflow：longform 注册；T62 后无 types 数据面，mode 级尺寸说明节非空
     const longform = r.workflows.get('longform')
     if (!longform) throw new Error('longform 未注册')
-    if (longform.types === 'none') throw new Error('longform types 不应为 none')
-    expect(longform.types.map((t) => t.id)).toEqual([
-      'ecommerce_detail',
-      'product_long',
-      'xiaohongshu_long'
-    ])
-    expect(longform.types.map((t) => t.size)).toEqual(['750x', '750x', '1080x'])
-    for (const t of longform.types) {
-      expect(longform.sections[t.id]).toBeTruthy()
-    }
+    expect('types' in longform).toBe(false)
+    expect(longform.stepBudget).toBe(50)
+    expect(longform.sections['画布尺寸']).toBeTruthy()
 
     // profiles：恰好四份精品（T48 补迁 watercolor_poster_v2），applicable_to 均指向 longform
     expect([...r.profiles.keys()].sort()).toEqual([

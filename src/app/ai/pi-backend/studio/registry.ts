@@ -163,7 +163,7 @@ function loadWorkflows(
       fail(failures, candidate, 'workflow', parsed.reason, parsed.hint)
       continue
     }
-    const { issues, types, stepBudget, subtitle } = validateWorkflow(parsed, candidate.id)
+    const { issues, stepBudget, subtitle } = validateWorkflow(parsed, candidate.id)
     if (issues.length > 0) {
       for (const issue of issues) fail(failures, candidate, 'workflow', issue.reason, issue.hint)
       continue
@@ -174,7 +174,6 @@ function loadWorkflows(
       label: String(parsed.frontmatter.label),
       ...(subtitle ? { subtitle } : {}),
       ...(stepBudget !== undefined ? { stepBudget } : {}),
-      types,
       body: parsed.body,
       sections: parsed.sections,
       origin: candidate.origin,

@@ -37,7 +37,6 @@ interface ReadBriefResult {
     designId: string
     name: string
     modeId: string
-    typeId: string
     deleted: boolean
     registered: boolean
   }>

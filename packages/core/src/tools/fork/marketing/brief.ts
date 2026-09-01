@@ -16,7 +16,7 @@
  * - 结论按设计归组：组 frame 携带 designId 标记 + GroupTitle 显示名；
  *   存储不分区，per-design 视图由读取侧过滤。
  * - 关联设计区条目 = 设计 id 权威（条目 pluginData designId）+ 名称 /
- *   mode / type 投影（读穿设计根 pluginData 四元组——T53 写入，此前
+ *   mode 投影（读穿设计根 pluginData 三元组——T53 写入，此前
  *   缺省显示 BRIEF_TEXTS.missingProjection）。惰性调和在读取侧：
  *   设计已死 → 视图标注「（已删除）」保痕，不物理清除；design→brief
  *   指针有而条目缺 → 视图补显（registered: false），物理补写走
@@ -59,7 +59,6 @@ export type BriefZoneId =
  * and for the design→brief pointer scan. Exported so T53 shares the key names.
  */
 export const DESIGN_MODE_KEY = 'modeId'
-export const DESIGN_TYPE_KEY = 'typeId'
 export const DESIGN_PROFILE_KEY = 'profileId'
 export const DESIGN_BRIEF_KEY = 'briefId'
 

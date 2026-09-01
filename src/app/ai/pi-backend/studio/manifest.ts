@@ -8,16 +8,11 @@
  * 绝对路径不出后端进程。
  */
 
-import type { StudioFailure, StudioRegistry, StudioWorkflowType } from './types'
+import type { StudioFailure, StudioMode, StudioRegistry } from './types'
 
-/** mode 条目：general 恒在首位（types 恒 []）+ 每注册 workflow 一条（types 展开） */
-export type PiStudioModeEntry = {
-  id: string
-  label: string
-  subtitle?: string
-  source: 'general' | 'workflow'
-  types: StudioWorkflowType[]
-}
+/** mode 条目：general 恒在首位 + 每注册 workflow 一条（T62：types 数据面删除；
+ *  形状与 StudioMode 全等 → 别名不双写（type-shapes 门禁）） */
+export type PiStudioModeEntry = StudioMode
 
 /** profile 摘要（gallery 展示用；applicableTo 为描述性元信息，PD-17 不构成过滤） */
 export type PiStudioProfileSummary = {
@@ -47,17 +42,12 @@ export type PiStudioManifest = {
  * 其文件仍注册在案，failures 之外不另行报告。
  */
 export function toStudioManifest(registry: StudioRegistry): PiStudioManifest {
-  const modes: PiStudioModeEntry[] = registry.modes.map((mode) => {
-    const workflow = mode.source === 'workflow' ? registry.workflows.get(mode.id) : undefined
-    const types = workflow && workflow.types !== 'none' ? workflow.types : []
-    return {
-      id: mode.id,
-      label: mode.label,
-      ...(mode.subtitle ? { subtitle: mode.subtitle } : {}),
-      source: mode.source,
-      types
-    }
-  })
+  const modes: PiStudioModeEntry[] = registry.modes.map((mode) => ({
+    id: mode.id,
+    label: mode.label,
+    ...(mode.subtitle ? { subtitle: mode.subtitle } : {}),
+    source: mode.source
+  }))
   const profiles: PiStudioProfileSummary[] = [...registry.profiles.values()]
     .filter((p) => !p.deprecated)
     .map((p) => ({ id: p.id, label: p.label, applicableTo: p.applicableTo }))

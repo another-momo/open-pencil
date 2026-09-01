@@ -42,7 +42,6 @@ import {
   BRIEF_ZONE_MATERIALS_NAME,
   DESIGN_BRIEF_KEY,
   DESIGN_MODE_KEY,
-  DESIGN_TYPE_KEY,
   appendToBriefAIZone,
   bindBriefToDesign,
   briefBoundDesignIds,
@@ -305,7 +304,7 @@ test('appendToBriefAIZone：无归属平铺 + 按设计归组（组标记 design
   ])
 })
 
-test('关联设计区：registerBriefDesignEntry 幂等 + 投影读穿四元组缺省「—」', () => {
+test('关联设计区：registerBriefDesignEntry 幂等 + 投影读穿三元组缺省「—」', () => {
   const { graph, figma } = setupToolTest()
   const brief = createBrief(figma)
   const design = graph.createNode('FRAME', figma.currentPage.id, { name: '产品长图' })
@@ -324,7 +323,7 @@ test('关联设计区：registerBriefDesignEntry 幂等 + 投影读穿四元组�
   )
   expect(expectDefined(graph.getNode(hintId)).visible).toBe(false)
 
-  // 四元组未写入（T53 前）→ 投影缺省「—」，名称读活设计名
+  // 三元组未写入（T53 前）→ 投影缺省「—」，名称读活设计名
   const view = expectDefined(readBrief(figma))
   expect(view.designs).toEqual([
     {
@@ -332,13 +331,12 @@ test('关联设计区：registerBriefDesignEntry 幂等 + 投影读穿四元组�
       designId: design.id,
       name: '产品长图',
       modeId: BRIEF_TEXTS.missingProjection,
-      typeId: BRIEF_TEXTS.missingProjection,
       deleted: false,
       registered: true
     }
   ])
 
-  // 四元组写入后投影读穿
+  // 三元组写入后投影读穿
   setSharedPluginData(
     graph,
     expectDefined(graph.getNode(design.id)),
@@ -346,16 +344,8 @@ test('关联设计区：registerBriefDesignEntry 幂等 + 投影读穿四元组�
     DESIGN_MODE_KEY,
     'longform'
   )
-  setSharedPluginData(
-    graph,
-    expectDefined(graph.getNode(design.id)),
-    BRIEF_PLUGIN_NAMESPACE,
-    DESIGN_TYPE_KEY,
-    'ecommerce_detail'
-  )
   const after = expectDefined(readBrief(figma))
   expect(after.designs[0]?.modeId).toBe('longform')
-  expect(after.designs[0]?.typeId).toBe('ecommerce_detail')
 
   // 设计改名 → 名称投影读穿活名
   graph.updateNode(design.id, { name: '产品长图 v2' })

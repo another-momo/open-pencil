@@ -1,12 +1,14 @@
 /**
  * T53（S4 W2 / T-B2）setup_design 契约测试（S3 §10 九契约改写版 + 三态解析）。
+ * T62：type 机制整体删除——⑦ 三态整例删除；①② 尺寸语义重钉为缺省
+ * （750 宽 + HUG，全 mode 同口径）；信封/落盘/读穿/命名/注入缝用例去 type 维度；
+ * 错误面九码收六码；设计身份三元组。
  *
- * 验收映射（T53-plan §3）：
- * ① 蓝图尺寸建框（750 宽）；② HUG/FIXED 语义（'750x' HUG 初始高 400 /
- *   '1080x1080' FIXED）；③ 标记六键读穿（role + 四元组 + schemaVersion）；
- * ④ 最小空闲「label N」命名；⑤ briefId 不存在 → brief_not_found；
- * ⑥ modeId 校验（general 恒过 / unknown_mode / types:'none' mode 过）；
- * ⑦ typeId 三态（在册过 / type_forbidden / type_required / type_not_in_mode）；
+ * 验收映射（T53-plan §3 + T62-plan §2）：
+ * ① 缺省尺寸建框（750 宽）；② HUG 语义（初始高 400 / primaryAxisSizing HUG）；
+ * ③ 标记五键读穿（role + 三元组 + schemaVersion）；
+ * ④ 最小空闲「label N」命名（去重域 = 仅 modeId）；⑤ briefId 不存在 → brief_not_found；
+ * ⑥ modeId 校验（general 恒过 / unknown_mode / 无尺寸 mode 同走缺省）；
  * ⑧ 未确认 → unconfirmed_new_intent 且无框落地；
  * ⑨ 关联设计区登记 + bound-designs 指针 + 读穿投影。
  * 另钉：信封字段、恒新建、放置右 +100/y 跟随、scrollAndZoomIntoView、
@@ -32,7 +34,6 @@ import {
   DESIGN_BRIEF_KEY,
   DESIGN_MODE_KEY,
   DESIGN_PROFILE_KEY,
-  DESIGN_TYPE_KEY,
   briefBoundDesignIds,
   createBrief,
   findBriefZone
@@ -59,15 +60,8 @@ import { setupToolTest } from '#tests/helpers/tools'
 
 const CATALOG: SetupCatalog = {
   modes: [
-    {
-      id: 'longform',
-      label: '长图',
-      types: [
-        { id: 'product_long', label: '产品长图', size: '750x' },
-        { id: 'square', label: '方图', size: '1080x1080' }
-      ]
-    },
-    { id: 'workflow', label: '工作流', types: 'none' }
+    { id: 'longform', label: '长图' },
+    { id: 'workflow', label: '工作流' }
   ],
   profileIds: ['profile-a']
 }
@@ -88,20 +82,17 @@ function err(result: SetupDesignResult, code: SetupDesignErrorCode): SetupDesign
 function setupPage() {
   const { graph, figma } = setupToolTest()
   const brief = createBrief(figma)
-  const call = (
-    args: { modeId: string; typeId?: string; profileId?: string },
-    catalog: SetupCatalog | undefined
-  ) => setupDesign(figma, { briefId: brief.id, confirmedNewIntent: true, ...args }, catalog)
-  const run = (args: { modeId: string; typeId?: string; profileId?: string }) => call(args, CATALOG)
-  const runWithoutCatalog = (args: { modeId: string; typeId?: string; profileId?: string }) =>
-    call(args, undefined)
+  const call = (args: { modeId: string; profileId?: string }, catalog: SetupCatalog | undefined) =>
+    setupDesign(figma, { briefId: brief.id, confirmedNewIntent: true, ...args }, catalog)
+  const run = (args: { modeId: string; profileId?: string }) => call(args, CATALOG)
+  const runWithoutCatalog = (args: { modeId: string; profileId?: string }) => call(args, undefined)
   return { graph, figma, brief, run, runWithoutCatalog }
 }
 
-describe('setup_design core：九契约', () => {
-  test('① 蓝图尺寸建框：750 宽 + VERTICAL/counter-FIXED + 白底 + clipsContent', () => {
+describe('setup_design core：契约组', () => {
+  test('① 缺省尺寸建框：750 宽 + VERTICAL/counter-FIXED + 白底 + clipsContent', () => {
     const { graph, run } = setupPage()
-    const result = ok(run({ modeId: 'longform', typeId: 'product_long' }))
+    const result = ok(run({ modeId: 'longform' }))
 
     const root = expectDefined(graph.getNode(result.rootId))
     expect(root.type).toBe('FRAME')
@@ -111,34 +102,33 @@ describe('setup_design core：九契约', () => {
     expect(root.clipsContent).toBe(true)
     expect(root.fills[0]).toMatchObject({ type: 'SOLID', color: { r: 1, g: 1, b: 1 } })
     expect(result.size).toEqual({ width: 750, height: null })
-    expect(result.name).toBe('产品长图')
+    expect(result.name).toBe('长图')
   })
 
-  test("② HUG/FIXED 语义：'750x' → HUG 初始高 400；'1080x1080' → FIXED 1080", () => {
+  test('② HUG 语义（T62 尺寸重钉）：全 mode 同口径 750 宽 + HUG 初始高 400', () => {
     const { graph, run } = setupPage()
-    const hug = ok(run({ modeId: 'longform', typeId: 'product_long' }))
+    const hug = ok(run({ modeId: 'longform' }))
     const hugRoot = expectDefined(graph.getNode(hug.rootId))
     expect(hugRoot.primaryAxisSizing).toBe('HUG')
     expect(hugRoot.height).toBe(400)
+    expect(hug.size).toEqual({ width: 750, height: null })
 
-    const fixed = ok(run({ modeId: 'longform', typeId: 'square' }))
-    const fixedRoot = expectDefined(graph.getNode(fixed.rootId))
-    expect(fixedRoot.primaryAxisSizing).toBe('FIXED')
-    expect(fixedRoot.width).toBe(1080)
-    expect(fixedRoot.height).toBe(1080)
-    expect(fixed.size).toEqual({ width: 1080, height: 1080 })
+    const general = ok(run({ modeId: 'general' }))
+    const generalRoot = expectDefined(graph.getNode(general.rootId))
+    expect(generalRoot.primaryAxisSizing).toBe('HUG')
+    expect(generalRoot.width).toBe(750)
+    expect(generalRoot.height).toBe(400)
   })
 
-  test('③ 标记六键读穿：role + 四元组 + schemaVersion（general 缺省键不写）', () => {
+  test('③ 标记五键读穿：role + 三元组 + schemaVersion（general 缺省键不写）', () => {
     const { graph, brief, run } = setupPage()
-    const result = ok(run({ modeId: 'longform', typeId: 'product_long', profileId: 'profile-a' }))
+    const result = ok(run({ modeId: 'longform', profileId: 'profile-a' }))
     const root = expectDefined(graph.getNode(result.rootId))
 
     expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, BRIEF_ROLE_KEY)).toBe(
       MARKETING_ROLE_ROOT
     )
     expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_MODE_KEY)).toBe('longform')
-    expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_TYPE_KEY)).toBe('product_long')
     expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_PROFILE_KEY)).toBe('profile-a')
     expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_BRIEF_KEY)).toBe(brief.id)
     expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, BRIEF_SCHEMA_VERSION_KEY)).toBe(
@@ -147,30 +137,29 @@ describe('setup_design core：九契约', () => {
     expect(BRIEF_SCHEMA_VERSION).toBe('1')
     expect(isMarketingDesignRoot(root)).toBe(true)
 
-    // general 无 typeId/profileId：缺省键不落盘（读穿为 ''）
+    // general 无 profileId：缺省键不落盘（读穿为 ''）
     const general = ok(run({ modeId: 'general' }))
     const generalRoot = expectDefined(graph.getNode(general.rootId))
-    expect(getSharedPluginData(generalRoot, BRIEF_PLUGIN_NAMESPACE, DESIGN_TYPE_KEY)).toBe('')
     expect(getSharedPluginData(generalRoot, BRIEF_PLUGIN_NAMESPACE, DESIGN_PROFILE_KEY)).toBe('')
   })
 
-  test('④ 最小空闲「label N」命名 + 恒新建：同参数再调得「产品长图 2」', () => {
+  test('④ 最小空闲「label N」命名 + 恒新建：同参数再调得「长图 2」', () => {
     const { graph, run } = setupPage()
-    const first = ok(run({ modeId: 'longform', typeId: 'product_long' }))
-    const second = ok(run({ modeId: 'longform', typeId: 'product_long' }))
-    const third = ok(run({ modeId: 'longform', typeId: 'product_long' }))
+    const first = ok(run({ modeId: 'longform' }))
+    const second = ok(run({ modeId: 'longform' }))
+    const third = ok(run({ modeId: 'longform' }))
 
     // 恒新建：无领养无幂等，三调三根
     expect(second.rootId).not.toBe(first.rootId)
     expect(third.rootId).not.toBe(second.rootId)
-    expect(first.name).toBe('产品长图')
-    expect(second.name).toBe('产品长图 2')
-    expect(third.name).toBe('产品长图 3')
+    expect(first.name).toBe('长图')
+    expect(second.name).toBe('长图 2')
+    expect(third.name).toBe('长图 3')
 
-    // 最小空闲：改掉裸名后新建回到「产品长图」
+    // 最小空闲：改掉裸名后新建回到「长图」
     graph.updateNode(first.rootId, { name: '已改名' })
-    const fourth = ok(run({ modeId: 'longform', typeId: 'product_long' }))
-    expect(fourth.name).toBe('产品长图')
+    const fourth = ok(run({ modeId: 'longform' }))
+    expect(fourth.name).toBe('长图')
   })
 
   test('⑤ briefId 不存在 → brief_not_found；空 briefId 多 brief → ambiguous_brief', () => {
@@ -204,7 +193,7 @@ describe('setup_design core：九契约', () => {
     expect(failure.candidates?.length).toBe(2)
   })
 
-  test('⑥ modeId 校验：general 恒过 / 未知 → unknown_mode / types:none 的 mode 过', () => {
+  test('⑥ modeId 校验：general 恒过 / 未知 → unknown_mode / 无尺寸 mode 同走缺省', () => {
     const { graph, run } = setupPage()
 
     const general = ok(run({ modeId: 'general' }))
@@ -224,33 +213,12 @@ describe('setup_design core：九契约', () => {
     )
   })
 
-  test("⑦ typeId 三态：在册过 / types:'none' 传 → type_forbidden / 缺 → type_required / 列表外 → type_not_in_mode", () => {
-    const { run } = setupPage()
-
-    expect('error' in run({ modeId: 'longform', typeId: 'product_long' })).toBe(false)
-
-    const forbidden = err(run({ modeId: 'workflow', typeId: 'product_long' }), 'type_forbidden')
-    expect(forbidden.modeId).toBe('workflow')
-
-    const required = err(run({ modeId: 'longform' }), 'type_required')
-    expect(required.types).toEqual(['product_long', 'square'])
-
-    err(run({ modeId: 'longform', typeId: 'nope' }), 'type_not_in_mode')
-
-    // general 同样不得传 typeId
-    err(run({ modeId: 'general', typeId: 'product_long' }), 'type_forbidden')
-  })
-
   test('⑧ 未确认 → unconfirmed_new_intent 且无框落地', () => {
     const { graph, figma, brief } = setupPage()
     const before = expectDefined(graph.getNode(figma.currentPage.id)).childIds.length
 
     err(
-      setupDesign(
-        figma,
-        { modeId: 'longform', typeId: 'product_long', briefId: brief.id },
-        CATALOG
-      ),
+      setupDesign(figma, { modeId: 'longform', briefId: brief.id }, CATALOG),
       'unconfirmed_new_intent'
     )
     err(
@@ -265,9 +233,9 @@ describe('setup_design core：九契约', () => {
     expect(scanMarketingDesigns(figma)).toEqual([])
   })
 
-  test('⑨ 关联设计区登记：条目 designId + 名称投影 + bound-designs 指针 + 绑定行 + 读穿四元组', () => {
+  test('⑨ 关联设计区登记：条目 designId + 名称投影 + bound-designs 指针 + 绑定行 + 读穿三元组', () => {
     const { graph, figma, brief, run } = setupPage()
-    const result = ok(run({ modeId: 'longform', typeId: 'product_long' }))
+    const result = ok(run({ modeId: 'longform' }))
 
     // brief bound-designs 含新根
     const freshBrief = expectDefined(graph.getNode(brief.id))
@@ -286,7 +254,7 @@ describe('setup_design core：九契约', () => {
     const entryText = entry.childIds
       .map((id) => graph.getNode(id))
       .find((node) => node?.type === 'TEXT')
-    expect(entryText?.text).toBe('产品长图')
+    expect(entryText?.text).toBe('长图')
 
     // 可见绑定行重写为「关联：<设计名> · <页名>」
     const stack = [brief.id]
@@ -297,17 +265,16 @@ describe('setup_design core：九契约', () => {
       if (node.type === 'TEXT') texts.push(node.text)
       stack.push(...node.childIds)
     }
-    expect(texts).toContain(`${BRIEF_TEXTS.bindingPrefix}产品长图 · Page 1`)
+    expect(texts).toContain(`${BRIEF_TEXTS.bindingPrefix}长图 · Page 1`)
 
-    // 读穿投影：read_brief 视图的 modeId/typeId 来自设计根标记
+    // 读穿投影：read_brief 视图的 modeId 来自设计根标记
     const view = expectDefined(readBrief(figma))
     expect(view.designs).toEqual([
       {
         entryId,
         designId: result.rootId,
-        name: '产品长图',
+        name: '长图',
         modeId: 'longform',
-        typeId: 'product_long',
         deleted: false,
         registered: true
       }
@@ -316,20 +283,18 @@ describe('setup_design core：九契约', () => {
 
   test('信封字段：成功全字段（含 placement）；general 缺省键不出现', () => {
     const { brief, run } = setupPage()
-    const full = ok(run({ modeId: 'longform', typeId: 'product_long', profileId: 'profile-a' }))
+    const full = ok(run({ modeId: 'longform', profileId: 'profile-a' }))
     expect(full).toEqual({
       rootId: full.rootId,
-      name: '产品长图',
+      name: '长图',
       size: { width: 750, height: null },
       modeId: 'longform',
-      typeId: 'product_long',
       profileId: 'profile-a',
       briefId: brief.id,
       placement: { x: BRIEF_WIDTH + PLACEMENT_GAP, y: 0 }
     })
 
     const general = ok(run({ modeId: 'general' }))
-    expect('typeId' in general).toBe(false)
     expect('profileId' in general).toBe(false)
     expect(general.briefId).toBe(brief.id)
   })
@@ -339,7 +304,7 @@ describe('setup_design core：九契约', () => {
     // 既有内容把 bounds 顶抬到 -500（brief 在 (0,0)，宽 1252）
     graph.createNode('FRAME', figma.currentPage.id, { x: 0, y: -500, width: 100, height: 100 })
 
-    const result = ok(run({ modeId: 'longform', typeId: 'product_long' }))
+    const result = ok(run({ modeId: 'longform' }))
     expect(result.placement).toEqual({ x: BRIEF_WIDTH + PLACEMENT_GAP, y: -500 })
     const root = expectDefined(graph.getNode(result.rootId))
     expect(root.x).toBe(BRIEF_WIDTH + PLACEMENT_GAP)
@@ -351,7 +316,7 @@ describe('setup_design core：九契约', () => {
     const { graph, figma, run } = setupPage()
     expect(figma.viewport.center).toEqual({ x: 0, y: 0 })
 
-    const result = ok(run({ modeId: 'longform', typeId: 'product_long' }))
+    const result = ok(run({ modeId: 'longform' }))
     const root = expectDefined(graph.getNode(result.rootId))
     expect(figma.viewport.center.x).toBe(root.x + root.width / 2)
     expect(figma.viewport.center.y).toBe(root.y + root.height / 2)
@@ -359,22 +324,19 @@ describe('setup_design core：九契约', () => {
     expect(figma.viewport.zoom).toBeGreaterThan(0)
   })
 
-  test('catalog 缺省：仅 general（无 typeId/profileId）可用，否则 catalog_unavailable', () => {
+  test('catalog 缺省：仅 general（不带 profileId）可用，否则 catalog_unavailable', () => {
     const { runWithoutCatalog } = setupPage()
 
     const general = ok(runWithoutCatalog({ modeId: 'general' }))
     expect(general.size).toEqual({ width: 750, height: null })
 
-    err(runWithoutCatalog({ modeId: 'longform', typeId: 'product_long' }), 'catalog_unavailable')
+    err(runWithoutCatalog({ modeId: 'longform' }), 'catalog_unavailable')
     err(runWithoutCatalog({ modeId: 'general', profileId: 'profile-a' }), 'catalog_unavailable')
   })
 
   test('profileId 不在册 → unknown_profile', () => {
     const { run } = setupPage()
-    const failure = err(
-      run({ modeId: 'longform', typeId: 'product_long', profileId: 'nope' }),
-      'unknown_profile'
-    )
+    const failure = err(run({ modeId: 'longform', profileId: 'nope' }), 'unknown_profile')
     expect(failure.profileId).toBe('nope')
   })
 })
@@ -389,17 +351,16 @@ describe('scanMarketingDesigns / resolveMarketingDesign 无状态三态', () => 
     expect(resolveMarketingDesign(figma).status).toBe('none')
   })
 
-  test('唯一设计 → resolve ok；scan 读穿四元组 + 名称', () => {
+  test('唯一设计 → resolve ok；scan 读穿三元组 + 名称', () => {
     const { figma, brief, run } = setupPage()
-    const created = ok(run({ modeId: 'longform', typeId: 'product_long', profileId: 'profile-a' }))
+    const created = ok(run({ modeId: 'longform', profileId: 'profile-a' }))
 
     const designs = scanMarketingDesigns(figma)
     expect(designs).toEqual([
       {
         rootId: created.rootId,
-        name: '产品长图',
+        name: '长图',
         modeId: 'longform',
-        typeId: 'product_long',
         profileId: 'profile-a',
         briefId: brief.id
       }
@@ -411,9 +372,9 @@ describe('scanMarketingDesigns / resolveMarketingDesign 无状态三态', () => 
     expect(explicit.status === 'ok' && explicit.design.rootId).toBe(created.rootId)
   })
 
-  test('两个设计 → resolve ambiguous（candidates 含四元组投影）；显式 id 命中', () => {
+  test('两个设计 → resolve ambiguous（candidates 含三元组投影）；显式 id 命中', () => {
     const { figma, run } = setupPage()
-    const first = ok(run({ modeId: 'longform', typeId: 'product_long' }))
+    const first = ok(run({ modeId: 'longform' }))
     const second = ok(run({ modeId: 'general' }))
 
     const ambiguous = resolveMarketingDesign(figma)
@@ -422,14 +383,12 @@ describe('scanMarketingDesigns / resolveMarketingDesign 无状态三态', () => 
     expect(candidates.length).toBe(2)
     const byId = new Map(candidates.map((candidate) => [candidate.rootId, candidate]))
     expect(byId.get(first.rootId)).toMatchObject({
-      name: '产品长图',
-      modeId: 'longform',
-      typeId: 'product_long'
+      name: '长图',
+      modeId: 'longform'
     })
     expect(byId.get(second.rootId)).toMatchObject({
       name: SETUP_TEXTS.generalDesignName,
-      modeId: 'general',
-      typeId: ''
+      modeId: 'general'
     })
 
     const explicit = resolveMarketingDesign(figma, second.rootId)
@@ -481,16 +440,11 @@ describe('scanMarketingDesigns / resolveMarketingDesign 无状态三态', () => 
 })
 
 describe('setup_design ToolDef：schema 与注入缝', () => {
-  test('SETUP_TOOLS 交付面 + mutates 钉扎 + schema 仅四参数', () => {
+  test('SETUP_TOOLS 交付面 + mutates 钉扎 + schema 仅三参数', () => {
     expect(SETUP_TOOLS).toEqual([setupDesignTool])
     expect(setupDesignTool.name).toBe('setup_design')
     expect(setupDesignTool.mutates).toBe(true)
-    expect(Object.keys(setupDesignTool.params)).toEqual([
-      'modeId',
-      'typeId',
-      'profileId',
-      'briefId'
-    ])
+    expect(Object.keys(setupDesignTool.params)).toEqual(['modeId', 'profileId', 'briefId'])
     expect(setupDesignTool.params.modeId?.required).toBe(true)
     expect(setupDesignTool.params.briefId?.required).toBe(true)
   })
@@ -501,14 +455,13 @@ describe('setup_design ToolDef：schema 与注入缝', () => {
 
     const result = setupDesignTool.execute(figma, {
       modeId: 'longform',
-      typeId: 'product_long',
       briefId: brief.id,
       __catalog: JSON.stringify(CATALOG),
       __confirmedNewIntent: 'true'
     }) as SetupDesignResult
     const success = ok(result)
     const root = expectDefined(graph.getNode(success.rootId))
-    expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_TYPE_KEY)).toBe('product_long')
+    expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_MODE_KEY)).toBe('longform')
   })
 
   test('无 __confirmedNewIntent → unconfirmed_new_intent（T-B10 落地前 AI 恒表现）', () => {
@@ -538,7 +491,6 @@ describe('setup_design ToolDef：schema 与注入缝', () => {
 
     const noCatalog = setupDesignTool.execute(figma, {
       modeId: 'longform',
-      typeId: 'product_long',
       briefId: brief.id,
       __confirmedNewIntent: 'true'
     }) as SetupDesignResult
@@ -546,7 +498,6 @@ describe('setup_design ToolDef：schema 与注入缝', () => {
 
     const malformed = setupDesignTool.execute(figma, {
       modeId: 'longform',
-      typeId: 'product_long',
       briefId: brief.id,
       __catalog: '{not json',
       __confirmedNewIntent: 'true'

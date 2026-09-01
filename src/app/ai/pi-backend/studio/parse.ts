@@ -80,8 +80,8 @@ export function splitFrontmatter(raw: string): ParsedAsset {
 
 /**
  * 正文小节索引：`## X`（二级）与 `### X`（三级）标题均入索引；节内容 = 标题行
- * 之后到下一个任意级标题之间的文本（trim 后）。workflow 的 type 蓝图节（三级，
- * 位于 `## type 蓝图` 下）与 profile 的 `##` 功能节共用本索引（types.ts 头部口径）。
+ * 之后到下一个任意级标题之间的文本（trim 后）。profile 的 `##` 功能节与
+ * workflow 正文小节共用本索引（types.ts 头部口径）。
  */
 export function indexSections(body: string): Record<string, string> {
   const sections: Record<string, string> = {}

@@ -16,6 +16,5 @@ export type {
   StudioOrigin,
   StudioProfile,
   StudioRegistry,
-  StudioWorkflow,
-  StudioWorkflowType
+  StudioWorkflow
 } from './types'

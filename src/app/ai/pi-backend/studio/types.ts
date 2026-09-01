@@ -14,15 +14,6 @@ export type StudioAssetKind = 'base' | 'workflow' | 'profile'
 /** 资产来源：内置集（随应用分发）或用户目录（~/.openpencil/studio/，同 id 覆盖内置） */
 export type StudioOrigin = 'builtin' | 'user'
 
-/** workflow frontmatter 的 type 条目（PD-17：type 折叠进 workflow 文件） */
-export interface StudioWorkflowType {
-  id: string
-  label: string
-  /** 'WxH' 固定尺寸 或 'Wx'（HUG 自适应高），S2 §4 */
-  size: string
-  safeArea?: string
-}
-
 export interface StudioBase {
   kind: 'base'
   id: 'base'
@@ -38,8 +29,6 @@ export interface StudioWorkflow {
   label: string
   subtitle?: string
   stepBudget?: number
-  /** 'none' = 无 type 的 mode（如创意生图）；否则为 type 列表（S2 §4 必填） */
-  types: 'none' | StudioWorkflowType[]
   body: string
   sections: Record<string, string>
   origin: StudioOrigin

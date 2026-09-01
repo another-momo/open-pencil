@@ -12,12 +12,15 @@
  * - 放置走共享 findPlacementPosition（页面 bounds 右侧 +100、y 跟随），
  *   创建后 scrollAndZoomIntoView。
  *
- * 四职责（S3 §2）：① 按 mode 的 type 蓝图读一次尺寸（快照语义）建根 frame；
- * ② 设尺寸与最小空闲「label N」名；③ 设计身份四元组 + schemaVersion 落盘；
+ * 四职责（S3 §2）：① 以缺省尺寸（750 宽 + HUG 高）建根 frame；
+ * ② 设尺寸与最小空闲「label N」名；③ 设计身份三元组 + schemaVersion 落盘；
  * ④ brief 关联设计区登记（registerBriefDesignEntry）。
  *
- * W3 注记：type 蓝图机制已被裁决退役（T-B11/T62）——typeId 校验集中于本
- * 文件 resolveBlueprint 单一模块，切除时只动这里。
+ * T62：type 机制整体删除（owner 2026-09-01 v8 拍板过度设计）——尺寸语义
+ * 重钉为 workflow frontmatter 可选 canvas 键（T-C 批次接线），catalog 投影
+ * 收为 {modes:[{id,label}], profileIds[]}，本层恒用缺省尺寸；设计身份 =
+ * 三元组 {modeId, profileId, briefId}，读穿侧容忍旧画布残留键（天然忽略，
+ * schemaVersion 不 bump）。
  */
 
 import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
@@ -35,7 +38,6 @@ import {
   DESIGN_BRIEF_KEY,
   DESIGN_MODE_KEY,
   DESIGN_PROFILE_KEY,
-  DESIGN_TYPE_KEY,
   bindBriefToDesign,
   findBrief,
   registerBriefDesignEntry,
@@ -47,30 +49,21 @@ import { BRIEF_TEXTS, SETUP_TEXTS } from './texts'
 /** 设计根 role 标记值（单源；image-gen/history.ts 的同名本地常量集成时改 import） */
 export const MARKETING_ROLE_ROOT = 'marketing-root'
 
-/** 内置 general mode：恒过校验、无 type 蓝图（catalog 缺省时唯一可用路径） */
+/** 内置 general mode：恒过校验（catalog 缺省时唯一可用路径） */
 const SETUP_GENERAL_MODE_ID = 'general'
-/** general / 无蓝图 mode 的默认尺寸：750 宽 + HUG 高（长图默认） */
+/** 缺省尺寸：750 宽 + HUG 高（长图默认，T62 定谳 1——所有 mode 同口径） */
 const SETUP_GENERAL_DEFAULT_WIDTH = 750
 /** HUG 高根 frame 的初始高度（随内容生长前的占位） */
 const SETUP_HUG_INITIAL_HEIGHT = 400
 
 // ── catalog 注入契约（宿主快照，不进模型视野）────────────────────────────────
 
-export interface SetupCatalogType {
-  id: string
-  label: string
-  /** 蓝图尺寸串：'WxH' 定高 / 'Wx' HUG 高（同构旧 parseMaterialTypeSize 线格式） */
-  size: string
-}
-
 export interface SetupCatalogMode {
   id: string
   label: string
-  /** 'none' = 该 mode 无 type 蓝图（同 general 走默认尺寸，不得传 typeId） */
-  types: 'none' | SetupCatalogType[]
 }
 
-/** 宿主注入的注册表快照；缺省（MCP/headless 无注入）时仅 general 无 typeId 可用 */
+/** 宿主注入的注册表快照；缺省（MCP/headless 无注入）时仅 general 可用 */
 export interface SetupCatalog {
   modes: SetupCatalogMode[]
   profileIds: string[]
@@ -78,7 +71,6 @@ export interface SetupCatalog {
 
 export interface SetupDesignArgs {
   modeId: string
-  typeId?: string
   profileId?: string
   briefId: string
   /** 宿主随 args 外层注入的新建意图确认（缺省 false；!== true → 不建框） */
@@ -91,9 +83,6 @@ export type SetupDesignErrorCode =
   | 'brief_not_found'
   | 'ambiguous_brief'
   | 'unknown_mode'
-  | 'type_not_in_mode'
-  | 'type_forbidden'
-  | 'type_required'
   | 'unknown_profile'
   | 'unconfirmed_new_intent'
   | 'catalog_unavailable'
@@ -103,21 +92,17 @@ export interface SetupDesignError {
   /** 用户语言化说明（zh-cn，SETUP_TEXTS 外置） */
   message: string
   modeId?: string
-  typeId?: string
   profileId?: string
   briefId?: string
-  /** type_required 时该 mode 可选的蓝图 type id 列表 */
-  types?: string[]
   candidates?: BriefCandidate[]
 }
 
 export interface SetupDesignSuccess {
   rootId: string
   name: string
-  /** 蓝图尺寸快照语义：height null = HUG（长图随内容生长，初始高占位 400） */
+  /** 尺寸快照语义：height null = HUG（长图随内容生长，初始高占位 400） */
   size: { width: number; height: number | null }
   modeId: string
-  typeId?: string
   profileId?: string
   briefId: string
   placement: Vector
@@ -142,24 +127,7 @@ export function isMarketingDesignRoot(node: SceneNode | undefined): node is Scen
   return designMarker(node, BRIEF_ROLE_KEY) === MARKETING_ROLE_ROOT
 }
 
-// ── 校验（W3 切除 type 蓝图机制时只动本段）──────────────────────────────────
-
-/** 解析蓝图尺寸串；畸形返回 undefined，该 type 视为不可用（旧「跳过畸形注册」语义） */
-function parseBlueprintSize(size: string): { width: number; height: number | null } | undefined {
-  const match = /^(\d+)x(\d+)?$/.exec(size)
-  if (!match) return undefined
-  const width = Number(match[1])
-  const height = match[2] ? Number(match[2]) : null
-  if (!Number.isFinite(width) || width <= 0) return undefined
-  if (height !== null && (!Number.isFinite(height) || height <= 0)) return undefined
-  return { width, height }
-}
-
-interface ResolvedBlueprint {
-  /** 命名基底（type label > mode label > general 默认名） */
-  label: string
-  size: { width: number; height: number | null }
-}
+// ── 校验（T62：mode → profile 两级；type 层级已整体删除）─────────────────────
 
 function validateProfileId(
   profileId: string | undefined,
@@ -175,22 +143,21 @@ function validateProfileId(
   return null
 }
 
-function resolveBlueprint(
+interface ResolvedMode {
+  /** 命名基底（mode label；general 用默认名） */
+  label: string
+  size: { width: number; height: number | null }
+}
+
+/** mode 校验 + 命名基底解析；尺寸恒为缺省 750 宽 + HUG 高（T62 定谳 1） */
+function resolveMode(
   args: SetupDesignArgs,
   catalog: SetupCatalog | undefined
-): ResolvedBlueprint | SetupDesignError {
-  const { modeId, typeId } = args
+): ResolvedMode | SetupDesignError {
+  const { modeId } = args
 
-  // general 恒过校验、不得传 typeId（内置默认尺寸，不查 catalog）
+  // general 恒过校验（内置缺省尺寸，不查 catalog）
   if (modeId === SETUP_GENERAL_MODE_ID) {
-    if (typeId !== undefined) {
-      return {
-        error: 'type_forbidden',
-        message: SETUP_TEXTS.typeForbidden(modeId, typeId),
-        modeId,
-        typeId
-      }
-    }
     const profileError = validateProfileId(args.profileId, catalog)
     if (profileError) return profileError
     return {
@@ -208,51 +175,17 @@ function resolveBlueprint(
   }
   const profileError = validateProfileId(args.profileId, catalog)
   if (profileError) return profileError
-
-  if (mode.types === 'none') {
-    if (typeId !== undefined) {
-      return {
-        error: 'type_forbidden',
-        message: SETUP_TEXTS.typeForbidden(modeId, typeId),
-        modeId,
-        typeId
-      }
-    }
-    return { label: mode.label, size: { width: SETUP_GENERAL_DEFAULT_WIDTH, height: null } }
-  }
-  if (typeId === undefined) {
-    return {
-      error: 'type_required',
-      message: SETUP_TEXTS.typeRequired(mode.label),
-      modeId,
-      types: mode.types.map((entry) => entry.id)
-    }
-  }
-  const type = mode.types.find((entry) => entry.id === typeId)
-  const size = type ? parseBlueprintSize(type.size) : undefined
-  if (!type || !size) {
-    return {
-      error: 'type_not_in_mode',
-      message: SETUP_TEXTS.typeNotInMode(typeId, mode.label),
-      modeId,
-      typeId
-    }
-  }
-  return { label: type.label, size }
+  return { label: mode.label, size: { width: SETUP_GENERAL_DEFAULT_WIDTH, height: null } }
 }
 
 // ── 建框 ───────────────────────────────────────────────────────────────────
 
 /**
- * 新根 frame 显示名：当前页同身份（modeId+typeId 标记）设计根间取最小空闲
- * 「label N」（首个用裸 label，N 自 2 递增）。名称仅展示用，机器身份看标记。
+ * 新根 frame 显示名：当前页同 mode 设计根间取最小空闲「label N」（首个用
+ * 裸 label，N 自 2 递增）。名称仅展示用，机器身份看标记。命名去重域 =
+ * 仅 modeId（T62 定谳 2——旧画布既有名称仅为展示字符串，无兼容动作）。
  */
-function nextDesignRootName(
-  figma: FigmaAPI,
-  label: string,
-  modeId: string,
-  typeId: string | undefined
-): string {
+function nextDesignRootName(figma: FigmaAPI, label: string, modeId: string): string {
   const graph = figma.graph
   const page = graph.getNode(figma.currentPage.id)
   const taken = new Set<string>()
@@ -260,7 +193,6 @@ function nextDesignRootName(
     const child = graph.getNode(childId)
     if (!isMarketingDesignRoot(child)) continue
     if (designMarker(child, DESIGN_MODE_KEY) !== modeId) continue
-    if (designMarker(child, DESIGN_TYPE_KEY) !== (typeId ?? '')) continue
     taken.add(child.name)
   }
   if (!taken.has(label)) return label
@@ -292,7 +224,7 @@ function createDesignRoot(
 }
 
 /**
- * 新建一张营销设计：校验（确认意图 → brief → mode/type/profile）→ 建框 →
+ * 新建一张营销设计：校验（确认意图 → brief → mode → profile）→ 建框 →
  * 身份落盘 → brief 关联登记 → 视口聚焦。窄化后无领养无幂等——同参数再调
  * 恒新建第二框（最小空闲名递增）。
  */
@@ -328,27 +260,26 @@ export function setupDesign(
   }
   const brief = resolution.brief
 
-  const blueprint = resolveBlueprint(args, catalog)
-  if ('error' in blueprint) return blueprint
+  const resolved = resolveMode(args, catalog)
+  if ('error' in resolved) return resolved
 
-  const name = nextDesignRootName(figma, blueprint.label, args.modeId, args.typeId)
+  const name = nextDesignRootName(figma, resolved.label, args.modeId)
   const position = findPlacementPosition(figma, {
-    width: blueprint.size.width,
-    height: blueprint.size.height ?? SETUP_HUG_INITIAL_HEIGHT
+    width: resolved.size.width,
+    height: resolved.size.height ?? SETUP_HUG_INITIAL_HEIGHT
   })
-  const root = createDesignRoot(figma, name, blueprint.size, position)
+  const root = createDesignRoot(figma, name, resolved.size, position)
 
-  // 设计身份落盘（PD-19）：role 标记 + 四元组 + schemaVersion；typeId/profileId 缺省不写
+  // 设计身份落盘（PD-19）：role 标记 + 三元组 + schemaVersion；profileId 缺省不写
   setDesignMarker(graph, root.id, BRIEF_ROLE_KEY, MARKETING_ROLE_ROOT)
   setDesignMarker(graph, root.id, DESIGN_MODE_KEY, args.modeId)
-  if (args.typeId !== undefined) setDesignMarker(graph, root.id, DESIGN_TYPE_KEY, args.typeId)
   if (args.profileId !== undefined)
     setDesignMarker(graph, root.id, DESIGN_PROFILE_KEY, args.profileId)
   setDesignMarker(graph, root.id, DESIGN_BRIEF_KEY, brief.id)
   setDesignMarker(graph, root.id, BRIEF_SCHEMA_VERSION_KEY, BRIEF_SCHEMA_VERSION)
 
   // brief 关联：bound-designs 指针 + 可见绑定行 + 关联设计区条目
-  // （登记在身份落盘之后——条目/读侧投影读穿四元组）
+  // （登记在身份落盘之后——条目/读侧投影读穿三元组）
   bindBriefToDesign(figma, brief.id, root.id)
   setBriefBindingLabel(
     figma,
@@ -363,9 +294,8 @@ export function setupDesign(
   return {
     rootId: root.id,
     name,
-    size: blueprint.size,
+    size: resolved.size,
     modeId: args.modeId,
-    ...(args.typeId !== undefined ? { typeId: args.typeId } : {}),
     ...(args.profileId !== undefined ? { profileId: args.profileId } : {}),
     briefId: brief.id,
     placement: position
@@ -377,9 +307,8 @@ export function setupDesign(
 export interface MarketingDesignRef {
   rootId: string
   name: string
-  /** 四元组读穿（缺省键 = ''） */
+  /** 三元组读穿（缺省键 = ''；旧画布的 type 残留键天然忽略，T62 定谳 2） */
   modeId: string
-  typeId: string
   profileId: string
   briefId: string
 }
@@ -395,7 +324,6 @@ function toDesignRef(node: SceneNode): MarketingDesignRef {
     rootId: node.id,
     name: node.name,
     modeId: designMarker(node, DESIGN_MODE_KEY),
-    typeId: designMarker(node, DESIGN_TYPE_KEY),
     profileId: designMarker(node, DESIGN_PROFILE_KEY),
     briefId: designMarker(node, DESIGN_BRIEF_KEY)
   }

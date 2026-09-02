@@ -6,9 +6,10 @@
  * 注册表投影（catalog）+ 新建意图确认旗标作为调用级参数经桥 args 外层注入
  * （T22 document_id 先例，tools.ts），不进工具 schema、不进模型视野。
  *
- * confirmedNewIntent 的真源通道 = T61（T-B10）UI 指令块；落地前恒 false，
- * setup_design 对 AI 恒返回 unconfirmed_new_intent（S3 §2 契约内行为，
- * S4 §7 尾巴表已登记该依赖）。
+ * confirmedNewIntent 的真源通道 = T61（T-B10）UI 指令块（已落地：
+ * active-design-host prepareTurn 剥信封置真，2026-09-02 T75 核实）；无信封
+ * 时恒 false，setup_design 对 AI 返回 unconfirmed_new_intent（S3 §2 契约
+ * 内行为；S4 §7 尾巴表该依赖 2026-09-02 闭合）。
  *
  * T62：type 机制删除——投影收为 {modes:[{id,label}], profileIds[]}（尺寸
  * 语义重钉为 workflow frontmatter 可选 canvas 键，core 侧恒用缺省）。

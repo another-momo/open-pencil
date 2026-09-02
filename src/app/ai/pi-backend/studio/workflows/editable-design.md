@@ -23,9 +23,9 @@ references:
 
 定画布单张视觉的一段式构建流：**阶段 0 需求接入 → 阶段 1 参考与决策 → 阶段 2 资产生成 → 阶段 3 渲染构建 → 阶段 4 审阅与交付**。与 longform 的多 CP 分段流不同：本 mode **方向自决**（你是设计师，不是顾问——「沟通纪律」节），不设方向选择闸；Checkpoint 仅两处且都是条件触发——CP1 同题冲突确认（画布已有疑似同题设计区才发）、CP2 缺事实追问（缺事实才发），载体一律 ask_user_question 表单（契约见「Checkpoint 表单」节）。
 
-预算纪律：step_budget = 50（frontmatter）；每 CP 自然停顿即 run 终止续跑，用户作答后预算重置；构建中途预算不足按「resume 协议」节收尾，不硬撑。
+预算纪律：step_budget = 50；每 CP 自然停顿即 run 终止续跑，用户作答后预算重置；构建中途预算不足按「resume 协议」节收尾，不硬撑。
 
-按需参考：四条深度参考已在 frontmatter 声明、索引进 systemPrompt 尾段「按需参考」节——**写交付级生图 prompt 前读 `references/imagery.md`**（回图出错时再读一遍）；**槽位矩阵 / 镂空叠层 / 分层拼贴落地前读 `references/asset-architecture.md`**；**版式拿不准或「处处正确但没设计感」时读 `references/layout-typography.md`**；**排印担纲构图或需要编辑感字体声部时读 `references/font-system.md`**。经 read_reference 工具按需读取，不预读、不囤货。
+按需参考：四条深度参考在装配时入索引，列于每回合提示尾段「按需参考」节——**写交付级生图 prompt 前读 `references/imagery.md`**（回图出错时再读一遍）；**槽位矩阵 / 镂空叠层 / 分层拼贴落地前读 `references/asset-architecture.md`**；**版式拿不准或「处处正确但没设计感」时读 `references/layout-typography.md`**；**排印担纲构图或需要编辑感字体声部时读 `references/font-system.md`**。经 read_reference 工具按需读取，不预读、不囤货。
 
 ## 沟通纪律
 
@@ -146,7 +146,7 @@ prompt 纪律：**写任何交付资产 prompt 前、以及回图出错时**（�
 
 ## 画布尺寸
 
-mode 级尺寸预设（T65）：frontmatter `sizes` 清单 = `[{label, canvas}]`——本 mode 预设 = 竖版海报 794x1123（A4 印刷比，定高）+ 方形社交卡片 1080x1080（定高）。用户按名称显性选择其一或语言通道自定义尺寸；未显性指定时按语义意图自选预设之一或自定义，均未指定 → 首选预设（清单首条）。
+mode 级尺寸预设：装配期 `sizes` 清单 = `[{label, canvas}]`——本 mode 预设 = 竖版海报 794x1123（A4 印刷比，定高）+ 方形社交卡片 1080x1080（定高）。用户按名称显性选择其一或语言通道自定义尺寸；未显性指定时按语义意图自选预设之一或自定义，均未指定 → 首选预设（清单首条）。
 
 **定画布语义**：宽与高都定死（不同于 longform 的高度随内容）——内容装不下 = 砍内容密度或改层级，不撑高画布。印刷用途按 96px/英寸换算定画布（A4 ≈ 794x1123）。
 
@@ -173,7 +173,7 @@ mode 级尺寸预设（T65）：frontmatter `sizes` 清单 = `[{label, canvas}]`
 
 ## resume 协议（续作与超预算收尾）
 
-runState 不落盘。续作现场 = 三重 ground truth：画布产物（实物）+ brief 结论区（决策 / 资产计划 / 生成记录 / 审阅取舍，按设计归组按行）+ 会话历史（未答表单）。续作按下序读现场重建：
+无回合状态落盘。续作现场 = 三重 ground truth：画布产物（实物）+ brief 结论区（决策 / 资产计划 / 生成记录 / 审阅取舍，按设计归组按行）+ 会话历史（未答表单）。续作按下序读现场重建：
 
 1. read_brief——内容区（原始需求）+ AI 结论区 + 关联设计区（条目与墓碑注记）。
 2. describe / look 验画布实物进度——结论区与画布冲突时以画布实物为准，并补记一行勘误进结论区。

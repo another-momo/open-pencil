@@ -13,6 +13,11 @@
  * T49（owner 指令，2026-08-31）：base.md 回归纯转写——frontmatter + 双源头注 +
  * 119 行逐字转写，不承载显式纪律段；构建器相应删去段追加逻辑。
  *
+ * 2026-09-03 泄露清扫：base.md 不再携带双源头注——该注随正文进 agent 上下文，
+ * 满是任务号/规格号/源码路径，属内部概念泄露；构建器相应只落 frontmatter +
+ * 逐字转写。源侧互指注保留（prompts/ 不进上下文）。保真核验的头注断言同步
+ * 反转为「base.md 零头注」防回归。
+ *
  * 运行：bun tools/rebuild/src/build-t46-base.mjs（仓根；幂等——重复运行产出同一份 base.md）
  */
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -22,11 +27,6 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', '..')
 const SRC = join(repoRoot, 'src/app/ai/pi-backend/prompts/system-prompt-base.md')
 const OUT = join(repoRoot, 'src/app/ai/pi-backend/studio/base.md')
-
-const HEADNOTE =
-  '<!-- T46（S4 W1/T-A5）双源声明：本文 = src/app/ai/pi-backend/prompts/system-prompt-base.md 全文转写（119 行，workflow 无关；T47 起由 system-prompt.md 切换至此源；T49 起为纯转写，不承载显式纪律段）。' +
-  '每回合组装接入（W2/W3，S2 §6）前，各 mode 基底仍以 modes.ts 注册路径为准——两文变更须双边同步；接入后源文件退役。' +
-  '同步核验：node tools/rebuild/src/verify/t46-base-fidelity.mjs（剥 frontmatter 与 T46 头注后零 diff 硬卡口）。 -->'
 
 const src = readFileSync(SRC, 'utf8')
 
@@ -42,7 +42,7 @@ const forTranscription = srcNoted.replace(/^(?:<!--[^\n]*-->\n\n?)+/, '')
 
 if (!forTranscription.endsWith('\n')) throw new Error('源文件未以换行收尾，结构假设失效')
 
-const base = `---\nid: base\n---\n\n${HEADNOTE}\n\n${forTranscription}`
+const base = `---\nid: base\n---\n\n${forTranscription}`
 
 writeFileSync(OUT, base, 'utf8')
 if (SRC_NOTE && srcNoted !== src) writeFileSync(SRC, srcNoted, 'utf8')

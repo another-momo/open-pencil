@@ -4,8 +4,12 @@
  * 等式：strip(base.md) === strip(system-prompt-base.md)
  *   strip = 剥 frontmatter（base 侧）→ 全局剥 T46 注释行
  *           → 剥顶部元注释块（源侧 T24 来源注，转写时不入 base.md 正文）
- * 即：除双源头注外，base.md 对 system-prompt-base.md 零偏差（C1 硬卡口）。
- * 另断言：frontmatter id=base、双源头注两文各一。
+ * 即：除源侧头注外，base.md 对 system-prompt-base.md 零偏差（C1 硬卡口）。
+ * 另断言：frontmatter id=base、头注纪律（见下）。
+ *
+ * 2026-09-03 泄露清扫：base.md 不再携带双源头注（该注随正文进 agent 上下文，
+ * 属内部概念泄露），头注断言由「两文各一」反转为「base.md 零头注（防回归）
+ * + 源侧保留互指注」；逐字保真硬卡口不变。
  *
  * T47（owner 指令 #6，2026-08-31）：核验源由 system-prompt.md 切换为
  * system-prompt-base.md（119 行，workflow 无关）。
@@ -55,8 +59,8 @@ function strip(text, isBase) {
 
 check('base.md frontmatter id=base', base.startsWith('---\nid: base\n---\n'))
 check(
-  '双源头注两文各一（base 双源声明 / system-prompt-base 互指）',
-  (base.match(/^<!-- T46（S4 W1\/T-A5）/gm) ?? []).length === 1 &&
+  '头注纪律：base.md 零 T46 头注（泄露清扫防回归——头注进 agent 上下文）/ 源侧保留互指注',
+  (base.match(/^<!-- T46（S4 W1\/T-A5）/gm) ?? []).length === 0 &&
     (src.match(/^<!-- T46（S4 W1\/T-A5）/gm) ?? []).length === 1
 )
 

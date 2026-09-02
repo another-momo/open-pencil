@@ -217,10 +217,20 @@ export function createPiChatService({
       newIntentConfirmed: () => host.newIntentConfirmed()
     }
     const customTools = [
-      ...createOpenPencilTools({ current: () => budget.current }, target, setupDesign, {
-        // T60 事件①：setup_design 桥执行成功（结果含新 root id）→ 移槽
-        onDesignCreated: (rootId) => host.onDesignCreated(rootId, target.documentId)
-      }),
+      ...createOpenPencilTools(
+        { current: () => budget.current },
+        target,
+        setupDesign,
+        {
+          // T60 事件①：setup_design 桥执行成功（结果含新 root id）→ 移槽
+          onDesignCreated: (rootId) => host.onDesignCreated(rootId, target.documentId)
+        },
+        // T81 P-04：vision 前置拒绝闭包——pi Model.input('text' | 'image')
+        // 的 'image' 在场即代表 vision；createSession 已 resolveModel，闭包
+        // 直接读 model.input。无视时延展到"工具跑通也喂不进图像"，先 fail-fast
+        // 省桥 RPC + 工具凭据
+        () => Array.isArray(model.input) && model.input.includes('image')
+      ),
       // T54：generate_image 后端段（生成 HTTP 不经桥、落图经桥；凭证单实例
       // 由 server.ts 注入，与设置路由同视图）
       createImageGenTool({ credentials: imageGenCredentials, target }),

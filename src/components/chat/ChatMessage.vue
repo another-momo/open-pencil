@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { isTextUIPart, isToolUIPart, getToolName } from 'ai'
+import { isFileUIPart, isTextUIPart, isToolUIPart, getToolName } from 'ai'
 import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from 'reka-ui'
 import { Markdown } from 'vue-stream-markdown'
 import { useI18n, vTestId } from '@open-pencil/vue'
@@ -126,6 +126,20 @@ function partKey(part: UIMessagePart<UIDataTypes, UITools>, index: number): stri
   if ('toolCallId' in part) return part.toolCallId
   return `part-${index}`
 }
+
+/** T81 P-01：AI SDK `file` chunk（media-output.ts:48-70 产 base64 data URL）的展示。
+ * 图像直渲；非图像（视频/音频/...）保守回落文件名占位（不再吞）。 */
+type FilePart = Extract<UIMessagePart<UIDataTypes, UITools>, { type: 'file' }>
+
+function filePartAlt(part: FilePart): string {
+  const tail = part.url.split('/').pop() ?? ''
+  const isImage = part.mediaType.startsWith('image/')
+  return isImage ? `AI attachment (${part.mediaType})` : `AI attachment: ${tail || part.mediaType}`
+}
+
+function filePartFilename(part: FilePart): string {
+  return part.url.split('/').pop() || part.mediaType
+}
 </script>
 
 <template>
@@ -249,6 +263,28 @@ function partKey(part: UIMessagePart<UIDataTypes, UITools>, index: number): stri
               :data-chat-markdown-mode="markdownMode"
               class="chat-markdown [&_[data-stream-markdown=code]]:!bg-input"
             />
+          </div>
+          <!-- T81 P-01：AI SDK `file` chunk（media-output.ts:48-70）补位渲染。
+            图像直渲 data URL；非图像（视频/音频）回落文件名占位，不吞。 -->
+          <div
+            v-else-if="isFileUIPart(part)"
+            data-test-id="chat-file-attachment"
+            class="rounded-lg border border-border bg-canvas p-2"
+          >
+            <img
+              v-if="part.mediaType.startsWith('image/')"
+              :src="part.url"
+              :alt="filePartAlt(part)"
+              class="mt-1 max-h-48 rounded border border-border"
+            />
+            <div
+              v-else
+              class="flex items-center gap-2 rounded bg-input px-2 py-1 text-[11px] text-muted"
+            >
+              <icon-lucide-paperclip class="size-3" />
+              <span class="truncate">{{ filePartFilename(part) }}</span>
+              <span class="shrink-0 text-[10px]">{{ part.mediaType }}</span>
+            </div>
           </div>
         </template>
       </template>

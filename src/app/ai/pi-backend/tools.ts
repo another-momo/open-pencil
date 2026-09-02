@@ -27,6 +27,11 @@
  * resolveAutomationTarget 原生支持（target.ts:81），桥代码零改动；不进
  * 工具 schema（不对模型暴露实现细节，与 MCP 侧 schema 显式带参不同）。
  *
+ * T81 P-04：vision 前置拒绝——MODEL.IMAGE 输入模态闭包（service 注入
+ * admin.resolveModel 出来的 pi Model.input.includes('image')），
+ * MEDIA_OUTPUT_TOOLS 工具执行前 fail-fast（不消耗桥 RPC / 工具凭据）。
+ * 错文案不外露到工具 description（与 T66「内部设施不外露」一致）。
+ *
  * 仅运行于独立后端进程（bun 直跑，workspace 包导入可用）；token 只经
  * discovery 文件读取（平台目录 0o700 / 文件 0o600），不打印、不落盘他处。
  */
@@ -185,7 +190,8 @@ function defineBridgeTool(
   budget: StepBudgetSource | undefined,
   target?: ToolTargetSource,
   setupDesign?: SetupDesignContext,
-  setupDesignHooks?: SetupDesignHooks
+  setupDesignHooks?: SetupDesignHooks,
+  modelSupportsVision?: () => boolean
 ) {
   const shape: Record<string, TSchema> = {}
   for (const [key, param] of Object.entries(def.params)) {
@@ -197,6 +203,16 @@ function defineBridgeTool(
     description: def.description,
     parameters: Type.Object(shape),
     async execute(_toolCallId, params): Promise<AgentToolResult<BridgeToolResult>> {
+      // T81 P-04（决策 B）：前置拒绝——登记媒体工具（look 等）的产物会原路回
+      // 灌给模型作为图像内容；若当前模型不含 `image` 模态，工具跑通也是浪费
+      // 凭据/时间，且 pi 没有"按工具结果裁模态"概念（imageContent 强喂）——
+      // 在执行前 fail-fast。错文案不暴露到工具 description（与 T66 一致：
+      // 内部设施不外露给模型 schema），错误只回到当前轮 history 与前端。
+      if (MEDIA_OUTPUT_TOOLS.has(def.name) && modelSupportsVision && !modelSupportsVision()) {
+        throw new Error(
+          `This model does not support image input. The ${def.name} tool requires vision capability.`
+        )
+      }
       // T53（S3 §2）：catalog 投影 + 新建意图确认旗标随桥 args 外层注入
       // （T22 document_id 同缝）——不进 schema；core 侧解析容错（注入缺失/
       // 畸形 → catalog-less 语义 + 未确认拒绝）
@@ -248,7 +264,8 @@ export function createOpenPencilTools(
   budget?: StepBudgetSource,
   target?: ToolTargetSource,
   setupDesign?: SetupDesignContext,
-  setupDesignHooks?: SetupDesignHooks
+  setupDesignHooks?: SetupDesignHooks,
+  modelSupportsVision?: () => boolean
 ) {
   const toolSet = [
     ...CORE_TOOLS,
@@ -259,5 +276,7 @@ export function createOpenPencilTools(
     // （generate_image 本体由 service 后端段另行装配，不在此面）。
     ...FORK_TOOLS.filter((def) => !def.internal)
   ]
-  return toolSet.map((def) => defineBridgeTool(def, budget, target, setupDesign, setupDesignHooks))
+  return toolSet.map((def) =>
+    defineBridgeTool(def, budget, target, setupDesign, setupDesignHooks, modelSupportsVision)
+  )
 }

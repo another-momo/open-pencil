@@ -22,6 +22,8 @@ import {
   imageGenTimeoutMs
 } from '@/app/ai/pi-backend/image-gen/provider'
 
+import { mockFetch } from './_mock-fetch'
+
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
 
 const CREDENTIALS = {
@@ -29,33 +31,6 @@ const CREDENTIALS = {
   baseUrl: 'https://api.example.com/v1',
   model: 'gpt-image-1',
   apiKey: 'sk-test-image-key'
-}
-
-interface CapturedCall {
-  url: string
-  method?: string
-  headers: HeadersInit | undefined
-  body: BodyInit | null | undefined
-  signal: AbortSignal | null | undefined
-}
-
-function mockFetch(payload: unknown, status = 200) {
-  const calls: CapturedCall[] = []
-  const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    calls.push({
-      url: String(input),
-      method: init?.method,
-      headers: init?.headers,
-      body: init?.body ?? null,
-      signal: init?.signal ?? null
-    })
-    const body = typeof payload === 'string' ? payload : JSON.stringify(payload)
-    return new Response(body, {
-      status,
-      headers: { 'content-type': typeof payload === 'string' ? 'text/plain' : 'application/json' }
-    })
-  }
-  return { calls, fetchImpl: fetchImpl as typeof fetch }
 }
 
 const B64_RESPONSE = { data: [{ b64_json: Buffer.from(PNG_BYTES).toString('base64') }] }

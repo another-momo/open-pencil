@@ -129,6 +129,24 @@ createProviderFor 双向分派钉扎。
 5. T66 P3 旧注释块删除时其一并移除的「风险在案」段落（按 providerType
    分派的预案）已过时——本任务的 factory.ts 即该预案的落地形态，头注
    新注记已含等价信息。
+6. **CI 反向发现：test:type-shapes duplicate CapturedCall**（fast-worker
+   - 主 agent 本地七门禁均未捕获——`bun run test:type-shapes` 不在
+     七门禁 unpiped 清单内，属 Code quality job 第 8 步「Enforce
+     architecture and type-shape boundaries」独占）。原因：
+     provider-seedream.test.ts 的 mockFetch + CapturedCall 与
+     provider.test.ts 字面完全一致。
+     修复：抽共享夹具到 `tests/engine/rebuild/image-gen/_mock-fetch.ts`，
+     两测试改 import；修复后 `bun run test:type-shapes` →
+     「No duplicate object type shapes found」、image-gen 套件仍
+     104 pass/0 fail/318 expect/12 文件。
+7. **CI 反向发现：check:tasks 读 HEAD message 而非 staged message**——
+   主 agent 收口时因 a4c380e29（T75 编号修正 commit）HEAD 不含
+   `task:` 指针触发大改动无指针违规。修复：amend 该 HEAD 为
+   `task: T75-plan 编号指针修正……`（语义正确——该 commit 修正的是
+   T75-plan 编号），T77 commit（549754dea）随后自然通过 check:tasks。
+   此为 check:tasks 已知设计（`getCommitMessage` 读 `git log -1
+--format=%B`）的链式后果——若 owner 想根治，可让该 hook 读 staged
+   message 或允许 owner-tag 豁免。
 
 ## 4. 边界守护（T77-plan §4）
 

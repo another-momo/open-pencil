@@ -612,7 +612,11 @@ export class FontManager {
     if (this.cjkFallbackFamilies.length > 0) return this.cjkFallbackFamilies
     if (this.cjkFallbackPromise) return this.cjkFallbackPromise
 
-    this.cjkFallbackPromise = this.ensureFallbackFamilies('cjk', this.cjkFallbackFamilies)
+    this.cjkFallbackPromise = (async () => {
+      // T84：bundled PuHuiTi 前插 CJK 回退链，离线/无系统字体权限时仍能命中中文字形
+      await this.prependBundledCJK(this.cjkFallbackFamilies)
+      return this.ensureFallbackFamilies('cjk', this.cjkFallbackFamilies)
+    })()
     return this.cjkFallbackPromise
   }
 
@@ -646,6 +650,8 @@ export class FontManager {
         else {
           const target =
             script === 'arabic' ? this.arabicFallbackFamilies : this.cjkFallbackFamilies
+          // T84：cjk 带 characters 直调路径同走 bundled 前插（复用 prependBundledCJK）
+          if (script === 'cjk') await this.prependBundledCJK(target)
           result[script] = await this.ensureFallbackFamilies(script, target, characters)
         }
       })
@@ -660,6 +666,20 @@ export class FontManager {
   setArabicFallbackFamily(family: string): void {
     if (!this.arabicFallbackFamilies.includes(family)) {
       this.arabicFallbackFamilies.push(family)
+    }
+  }
+
+  /**
+   * bundled PuHuiTi 前插 CJK 回退链（T84）：断网/无系统字体权限场景下仍能让
+   * CJK 字符命中字形；幂等，loadFont 失败时不抛（降级到原有本地/远端链）。
+   */
+  private async prependBundledCJK(targetFamilies: string[]): Promise<void> {
+    const family = 'Alibaba PuHuiTi'
+    if (!this.allowlist.isEnabled(family)) return
+    if (targetFamilies.includes(family)) return
+    const buffer = await this.loadFont(family, 'Regular')
+    if (buffer && !targetFamilies.includes(family)) {
+      targetFamilies.unshift(family)
     }
   }
 

@@ -56,6 +56,7 @@
     "tests/engine/text/fonts/variable-fonts.test.ts",
     "packages/core/src/text/font/cn-catalog.ts",
     "tests/engine/text/fonts/cn-catalog.test.ts",
+    "tests/engine/text/fonts/cjk-fallback.test.ts",
     "packages/kiwi/src/schema-runtime/interpreter.ts",
     "packages/kiwi/NOTICE",
     "packages/core/src/bytes/image-mime.ts",

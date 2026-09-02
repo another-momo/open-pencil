@@ -135,10 +135,16 @@ createProviderFor 双向分派钉扎。
      architecture and type-shape boundaries」独占）。原因：
      provider-seedream.test.ts 的 mockFetch + CapturedCall 与
      provider.test.ts 字面完全一致。
-     修复：抽共享夹具到 `tests/engine/rebuild/image-gen/_mock-fetch.ts`，
+     修复（v1）：抽共享夹具到 `tests/engine/rebuild/image-gen/_mock-fetch.ts`，
      两测试改 import；修复后 `bun run test:type-shapes` →
      「No duplicate object type shapes found」、image-gen 套件仍
      104 pass/0 fail/318 expect/12 文件。
+     修复（v2）：run 33606578193 又红——check:arch 规则
+     `strict-test-file-placement`：tests/engine/\*_ 下只允许 _.test.ts /
+     helpers.ts / \*.bench.ts / domain 视觉脚本，`_mock-fetch.ts` 不在
+     白名单。`git mv` → `helpers.ts`（白名单内）；两测试 import 改
+     `./helpers`；修复后 `bun run check:arch` → ✔ No problems found、
+     type-shapes 仍 clean、image-gen 套件仍 104/0/318/12。
 7. **CI 反向发现：check:tasks 读 HEAD message 而非 staged message**——
    主 agent 收口时因 a4c380e29（T75 编号修正 commit）HEAD 不含
    `task:` 指针触发大改动无指针违规。修复：amend 该 HEAD 为

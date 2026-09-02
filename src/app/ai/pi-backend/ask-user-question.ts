@@ -22,7 +22,7 @@ import {
 } from '@open-pencil/core/tools/fork/marketing/ask-user-question'
 
 const ASK_USER_QUESTION_DESCRIPTION =
-  'Present an in-chat form with questions for the user, then END the current turn. The frontend renders a form card (single_select option cards, image_select canvas-node thumbnails, text inputs) and always offers a free-text skip escape hatch. Returns {formId, status:"awaiting_user", questions}: the run TERMINATES with this call — do not call further tools and do not write any more text after it. The user\'s answers (or skip) arrive as the NEXT user message: first line "[表单作答 formId=…]" + JSON line {"aborted":false,"answers":{"<questionId>":value}} for answers, or "[表单跳过 formId=…]" + {"aborted":true,"freeText":"…"} for a skip; continue from that message. Rules: 1-8 questions; ids unique and non-empty; labels non-empty; single_select needs options (2-12 items, each {id,label,hint?}) and must not carry imageOptions; image_select needs imageOptions (1-12 items, each {nodeId,label?} referencing canvas nodes) and must not carry options; text carries neither; required defaults to true — set false for optional questions. Batch everything you need to ask into ONE call.'
+  'Present an in-chat form with questions for the user, then END the current turn. The frontend renders a form card (single_select option cards, image_select canvas-node thumbnails, text inputs) and always offers a free-text skip escape hatch. Returns {formId, status:"awaiting_user", questions}: the run TERMINATES with this call — do not call further tools and do not write any more text after it. The user\'s answers will arrive as the next user message. Rules: 1-8 questions; ids unique and non-empty; labels non-empty; single_select needs options (2-12 items, each {id,label,hint?}) and must not carry imageOptions; image_select needs imageOptions (1-12 items, each {nodeId,label?} referencing canvas nodes) and must not carry options; text carries neither; required defaults to true — set false for optional questions. Batch everything you need to ask into ONE call.'
 
 /** awaiting 信封 details 形状（mapping.ts tool-output-available 骑 details 到前端）；
  * type 别名（非 interface）以获得隐式索引签名，免类型断言 */
@@ -44,7 +44,7 @@ const QUESTION_SCHEMA = Type.Object({
     Type.Literal('image_select'),
     Type.Literal('text')
   ]),
-  label: Type.String({ description: 'Question text shown to the user' }),
+  label: Type.String({ description: 'Question text shown to the user', maxLength: 2000 }),
   options: Type.Optional(
     Type.Array(
       Type.Object({
@@ -94,11 +94,12 @@ export function createAskUserQuestionTool(deps: AskUserQuestionToolDeps = {}) {
         status: 'awaiting_user',
         questions: validated.questions
       }
-      // 软终止指令（zh-cn，模型向）：回合到此结束，答案经下一条用户消息物化
+      // Soft-stop instructions (English, model-facing): turn ends here, answers
+      // are materialized via the next user message.
       const text = [
-        `表单已渲染给用户（formId=${formId}，共 ${details.questions.length} 题）。`,
-        '你的本轮回合到此结束：不要再调用任何工具，也不要再输出文本，直接结束当前回复。',
-        '用户作答或跳过后会以一条新的用户消息返回（首行 [表单作答 formId=…] 或 [表单跳过 formId=…]，次行 JSON），届时再依据其内容继续。'
+        `Form rendered to the user (formId=${formId}, ${details.questions.length} question${details.questions.length === 1 ? '' : 's'}).`,
+        'Turn ends here: do not call any more tools and do not write any more text — end this reply immediately.',
+        "The user's answer (or skip) will arrive as the next user message; resume from that content."
       ].join('\n')
       return {
         content: [{ type: 'text', text }],

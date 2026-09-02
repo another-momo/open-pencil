@@ -46,7 +46,8 @@ export type AskValidation = { questions: AskQuestionSpec[] } | { error: string; 
 export const ASK_QUESTION_LIMITS = {
   questions: { min: 1, max: 8 },
   options: { min: 2, max: 12 },
-  imageOptions: { min: 1, max: 12 }
+  imageOptions: { min: 1, max: 12 },
+  labelMaxLength: 2000
 } as const
 
 function fail(error: string, message: string): { error: string; message: string } {
@@ -151,6 +152,12 @@ function validateQuestion(
 
   const label = nonEmptyString(item.label)
   if (!label) return fail('question_label', `question "${id}" needs a non-empty label`)
+  if (label.length > ASK_QUESTION_LIMITS.labelMaxLength) {
+    return fail(
+      'question_label_too_long',
+      `question "${id}" label exceeds ${ASK_QUESTION_LIMITS.labelMaxLength} chars (got ${label.length})`
+    )
+  }
 
   const kind = item.kind
   if (kind !== 'single_select' && kind !== 'image_select' && kind !== 'text') {

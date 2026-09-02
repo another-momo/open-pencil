@@ -75,7 +75,12 @@ describe('MCP runtime service', () => {
   })
 
   test('reports startup failure and cleans up the spawned server', async () => {
-    const { calls, service } = setup({ readHealth: async () => null })
+    // T74：startOperation 现在有退避重试（MCP_STARTUP_RETRY_DELAYS_MS）；注入零延迟
+    // sleep 保持本用例瞬时完成，只钉失败收口语义（error 状态 + server 清理一次）。
+    const { calls, service } = setup({
+      readHealth: async () => null,
+      sleep: async () => undefined
+    })
 
     const result = await service.start(getStore)
 

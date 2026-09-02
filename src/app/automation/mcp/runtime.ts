@@ -33,7 +33,17 @@ export interface MCPRuntimeDependencies {
   readHealth: (authToken?: string | null) => Promise<AutomationHealth | null>
   setToolDescriptors: (tools: NonNullable<AutomationHealth['tools']>) => void
   spawn: () => Promise<AutomationServerHandle | null>
+  /** T74：测试注入点——缺省 setTimeout 真等；注入 fake 让重试间隔零延迟 */
+  sleep?: (ms: number) => Promise<void>
 }
+
+/**
+ * T74：dev 启动时序 race 的退避重试序列（vite configureServer 的 startChild
+ * 异步 spawn 桥子进程；WorkspaceView.onMounted 起跑 startMCPRuntime 时桥可能
+ * 还没 listen → configureDevMCP / pollHealth 失败 → 无重试则编辑器永不
+ * connectAutomation，桥永远 no_app。总窗口 ≤7.7s 覆盖典型 spawn 时间）。
+ */
+export const MCP_STARTUP_RETRY_DELAYS_MS = [200, 500, 1000, 2000, 4000] as const
 
 function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error))
@@ -109,26 +119,42 @@ export function createMCPRuntimeService(dependencies: MCPRuntimeDependencies) {
     state.status = 'starting'
     state.error = null
     state.externallyManaged = false
-    try {
-      server = await dependencies.spawn()
-      const health = await dependencies.readHealth(server?.authToken)
-      if (!health) throw new Error('MCP server did not become healthy')
-      state.externallyManaged = server?.managed === false
-      if (activeStore && dependencies.canConnect()) {
-        disconnectAutomation = dependencies.connect(activeStore, server?.authToken ?? null)
+    const sleep =
+      dependencies.sleep ??
+      ((ms: number) =>
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, ms)
+        }))
+    let lastError: Error | null = null
+    // T74：启动时序 race——vite spawn 桥是异步的，WorkspaceView.onMounted 起跑
+    // startMCPRuntime 时桥可能还没 listen。N 次退避重试，覆盖典型 spawn 窗口。
+    for (let attempt = 0; attempt <= MCP_STARTUP_RETRY_DELAYS_MS.length; attempt++) {
+      try {
+        server = await dependencies.spawn()
+        const health = await dependencies.readHealth(server?.authToken)
+        if (!health) throw new Error('MCP server did not become healthy')
+        state.externallyManaged = server?.managed === false
+        if (activeStore && dependencies.canConnect()) {
+          disconnectAutomation = dependencies.connect(activeStore, server?.authToken ?? null)
+        }
+        applyHealth(health)
+        return { ok: true }
+      } catch (error) {
+        lastError = toError(error)
+        state.error = lastError.message
+        if (attempt < MCP_STARTUP_RETRY_DELAYS_MS.length) {
+          await sleep(MCP_STARTUP_RETRY_DELAYS_MS[attempt])
+        }
       }
-      applyHealth(health)
-      return { ok: true }
-    } catch (error) {
-      const runtimeError = toError(error)
-      const disconnectError = await disconnectCurrentServer()
-      state.status = 'error'
-      state.error = disconnectError
-        ? `${runtimeError.message}. Cleanup failed: ${disconnectError.message}`
-        : runtimeError.message
-      console.warn('[MCP]', runtimeError)
-      return { ok: false, error: runtimeError }
     }
+    const runtimeError = lastError ?? new Error('MCP server did not become healthy')
+    const disconnectError = await disconnectCurrentServer()
+    state.status = 'error'
+    state.error = disconnectError
+      ? `${runtimeError.message}. Cleanup failed: ${disconnectError.message}`
+      : runtimeError.message
+    console.warn('[MCP]', runtimeError)
+    return { ok: false, error: runtimeError }
   }
 
   async function stopOperation(releaseStore: boolean): Promise<MCPRuntimeResult> {

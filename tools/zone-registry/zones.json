@@ -750,6 +750,22 @@
       "disposition": "permanent",
       "lastReviewed": "2026-09-01",
       "task": "T72"
+    },
+    {
+      "id": "P141",
+      "file": "src/app/automation/mcp/runtime.ts",
+      "reason": "T74（2026-09-02）：dev 启动时序 race 修复——vite configureServer 异步 spawn 桥子进程，WorkspaceView.onMounted 起跑 startMCPRuntime 时桥可能还没 listen，单次尝试失败即弃连 → 桥永远 no_app（Playwright 实证，见 T74-plan §1）。startOperation 改为退避重试（MCP_STARTUP_RETRY_DELAYS_MS，总窗口 ≤7.7s），sleep 注入点供 tests/engine/rebuild/mcp/runtime-startup-race.test.ts 零延迟钉扎",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-02",
+      "task": "T74"
+    },
+    {
+      "id": "P142",
+      "file": "tests/engine/app/automation/mcp-runtime.test.ts",
+      "reason": "T74 伴随（2026-09-02）：startOperation 增退避重试后，「reports startup failure and cleans up the spawned server」用例注入零延迟 sleep 保持瞬时（否则真等 7.7s 超 bun 5s 超时）；收口语义断言不变",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-02",
+      "task": "T74"
     }
   ],
   "deletedPaths": [

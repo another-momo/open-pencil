@@ -24,7 +24,7 @@ import { loadStudioFromDirs } from '@/app/ai/pi-backend/studio'
 
 const BUILTIN_DIR = join(import.meta.dir, '../../../../src/app/ai/pi-backend/studio')
 
-test('内置资产集过校验面：failures 零、base 注册（免 label）、双 workflow 注册（longform 画布尺寸节非空；editable-design references 全解析）、四 profile 注册、modes=[general, editable-design, longform]', () => {
+test('内置资产集过校验面：failures 零、base 注册（免 label）、三 workflow 注册（longform 画布尺寸节非空；editable-design/full references 全解析）、四 profile 注册、modes=[general, editable-design, editable-design-full, longform]', () => {
   const userDir = mkdtempSync(join(tmpdir(), 'studio-user-empty-'))
   try {
     const r = loadStudioFromDirs(BUILTIN_DIR, userDir)
@@ -52,8 +52,8 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
     expect(r.modes.find((m) => m.id === 'longform')?.sizes).toEqual(longform.sizes)
 
     // T85：editable-design 注册（定画布海报 mode）+ 4 条 references 声明全解析；
-    // 扫描器不吞 references 子目录——workflows 恰好 2 个（references/*.md 未误注册）
-    expect(r.workflows.size).toBe(2)
+    // 扫描器不吞 references 子目录——workflows 恰好 3 个（references/*.md 未误注册）
+    expect(r.workflows.size).toBe(3)
     const editable = r.workflows.get('editable-design')
     if (!editable) throw new Error('editable-design 未注册')
     expect(editable.stepBudget).toBe(50)
@@ -74,6 +74,25 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
     }
     expect(r.modes.find((m) => m.id === 'editable-design')?.sizes).toEqual(editable.sizes)
 
+    // T86：editable-design-full 注册（高保真移植版，与改写版并存对比）——同尺寸预设、
+    // 独立 references 目录 4 条全解析（解析基 workflows/<id>/references/）
+    const editableFull = r.workflows.get('editable-design-full')
+    if (!editableFull) throw new Error('editable-design-full 未注册')
+    expect(editableFull.stepBudget).toBe(50)
+    expect(editableFull.sizes).toEqual(editable.sizes)
+    expect(editableFull.references?.map((ref) => ref.path)).toEqual([
+      'references/asset-architecture.md',
+      'references/imagery.md',
+      'references/layout-typography.md',
+      'references/font-system.md'
+    ])
+    const fullBucket = r.resolvedReferences.get('workflow:editable-design-full')
+    expect(fullBucket?.size).toBe(4)
+    for (const abs of fullBucket?.values() ?? []) {
+      expect(abs).toContain(join('workflows', 'editable-design-full', 'references'))
+    }
+    expect(r.modes.find((m) => m.id === 'editable-design-full')?.sizes).toEqual(editableFull.sizes)
+
     // profiles：恰好四份精品（T48 补迁 watercolor_poster_v2），applicable_to 均指向 longform
     expect([...r.profiles.keys()].sort()).toEqual([
       'editorial_poster_v1',
@@ -85,10 +104,17 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
       expect(p.applicableTo).toEqual(['longform'])
     }
 
-    // modes 投影：general 恒在 + 双 workflow 派生（文件名序 editable-design < longform）
-    expect(r.modes.map((m) => m.id)).toEqual(['general', 'editable-design', 'longform'])
+    // modes 投影：general 恒在 + 三 workflow 派生（文件名序：'-'(0x2D) < '.'(0x2E)，
+    // 故 editable-design-full.md 排在 editable-design.md 前）
+    expect(r.modes.map((m) => m.id)).toEqual([
+      'general',
+      'editable-design-full',
+      'editable-design',
+      'longform'
+    ])
     expect(r.modes[1].source).toBe('workflow')
     expect(r.modes[2].source).toBe('workflow')
+    expect(r.modes[3].source).toBe('workflow')
   } finally {
     rmSync(userDir, { recursive: true, force: true })
   }

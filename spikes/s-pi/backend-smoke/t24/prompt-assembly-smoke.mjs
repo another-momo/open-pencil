@@ -234,13 +234,14 @@ try {
   const manifestRes = await fetch(`${BASE}/api/pi/studio/manifest`, { headers: authHeaders(token) })
   const manifest = await manifestRes.json()
   check(
-    '路由 manifest：modes = general + editable-design + longform（T62：无 types 数据面；T85：editable-design mode 落位，字典序在 longform 前）',
+    "路由 manifest：modes = general + editable-design-full + editable-design + longform（T62：无 types 数据面；T85/T86：双海报 mode——文件名序 '-' < '.'，editable-design-full 在前）",
     manifestRes.ok &&
       Array.isArray(manifest.modes) &&
-      manifest.modes.length === 3 &&
+      manifest.modes.length === 4 &&
       manifest.modes[0]?.id === 'general' &&
-      manifest.modes[1]?.id === 'editable-design' &&
-      manifest.modes[2]?.id === 'longform' &&
+      manifest.modes[1]?.id === 'editable-design-full' &&
+      manifest.modes[2]?.id === 'editable-design' &&
+      manifest.modes[3]?.id === 'longform' &&
       manifest.modes.every((m) => !('types' in m)),
     JSON.stringify(manifest).slice(0, 160)
   )

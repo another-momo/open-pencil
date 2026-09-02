@@ -81,7 +81,9 @@ const missingRequired = computed(() =>
 
 function handleSubmit() {
   if (isLocked.value || !formId.value) return
-  if (missingRequired.value.length > 0) {
+  const trimmedFreeText = freeText.value.trim()
+  // 第四种作答（T83，S3 §6）：freeText 非空即一等答案，必填校验豁免
+  if (!trimmedFreeText && missingRequired.value.length > 0) {
     showRequiredHint.value = true
     return
   }
@@ -91,6 +93,10 @@ function handleSubmit() {
     if (value) answers[question.id] = value
   }
   submittedKind.value = 'answer'
+  if (trimmedFreeText) {
+    emit('submit', { formId: formId.value, aborted: false, answers, freeText: trimmedFreeText })
+    return
+  }
   emit('submit', { formId: formId.value, aborted: false, answers })
 }
 
@@ -261,7 +267,7 @@ onBeforeUnmount(() => {
         {{ askDialogs.askRequiredHint }}
       </div>
 
-      <!-- 逃生口：自由文本 + 跳过（必带，S3 §6） -->
+      <!-- 自由文本：第四种作答（随提交回传，豁免必填）+ 跳过理由（必带，S3 §6 / T83） -->
       <textarea
         v-model="freeText"
         rows="2"

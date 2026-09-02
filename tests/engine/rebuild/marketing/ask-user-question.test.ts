@@ -328,6 +328,33 @@ describe('答案信封 serializeAskAnswer/parseAskAnswer round-trip', () => {
     })
   })
 
+  test('第四种作答（T83）：作答信封带 freeText 键，解析还原 answers + freeText', () => {
+    const text = serializeAskAnswer('form-abc-000000', {
+      aborted: false,
+      answers: { q1: 'a' },
+      freeText: '我想要更大胆的配色'
+    })
+    expect(text.startsWith('[表单作答 formId=form-abc-000000]\n')).toBe(true)
+    expect(parseAskAnswer(text)).toEqual({
+      formId: 'form-abc-000000',
+      aborted: false,
+      answers: { q1: 'a' },
+      freeText: '我想要更大胆的配色'
+    })
+  })
+
+  test('第四种作答（T83）：无 freeText 键不留键；空白 freeText 丢弃', () => {
+    const noFreeText = parseAskAnswer('[表单作答 formId=x]\n{"aborted":false,"answers":{"a":"1"}}')
+    expect(noFreeText).toEqual({ formId: 'x', aborted: false, answers: { a: '1' } })
+    expect(noFreeText && 'freeText' in noFreeText).toBe(false)
+
+    const blank = parseAskAnswer(
+      '[表单作答 formId=x]\n{"aborted":false,"answers":{"a":"1"},"freeText":"  "}'
+    )
+    expect(blank).toEqual({ formId: 'x', aborted: false, answers: { a: '1' } })
+    expect(blank && 'freeText' in blank).toBe(false)
+  })
+
   test('容错：坏 JSON / 缺标记行 / 单行文本 → null', () => {
     expect(parseAskAnswer('[表单作答 formId=x]\n{not json')).toBeNull()
     expect(parseAskAnswer('普通用户消息\n{"aborted":false,"answers":{}}')).toBeNull()

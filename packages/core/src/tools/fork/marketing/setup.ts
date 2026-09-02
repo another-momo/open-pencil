@@ -46,10 +46,9 @@ import {
   bindBriefToDesign,
   findBrief,
   registerBriefDesignEntry,
-  setBriefBindingLabel,
   type BriefCandidate
 } from './brief'
-import { BRIEF_TEXTS, SETUP_TEXTS } from './texts'
+import { SETUP_TEXTS } from './texts'
 
 /** 设计根 role 标记值（单源；image-gen/history.ts 的同名本地常量集成时改 import） */
 export const MARKETING_ROLE_ROOT = 'marketing-root'
@@ -337,14 +336,9 @@ export function setupDesign(
   setDesignMarker(graph, root.id, DESIGN_BRIEF_KEY, brief.id)
   setDesignMarker(graph, root.id, BRIEF_SCHEMA_VERSION_KEY, BRIEF_SCHEMA_VERSION)
 
-  // brief 关联：bound-designs 指针 + 可见绑定行 + 关联设计区条目
+  // brief 关联：bound-designs 指针 + 关联设计区条目
   // （登记在身份落盘之后——条目/读侧投影读穿三元组）
   bindBriefToDesign(figma, brief.id, root.id)
-  setBriefBindingLabel(
-    figma,
-    brief.id,
-    `${BRIEF_TEXTS.bindingPrefix}${name} · ${figma.currentPage.name}`
-  )
   registerBriefDesignEntry(figma, brief.id, root.id)
 
   const proxy = figma.getNodeById(root.id)

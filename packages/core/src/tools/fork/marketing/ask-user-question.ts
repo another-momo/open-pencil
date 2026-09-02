@@ -12,8 +12,9 @@
  *    （测试确定性）。
  *  - 答案信封序列化/解析（serializeAskAnswer/parseAskAnswer）：用户消息文本
  *    首行 `[表单作答 formId=…]` / `[表单跳过 formId=…]` + 次行 JSON
- *    （{"aborted":false,"answers":{…}} / {"aborted":true,"freeText":"…"}），
- *    解析容错——坏 JSON/缺标记行/类型不符 → null。
+ *    （{"aborted":false,"answers":{…},"freeText"?:"…"} / {"aborted":true,"freeText":"…"}），
+ *    解析容错——坏 JSON/缺标记行/类型不符 → null。作答分支的 freeText = 第四种
+ *    作答（用户原话，一等答案内容；T83 升格，S3 §6），跳过分支的 freeText = 跳过理由。
  *
  * 纯函数、零 figma/pi 依赖——bun 直接可测。
  */
@@ -240,7 +241,7 @@ const ANSWER_MARKER = /^\[表单作答 formId=([^\]\s]+)\]\s*$/
 const SKIP_MARKER = /^\[表单跳过 formId=([^\]\s]+)\]\s*$/
 
 export type AskAnswerPayload =
-  | { aborted: false; answers: Record<string, string> }
+  | { aborted: false; answers: Record<string, string>; freeText?: string }
   | { aborted: true; freeText: string }
 
 /** 前端提交路径用的完整载荷（formId + 判别联合） */
@@ -289,5 +290,10 @@ export function parseAskAnswer(text: string): ParsedAskAnswer | null {
       if (typeof value === 'string') answers[key] = value
     }
   }
-  return { formId, aborted: false, answers }
+  const parsed: ParsedAskAnswer = { formId, aborted: false, answers }
+  // 第四种作答（T83）：freeText 非空白才物化——不留空键，round-trip 钉扎保持绿
+  if (typeof payload.freeText === 'string' && payload.freeText.trim() !== '') {
+    parsed.freeText = payload.freeText
+  }
+  return parsed
 }

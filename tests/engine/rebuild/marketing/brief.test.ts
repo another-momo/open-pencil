@@ -52,7 +52,6 @@ import {
   isBrief,
   listBriefs,
   registerBriefDesignEntry,
-  setBriefBindingLabel,
   syncBriefDesignEntries,
   type BriefZoneId
 } from '#core/tools/fork/marketing/brief'
@@ -63,20 +62,6 @@ import { expectDefined } from '#tests/helpers/assert'
 import { setupToolTest } from '#tests/helpers/tools'
 
 type TestGraph = ReturnType<typeof setupToolTest>['graph']
-
-function walkTexts(graph: TestGraph, rootId: string): { id: string; text: string }[] {
-  const out: { id: string; text: string }[] = []
-  const stack = [rootId]
-  while (stack.length > 0) {
-    const id = stack.pop()
-    if (id === undefined) break
-    const node = graph.getNode(id)
-    if (!node) continue
-    if (node.type === 'TEXT') out.push({ id, text: node.text })
-    stack.push(...node.childIds)
-  }
-  return out
-}
 
 /** 剥掉节点上的 zone 标记（模拟旧档：只有中文显示名，无 pluginData 标记） */
 function stripZoneMarker(graph: TestGraph, nodeId: string): void {
@@ -263,7 +248,7 @@ test('brief 布局几何不塌缩（computeAllLayouts 后尺寸合理）', () =>
   expect(aiCard.height).toBe(fresh.height - 72)
 })
 
-test('bindBriefToDesign 走通用 upsert：幂等追加 + Binding 行重写', () => {
+test('bindBriefToDesign 走通用 upsert：幂等追加', () => {
   const { graph, figma } = setupToolTest()
   const brief = createBrief(figma)
 
@@ -276,12 +261,6 @@ test('bindBriefToDesign 走通用 upsert：幂等追加 + Binding 行重写', ()
   expect(getSharedPluginData(fresh, BRIEF_PLUGIN_NAMESPACE, BRIEF_BINDING_KEY)).toBe(
     'design-a,design-b'
   )
-
-  setBriefBindingLabel(figma, brief.id, `${BRIEF_TEXTS.bindingPrefix}产品长图 · Page 1`)
-  const texts = walkTexts(graph, brief.id)
-  expect(texts.some((t) => t.text === `${BRIEF_TEXTS.bindingPrefix}产品长图 · Page 1`)).toBe(true)
-  // 初始未绑定文案已被覆盖
-  expect(texts.some((t) => t.text === BRIEF_TEXTS.bindingUnbound)).toBe(false)
 })
 
 test('appendToBriefAIZone：无归属平铺 + 按设计归组（组标记 designId），保序', () => {

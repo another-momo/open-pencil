@@ -8,10 +8,6 @@ export const BRIEF_TEXTS = {
   /** brief 根 frame 显示名 */
   briefName: '需求单',
   subtitle: '填好后对 AI 说：按需求单做一张朋友圈广告',
-  /** 头部绑定行初始文案（未绑定态） */
-  bindingUnbound: '关联：（未绑定）',
-  /** 头部绑定行前缀，绑定后为 `关联：<设计名> · <页名>` */
-  bindingPrefix: '关联：',
 
   contentZoneName: '内容区',
   contentZoneBadge: '支持长文本 · 双击替换示例',

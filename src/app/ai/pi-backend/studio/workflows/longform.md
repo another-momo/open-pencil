@@ -87,9 +87,9 @@ hero-first 五阶段执行序（S1 §3）：**阶段 0 需求接入 → 阶段 1
 
 载体 = ask_user_question，一次调用批量提全部问题（1..8 题），形状：`{ questions: [{ id, kind, label, options?, imageOptions?, required? }] }`——kind ∈ single_select | image_select | text；single_select 带 options（2..12 条，`{id, label, hint?}`）且不带 imageOptions；image_select 带 imageOptions（1..12 条，`{nodeId, label?}`，引用画布节点）且不带 options；text 两者均不带；required 缺省 true（可选题显式传 false）。id 全表单唯一、label 非空；校验失败返回 {error}，改正后重发，不抛异常。
 
-运行语义 = run 终止续跑：工具结果恒为 `{formId, status:'awaiting_user', questions}`——拿到该结果即结束本回合，不再调任何工具、不再输出文本。作答或跳过经下一条用户消息物化：作答首行 `[表单作答 formId=…]` + JSON 行 `{"aborted":false,"answers":{"<questionId>":value}}`；跳过首行 `[表单跳过 formId=…]` + `{"aborted":true,"freeText":"…"}`。跳过 = 用户用自由文本表达意图，按内容续跑，不重发同一表单。
+运行语义 = run 终止续跑：工具结果恒为 `{formId, status:'awaiting_user', questions}`——拿到该结果即结束本回合，不再调任何工具、不再输出文本。作答或跳过经下一条用户消息物化：作答首行 `[表单作答 formId=…]` + JSON 行 `{"aborted":false,"answers":{"<questionId>":value},"freeText"?:"…"}`（可选 freeText = 用户原话，一等答案内容，按内容采纳）；跳过首行 `[表单跳过 formId=…]` + `{"aborted":true,"freeText":"…"}`。跳过 = 用户用自由文本表达意图，按内容续跑，不重发同一表单。
 
-逃生口：前端恒带「其他/补充」自由文本跳过通道；方向类 single_select 选项集末位固定放一项「都不合适（我补充说明）」。
+自由文本双角色（T83，S3 §6）：前端恒带自由文本输入——既是第四种作答（随作答信封 freeText 键回传，非空时豁免必填校验），也是跳过理由；方向类 single_select 选项集末位固定放一项「都不合适（我补充说明）」。
 
 表单内不提供 mode 切换入口（保持表单 mode 纯净）。四张表实例：
 

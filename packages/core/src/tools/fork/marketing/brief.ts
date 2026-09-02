@@ -70,8 +70,6 @@ export const BRIEF_CONCLUSION_GROUP_DESIGN_KEY = 'designId'
 // ── 结构性节点名（寻址用，非展示文案）───────────────────────────────────────
 
 export const BRIEF_NAME = BRIEF_TEXTS.briefName
-/** Visible binding line inside the brief header (display projection of BRIEF_BINDING_KEY) */
-export const BRIEF_BINDING_LABEL_NAME = 'Binding'
 export const BRIEF_ENTRY_NAME = '素材条目'
 export const BRIEF_CONCLUSIONS_NAME = '结论列表'
 export const BRIEF_CONCLUSION_GROUP_NAME = '结论组'
@@ -491,11 +489,6 @@ export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
     color: SUB_COLOR,
     wrap: true
   })
-  // Visible binding line — tools rewrite it once the brief is bound to a design
-  createText(figma, header.id, BRIEF_BINDING_LABEL_NAME, BRIEF_TEXTS.bindingUnbound, {
-    fontSize: 22,
-    color: SUB_COLOR
-  })
 
   // ── 内容区 ──
   const contentCard = createCard(figma, main.id, BRIEF_ZONE_CONTENT_NAME, {
@@ -631,33 +624,6 @@ export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
   })
 
   return brief
-}
-
-/**
- * Write the visible binding line in the brief header (created lazily for
- * legacy briefs). Display projection of the binding marker — tools rewrite
- * it on every bind, so user edits self-heal on the next operation.
- */
-export function setBriefBindingLabel(figma: FigmaAPI, briefId: string, text: string): void {
-  const graph = figma.graph
-  const brief = graph.getNode(briefId)
-  if (!isBrief(brief)) return
-  const mainId = brief.childIds.find((id) => graph.getNode(id)?.name === BRIEF_MAIN_NAME)
-  const headerId = mainId
-    ? graph.getNode(mainId)?.childIds.find((id) => graph.getNode(id)?.name === 'Header')
-    : undefined
-  if (!headerId) return
-  const labelId = graph
-    .getNode(headerId)
-    ?.childIds.find((id) => graph.getNode(id)?.name === BRIEF_BINDING_LABEL_NAME)
-  if (labelId) {
-    graph.updateNode(labelId, { text })
-    return
-  }
-  createText(figma, headerId, BRIEF_BINDING_LABEL_NAME, text, {
-    fontSize: 22,
-    color: SUB_COLOR
-  })
 }
 
 // ── AI 结论区：append-only，按设计归组（存储不分区）─────────────────────────

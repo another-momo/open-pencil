@@ -47,7 +47,7 @@ import {
   type SetupDesignSuccess
 } from '#core/tools/fork/marketing/setup'
 import { SETUP_TOOLS, setupDesignTool } from '#core/tools/fork/marketing/setup-tool'
-import { BRIEF_TEXTS, SETUP_TEXTS } from '#core/tools/fork/marketing/texts'
+import { SETUP_TEXTS } from '#core/tools/fork/marketing/texts'
 import { PLACEMENT_GAP } from '#core/tools/fork/placement'
 
 import { expectDefined } from '#tests/helpers/assert'
@@ -240,7 +240,7 @@ describe('setup_design core：契约组', () => {
     expect(scanMarketingDesigns(figma)).toEqual([])
   })
 
-  test('⑨ 关联设计区登记：条目 designId + 名称投影 + bound-designs 指针 + 绑定行 + 读穿三元组', () => {
+  test('⑨ 关联设计区登记：条目 designId + 名称投影 + bound-designs 指针 + 读穿三元组', () => {
     const { graph, figma, brief, run } = setupPage()
     const result = ok(run({ modeId: 'longform' }))
 
@@ -262,17 +262,6 @@ describe('setup_design core：契约组', () => {
       .map((id) => graph.getNode(id))
       .find((node) => node?.type === 'TEXT')
     expect(entryText?.text).toBe('长图')
-
-    // 可见绑定行重写为「关联：<设计名> · <页名>」
-    const stack = [brief.id]
-    const texts: string[] = []
-    while (stack.length > 0) {
-      const id = expectDefined(stack.pop())
-      const node = expectDefined(graph.getNode(id))
-      if (node.type === 'TEXT') texts.push(node.text)
-      stack.push(...node.childIds)
-    }
-    expect(texts).toContain(`${BRIEF_TEXTS.bindingPrefix}长图 · Page 1`)
 
     // 读穿投影：read_brief 视图的 modeId 来自设计根标记
     const view = expectDefined(readBrief(figma))

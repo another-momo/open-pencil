@@ -152,4 +152,32 @@ describe('readPiHistoryFile × ask_user_question round-trip', () => {
       answers: { hero_pick: '0:11', tone: 'warm' }
     })
   })
+
+  test('第四种作答（T83）：带 freeText 的作答信封跨重载存续并还原', () => {
+    const envelope = serializeAskAnswer('form-roundtrip-000000', {
+      aborted: false,
+      answers: { tone: 'cold' },
+      freeText: '候选都不满意，想要更简洁的构图'
+    })
+    const file = sessionFile([
+      { type: 'session', id: 's-t83', timestamp: '2026-09-02T00:00:00Z', cwd: '/tmp' },
+      messageEntry('m1', null, {
+        role: 'user',
+        content: [{ type: 'text', text: envelope }]
+      })
+    ])
+
+    const messages = readPiHistoryFile(file)
+    expect(messages).toHaveLength(1)
+    const text = messages[0].parts
+      .filter((part) => part.type === 'text')
+      .map((part) => (part as { text: string }).text)
+      .join('')
+    expect(parseAskAnswer(text)).toEqual({
+      formId: 'form-roundtrip-000000',
+      aborted: false,
+      answers: { tone: 'cold' },
+      freeText: '候选都不满意，想要更简洁的构图'
+    })
+  })
 })

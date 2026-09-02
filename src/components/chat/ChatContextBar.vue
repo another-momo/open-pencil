@@ -12,13 +12,12 @@
  *    打开定位不切换 + 显式「设为当前」→ 端点）③需求单列表 + 新建入口。
  *  - 需求单详情编辑迁出 popover（T66 决策②）：点击条目 → ChatBriefDialog
  *    独立大面板（素材四能力在那）；popover 不再内嵌详情视图。
- *  - 「+ 新建需求单」（决策 D1）：列表顶部入口 → 内联内容编辑 → core
- *    create_brief 原语经 makeFigmaFromStore 桥直调（不触发 setup_design），
- *    createBriefOnPage 收尾含排版结算 + 选中定位 + undo 登记（T66 修复）。
+ *  - 「+ 新建需求单」（T79 U1 推翻 T65 D1）：单按钮 → 桥直调
+ *    createBriefOnPage('') 落空 brief → 自动打开 ChatBriefDialog；面板不再
+ *    内联内容编辑，无取消/创建双按钮，dirty 守卫随之删除。
+ *  - 列表条目展示 T79 S1 B：name + 内容预览（截首 40 字符；空 brief 隐藏）。
  *  - 切换成功回执（决策 D3）：端点 200 后 emit switched → ChatPanel 注入
  *    data-context-switch 分割线（非 assistant 气泡）。
- *  - 编辑防丢（决策 E）：有未保存新建草稿时关闭 popover 需经内联 dirty 守卫
- *    确认（不用 window.confirm——Tauri WKWebView 不支持）。
  *
  * 面板纪律（沿 T61）：零自有事实源——打开/保存后重读画布；编辑写回走 core
  * brief-edit 原语（画布节点单一事实源）。常驻非模态、仅用户打开。
@@ -34,7 +33,6 @@ import {
 import { getActiveEditorStoreOrNull, useActiveEditorStoreRef } from '@/app/editor/active-store'
 import { useForkPanels } from '@/app/i18n/fork'
 import { toast } from '@/app/shell/ui'
-import AppTextarea from '@/components/ui/AppTextarea.vue'
 import AppTextButton from '@/components/ui/AppTextButton.vue'
 import { usePopoverUI } from '@/components/ui/popover'
 
@@ -163,33 +161,22 @@ function containsActive(entry: BriefListEntry): boolean {
   return nodeId !== undefined && nodeId !== null && entry.boundDesignIds.includes(nodeId)
 }
 
-// 新建需求单（内联内容编辑 → 桥直调 → 重扫；选中定位/排版结算/undo 在
-// createBriefOnPage 收尾里——T66 修复后不再由面板重复定位）
+// 新建需求单（T79 U1 推翻 T65 D1）：单「+ 新建」按钮 → createBriefOnPage('') 立
+// 即落画布空 brief（ContentExample 占位）→ 自动打开 ChatBriefDialog 让用户在
+// dialog 内编辑内容/素材；不再有 popover 内联 textarea + 取消/创建 双按钮。
 
-const creating = ref(false)
-const createDraft = ref('')
 const creatingBusy = ref(false)
 
-function startCreate() {
-  creating.value = true
-  createDraft.value = ''
-  pendingDiscard.value = null
-}
-
-function cancelCreate() {
-  creating.value = false
-  createDraft.value = ''
-}
-
-function confirmCreateBrief() {
+async function startCreate() {
+  if (creatingBusy.value) return
   const store = getActiveEditorStoreOrNull()
-  if (!store || creatingBusy.value) return
+  if (!store) return
   creatingBusy.value = true
   try {
-    createBriefOnPage(store, createDraft.value)
-    creating.value = false
-    createDraft.value = ''
+    const briefId = await createBriefOnPage(store, '')
     rescanBriefs()
+    open.value = false
+    openBriefDialog(briefId)
   } catch (error) {
     console.error('Brief create error:', error)
     toast.error(panelsText.value.briefCreateFailed)
@@ -204,31 +191,8 @@ function openBriefDetail(briefId: string) {
   openBriefDialog(briefId)
 }
 
-// ── dirty 守卫（T65 决策 E：未保存新建草稿时关闭需内联确认；详情草稿守卫
-//    随详情视图迁出删除——dialog 侧 @change 即提交，无悬挂草稿） ──
-
-const createDirty = computed(() => creating.value && createDraft.value.trim() !== '')
-const isDirty = computed(() => createDirty.value)
-
-/** 待确认的丢弃动作（内联确认条显隐；'close' = 关 popover） */
-const pendingDiscard = ref<'close' | null>(null)
-
-/** 丢弃确认条「丢弃」按钮：执行挂起动作 */
-function confirmDiscard() {
-  pendingDiscard.value = null
-  creating.value = false
-  createDraft.value = ''
-  open.value = false
-}
-
 function handleOpen(value: boolean) {
-  if (!value && isDirty.value) {
-    // dirty 关闭确认：popover 保持打开，内联确认条显形
-    pendingDiscard.value = 'close'
-    return
-  }
   open.value = value
-  pendingDiscard.value = null
   if (value) {
     rescanDesigns()
     rescanBriefs()
@@ -266,33 +230,6 @@ function handleOpen(value: boolean) {
     <PopoverPortal>
       <PopoverContent side="bottom" align="start" :side-offset="6" :class="cls.content">
         <div data-test-id="chat-context-panel" class="max-h-[70vh] space-y-3 overflow-y-auto">
-          <!-- dirty 守卫内联确认条 -->
-          <div
-            v-if="pendingDiscard"
-            data-test-id="chat-context-discard-bar"
-            class="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5"
-          >
-            <span class="min-w-0 flex-1 text-[11px] text-amber-200">
-              {{ panelsText.briefDirtyHint }}
-            </span>
-            <button
-              type="button"
-              data-test-id="chat-context-discard-confirm"
-              class="shrink-0 rounded-md border border-amber-500/40 px-2 py-0.5 text-[11px] text-amber-200 hover:bg-amber-500/20"
-              @click="confirmDiscard"
-            >
-              {{ panelsText.briefDiscardClose }}
-            </button>
-            <button
-              type="button"
-              data-test-id="chat-context-discard-cancel"
-              class="shrink-0 rounded-md border border-border px-2 py-0.5 text-[11px] text-surface hover:bg-hover"
-              @click="pendingDiscard = null"
-            >
-              {{ panelsText.briefKeepEditing }}
-            </button>
-          </div>
-
           <!-- ① 当前目标卡（无状态字段） -->
           <div class="space-y-1">
             <div class="flex items-center gap-2">
@@ -397,10 +334,10 @@ function handleOpen(value: boolean) {
                 panelsText.briefsSection
               }}</span>
               <button
-                v-if="!creating"
                 type="button"
+                :disabled="creatingBusy"
                 data-test-id="chat-brief-new"
-                class="flex shrink-0 items-center gap-0.5 rounded-md border border-border px-1.5 py-0.5 text-[11px] text-surface hover:bg-hover"
+                class="flex shrink-0 items-center gap-0.5 rounded-md border border-border px-1.5 py-0.5 text-[11px] text-surface hover:bg-hover disabled:cursor-not-allowed disabled:opacity-60"
                 @click="startCreate"
               >
                 <icon-lucide-plus class="size-3" />
@@ -408,42 +345,7 @@ function handleOpen(value: boolean) {
               </button>
             </div>
 
-            <!-- 新建需求单内联编辑（core create_brief 桥直调，不触发 setup_design） -->
-            <div
-              v-if="creating"
-              class="space-y-1.5 rounded-md border border-border bg-canvas px-2 py-1.5"
-              data-test-id="chat-brief-create-form"
-            >
-              <AppTextarea
-                v-model="createDraft"
-                :rows="3"
-                :disabled="creatingBusy"
-                :placeholder="panelsText.briefNewPlaceholder"
-                data-test-id="chat-brief-create-editor"
-              />
-              <div class="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  :disabled="creatingBusy"
-                  data-test-id="chat-brief-create-cancel"
-                  class="rounded-md border border-border px-2 py-0.5 text-[11px] text-muted hover:bg-hover disabled:cursor-not-allowed disabled:opacity-60"
-                  @click="cancelCreate"
-                >
-                  {{ panelsText.briefCreateCancel }}
-                </button>
-                <button
-                  type="button"
-                  :disabled="creatingBusy"
-                  data-test-id="chat-brief-create-confirm"
-                  class="rounded-md bg-accent px-2 py-0.5 text-[11px] text-white hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
-                  @click="confirmCreateBrief"
-                >
-                  {{ panelsText.briefCreate }}
-                </button>
-              </div>
-            </div>
-
-            <div v-if="briefs.length === 0 && !creating" class="text-[11px] text-muted">
+            <div v-if="briefs.length === 0" class="text-[11px] text-muted">
               {{ panelsText.briefListEmpty }}
             </div>
             <button
@@ -466,6 +368,14 @@ function handleOpen(value: boolean) {
                 >
                   {{ panelsText.briefContainsActive }}
                 </span>
+              </div>
+              <!-- T79 S1 B：内容预览（截取首 40 字符；空 brief 不显示） -->
+              <div
+                v-if="entry.contentPreview"
+                class="mt-0.5 truncate text-[11px] text-muted"
+                :data-test-id="`chat-brief-item-preview`"
+              >
+                {{ entry.contentPreview }}
               </div>
             </button>
           </div>

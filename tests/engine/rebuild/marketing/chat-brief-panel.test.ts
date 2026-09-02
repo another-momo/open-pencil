@@ -12,9 +12,16 @@
  *    语义（原节点保留——移动选择器简化偏差的钉扎）
  *  - ③ fieldsHint 新文案落画布（createBrief 产物 FieldsHint 文本节点）
  *  - ① scanCurrentPageBriefs 即 trigger 计数口径 = 当前页（跨页 brief 不计）
+ *
+ * T79 增量：
+ *  - U1 createBriefOnPage 改为 async（调用方需 await）
+ *  - B2 ensureGraphFonts 在 createBriefOnPage / applyBriefMutation 收尾里
+ *    都被 await，且必须早于 computeAllLayouts
+ *  - B1 空内容（createBriefOnPage(store, '')）也清掉 ContentExample 占位
+ *  - S1B scanCurrentPageBriefs 产物带 contentPreview（首 40 字符截取）
  */
 
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, mock, test } from 'bun:test'
 
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
 import { createEditorStore } from '@/app/editor/session'
@@ -33,6 +40,7 @@ import {
 import {
   BRIEF_WIDTH,
   BRIEF_ZONE_CONCLUSIONS,
+  BRIEF_ZONE_CONTENT,
   createBrief,
   findBriefZone
 } from '#core/tools/fork/marketing/brief'
@@ -60,9 +68,9 @@ function makeImageFill(hash: string) {
 }
 
 describe('createBriefOnPage 收尾四件套（T66 决策②根因修复）', () => {
-  test('排版结算 + 选中定位 + undo 登记（undo/redo 往返）', () => {
+  test('排版结算 + 选中定位 + undo 登记（undo/redo 往返）', async () => {
     const store = createEditorStore()
-    const briefId = createBriefOnPage(store, '夏季新品买一送一')
+    const briefId = await createBriefOnPage(store, '夏季新品买一送一')
 
     const page = expectDefined(store.graph.getNode(store.state.currentPageId))
     expect(page.childIds).toContain(briefId)
@@ -92,9 +100,9 @@ describe('createBriefOnPage 收尾四件套（T66 决策②根因修复）', () 
     expect(restored.height).toBeGreaterThan(200)
   })
 
-  test('fieldsHint 新文案落画布（T66 决策③：引导式，不写死字段清单）', () => {
+  test('fieldsHint 新文案落画布（T66 决策③：引导式，不写死字段清单）', async () => {
     const store = createEditorStore()
-    const briefId = createBriefOnPage(store, '')
+    const briefId = await createBriefOnPage(store, '')
 
     const texts: string[] = []
     const stack = [briefId]
@@ -111,13 +119,67 @@ describe('createBriefOnPage 收尾四件套（T66 决策②根因修复）', () 
   })
 })
 
-describe('需求单大面板写回通路（T66 决策②：结算 + undo 包裹 core 原语）', () => {
-  test('上传素材：bytes 内容寻址入库 + 条目挂载 + 条目布局结算非 0', () => {
+describe('T79 B2：ensureGraphFonts 在排版结算前 await', () => {
+  test('createBriefOnPage 收尾：ensureGraphFonts 被 await 且早于 computeAllLayouts', async () => {
+    const callOrder: string[] = []
+
+    // 用 mock.module 替代字体模块 + 布局模块的导出
+    mock.module('@/app/editor/fonts', () => ({
+      ensureGraphFonts: async () => {
+        callOrder.push('ensureGraphFonts')
+        return false
+      }
+    }))
+    mock.module('@open-pencil/core/layout', () => ({
+      computeAllLayouts: () => {
+        callOrder.push('computeAllLayouts')
+      }
+    }))
+
+    // 强制重新加载 active-design（拿到 mock 后的依赖）
+    const { createBriefOnPage: freshCreate } = await import('@/components/chat/active-design')
     const store = createEditorStore()
-    const briefId = createBriefOnPage(store, '')
+    await freshCreate(store, '内容')
+
+    const ensureIdx = callOrder.indexOf('ensureGraphFonts')
+    const layoutIdx = callOrder.indexOf('computeAllLayouts')
+    expect(ensureIdx).toBeGreaterThanOrEqual(0)
+    expect(layoutIdx).toBeGreaterThanOrEqual(0)
+    // ensureGraphFonts 必须先于 computeAllLayouts
+    expect(ensureIdx).toBeLessThan(layoutIdx)
+  })
+})
+
+describe('T79 B1：空内容也走 updateBriefContent（清掉 ContentExample 占位）', () => {
+  test("createBriefOnPage(store, '') 清掉 ContentExample 占位文本", async () => {
+    const store = createEditorStore()
+    const briefId = await createBriefOnPage(store, '')
+
+    // 内容区找到 ContentExample 节点（brief.ts:85, brief.ts:503-507 createText）
+    const brief = expectDefined(store.graph.getNode(briefId))
+    const contentZone = expectDefined(findBriefZone(store.graph, brief, BRIEF_ZONE_CONTENT))
+    let contentText = ''
+    const stack = [...contentZone.childIds]
+    while (stack.length > 0) {
+      const id = expectDefined(stack.pop())
+      const node = expectDefined(store.graph.getNode(id))
+      if (node.name === 'ContentExample' && node.type === 'TEXT') {
+        contentText = node.text
+      }
+      stack.push(...node.childIds)
+    }
+    // updateBriefContent 已把空字符串写入 ContentExample 占位节点
+    expect(contentText).toBe('')
+  })
+})
+
+describe('需求单大面板写回通路（T66 决策②：结算 + undo 包裹 core 原语）', () => {
+  test('上传素材：bytes 内容寻址入库 + 条目挂载 + 条目布局结算非 0', async () => {
+    const store = createEditorStore()
+    const briefId = await createBriefOnPage(store, '')
 
     const bytes = new Uint8Array([1, 2, 3, 4, 5])
-    const entryId = addBriefMaterialFromUpload(store, briefId, bytes)
+    const entryId = await addBriefMaterialFromUpload(store, briefId, bytes)
     expect(entryId).not.toBeNull()
 
     const view = expectDefined(readBriefView(store, briefId))
@@ -137,15 +199,15 @@ describe('需求单大面板写回通路（T66 决策②：结算 + undo 包裹 
     expect(after.materials).toHaveLength(0)
   })
 
-  test('内容/标题写回：落画布 + 各自 undo 事务（撤销逐层回滚）', () => {
+  test('内容/标题写回：落画布 + 各自 undo 事务（撤销逐层回滚）', async () => {
     const store = createEditorStore()
-    const briefId = createBriefOnPage(store, '原始内容')
+    const briefId = await createBriefOnPage(store, '原始内容')
     const entryId = expectDefined(
-      addBriefMaterialFromUpload(store, briefId, new Uint8Array([9, 9, 9]))
+      await addBriefMaterialFromUpload(store, briefId, new Uint8Array([9, 9, 9]))
     )
 
-    expect(saveMaterialCaption(store, entryId, '主视觉')).toBe(true)
-    expect(saveBriefContent(store, briefId, '改写后的内容')).toBe(true)
+    expect(await saveMaterialCaption(store, entryId, '主视觉')).toBe(true)
+    expect(await saveBriefContent(store, briefId, '改写后的内容')).toBe(true)
 
     let view = expectDefined(readBriefView(store, briefId))
     expect(view.content).toBe('改写后的内容')
@@ -160,23 +222,23 @@ describe('需求单大面板写回通路（T66 决策②：结算 + undo 包裹 
     expect(view.materials[0]?.caption).toBe('')
   })
 
-  test('素材删除：条目移除 + undo 可恢复', () => {
+  test('素材删除：条目移除 + undo 可恢复', async () => {
     const store = createEditorStore()
-    const briefId = createBriefOnPage(store, '')
+    const briefId = await createBriefOnPage(store, '')
     const entryId = expectDefined(
-      addBriefMaterialFromUpload(store, briefId, new Uint8Array([7, 7]))
+      await addBriefMaterialFromUpload(store, briefId, new Uint8Array([7, 7]))
     )
 
-    expect(removeBriefMaterialEntry(store, entryId)).toBe(true)
+    expect(await removeBriefMaterialEntry(store, entryId)).toBe(true)
     expect(expectDefined(readBriefView(store, briefId)).materials).toHaveLength(0)
 
     store.undo.undo()
     expect(expectDefined(readBriefView(store, briefId)).materials).toHaveLength(1)
   })
 
-  test('从画布选区添加：IMAGE fill 扫描 + 一律复制（原节点保留）', () => {
+  test('从画布选区添加：IMAGE fill 扫描 + 一律复制（原节点保留）', async () => {
     const store = createEditorStore()
-    const briefId = createBriefOnPage(store, '')
+    const briefId = await createBriefOnPage(store, '')
     const rect = store.graph.createNode('RECTANGLE', store.state.currentPageId, {
       name: 'img',
       fills: [makeImageFill('deadbeef')]
@@ -186,7 +248,7 @@ describe('需求单大面板写回通路（T66 决策②：结算 + undo 包裹 
     store.select([rect.id])
 
     expect(findSelectionImageNodes(store)).toEqual([{ nodeId: rect.id, hash: 'deadbeef' }])
-    expect(addBriefMaterialsFromSelection(store, briefId)).toBe(1)
+    expect(await addBriefMaterialsFromSelection(store, briefId)).toBe(1)
 
     const view = expectDefined(readBriefView(store, briefId))
     expect(view.materials).toHaveLength(1)
@@ -197,20 +259,49 @@ describe('需求单大面板写回通路（T66 决策②：结算 + undo 包裹 
     // 空选区 → 0 条，不产生 undo 条目
     store.select([])
     const undoDepthBefore = store.undo.canUndo
-    expect(addBriefMaterialsFromSelection(store, briefId)).toBe(0)
+    expect(await addBriefMaterialsFromSelection(store, briefId)).toBe(0)
     expect(store.undo.canUndo).toBe(undoDepthBefore)
   })
 })
 
 describe('trigger 需求单计数口径（T66 决策①：当前页，与面板列表同函数）', () => {
-  test('scanCurrentPageBriefs 只计当前页 brief', () => {
+  test('scanCurrentPageBriefs 只计当前页 brief', async () => {
     const store = createEditorStore()
-    const briefId = createBriefOnPage(store, '')
+    const briefId = await createBriefOnPage(store, '')
     expect(scanCurrentPageBriefs(store).map((entry) => entry.briefId)).toEqual([briefId])
 
     // 另一页的 brief 不计入（T65 决策 D4 口径沿用——拍板⑩）
     const page2 = store.graph.addPage('Page 2')
     createBrief(makeFigmaFromStore(store, page2.id))
     expect(scanCurrentPageBriefs(store).map((entry) => entry.briefId)).toEqual([briefId])
+  })
+})
+
+describe('T79 S1B：BriefListEntry.contentPreview 字段', () => {
+  test('空内容 → contentPreview 未定义', async () => {
+    const store = createEditorStore()
+    await createBriefOnPage(store, '')
+    const entries = scanCurrentPageBriefs(store)
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.contentPreview).toBeUndefined()
+  })
+
+  test('短内容 → contentPreview 原样', async () => {
+    const store = createEditorStore()
+    await createBriefOnPage(store, '夏季新品')
+    const entries = scanCurrentPageBriefs(store)
+    expect(entries[0]?.contentPreview).toBe('夏季新品')
+  })
+
+  test('长内容（>40 字符）→ 截取 + 省略号', async () => {
+    const store = createEditorStore()
+    const longText =
+      '为新产品做一张主视觉海报——目标人群是年轻女性、风格夏天水彩萌趣、必须出现产品图和品牌 LOGO、调用去年买一送一的素材。'
+    expect(longText.length).toBeGreaterThan(40)
+    await createBriefOnPage(store, longText)
+    const entries = scanCurrentPageBriefs(store)
+    expect(entries[0]?.contentPreview?.endsWith('…')).toBe(true)
+    expect(entries[0]?.contentPreview?.length).toBe(41) // 40 chars + ellipsis
+    expect(entries[0]?.contentPreview?.startsWith(longText.slice(0, 10))).toBe(true)
   })
 })

@@ -406,10 +406,19 @@ function createSlot(figma: FigmaAPI, parentId: string, name: string, caption: st
   return slot.id
 }
 
-/** Create the brief frame at (x, y) with the full FOUR-zone structure (内容区 / 素材区 / AI结论区 / 关联设计区) */
+/** Create the brief frame at (x, y) with the full FOUR-zone structure (内容区 / 素材区 / AI结论区 / 关联设计区).
+ *
+ * Name = `'需求单 ${N}'` where N = number of existing briefs on the page + 1
+ * (T79 S1：带序号以支持同页多 brief；id 仍由 graph 分配唯一，name 仅展示）。
+ */
 export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
   const graph = figma.graph
-  const brief = graph.createNode('FRAME', figma.currentPage.id, { name: BRIEF_NAME, x, y })
+  const existingCount = listBriefs(figma).length
+  const brief = graph.createNode('FRAME', figma.currentPage.id, {
+    name: `${BRIEF_NAME} ${existingCount + 1}`,
+    x,
+    y
+  })
   graph.updateNode(brief.id, {
     width: BRIEF_WIDTH,
     layoutMode: 'HORIZONTAL',
@@ -507,7 +516,8 @@ export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
   })
   createText(figma, contentCard, 'FieldsHint', BRIEF_TEXTS.fieldsHint, {
     fontSize: 24,
-    color: MUTED_COLOR
+    color: MUTED_COLOR,
+    wrap: true
   })
 
   // ── 素材区 ──
@@ -530,11 +540,13 @@ export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
   createText(figma, materialCard, BRIEF_EMPTY_HINT_NAME, BRIEF_TEXTS.materialsEmptyHint, {
     fontSize: 22,
     opacity: 0.75,
-    color: MUTED_COLOR
+    color: MUTED_COLOR,
+    wrap: true
   })
   createText(figma, materialCard, 'MaterialNote', BRIEF_TEXTS.materialNote, {
     fontSize: 24,
-    color: MUTED_COLOR
+    color: MUTED_COLOR,
+    wrap: true
   })
 
   // ── 关联设计区（四区改造新建）──
@@ -555,7 +567,8 @@ export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
   createText(figma, designsCard, BRIEF_EMPTY_HINT_NAME, BRIEF_TEXTS.designsEmptyHint, {
     fontSize: 22,
     opacity: 0.75,
-    color: MUTED_COLOR
+    color: MUTED_COLOR,
+    wrap: true
   })
 
   // ── AI结论区 ──

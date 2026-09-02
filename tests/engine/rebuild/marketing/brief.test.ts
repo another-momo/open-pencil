@@ -93,7 +93,8 @@ test('createBrief 建成四区结构：zone 标记 + schemaVersion=1 + role 标�
   const brief = createBrief(figma, 100, 200)
 
   expect(brief.type).toBe('FRAME')
-  expect(brief.name).toBe(BRIEF_NAME)
+  // T79 S1A：节点 name 带序号，第一张为 `需求单 1`
+  expect(brief.name).toBe(`${BRIEF_NAME} 1`)
   expect(brief.x).toBe(100)
   expect(brief.y).toBe(200)
   expect(isBrief(brief)).toBe(true)
@@ -210,6 +211,22 @@ test('isBrief 不认同名外观节点；listBriefs 只列当前页 brief', () =
   const lookalike = graph.createNode('FRAME', figma.currentPage.id, { name: BRIEF_NAME })
   expect(isBrief(graph.getNode(lookalike.id))).toBe(false)
   expect(listBriefs(figma).map((node) => node.id)).toEqual([brief.id])
+})
+
+test('T79 S1A：节点 name 带序号，按页内已有 brief 数递增', () => {
+  const { graph, figma } = setupToolTest()
+  const first = createBrief(figma)
+  expect(first.name).toBe(`${BRIEF_NAME} 1`)
+
+  const second = createBrief(figma)
+  expect(second.name).toBe(`${BRIEF_NAME} 2`)
+
+  const third = createBrief(figma)
+  expect(third.name).toBe(`${BRIEF_NAME} 3`)
+
+  // 序号基于 listBriefs 长度（页面级），命名唯一不冲突
+  const names = [first, second, third].map((n) => graph.getNode(n.id)?.name)
+  expect(new Set(names).size).toBe(3)
 })
 
 test('findBrief 解析序：无 brief → none；唯一 → ok；多个 → ambiguous；显式 briefId 优先', () => {

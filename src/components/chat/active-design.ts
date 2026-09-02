@@ -46,6 +46,7 @@ import { findPlacementPosition } from '@open-pencil/core/tools/fork/placement'
 
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
 import type { EditorStore } from '@/app/editor/active-store'
+import { ensureGraphFonts } from '@/app/editor/fonts'
 
 // ── 新建意图信封（共享契约 1；T65 §2.4 扩展 canvas 字段） ─────────────────────
 
@@ -232,7 +233,11 @@ export interface BriefListEntry {
   name: string
   /** 读穿比较得出（不存储）：本 brief 绑定条目含 active 设计 */
   boundDesignIds: string[]
+  /** T79 S1 B：brief 内容预览（截取首 ~40 字符，含内容 placeholder 时为空） */
+  contentPreview?: string
 }
+
+const BRIEF_CONTENT_PREVIEW_MAX = 40
 
 /** 需求单列表段：只扫当前页（T65 决策 D4 从全文档收回，与单槽同页口径一致；
  *  面板文案明示「当前页面」。T66 trigger 计数同口径——本函数即面板列表口径，
@@ -241,13 +246,25 @@ export function scanCurrentPageBriefs(store: EditorStore): BriefListEntry[] {
   const graph = store.graph
   const page = graph.getNode(store.state.currentPageId)
   if (!page) return []
+  const figma = makeFigmaFromStore(store)
   const briefs: BriefListEntry[] = []
   walkSubtree(graph, page.childIds, (node) => {
     if (isBrief(node)) {
+      const view = readBrief(figma, node.id)
+      const content = view?.content ?? ''
+      const trimmed = content.trim()
+      let contentPreview: string | undefined
+      if (trimmed !== '') {
+        contentPreview =
+          trimmed.length > BRIEF_CONTENT_PREVIEW_MAX
+            ? `${trimmed.slice(0, BRIEF_CONTENT_PREVIEW_MAX)}…`
+            : trimmed
+      }
       briefs.push({
         briefId: node.id,
         name: node.name,
-        boundDesignIds: briefBoundDesignIds(node)
+        boundDesignIds: briefBoundDesignIds(node),
+        contentPreview
       })
     }
     // brief 内部递归无害（结构内不会再嵌 brief；同 core scanMarketingDesigns 先例）
@@ -271,11 +288,11 @@ export function scanCurrentPageBriefs(store: EditorStore): BriefListEntry[] {
  * 注意：PageSnapshot 只覆盖页面节点，不含 graph.images 字节——撤销 add-material
  * 移除条目节点，图像字节留在内容寻址缓存里（无害，与旧分支同律）。
  */
-function applyBriefMutation(
+async function applyBriefMutation(
   store: EditorStore,
   label: string,
   mutate: (figma: ReturnType<typeof makeFigmaFromStore>) => boolean
-): boolean {
+): Promise<boolean> {
   const before = store.snapshotPage()
   try {
     const figma = makeFigmaFromStore(store)
@@ -283,6 +300,11 @@ function applyBriefMutation(
       store.restorePageFromSnapshot(before)
       return false
     }
+    // T79 B2：ensureGraphFonts 必须在 computeAllLayouts 前跑——CJK fallback
+    // 加载后清空 textPicture 才能让后续排版结算拿到正确字宽（tool-handlers.ts
+    // :191-194 桥端同范式：mutates 后先 ensureGraphFonts 再 computeAllLayouts）
+    const pageNode = store.graph.getNode(store.state.currentPageId)
+    if (pageNode) await ensureGraphFonts(store.graph, pageNode.childIds, store.renderer)
     computeAllLayouts(store.graph, store.state.currentPageId)
     store.requestRender()
     const after = store.snapshotPage()
@@ -309,7 +331,7 @@ function applyBriefMutation(
  * requestRender → undo 登记「新建需求单」。此前缺结算，新建 brief 文字节点
  * 未测量、auto-layout 折叠/叠块。
  */
-export function createBriefOnPage(store: EditorStore, content: string): string {
+export async function createBriefOnPage(store: EditorStore, content: string): Promise<string> {
   const before = store.snapshotPage()
   const figma = makeFigmaFromStore(store)
   const position = findPlacementPosition(figma, {
@@ -317,8 +339,12 @@ export function createBriefOnPage(store: EditorStore, content: string): string {
     height: BRIEF_ESTIMATED_HEIGHT
   })
   const brief = createBrief(figma, position.x, position.y)
-  const text = content.trim()
-  if (text) updateBriefContent(figma, brief.id, text)
+  // T79 B1：空内容也调用 updateBriefContent——core 内部把 ContentExample 占位文本
+  // 清空，留出空态输入位（不写内容时保持 ContentExample 占位给用户看）
+  updateBriefContent(figma, brief.id, content.trim())
+  // T79 B2：同 applyBriefMutation 收尾，确保字体加载在排版结算之前
+  const pageNode = store.graph.getNode(store.state.currentPageId)
+  if (pageNode) await ensureGraphFonts(store.graph, pageNode.childIds, store.renderer)
   computeAllLayouts(store.graph, store.state.currentPageId)
   store.select([brief.id])
   store.zoomToSelection()
@@ -338,14 +364,22 @@ export function readBriefView(store: EditorStore, briefId: string): BriefView | 
 }
 
 /** 需求单内容写回（core updateBriefContent 直改画布文本节点 + 排版结算 + undo） */
-export function saveBriefContent(store: EditorStore, briefId: string, text: string): boolean {
+export async function saveBriefContent(
+  store: EditorStore,
+  briefId: string,
+  text: string
+): Promise<boolean> {
   return applyBriefMutation(store, '编辑需求内容', (figma) =>
     updateBriefContent(figma, briefId, text)
   )
 }
 
 /** 素材条目标题写回（+ 排版结算 + undo） */
-export function saveMaterialCaption(store: EditorStore, entryId: string, caption: string): boolean {
+export async function saveMaterialCaption(
+  store: EditorStore,
+  entryId: string,
+  caption: string
+): Promise<boolean> {
   return applyBriefMutation(store, '编辑素材备注', (figma) =>
     updateMaterialCaption(figma, entryId, caption)
   )
@@ -359,13 +393,13 @@ export function saveMaterialCaption(store: EditorStore, entryId: string, caption
  * （figma-api/index.ts:524 内容寻址入库通路），无需调用方单独入库。
  * 返回新条目 entryId（失败 null）。
  */
-export function addBriefMaterialFromUpload(
+export async function addBriefMaterialFromUpload(
   store: EditorStore,
   briefId: string,
   bytes: Uint8Array
-): string | null {
+): Promise<string | null> {
   let entryId: string | null = null
-  applyBriefMutation(store, '添加素材', (figma) => {
+  await applyBriefMutation(store, '添加素材', (figma) => {
     const result = addBriefMaterialEntry(figma, briefId, bytes, '')
     if ('error' in result) return false
     entryId = result.entryId
@@ -392,11 +426,14 @@ export function findSelectionImageNodes(
  * T66 简化裁决：当前仓无移动语义对应的原语编排需求——一律复制（保留画布原节点），
  * 不做旧分支的 move/copy 选择器（self-check 已记录偏差）。
  */
-export function addBriefMaterialsFromSelection(store: EditorStore, briefId: string): number {
+export async function addBriefMaterialsFromSelection(
+  store: EditorStore,
+  briefId: string
+): Promise<number> {
   const targets = findSelectionImageNodes(store)
   if (targets.length === 0) return 0
   let added = 0
-  applyBriefMutation(store, '添加素材', (figma) => {
+  await applyBriefMutation(store, '添加素材', (figma) => {
     for (const { hash } of targets) {
       const result = addBriefMaterialEntry(figma, briefId, { hash }, '')
       if (!('error' in result)) added++
@@ -407,7 +444,10 @@ export function addBriefMaterialsFromSelection(store: EditorStore, briefId: stri
 }
 
 /** 素材条目删除（core removeBriefMaterial + 排版结算 + undo） */
-export function removeBriefMaterialEntry(store: EditorStore, entryId: string): boolean {
+export async function removeBriefMaterialEntry(
+  store: EditorStore,
+  entryId: string
+): Promise<boolean> {
   return applyBriefMutation(store, '删除素材', (figma) => removeBriefMaterial(figma, entryId))
 }
 

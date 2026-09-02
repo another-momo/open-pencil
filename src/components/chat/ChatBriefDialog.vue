@@ -122,12 +122,12 @@ function flashSaved(): void {
   }, 1500)
 }
 
-function commitContent(): void {
+async function commitContent(): Promise<void> {
   const store = getActiveEditorStoreOrNull()
   const current = view.value
   if (!store || !current) return
   if (contentDraft.value === current.content) return
-  if (!saveBriefContent(store, current.briefId, contentDraft.value)) {
+  if (!(await saveBriefContent(store, current.briefId, contentDraft.value))) {
     toast.error(panelsText.value.briefSaveFailed)
     return
   }
@@ -135,7 +135,7 @@ function commitContent(): void {
   flashSaved()
 }
 
-function commitCaption(entryId: string): void {
+async function commitCaption(entryId: string): Promise<void> {
   const store = getActiveEditorStoreOrNull()
   const current = view.value
   if (!store || !current) return
@@ -143,7 +143,7 @@ function commitCaption(entryId: string): void {
   if (!material) return
   const caption = captionDrafts.value[entryId] ?? ''
   if (caption === material.caption) return
-  if (!saveMaterialCaption(store, entryId, caption)) {
+  if (!(await saveMaterialCaption(store, entryId, caption))) {
     toast.error(panelsText.value.briefSaveFailed)
     return
   }
@@ -152,22 +152,22 @@ function commitCaption(entryId: string): void {
 }
 
 /** 素材结构动作前落盘全部未提交草稿（内容 + 各标题） */
-function commitDrafts(): void {
-  commitContent()
+async function commitDrafts(): Promise<void> {
+  await commitContent()
   const current = view.value
   if (!current) return
   for (const material of current.materials) {
-    commitCaption(material.entryId)
+    await commitCaption(material.entryId)
   }
 }
 
 // ── 素材四能力 ──
 
-function onRemoveMaterial(entryId: string): void {
+async function onRemoveMaterial(entryId: string): Promise<void> {
   const store = getActiveEditorStoreOrNull()
   if (!store || !view.value) return
-  commitDrafts()
-  if (!removeBriefMaterialEntry(store, entryId)) {
+  await commitDrafts()
+  if (!(await removeBriefMaterialEntry(store, entryId))) {
     applyFailed.value = true
     return
   }
@@ -185,10 +185,10 @@ onFilesPicked(async (files) => {
   const store = getActiveEditorStoreOrNull()
   const current = view.value
   if (!file || !store || !current) return
-  commitDrafts()
+  await commitDrafts()
   const bytes = new Uint8Array(await file.arrayBuffer())
   // 空标题入库，随后聚焦新条目的标题输入框（蓝本 :127-138 范式）
-  const entryId = addBriefMaterialFromUpload(store, current.briefId, bytes)
+  const entryId = await addBriefMaterialFromUpload(store, current.briefId, bytes)
   if (!entryId) {
     applyFailed.value = true
     return
@@ -206,12 +206,12 @@ const selectionImageCount = computed(() => {
   return store ? findSelectionImageNodes(store, selectedIds.value).length : 0
 })
 
-function onAddFromSelection(): void {
+async function onAddFromSelection(): Promise<void> {
   const store = getActiveEditorStoreOrNull()
   const current = view.value
   if (!store || !current || selectionImageCount.value === 0) return
-  commitDrafts()
-  const added = addBriefMaterialsFromSelection(store, current.briefId)
+  await commitDrafts()
+  const added = await addBriefMaterialsFromSelection(store, current.briefId)
   if (added === 0) {
     applyFailed.value = true
     return

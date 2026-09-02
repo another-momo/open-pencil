@@ -3,7 +3,25 @@
  * T21 P2 pi 模式设置面板：provider 目录、凭据（只进不出）、自定义 provider、
  * design 模型指派——全部走后端 admin API（client.ts），前端不持有任何 key。
  * 旧 ToolLoop 的 profile/connection/assignment 三表在 pi 模式下不展示、不迁移。
+ *
+ * T80：llm-provider UI 批（owner 决策已窄化范围）——
+ * ①展开的 provider 模型列表加实时模糊搜索（name + id 大小写无关子串，不分组）；
+ * ②design provider / model 两个 <select> 换成 reka-ui Combobox（自带搜索）；
+ * ③模型行能力展示只做 image 输入 + context window，reasoning / cost 不展示。
  */
+import {
+  ComboboxAnchor,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxItemIndicator,
+  ComboboxPortal,
+  ComboboxRoot,
+  ComboboxTrigger,
+  ComboboxViewport,
+  type AcceptableValue
+} from 'reka-ui'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from '@open-pencil/vue'
 
@@ -18,8 +36,11 @@ import {
   upsertPiProvider
 } from '@/app/ai/pi-backend/client'
 import type { PiThinkingLevel } from '@/app/ai/pi-backend/client'
+import type { PiCatalogModel } from '@/app/ai/pi-backend/catalog'
 // T35：27 条 pi 段 i18n 迁回 fork seam——本面板 pi 段用 useForkPi()，通用段（models/connected/modelNeedsCredential）仍走 useI18n()
 import { useForkPi } from '@/app/i18n/fork'
+
+import Tip from '@/components/ui/Tip.vue'
 
 const dialogs = useForkPi()
 const { dialogs: uiDialogs } = useI18n()
@@ -40,6 +61,15 @@ const designProviderId = ref(piDesignAssignment.value?.providerId ?? '')
 const designModelId = ref(piDesignAssignment.value?.modelId ?? '')
 const designThinking = ref<PiThinkingLevel>(piDesignAssignment.value?.thinkingLevel ?? 'off')
 
+/** T80：provider 展开区的模型搜索词（每次切换展开的 provider 时清空） */
+const modelSearch = ref('')
+
+/**
+ * T80：reka-ui 的 ComboboxItem 禁止 value=""（空串是 root 的「清空选择」保留值，
+ * 传空串会在 onMounted 前 throw）。所以「后端默认」项用哨兵值，回调里翻译回空串。
+ */
+const DESIGN_PROVIDER_DEFAULT = '__pi_backend_default__'
+
 const providers = computed(() => piCatalog.value?.providers ?? [])
 
 const designModels = computed(() => {
@@ -51,6 +81,37 @@ const designCredentialMissing = computed(() => {
   if (!designProviderId.value) return false
   const provider = providers.value.find((entry) => entry.id === designProviderId.value)
   return provider ? !provider.auth.configured : false
+})
+
+/**
+ * T80：模型列表搜索——name + id 大小写无关子串匹配。
+ * owner 决策「不用分组」，因此保持扁平列表、只过滤。
+ */
+function filterModels(models: readonly PiCatalogModel[], term: string): PiCatalogModel[] {
+  const query = term.trim().toLowerCase()
+  if (!query) return [...models]
+  return models.filter(
+    (model) => model.name.toLowerCase().includes(query) || model.id.toLowerCase().includes(query)
+  )
+}
+
+/** T80：能力展示只取 image 输入（catalog.input 含 'image'）——reasoning / cost 明示不展示 */
+function supportsImageInput(model: PiCatalogModel): boolean {
+  return model.input.includes('image')
+}
+
+function contextLabel(model: PiCatalogModel): string {
+  return `${Math.round(model.contextWindow / 1024)}k`
+}
+
+const designProviderLabel = computed(() => {
+  const provider = providers.value.find((entry) => entry.id === designProviderId.value)
+  return provider ? `${provider.name} (${provider.id})` : dialogs.value.designModelDefault
+})
+
+const designModelLabel = computed(() => {
+  const model = designModels.value.find((entry) => entry.id === designModelId.value)
+  return model ? `${model.name} (${model.id})` : dialogs.value.designModelField
 })
 
 function thinkingLabel(level: PiThinkingLevel): string {
@@ -68,6 +129,7 @@ function thinkingLabel(level: PiThinkingLevel): string {
 
 function toggleProvider(providerId: string): void {
   expandedProviderId.value = expandedProviderId.value === providerId ? null : providerId
+  modelSearch.value = ''
 }
 
 async function saveKey(providerId: string): Promise<void> {
@@ -127,6 +189,17 @@ function selectDesignProvider(providerId: string): void {
   const provider = providers.value.find((entry) => entry.id === providerId)
   const first = provider?.models[0]
   designModelId.value = first?.id ?? ''
+}
+
+/** T80：Combobox 单选回调——reka-ui 给出的是 AcceptableValue，非 string 一律忽略 */
+function onDesignProviderChange(value: AcceptableValue): void {
+  if (typeof value !== 'string') return
+  selectDesignProvider(value === DESIGN_PROVIDER_DEFAULT ? '' : value)
+}
+
+function onDesignModelChange(value: AcceptableValue): void {
+  if (typeof value !== 'string') return
+  designModelId.value = value
 }
 
 function saveDesignModel(): void {
@@ -251,20 +324,45 @@ onMounted(() => void refreshPiCatalog())
               </button>
             </div>
 
-            <div class="scrollbar-thin mt-2 max-h-40 overflow-y-auto rounded bg-panel p-1.5">
+            <input
+              v-model="modelSearch"
+              type="search"
+              class="mt-2 w-full rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none focus:border-panel-focus"
+              :placeholder="dialogs.modelSearchPlaceholder"
+              data-test-id="pi-model-search"
+            />
+
+            <div class="scrollbar-thin mt-1.5 max-h-40 overflow-y-auto rounded bg-panel p-1.5">
               <div
-                v-for="model in provider.models"
+                v-for="model in filterModels(provider.models, modelSearch)"
                 :key="model.id"
                 class="flex items-center justify-between gap-2 px-1 py-0.5 text-[10px]"
+                :data-model-id="model.id"
+                data-test-id="pi-model-row"
               >
                 <span class="truncate text-surface">{{ model.name }}</span>
-                <span class="shrink-0 text-muted">
-                  {{ model.id
-                  }}<template v-if="model.contextWindow">
-                    · {{ Math.round(model.contextWindow / 1024) }}k</template
-                  >
+                <span class="flex shrink-0 items-center gap-1.5 text-muted">
+                  <Tip v-if="supportsImageInput(model)" :label="dialogs.modelSupportsImage">
+                    <span
+                      class="flex items-center gap-0.5 text-muted"
+                      data-test-id="pi-model-image-input"
+                    >
+                      <icon-lucide-image class="size-3" />
+                    </span>
+                  </Tip>
+                  <span v-if="model.contextWindow" data-test-id="pi-model-context">
+                    {{ contextLabel(model) }}
+                  </span>
+                  <span class="truncate">{{ model.id }}</span>
                 </span>
               </div>
+              <p
+                v-if="filterModels(provider.models, modelSearch).length === 0"
+                class="px-1 py-1 text-[10px] text-muted"
+                data-test-id="pi-model-search-empty"
+              >
+                {{ dialogs.modelSearchEmpty }}
+              </p>
             </div>
           </div>
         </div>
@@ -333,29 +431,139 @@ onMounted(() => void refreshPiCatalog())
 
       <div class="flex flex-col gap-1.5" data-test-id="pi-design-model">
         <label class="text-[10px] text-muted">{{ dialogs.designProvider }}</label>
-        <select
-          :value="designProviderId"
-          class="rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none"
-          data-test-id="pi-design-provider-select"
-          @change="selectDesignProvider(($event.target as HTMLSelectElement).value)"
+        <ComboboxRoot
+          :model-value="designProviderId || DESIGN_PROVIDER_DEFAULT"
+          class="relative"
+          @update:model-value="onDesignProviderChange"
         >
-          <option value="">{{ dialogs.designModelDefault }}</option>
-          <option v-for="provider in providers" :key="provider.id" :value="provider.id">
-            {{ provider.name }} ({{ provider.id }})
-          </option>
-        </select>
+          <ComboboxAnchor as-child>
+            <ComboboxTrigger
+              class="flex w-full items-center justify-between gap-1 rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none focus:border-panel-focus"
+              data-test-id="pi-design-provider-trigger"
+            >
+              <span class="min-w-0 flex-1 truncate text-left">{{ designProviderLabel }}</span>
+              <icon-lucide-chevron-down class="size-3 shrink-0 text-muted" />
+            </ComboboxTrigger>
+          </ComboboxAnchor>
+
+          <ComboboxPortal>
+            <ComboboxContent
+              position="popper"
+              :side-offset="2"
+              class="z-[110] min-w-[var(--reka-combobox-trigger-width)] overflow-hidden rounded-md bg-panel p-1 text-[11px] shadow-[0_8px_30px_rgb(0_0_0/0.4)]"
+            >
+              <ComboboxInput
+                class="mb-1 w-full rounded border border-border bg-panel-field px-2 py-1 text-[11px] text-surface outline-none focus:border-panel-focus"
+                :placeholder="dialogs.providerSearchPlaceholder"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                :spellcheck="false"
+                data-test-id="pi-design-provider-search"
+              />
+              <ComboboxViewport class="scrollbar-thin max-h-48 overflow-y-auto">
+                <ComboboxItem
+                  :value="DESIGN_PROVIDER_DEFAULT"
+                  :text-value="dialogs.designModelDefault"
+                  class="relative flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-surface outline-none select-none data-[highlighted]:bg-hover"
+                  data-test-id="pi-design-provider-item"
+                >
+                  <ComboboxItemIndicator class="flex size-3 shrink-0 items-center justify-center">
+                    <icon-lucide-check class="size-3 text-accent" />
+                  </ComboboxItemIndicator>
+                  <span class="min-w-0 flex-1 truncate">{{ dialogs.designModelDefault }}</span>
+                </ComboboxItem>
+                <ComboboxItem
+                  v-for="provider in providers"
+                  :key="provider.id"
+                  :value="provider.id"
+                  :text-value="`${provider.name} ${provider.id}`"
+                  class="relative flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-surface outline-none select-none data-[highlighted]:bg-hover"
+                  :data-provider-id="provider.id"
+                  data-test-id="pi-design-provider-item"
+                >
+                  <ComboboxItemIndicator class="flex size-3 shrink-0 items-center justify-center">
+                    <icon-lucide-check class="size-3 text-accent" />
+                  </ComboboxItemIndicator>
+                  <span class="min-w-0 flex-1 truncate">{{ provider.name }}</span>
+                  <span class="shrink-0 text-[10px] text-muted">{{ provider.id }}</span>
+                </ComboboxItem>
+                <ComboboxEmpty
+                  class="px-2 py-1 text-[10px] text-muted"
+                  data-test-id="pi-design-provider-empty"
+                >
+                  {{ dialogs.designPickerEmpty }}
+                </ComboboxEmpty>
+              </ComboboxViewport>
+            </ComboboxContent>
+          </ComboboxPortal>
+        </ComboboxRoot>
 
         <template v-if="designProviderId">
           <label class="mt-1 text-[10px] text-muted">{{ dialogs.designModelField }}</label>
-          <select
-            v-model="designModelId"
-            class="rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none"
-            data-test-id="pi-design-model-select"
+          <ComboboxRoot
+            :model-value="designModelId"
+            class="relative"
+            @update:model-value="onDesignModelChange"
           >
-            <option v-for="model in designModels" :key="model.id" :value="model.id">
-              {{ model.name }} ({{ model.id }})
-            </option>
-          </select>
+            <ComboboxAnchor as-child>
+              <ComboboxTrigger
+                class="flex w-full items-center justify-between gap-1 rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none focus:border-panel-focus"
+                data-test-id="pi-design-model-trigger"
+              >
+                <span class="min-w-0 flex-1 truncate text-left">{{ designModelLabel }}</span>
+                <icon-lucide-chevron-down class="size-3 shrink-0 text-muted" />
+              </ComboboxTrigger>
+            </ComboboxAnchor>
+
+            <ComboboxPortal>
+              <ComboboxContent
+                position="popper"
+                :side-offset="2"
+                class="z-[110] min-w-[var(--reka-combobox-trigger-width)] overflow-hidden rounded-md bg-panel p-1 text-[11px] shadow-[0_8px_30px_rgb(0_0_0/0.4)]"
+              >
+                <ComboboxInput
+                  class="mb-1 w-full rounded border border-border bg-panel-field px-2 py-1 text-[11px] text-surface outline-none focus:border-panel-focus"
+                  :placeholder="dialogs.modelSearchPlaceholder"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  :spellcheck="false"
+                  data-test-id="pi-design-model-search"
+                />
+                <ComboboxViewport class="scrollbar-thin max-h-48 overflow-y-auto">
+                  <ComboboxItem
+                    v-for="model in designModels"
+                    :key="model.id"
+                    :value="model.id"
+                    :text-value="`${model.name} ${model.id}`"
+                    class="relative flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-surface outline-none select-none data-[highlighted]:bg-hover"
+                    :data-model-id="model.id"
+                    data-test-id="pi-design-model-item"
+                  >
+                    <ComboboxItemIndicator class="flex size-3 shrink-0 items-center justify-center">
+                      <icon-lucide-check class="size-3 text-accent" />
+                    </ComboboxItemIndicator>
+                    <span class="min-w-0 flex-1 truncate">{{ model.name }}</span>
+                    <Tip v-if="supportsImageInput(model)" :label="dialogs.modelSupportsImage">
+                      <span class="flex shrink-0 items-center text-muted">
+                        <icon-lucide-image class="size-3" />
+                      </span>
+                    </Tip>
+                    <span v-if="model.contextWindow" class="shrink-0 text-[10px] text-muted">
+                      {{ contextLabel(model) }}
+                    </span>
+                  </ComboboxItem>
+                  <ComboboxEmpty
+                    class="px-2 py-1 text-[10px] text-muted"
+                    data-test-id="pi-design-model-empty"
+                  >
+                    {{ dialogs.modelSearchEmpty }}
+                  </ComboboxEmpty>
+                </ComboboxViewport>
+              </ComboboxContent>
+            </ComboboxPortal>
+          </ComboboxRoot>
 
           <label class="mt-1 text-[10px] text-muted">{{ dialogs.thinkingLevel }}</label>
           <select

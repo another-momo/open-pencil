@@ -41,11 +41,11 @@
 import { spawn } from 'node:child_process'
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  readdirSync,
   rmSync
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -91,12 +91,13 @@ function layoutRoot(withStudioAssets) {
       join(repoRoot, 'src/app/ai/pi-backend/studio/base.md'),
       join(tempRoot, 'src/app/ai/pi-backend/studio/base.md')
     )
+    // T85：workflow references 按资产分目录（workflows/editable-design/references/）——
+    // 改递归整目录复制，references 文件随资产进 temp 布局（缺文件会进 manifest failures）
     for (const sub of ['workflows', 'profiles']) {
       const srcDir = join(repoRoot, 'src/app/ai/pi-backend/studio', sub)
-      mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/studio', sub), { recursive: true })
-      for (const f of readdirSync(srcDir)) {
-        copyFileSync(join(srcDir, f), join(tempRoot, 'src/app/ai/pi-backend/studio', sub, f))
-      }
+      const dstDir = join(tempRoot, 'src/app/ai/pi-backend/studio', sub)
+      mkdirSync(dstDir, { recursive: true })
+      cpSync(srcDir, dstDir, { recursive: true })
     }
   }
   mkdirSync(join(tempRoot, 'probe'), { recursive: true })
@@ -233,11 +234,13 @@ try {
   const manifestRes = await fetch(`${BASE}/api/pi/studio/manifest`, { headers: authHeaders(token) })
   const manifest = await manifestRes.json()
   check(
-    '路由 manifest：modes = general + longform（T62：无 types 数据面）',
+    '路由 manifest：modes = general + editable-design + longform（T62：无 types 数据面；T85：editable-design mode 落位，字典序在 longform 前）',
     manifestRes.ok &&
       Array.isArray(manifest.modes) &&
+      manifest.modes.length === 3 &&
       manifest.modes[0]?.id === 'general' &&
-      manifest.modes[1]?.id === 'longform' &&
+      manifest.modes[1]?.id === 'editable-design' &&
+      manifest.modes[2]?.id === 'longform' &&
       manifest.modes.every((m) => !('types' in m)),
     JSON.stringify(manifest).slice(0, 160)
   )

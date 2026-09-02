@@ -21,6 +21,8 @@ import {
   type AskQuestionSpec
 } from '@open-pencil/core/tools/fork/marketing/ask-user-question'
 
+import { toToolResult } from './tool-result'
+
 const ASK_USER_QUESTION_DESCRIPTION =
   'Present an in-chat form with questions for the user, then END the current turn. The frontend renders a form card (single_select option cards, image_select canvas-node thumbnails, text inputs) and always offers a free-text field that doubles as a fourth answer kind (the user\'s own words, may arrive as an optional "freeText" key on the answer envelope) and as a skip reason. Returns {formId, status:"awaiting_user", questions}: the run TERMINATES with this call — do not call further tools and do not write any more text after it. The user\'s answers will arrive as the next user message. Rules: 1-8 questions; ids unique and non-empty; labels non-empty; single_select needs options (2-12 items, each {id,label,hint?}) and must not carry imageOptions; image_select needs imageOptions (1-12 items, each {nodeId,label?} referencing canvas nodes) and must not carry options; text carries neither; required defaults to true — set false for optional questions. Batch everything you need to ask into ONE call.'
 
@@ -66,13 +68,6 @@ const QUESTION_SCHEMA = Type.Object({
   ),
   required: Type.Optional(Type.Boolean({ description: 'Default true' }))
 })
-
-function toToolResult(result: Record<string, unknown>): AgentToolResult<Record<string, unknown>> {
-  return {
-    content: [{ type: 'text', text: JSON.stringify(result) }],
-    details: result
-  }
-}
 
 export function createAskUserQuestionTool(deps: AskUserQuestionToolDeps = {}) {
   return defineTool({

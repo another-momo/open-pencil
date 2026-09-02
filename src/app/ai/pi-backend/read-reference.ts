@@ -22,6 +22,8 @@ import { readFileSync } from 'node:fs'
 import { defineTool, type AgentToolResult } from '@earendil-works/pi-coding-agent'
 import { Type } from 'typebox'
 
+import { toToolResult } from './tool-result'
+
 /** 单次读取体积上限（超出按字节截断 + 尾部注明） */
 export const READ_REFERENCE_MAX_BYTES = 50 * 1024
 
@@ -41,13 +43,6 @@ function rejectedPathReason(path: string): string | null {
   if (/^[A-Za-z]:/.test(path)) return '含盘符'
   if (path.split('/').some((seg) => seg === '..')) return '含 `..` 上跳'
   return null
-}
-
-function toToolResult(result: Record<string, unknown>): AgentToolResult<Record<string, unknown>> {
-  return {
-    content: [{ type: 'text', text: JSON.stringify(result) }],
-    details: result
-  }
 }
 
 export function createReadReferenceTool(deps: ReadReferenceToolDeps) {

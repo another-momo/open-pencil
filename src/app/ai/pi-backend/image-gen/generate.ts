@@ -67,7 +67,7 @@ REFERENCES are the ONLY input-image source: a node contributes its original IMAG
 
 Generation is SLOW: batch ALL needed images in ONE call — never loop single calls. Any width/height is accepted — 16px-aligned and clipped to API constraints preserving aspect ratio; adjustments are reported in note.
 
-Returns node id metadata only (no image bytes): inspect with \`describe\`, visually accept with \`look\` (right subject, no garbled or wrong-language text); on miss, regenerate with an adjusted prompt (max 2 attempts). Never ask for rendered text in prompts. If the key is missing or the API returns 401, tell the user to add/check the Image Generation API key in AI chat settings (separate from the chat LLM key) — do NOT fall back to eval-drawn gradients.`
+Returns node id metadata only (no image bytes): inspect with \`describe\`, visually accept with \`look\`; on miss, regenerate with an adjusted prompt (max 2 attempts). If the key is missing or the API returns 401, tell the user to add/check the Image Generation API key in AI chat settings (separate from the chat LLM key) — do NOT fall back to eval-drawn gradients.`
 
 export interface ImageGenToolDeps {
   credentials: ImageGenCredentialStore
@@ -246,7 +246,7 @@ export const GENERATE_IMAGE_PARAMETERS = Type.Object({
     Type.Object(
       {
         prompt: Type.String({
-          description: 'Text prompt — never ask for rendered text inside the image'
+          description: 'Text prompt'
         }),
         width: Type.Optional(
           Type.Number({ description: 'Image width in pixels (required for new images)' })

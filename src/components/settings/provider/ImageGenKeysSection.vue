@@ -2,7 +2,9 @@
 /**
  * T54→T66：generate_image 凭证面板——Provider 类型下拉 + baseUrl/model/key
  * 自由输入（T66 P0/P1：预设下拉退役，预设表已删）。T71：测试连接按钮移除
- * （owner 裁决 2026-09-01：并非所有 provider 支持探针端点）。
+ * （owner 裁决 2026-09-01：并非所有 provider 支持探针端点）。T77 P6：
+ * baseUrl/model 占位文案按当前选中 providerType 从注册表 entry 读取，
+ * 缺省回退 i18n 通用占位（注册表未填 placeholder 的族走旧行为）。
  * key 直送 pi 后端凭证面（image-gen/routes.ts），前端不持久化、不回显
  * （状态只有 configured/providerType/baseUrl/model 元数据）。
  * 空 key 保存 = 清除（00 #7：清除必须生效）。
@@ -35,6 +37,18 @@ const busy = ref(false)
 const actionError = ref<string | null>(null)
 
 const configured = computed(() => imageGenCredentialStatus.value?.configured === true)
+
+// T77 P6：占位文案按选中 providerType 从注册表 entry 读取，缺省回退 i18n。
+// 切换 providerType 时即跟随切换；注册表无 placeholder 字段的族保持旧 i18n 串。
+const selectedProviderEntry = computed(() =>
+  IMAGE_GEN_PROVIDER_TYPES.find((entry) => entry.id === providerType.value)
+)
+const baseURLPlaceholder = computed(
+  () => selectedProviderEntry.value?.baseUrlPlaceholder ?? msgs.value.imageGenBaseUrlPlaceholder
+)
+const modelPlaceholder = computed(
+  () => selectedProviderEntry.value?.modelPlaceholder ?? msgs.value.imageGenModelPlaceholder
+)
 
 // 状态回读即回填表单（已配置时 baseUrl/model/providerType 可直接改存；key 永不回显）
 watch(
@@ -116,7 +130,7 @@ onMounted(() => void refreshImageGenCredentialStatus())
       type="text"
       spellcheck="false"
       class="rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none focus:border-panel-focus"
-      :placeholder="msgs.imageGenBaseUrlPlaceholder"
+      :placeholder="baseURLPlaceholder"
       data-test-id="image-gen-base-url-input"
     />
 
@@ -126,7 +140,7 @@ onMounted(() => void refreshImageGenCredentialStatus())
       type="text"
       spellcheck="false"
       class="rounded border border-border bg-panel px-2 py-1.5 text-[11px] text-surface outline-none focus:border-panel-focus"
-      :placeholder="msgs.imageGenModelPlaceholder"
+      :placeholder="modelPlaceholder"
       data-test-id="image-gen-model-input"
     />
 

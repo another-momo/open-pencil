@@ -6,6 +6,16 @@
  * 与任何特定中转商无关；凭证四键（providerType/baseUrl/model/apiKey）
  * 全部由用户手填（T66 P0 删预设表）。
  *
+ * T77：
+ * - P3：不显式指定 response_format——gpt-image 系端点拒绝该参数（400
+ *   `Unknown parameter: 'response_format'`），extractImageBytes 双格式消费
+ *   使显式指定无收益（据 docs/202609010000-image-gen-provider-review.md P3）。
+ * - P7：background 由 provider 侧固定为 'auto'——Agent 无感，req.background
+ *   字段不再被读取（owner 2026-09-02 决策）。
+ * - P6：抽出可复用核心 createProviderCore；createImageGenProvider 仅为
+ *   OpenAI 兼容族的薄封装，Seedream 族见 provider-seedream.ts；分派见
+ *   factory.ts。
+ *
  * 与源的差异：
  * - ofetch → 原生 fetch（红线：不引入新 npm 依赖；pi-backend 进程不经
  *   vite 打包，原生 fetch/FormData/Blob 均可用）
@@ -73,19 +83,23 @@ async function apiErrorMessage(response: Response): Promise<string> {
   const fallback = `Image API: HTTP ${response.status}`
   const text = await response.text().catch(() => '')
   if (!text.trim()) return fallback
-  let body: APIErrorBody | null = null
+  let parsedBody: APIErrorBody | null = null
   try {
-    body = JSON.parse(text) as APIErrorBody
+    parsedBody = JSON.parse(text) as APIErrorBody
   } catch {
-    body = null // 非 JSON 错误体 → 原文返回
+    parsedBody = null // 非 JSON 错误体 → 原文返回
   }
-  if (body) {
-    if (body.error && typeof body.error === 'object' && typeof body.error.message === 'string') {
-      return body.error.message
+  if (parsedBody) {
+    if (
+      parsedBody.error &&
+      typeof parsedBody.error === 'object' &&
+      typeof parsedBody.error.message === 'string'
+    ) {
+      return parsedBody.error.message
     }
-    if (typeof body.detail === 'string' && body.detail) return body.detail
-    if (typeof body.error === 'string' && body.error) return body.error
-    if (typeof body.message === 'string' && body.message) return body.message
+    if (typeof parsedBody.detail === 'string' && parsedBody.detail) return parsedBody.detail
+    if (typeof parsedBody.error === 'string' && parsedBody.error) return parsedBody.error
+    if (typeof parsedBody.message === 'string' && parsedBody.message) return parsedBody.message
   }
   return text.slice(0, 500)
 }
@@ -99,24 +113,39 @@ export interface ImageGenProviderOptions {
 }
 
 /**
- * T66 P3：显式 response_format: 'url'。依据 = OpenAI 兼容端惯例（OpenAI
- * images API 与各类中转代理均识别该参数且默认即为 url；显式写出消除
- * 「依赖各端默认值」的隐式假设，extractImageBytes 的 url 分支即消费路径，
- * b64_json 分支保留为端间差异兜底）。
- * 风险在案：不识别该参数的端点（如未来接入的 Seedream 协议族）按 JSON
- * 惯例应忽略未知字段——若某端因此报错，属该端不守兼容惯例，届时在
- * provider 层按 providerType 分派处理（T66 只有 openai-compatible 一族）。
+ * T77 P6 抽出：provider 核心实现——OpenAI 兼容族与 Seedream 族共用。
+ * - wire.name：provider.name（如 `openai-compatible(${model})`）
+ * - wire.background：provider 侧固定 background 值（P7：OpenAI 'auto'，
+ *   Seedream 'opaque'——后者不接受 'auto'）。req.background 不再被读取。
+ * - wire.extraFields：族差异字段（如 Seedream 的 watermark: false）。
+ *   FormData 路径 append(k, String(v))、JSON 路径对象展开（与
+ *   withCompression 同款双形态写法）。
+ *
+ * 不导出——仅 createImageGenProvider / createSeedreamImageGenProvider
+ * 两个工厂调用，对外通过 factory.createProviderFor 暴露。
  */
-const RESPONSE_FORMAT = 'url'
+interface ProviderCoreWire {
+  name: string
+  background: 'auto' | 'opaque'
+  extraFields?: Record<string, unknown>
+}
 
-export function createImageGenProvider(options: ImageGenProviderOptions): ImageGenProvider {
+/**
+ * 内部暴露给 provider-seedream.ts 共用——不写入对外 API 面（不在
+ * factory.ts 重导出），仅作同目录兄弟工厂的实现依赖。导出符号而非
+ * 函数体复制：以保持单源、确保族差异 wire 路径变更只在一处生效。
+ */
+export function createProviderCore(
+  options: ImageGenProviderOptions,
+  wire: ProviderCoreWire
+): ImageGenProvider {
   const { credentials } = options
   const fetchImpl: FetchLike = options.fetchImpl ?? fetch
   const timeoutMs = options.timeoutMs ?? imageGenTimeoutMs()
   const baseURL = credentials.baseUrl.replace(/\/$/, '')
 
   return {
-    name: `openai-compatible(${credentials.model})`,
+    name: wire.name,
     async generate(req: ImageGenRequest, images?: Uint8Array[]): Promise<ImageGenResult> {
       if (!credentials.apiKey) throw new Error('Image-gen API key not configured')
       const hasDims =
@@ -137,6 +166,15 @@ export function createImageGenProvider(options: ImageGenProviderOptions): ImageG
           else target.output_compression = req.outputCompression
         }
       }
+      // T77 P6 族差异字段注入：FormData 走 append(k, String(v))，
+      // JSON 走对象展开（与 withCompression 同款双形态）。
+      const applyExtraFields = (target: FormData | Record<string, unknown>) => {
+        if (!wire.extraFields) return
+        for (const [k, v] of Object.entries(wire.extraFields)) {
+          if (target instanceof FormData) target.append(k, String(v))
+          else target[k] = v
+        }
+      }
 
       const signal = AbortSignal.timeout(timeoutMs)
       let response: Response
@@ -149,9 +187,9 @@ export function createImageGenProvider(options: ImageGenProviderOptions): ImageG
         form.append('quality', req.quality ?? 'auto')
         form.append('output_format', req.outputFormat ?? 'png')
         withCompression(form)
-        form.append('background', req.background ?? 'auto')
+        applyExtraFields(form)
+        form.append('background', wire.background)
         form.append('moderation', 'auto')
-        form.append('response_format', RESPONSE_FORMAT)
         images.forEach((bytes, index) => {
           form.append(
             'image[]',
@@ -174,10 +212,10 @@ export function createImageGenProvider(options: ImageGenProviderOptions): ImageG
           n: 1,
           quality: req.quality ?? 'auto',
           output_format: req.outputFormat ?? 'png',
-          background: req.background ?? 'auto',
-          moderation: 'auto',
-          response_format: RESPONSE_FORMAT
+          background: wire.background,
+          moderation: 'auto'
         }
+        applyExtraFields(body)
         withCompression(body)
 
         response = await fetchImpl(`${baseURL}/images/generations`, {
@@ -197,4 +235,12 @@ export function createImageGenProvider(options: ImageGenProviderOptions): ImageG
       return { bytes, width: resultWidth, height: resultHeight }
     }
   }
+}
+
+/** T77 P6：OpenAI 兼容族薄封装——background 'auto'，无族差异字段。 */
+export function createImageGenProvider(options: ImageGenProviderOptions): ImageGenProvider {
+  return createProviderCore(options, {
+    name: `openai-compatible(${options.credentials.model})`,
+    background: 'auto'
+  })
 }

@@ -1,11 +1,12 @@
 /**
  * T66 P4/P5：generate_image 工具契约钉扎——
- * - parameters schema 化（九字段 Type.Array(Type.Object)，additionalProperties
+ * - parameters schema 化（八字段 Type.Array(Type.Object)，additionalProperties
  *   false）：四类常见错误（字段拼错/类型错误/嵌套错误/枚举错误）在 pi 运行时
  *   schema 校验期（pi-ai validateToolArguments，execute 之前）即拒绝并回执
  *   模型自纠；此处直接用 typebox Value.Check 钉 schema 本身的拒绝形状。
  *   注意：运行时在校验前先 Value.Convert（如 "1080" → 1080 的宽容转型属
  *   框架行为），本测试钉的是 schema 严格形状。
+ *   T77 P7：background 由 provider 侧固定，schema 删除该字段（八字段）。
  * - description 瘦身至 2000 字符内（P5）。
  */
 import { describe, expect, test } from 'bun:test'
@@ -26,12 +27,11 @@ const VALID_REPLACE = {
   references: [{ id: '0:7' }, { id: '0:9', composite: true }],
   quality: 'high',
   output_format: 'jpeg',
-  output_compression: 80,
-  background: 'opaque'
+  output_compression: 80
 }
 
 describe('generate_image 工具 schema（P4）', () => {
-  test('合法载荷通过（新建 + 替换九字段全集）', () => {
+  test('合法载荷通过（新建 + 替换八字段全集）', () => {
     expect(Value.Check(GENERATE_IMAGE_PARAMETERS, { requests: [VALID_NEW_IMAGE] })).toBe(true)
     expect(Value.Check(GENERATE_IMAGE_PARAMETERS, { requests: [VALID_REPLACE] })).toBe(true)
   })
@@ -56,7 +56,7 @@ describe('generate_image 工具 schema（P4）', () => {
     expect(Value.Check(GENERATE_IMAGE_PARAMETERS, wrongNesting)).toBe(false)
   })
 
-  test('枚举错误拒绝：quality/output_format/background 均为字面量联合', () => {
+  test('枚举错误拒绝：quality/output_format 均为字面量联合（T77 P7：background 已不在 schema）', () => {
     expect(
       Value.Check(GENERATE_IMAGE_PARAMETERS, {
         requests: [{ ...VALID_NEW_IMAGE, quality: 'best' }]
@@ -67,6 +67,8 @@ describe('generate_image 工具 schema（P4）', () => {
         requests: [{ ...VALID_NEW_IMAGE, output_format: 'gif' }]
       })
     ).toBe(false)
+    // T77 P7：background 由 provider 侧固定、不暴露给工具层——传 background
+    // 现在触发 additionalProperties: false 拒绝（未知字段），不再走枚举校验。
     expect(
       Value.Check(GENERATE_IMAGE_PARAMETERS, {
         requests: [{ ...VALID_NEW_IMAGE, background: 'transparent' }]

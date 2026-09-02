@@ -11,11 +11,16 @@
  *     4. provider HTTP 并行直发（不经桥；key 不出本进程）
  *     5. commit 段串行经桥（image_gen_commit：覆盖前快照 + 写 IMAGE fill）
  *
- * T66（P4/P5）：工具参数从单 JSON 字符串拆为 schema 化数组（9 字段，
+ * T66（P4/P5）：工具参数从单 JSON 字符串拆为 schema 化数组（九字段，
  * additionalProperties: false——字段拼错/类型/嵌套/枚举四类错误由 pi
  * 运行时 schema 校验在 execute 前拒绝并回执模型自纠，pi-ai
  * validateToolArguments 实证）；description 瘦身至 2000 字符内。
  * parseImageGenRequests 保留字符串宽容解析为兼容降级（见 core requests.ts）。
+ *
+ * T77 P7：background 字段从 schema 移除——provider 侧固定，Agent 无感
+ * （owner 2026-09-02 决策；详见 docs/202609010000-image-gen-provider-review.md
+ * P7 与 provider.ts 头注）。parseImageGenRequests 的 ImageGenBackground
+ * 类型与解析保留不动（类型层向后兼容）。
  *
  * 装配形态：createImageGenTool(deps) 工厂返回 pi AgentTool——由主 agent
  * 集成期在 service.ts 装配进 customTools（本任务不改 service.ts/tools.ts）。
@@ -41,7 +46,7 @@ import {
 
 import { createBridgeCaller, type BridgeCaller } from './bridge-call'
 import type { ImageGenCredentials, ImageGenCredentialStore } from './credentials'
-import { createImageGenProvider } from './provider'
+import { createProviderFor } from './factory'
 
 /** 与 fork/image-gen/tools.ts 的桥端点对齐 */
 const BEGIN_TOOL = 'image_gen_begin'
@@ -230,10 +235,11 @@ async function runCommitPhase(
 }
 
 /**
- * T66 P4：requests 拆为 schema 化数组（九字段，与 core requests.ts 解析层
- * RawRequest 对齐）。additionalProperties: false 让字段拼错（target_id 等）
- * 在 pi 运行时 schema 校验期即拒绝；width/height 的「新图必填」是条件约束，
- * schema 表达不了，留在 parseImageGenRequests 语义层（错误文案引导补全）。
+ * T66 P4：requests 拆为 schema 化数组（八字段，与 core requests.ts 解析层
+ * RawRequest 对齐——T77 P7 删 background，由 provider 侧固定）。
+ * additionalProperties: false 让字段拼错（target_id 等）在 pi 运行时 schema
+ * 校验期即拒绝；width/height 的「新图必填」是条件约束，schema 表达不了，
+ * 留在 parseImageGenRequests 语义层（错误文案引导补全）。
  */
 export const GENERATE_IMAGE_PARAMETERS = Type.Object({
   requests: Type.Array(
@@ -266,11 +272,6 @@ export const GENERATE_IMAGE_PARAMETERS = Type.Object({
         ),
         output_compression: Type.Optional(
           Type.Number({ description: 'JPEG/WebP compression 0-100 (only with jpeg/webp)' })
-        ),
-        background: Type.Optional(
-          Type.Union([Type.Literal('auto'), Type.Literal('opaque')], {
-            description: 'Background mode (default: auto)'
-          })
         ),
         replace_id: Type.Optional(
           Type.String({ description: 'Existing node ID to fill (omit = create new node)' })
@@ -314,8 +315,7 @@ export function createImageGenTool(deps: ImageGenToolDeps) {
         })
       }
       const providerFactory =
-        deps.createProvider ??
-        ((creds: ImageGenCredentials) => createImageGenProvider({ credentials: creds }))
+        deps.createProvider ?? ((creds: ImageGenCredentials) => createProviderFor(creds))
       const provider = providerFactory(credentials)
       const callBridge = deps.callBridge ?? createBridgeCaller()
 

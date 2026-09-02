@@ -36,11 +36,14 @@ interface RawCredentialFileOnDisk {
 }
 
 describe('provider 类型注册表', () => {
-  test('当前仅 openai-compatible 一族（为 Seedream 等留位）', () => {
-    expect(IMAGE_GEN_PROVIDER_TYPES.map((entry) => entry.id)).toEqual(['openai-compatible'])
+  test('T77 P6 注册表含 openai-compatible + seedream 两族', () => {
+    expect(IMAGE_GEN_PROVIDER_TYPES.map((entry) => entry.id)).toEqual([
+      'openai-compatible',
+      'seedream'
+    ])
     expect(DEFAULT_IMAGE_GEN_PROVIDER_TYPE).toBe('openai-compatible')
     expect(isImageGenProviderType('openai-compatible')).toBe(true)
-    expect(isImageGenProviderType('seedream')).toBe(false)
+    expect(isImageGenProviderType('seedream')).toBe(true)
   })
 })
 

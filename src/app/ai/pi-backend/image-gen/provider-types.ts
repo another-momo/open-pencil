@@ -6,19 +6,48 @@
  * 已删）：providerType 只决定「端点协议族」（请求/响应形状、鉴权方式），
  * baseUrl/model/apiKey 全部由用户手填并经凭证面落盘。
  *
- * 当前仅 'openai-compatible'（/images/generations + /images/edits，Bearer
- * 鉴权，OpenAI 官方与各类中转/兼容端通用）；为 Seedream 等第二协议族留位
- * （T66 不实现，见仓外 docs/202609010000-image-gen-provider-review.md §5）。
+ * 当前两族：
+ * - 'openai-compatible'（/images/generations + /images/edits，Bearer
+ *   鉴权，OpenAI 官方与各类中转/兼容端通用；provider.ts 承载）
+ * - 'seedream'（T77 P6：火山方舟 /api/v3/images，与 OpenAI 兼容族同协议
+ *   形状，差异为 watermark 默认 true / background 不接受 'auto'；
+ *   provider-seedream.ts 承载）
+ *
+ * T77 P6：数组元素加可选 placeholder 字段（baseUrlPlaceholder /
+ * modelPlaceholder）——设置面板按选中族回填默认占位文案（缺省时回退
+ * i18n）。ImageGenProviderType 联合改手写字面量以稳定类型层语义
+ * （编译器无法验证注册表增删与联合一致性，靠 provider-seedream.test.ts
+ * 的注册表钉扎断言兜底）。
  */
 
-export const IMAGE_GEN_PROVIDER_TYPES = [
+export interface ImageGenProviderTypeEntry {
+  id: string
+  label: string
+  /** 设置面板 baseUrl 输入框占位文案；缺省回退 i18n imageGenBaseUrlPlaceholder */
+  baseUrlPlaceholder?: string
+  /** 设置面板 model 输入框占位文案；缺省回退 i18n imageGenModelPlaceholder */
+  modelPlaceholder?: string
+}
+
+export const IMAGE_GEN_PROVIDER_TYPES: readonly ImageGenProviderTypeEntry[] = [
   {
     id: 'openai-compatible',
     label: 'OpenAI-compatible (/v1/images)'
+  },
+  {
+    id: 'seedream',
+    label: 'Seedream-compatible (/api/v3/images)',
+    baseUrlPlaceholder: 'https://ark.cn-beijing.volces.com/api/v3',
+    modelPlaceholder: 'doubao-seedream-5-0-lite'
   }
-] as const
+]
 
-export type ImageGenProviderType = (typeof IMAGE_GEN_PROVIDER_TYPES)[number]['id']
+/**
+ * 注册表 id 的字面量联合。手写而非 `(typeof IMAGE_GEN_PROVIDER_TYPES)[number]['id']`
+ * 推导——保证类型层稳定，注册表增删条目须同步更新此处。注册表一致性靠
+ * provider-seedream.test.ts 钉扎断言兜底（不允许注册表偏离联合）。
+ */
+export type ImageGenProviderType = 'openai-compatible' | 'seedream'
 
 export const DEFAULT_IMAGE_GEN_PROVIDER_TYPE: ImageGenProviderType = 'openai-compatible'
 

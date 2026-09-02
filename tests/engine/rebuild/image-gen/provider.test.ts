@@ -1,7 +1,14 @@
 /**
  * T54→T66：OpenAI 兼容 provider mock fetch 钉请求形状（验收锚 T54-plan §3.1，
- * D34 凭证链 mock 进 CI；T66 P1 去 DMX 命名/P3 response_format）。
- * T71：连接探针移除（owner 裁决 2026-09-01：并非所有 provider 实现 /models）。
+ * D34 凭证链 mock 进 CI；T66 P1 去 DMX 命名）。T71：连接探针移除（owner
+ * 裁决 2026-09-01：并非所有 provider 实现 /models）。
+ * T77：
+ * - P3 反向钉扎：不显式发送 response_format 键（JSON body 无该键、
+ *   multipart form.get('response_format') 为 null）——extractImageBytes
+ *   双格式消费使显式指定无收益，gpt-image 系端点拒绝该参数。
+ * - P7 钉扎：background 由 provider 侧固定 'auto'——即便 Agent 传
+ *   req.background: 'opaque'，线路恒 'auto'（钉 provider 忽略 agent 侧 background）。
+ *
  * 请求形状以移植源 providers.ts 为据（OpenAI 兼容 /images/generations +
  * /images/edits），fixture 用通用 example.com 端点——本实现与任何特定
  * 中转商无关；SP-a1 探针钉的是 pi-ai openrouter-images 扩展槽契约
@@ -53,7 +60,8 @@ function mockFetch(payload: unknown, status = 200) {
 
 const B64_RESPONSE = { data: [{ b64_json: Buffer.from(PNG_BYTES).toString('base64') }] }
 
-/** OpenAI 兼容 /images/generations 请求体（钉扎用命名类型） */
+/** OpenAI 兼容 /images/generations 请求体（钉扎用命名类型）。
+ * T77 P3：response_format 字段移除——反向钉扎在断言侧（见下）。 */
 interface GenerationsRequestBody {
   model?: string
   prompt?: string
@@ -64,11 +72,10 @@ interface GenerationsRequestBody {
   output_compression?: number
   background?: string
   moderation?: string
-  response_format?: string
 }
 
 describe('provider 请求形状', () => {
-  test('文生图：POST /images/generations JSON（契约字段全集 + 显式 response_format）', async () => {
+  test('文生图：POST /images/generations JSON（契约字段全集 + T77 P7 background 固定 auto）', async () => {
     const { calls, fetchImpl } = mockFetch(B64_RESPONSE)
     const provider = createImageGenProvider({ credentials: CREDENTIALS, fetchImpl })
     const result = await provider.generate({
@@ -95,10 +102,11 @@ describe('provider 请求形状', () => {
       n: 1,
       quality: 'high',
       output_format: 'png',
-      background: 'opaque',
-      moderation: 'auto',
-      response_format: 'url'
+      background: 'auto',
+      moderation: 'auto'
     })
+    // T77 P3 反向钉扎：不显式发送 response_format（gpt-image 系端点拒绝该参数）
+    expect('response_format' in body).toBe(false)
     expect(call.signal).toBeInstanceOf(AbortSignal)
     expect([...result.bytes]).toEqual([...PNG_BYTES])
     expect(result.width).toBe(1024)
@@ -121,7 +129,7 @@ describe('provider 请求形状', () => {
     expect('output_compression' in body).toBe(false)
   })
 
-  test('图生图：POST /images/edits multipart，image[] 字段带文件名 + 显式 response_format', async () => {
+  test('图生图：POST /images/edits multipart，image[] 字段带文件名 + T77 P3 无 response_format', async () => {
     const { calls, fetchImpl } = mockFetch(B64_RESPONSE)
     const provider = createImageGenProvider({ credentials: CREDENTIALS, fetchImpl })
     const refA = new Uint8Array([1, 1, 1])
@@ -140,7 +148,8 @@ describe('provider 请求形状', () => {
     expect(form.get('output_format')).toBe('png')
     expect(form.get('background')).toBe('auto')
     expect(form.get('moderation')).toBe('auto')
-    expect(form.get('response_format')).toBe('url')
+    // T77 P3 反向钉扎：multipart 不带 response_format
+    expect(form.get('response_format')).toBeNull()
     const images = form.getAll('image[]')
     expect(images).toHaveLength(2)
     expect((images[0] as File).name).toBe('input-1.png')

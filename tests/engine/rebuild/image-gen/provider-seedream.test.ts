@@ -25,7 +25,7 @@ import {
   isImageGenProviderType
 } from '@/app/ai/pi-backend/image-gen/provider-types'
 
-import { mockFetch } from './_mock-fetch'
+import { mockFetch } from './helpers'
 
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
 

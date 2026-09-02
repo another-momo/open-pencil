@@ -15,7 +15,7 @@ import { fontRegistryEntry } from '@open-pencil/core/text'
 import { parseCanvasSize } from '@open-pencil/core/tools/fork/marketing/setup'
 
 import { isAssetId, isRecord, type ParsedAsset } from './parse'
-import type { StudioSizePreset } from './types'
+import type { StudioAssetReference, StudioSizePreset } from './types'
 
 export interface ValidationIssue {
   reason: string
@@ -56,7 +56,8 @@ export function validateCommon(
 /**
  * workflow 校验：step_budget 若存在须正整数；subtitle 提取；sizes 尺寸预设清单
  * （T65 §2.1：非空 [{label, canvas}]，label 非空中文名、canvas 格式 `宽x`/`宽x高`
- * ——canvas 解析单源在 core setup.ts parseCanvasSize）。
+ * ——canvas 解析单源在 core setup.ts parseCanvasSize）；references 按需参考清单
+ * （T85 定谳 1：非空 [{path, description}]，path 仅 .md 相对路径、禁 `..`/绝对/盘符）。
  * （T62：type 层级校验段整体删除——未知 frontmatter 键容忍不校验。）
  */
 export function validateWorkflow(
@@ -67,6 +68,7 @@ export function validateWorkflow(
   stepBudget?: number
   subtitle?: string
   sizes?: StudioSizePreset[]
+  references?: StudioAssetReference[]
 } {
   const { frontmatter: fm } = parsed
   const issues = validateCommon(fm, filenameId, 'mode')
@@ -84,7 +86,81 @@ export function validateWorkflow(
     }
   }
 
-  return { issues, stepBudget, subtitle: stringField(fm.subtitle), ...parseSizes(fm, issues) }
+  return {
+    issues,
+    stepBudget,
+    subtitle: stringField(fm.subtitle),
+    ...parseSizes(fm, issues),
+    ...parseReferences(fm, issues)
+  }
+}
+
+/** reference path 形态问题（null = 合法）：仅 .md 相对路径，禁 `..` / 绝对路径 / 盘符 / UNC。
+ *  入参须已做反斜杠归一（`\\` → `/`）；读取侧（read-reference.ts）同口径再查一次（纵深防御） */
+function referencePathProblem(path: string): string | null {
+  if (path.startsWith('/')) return '是绝对路径（UNC 同拒）'
+  if (/^[A-Za-z]:/.test(path)) return '含盘符'
+  if (path.split('/').some((seg) => seg === '..')) return '含 `..` 上跳'
+  if (!path.endsWith('.md')) return '不是 .md 文件'
+  return null
+}
+
+/**
+ * references 清单解析（T85 定谳 1，三类资产共用）：全部条目合法才产出（任一非法 →
+ * 整条不产出，issues 已逐条记录——同 sizes 先例）。path 归一 = 反斜杠转正斜杠后校验，
+ * 存储归一后形态（索引注入与 read_reference 匹配同口径）。
+ */
+export function parseReferences(
+  fm: Record<string, unknown>,
+  issues: ValidationIssue[]
+): { references?: StudioAssetReference[] } {
+  if (!('references' in fm)) return {}
+  const raw = fm.references
+  if (!Array.isArray(raw) || raw.length === 0) {
+    issues.push({
+      reason: '`references` 不是非空清单',
+      hint: '形如 `references: [{path: references/imagery.md, description: 图像决策纪律}]`——或删除该字段'
+    })
+    return {}
+  }
+  const before = issues.length
+  const references: StudioAssetReference[] = []
+  for (const entry of raw as unknown[]) {
+    if (!isRecord(entry)) {
+      issues.push({
+        reason: '`references` 含非键值条目',
+        hint: '每条必须是 `{path, description}` 键值对（如 `{path: references/imagery.md, description: 图像决策纪律}`）'
+      })
+      continue
+    }
+    const rawPath = stringField(entry.path)
+    const description = stringField(entry.description)
+    if (!rawPath) {
+      issues.push({
+        reason: '`references` 条目缺 `path` 或为空',
+        hint: '每条须含相对资产文件所在目录的 .md 相对路径（如 `references/imagery.md`）'
+      })
+      continue
+    }
+    const path = rawPath.replaceAll('\\', '/')
+    const problem = referencePathProblem(path)
+    if (problem) {
+      issues.push({
+        reason: `\`references\` 条目 path「${rawPath}」${problem}`,
+        hint: 'path 只接受相对资产文件所在目录的 .md 相对路径——禁 `..`、绝对路径与盘符'
+      })
+      continue
+    }
+    if (!description) {
+      issues.push({
+        reason: `\`references\` 条目「${path}」缺 \`description\` 或为空`,
+        hint: '补一行用途描述（索引进 systemPrompt 时随 path 展示，如「图像资产决策与生成纪律」）'
+      })
+      continue
+    }
+    references.push({ path, description })
+  }
+  return issues.length === before ? { references } : {}
 }
 
 /** sizes 清单解析：全部条目合法才产出（任一非法 → 整条不注册，issues 已逐条记录） */
@@ -176,7 +252,8 @@ function collectFontRefs(fm: Record<string, unknown>): string[] {
 
 /**
  * profile 校验：必需小节非空或显式 `no-op`；applicable_to 引用完整性（引用的
- * mode 必须存在于注册表或为 general，PD-16）；非法 hex；字体白名单（注册表命中）。
+ * mode 必须存在于注册表或为 general，PD-16）；非法 hex；字体白名单（注册表命中）；
+ * references 按需参考清单（T85 定谳 1，与 workflow 同口径）。
  *
  * `knownModeIds` 由 registry 在 workflow 注册完成后传入（含 general）。
  */
@@ -190,6 +267,7 @@ export function validateProfile(
   heroComposition?: string
   version?: number
   deprecated: boolean
+  references?: StudioAssetReference[]
 } {
   const { frontmatter: fm, sections, body } = parsed
   const issues = validateCommon(fm, filenameId, 'profile')
@@ -260,6 +338,7 @@ export function validateProfile(
     applicableTo,
     heroComposition: stringField(fm.hero_composition),
     version,
-    deprecated: fm.deprecated === true
+    deprecated: fm.deprecated === true,
+    ...parseReferences(fm, issues)
   }
 }

@@ -1,16 +1,25 @@
 {
   "modes": [
-    { "id": "general", "label": "通用设计", "source": "general", "types": [] },
+    { "id": "general", "label": "通用设计", "source": "general" },
+    {
+      "id": "editable-design",
+      "label": "海报设计",
+      "subtitle": "海报 / 营销图 / 封面 / 菜单 / 横幅 / 社交卡片的定画布视觉",
+      "sizes": [
+        { "label": "竖版海报（A4 印刷比）", "canvas": "794x1123" },
+        { "label": "方形社交卡片", "canvas": "1080x1080" }
+      ],
+      "source": "workflow"
+    },
     {
       "id": "longform",
       "label": "长图设计",
       "subtitle": "电商详情 / 产品长文 / 小红书长图的分区物料",
-      "source": "workflow",
-      "types": [
-        { "id": "ecommerce_detail", "label": "电商详情页", "size": "750x" },
-        { "id": "product_long", "label": "产品长图文", "size": "750x" },
-        { "id": "xiaohongshu_long", "label": "小红书长图", "size": "1080x" }
-      ]
+      "sizes": [
+        { "label": "电商详情长图", "canvas": "750x" },
+        { "label": "小红书长图", "canvas": "1080x" }
+      ],
+      "source": "workflow"
     }
   ],
   "profiles": [

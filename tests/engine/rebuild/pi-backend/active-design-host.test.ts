@@ -36,15 +36,24 @@ import {
   type CandidateProbeData,
   type SlotProbeData
 } from '@/app/ai/pi-backend/active-design-host'
-import type { StudioRegistry, StudioWorkflow } from '@/app/ai/pi-backend/studio/types'
+import type {
+  StudioAssetReference,
+  StudioRegistry,
+  StudioWorkflow
+} from '@/app/ai/pi-backend/studio/types'
 
 // ── fixture ──────────────────────────────────────────────────────────────────
 
-function makeWorkflow(id: string, body: string): StudioWorkflow {
+function makeWorkflow(
+  id: string,
+  body: string,
+  references?: StudioAssetReference[]
+): StudioWorkflow {
   return {
     kind: 'workflow',
     id,
     label: id,
+    ...(references ? { references } : {}),
     body,
     sections: {},
     origin: 'builtin',
@@ -80,7 +89,8 @@ function makeRegistry(): StudioRegistry {
       ]
     ]),
     modes: [{ id: 'general', label: '通用设计', source: 'general' }],
-    failures: []
+    failures: [],
+    resolvedReferences: new Map()
   }
 }
 
@@ -355,6 +365,124 @@ describe('每回合组装（assembleTurn）', () => {
   })
 })
 
+// ── T85：references 索引注入与每回合允许集 ────────────────────────────────────
+
+describe('references 索引注入（T85 定谳 3/4）', () => {
+  const REFS: StudioAssetReference[] = [
+    { path: 'references/imagery.md', description: '图像决策纪律' },
+    { path: 'references/typography.md', description: '版式排印原则' }
+  ]
+  /** 带 references 的注册表：workflow 两条 + 桶内绝对路径；可选 base/profile 各一条 */
+  function registryWithRefs(opts: { base?: boolean; profile?: boolean } = {}): StudioRegistry {
+    const r = makeRegistry()
+    r.workflows.set('longform', makeWorkflow('longform', 'LONGFORM-WORKFLOW', REFS))
+    r.resolvedReferences = new Map([
+      [
+        'workflow:longform',
+        new Map([
+          ['references/imagery.md', '/abs/studio/workflows/longform/references/imagery.md'],
+          ['references/typography.md', '/abs/studio/workflows/longform/references/typography.md']
+        ])
+      ]
+    ])
+    if (opts.base && r.base) {
+      r.base.references = [{ path: 'references/house.md', description: '团队纪律' }]
+      r.resolvedReferences.set(
+        'base:base',
+        new Map([['references/house.md', '/abs/studio/base/references/house.md']])
+      )
+    }
+    if (opts.profile) {
+      const p = r.profiles.get('watercolor')
+      if (p) p.references = [{ path: 'references/recipe.md', description: '配方细节' }]
+      r.resolvedReferences.set(
+        'profile:watercolor',
+        new Map([['references/recipe.md', '/abs/studio/profiles/watercolor/references/recipe.md']])
+      )
+    }
+    return r
+  }
+
+  test('有槽：索引节追加 systemPrompt 尾段（行格式逐字钉扎）+ 允许集 = 声明 path → 绝对路径', () => {
+    const turn = assembleTurn(registryWithRefs(), {
+      status: 'ok',
+      design: designSnap({ profileId: '' }),
+      briefMissing: false
+    })
+    expect(turn.systemPrompt).toBe(
+      'BASE\n\nLONGFORM-WORKFLOW\n\n' +
+        '## 按需参考（read_reference 工具按需读取）\n' +
+        '- references/imagery.md —— 图像决策纪律（workflow: longform）\n' +
+        '- references/typography.md —— 版式排印原则（workflow: longform）'
+    )
+    expect(Object.fromEntries(turn.allowedReferences)).toEqual({
+      'references/imagery.md': '/abs/studio/workflows/longform/references/imagery.md',
+      'references/typography.md': '/abs/studio/workflows/longform/references/typography.md'
+    })
+  })
+
+  test('无任何 references → 无索引节 + 允许集为空（systemPrompt 逐字不变）', () => {
+    const turn = assembleTurn(makeRegistry(), {
+      status: 'ok',
+      design: designSnap(),
+      briefMissing: false
+    })
+    expect(turn.systemPrompt).toBe('BASE\n\nLONGFORM-WORKFLOW\n\nPROFILE-BODY')
+    expect(turn.systemPrompt).not.toContain('按需参考')
+    expect(turn.allowedReferences.size).toBe(0)
+  })
+
+  test('空槽 = base only：base 有 references 才出现索引节（source 标 base）', () => {
+    const withBase = assembleTurn(registryWithRefs({ base: true }), { status: 'empty' })
+    expect(withBase.systemPrompt).toBe(
+      'BASE\n\n## 按需参考（read_reference 工具按需读取）\n- references/house.md —— 团队纪律（base）'
+    )
+    expect(Object.fromEntries(withBase.allowedReferences)).toEqual({
+      'references/house.md': '/abs/studio/base/references/house.md'
+    })
+    // base 无 references 的空槽：无节、空允许集
+    const plain = assembleTurn(makeRegistry(), { status: 'empty' })
+    expect(plain.systemPrompt).toBe('BASE')
+    expect(plain.allowedReferences.size).toBe(0)
+  })
+
+  test('profile 选中时其 references 同机制入并集（位于 workflow 行之后）', () => {
+    const turn = assembleTurn(registryWithRefs({ profile: true }), {
+      status: 'ok',
+      design: designSnap(),
+      briefMissing: false
+    })
+    expect(turn.systemPrompt).toContain('- references/recipe.md —— 配方细节（profile: watercolor）')
+    const lines = turn.systemPrompt.split('\n')
+    const idxW = lines.findIndex((l) => l.includes('references/imagery.md'))
+    const idxP = lines.findIndex((l) => l.includes('references/recipe.md'))
+    expect(idxP).toBeGreaterThan(idxW)
+    expect(turn.allowedReferences.get('references/recipe.md')).toBe(
+      '/abs/studio/profiles/watercolor/references/recipe.md'
+    )
+  })
+
+  test('落盘 mode 的 workflow 缺失 → workflow references 不进并集（按 general 组装）', () => {
+    const turn = assembleTurn(registryWithRefs(), {
+      status: 'ok',
+      design: designSnap({ modeId: 'ghost-mode', profileId: '' }),
+      briefMissing: false
+    })
+    expect(turn.systemPrompt).toBe('BASE')
+    expect(turn.allowedReferences.size).toBe(0)
+  })
+
+  test('prepareTurn 挂载 + finalizeTurn 复位：允许集随 turn 缓存袋清零', async () => {
+    const bridge = makeFakeBridge()
+    bridge.setSlot('d1', designSnap({ profileId: '' }))
+    const host = makeHost(bridge, registryWithRefs())
+    await host.prepareTurn('继续')
+    expect(host.turnAssembly()?.allowedReferences.size).toBe(2)
+    host.finalizeTurn()
+    expect(host.turnAssembly()).toBeNull()
+  })
+})
+
 // ── prepareTurn 管线（桥假件）────────────────────────────────────────────────
 
 describe('prepareTurn 管线', () => {
@@ -370,7 +498,8 @@ describe('prepareTurn 管线', () => {
     expect(host.newIntentConfirmed()).toBe(true)
     expect(host.turnAssembly()).toEqual({
       systemPrompt: 'BASE',
-      contextLines: ['用户已为本次新建确认参数：modeId=longform（选择即锁定，不得覆盖）']
+      contextLines: ['用户已为本次新建确认参数：modeId=longform（选择即锁定，不得覆盖）'],
+      allowedReferences: new Map()
     })
     host.finalizeTurn()
   })

@@ -9,6 +9,10 @@
  *
  * T49（2026-08-31，owner 指令）：base.md 已回归纯转写（frontmatter + 双源头注 +
  * 119 行逐字转写，不承载显式纪律段），原纪律段内容钉扎断言随之撤除。
+ *
+ * T85（2026-09-02）：editable-design mode 落位（references 按需读取机制首个
+ * 消费者）——modes 投影三连 + 4 条 references 注册/解析钉扎；扫描器不吞
+ * references 子目录的真目录钉扎（workflows 恰好 2 个而非 2+4）。
  */
 
 import { expect, test } from 'bun:test'
@@ -20,7 +24,7 @@ import { loadStudioFromDirs } from '@/app/ai/pi-backend/studio'
 
 const BUILTIN_DIR = join(import.meta.dir, '../../../../src/app/ai/pi-backend/studio')
 
-test('内置资产集过校验面：failures 零、base 注册（免 label）、longform 注册（T62 后无 types 面、画布尺寸节非空）、四 profile 注册、modes=[general, longform]', () => {
+test('内置资产集过校验面：failures 零、base 注册（免 label）、双 workflow 注册（longform 画布尺寸节非空；editable-design references 全解析）、四 profile 注册、modes=[general, editable-design, longform]', () => {
   const userDir = mkdtempSync(join(tmpdir(), 'studio-user-empty-'))
   try {
     const r = loadStudioFromDirs(BUILTIN_DIR, userDir)
@@ -47,6 +51,29 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
     ])
     expect(r.modes.find((m) => m.id === 'longform')?.sizes).toEqual(longform.sizes)
 
+    // T85：editable-design 注册（定画布海报 mode）+ 4 条 references 声明全解析；
+    // 扫描器不吞 references 子目录——workflows 恰好 2 个（references/*.md 未误注册）
+    expect(r.workflows.size).toBe(2)
+    const editable = r.workflows.get('editable-design')
+    if (!editable) throw new Error('editable-design 未注册')
+    expect(editable.stepBudget).toBe(50)
+    expect(editable.sizes).toEqual([
+      { label: '竖版海报（A4 印刷比）', canvas: '794x1123' },
+      { label: '方形社交卡片', canvas: '1080x1080' }
+    ])
+    expect(editable.references?.map((ref) => ref.path)).toEqual([
+      'references/asset-architecture.md',
+      'references/imagery.md',
+      'references/layout-typography.md',
+      'references/font-system.md'
+    ])
+    const bucket = r.resolvedReferences.get('workflow:editable-design')
+    expect(bucket?.size).toBe(4)
+    for (const abs of bucket?.values() ?? []) {
+      expect(abs).toContain(join('workflows', 'editable-design', 'references'))
+    }
+    expect(r.modes.find((m) => m.id === 'editable-design')?.sizes).toEqual(editable.sizes)
+
     // profiles：恰好四份精品（T48 补迁 watercolor_poster_v2），applicable_to 均指向 longform
     expect([...r.profiles.keys()].sort()).toEqual([
       'editorial_poster_v1',
@@ -58,9 +85,10 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
       expect(p.applicableTo).toEqual(['longform'])
     }
 
-    // modes 投影：general 恒在 + longform 来自 workflow
-    expect(r.modes.map((m) => m.id)).toEqual(['general', 'longform'])
+    // modes 投影：general 恒在 + 双 workflow 派生（文件名序 editable-design < longform）
+    expect(r.modes.map((m) => m.id)).toEqual(['general', 'editable-design', 'longform'])
     expect(r.modes[1].source).toBe('workflow')
+    expect(r.modes[2].source).toBe('workflow')
   } finally {
     rmSync(userDir, { recursive: true, force: true })
   }

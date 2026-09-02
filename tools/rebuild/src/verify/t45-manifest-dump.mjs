@@ -10,7 +10,7 @@
  * 再过 format:check，否则门禁红（C3→C4 顺序自踩，T47 修正记录 8 同类）。
  */
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readdirSync, copyFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -19,12 +19,13 @@ const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', 
 const PORT = 7910 + (process.pid % 200)
 const tempRoot = mkdtempSync(join(tmpdir(), 't45-verify-dump-'))
 
+// T85：workflow references 按资产分目录（workflows/editable-design/references/）——
+// 改递归整目录复制，references 文件随资产进 temp 布局（缺文件会进 manifest failures）
 for (const sub of ['workflows', 'profiles']) {
   const srcDir = join(repoRoot, 'src/app/ai/pi-backend/studio', sub)
-  mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/studio', sub), { recursive: true })
-  for (const f of readdirSync(srcDir)) {
-    copyFileSync(join(srcDir, f), join(tempRoot, 'src/app/ai/pi-backend/studio', sub, f))
-  }
+  const dstDir = join(tempRoot, 'src/app/ai/pi-backend/studio', sub)
+  mkdirSync(dstDir, { recursive: true })
+  cpSync(srcDir, dstDir, { recursive: true })
 }
 mkdirSync(join(tempRoot, 'src/app/ai/chat'), { recursive: true })
 mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/prompts'), { recursive: true })

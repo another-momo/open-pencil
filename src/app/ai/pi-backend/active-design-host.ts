@@ -19,6 +19,8 @@
  *    result.message custom 通道注入——convertToLlm 转 user role 进模型上下文，
  *    不进 UI 流、不进历史回填）。空槽 = general（无 workflow 段）+ 无 profile
  *    + 无封套；落盘 mode 的 workflow 缺失 → 一行提示 + 按 general 组装。
+ *    T85 起尾段追加「按需参考」索引节（active 资产 references 并集非空时），
+ *    并集即本回合 read_reference 允许集（read-reference.ts）。
  *  - 新建意图一次性旗标：首行信封 `[新建意图确认 modeId=<id> profileId=<id>
  *    canvas=<值>]`（字段可缺省，顺序固定；canvas 自 T65 起）剥离 → 本回合
  *    newIntentConfirmed() 返真 → run 结束 finalizeTurn（runPrompt finally）
@@ -47,7 +49,8 @@ import { ACTIVE_DESIGN_TEXTS } from '@open-pencil/core/tools/fork/marketing/text
 import { readDiscoveryFile } from '@open-pencil/mcp/discovery'
 
 import { postBridgeRPC } from './bridge-rpc'
-import type { StudioRegistry } from './studio/types'
+import { referenceBucketKey } from './studio/types'
+import type { StudioBase, StudioProfile, StudioRegistry, StudioWorkflow } from './studio/types'
 
 // ── 新建意图信封（共享契约：首行 `[新建意图确认 modeId=<id> profileId=<id> canvas=<值>]`，
 //    字段可缺省、顺序固定；canvas = 尺寸覆盖值，T65 §2.4）──────────────────────────
@@ -89,6 +92,54 @@ export interface TurnAssembly {
   systemPrompt: string
   /** context 注入行（身份封套 + 系统提示）；空槽 → 空数组 */
   contextLines: string[]
+  /**
+   * T85 定谳 4：本回合 read_reference 允许集（声明 path → 加载期解析绝对路径；
+   * 空 = 本回合不可读任何 reference）。宿主持有于 turn 缓存袋，finalizeTurn
+   * 随 turn=null 一并复位（同 intentConfirmed 一次性态纪律）。
+   */
+  allowedReferences: ReadonlyMap<string, string>
+}
+
+/** 索引节标题（T85 定谳 3 字面口径） */
+const REFERENCES_INDEX_HEADING = '## 按需参考（read_reference 工具按需读取）'
+
+/** 本回合 active 资产的 references 并集：base 恒在 + 命中的 workflow + 命中的 profile */
+function collectActiveReferences(
+  registry: StudioRegistry,
+  assets: Array<StudioBase | StudioWorkflow | StudioProfile>
+): { indexSection: string; allowed: Map<string, string> } {
+  const lines: string[] = []
+  const allowed = new Map<string, string>()
+  for (const asset of assets) {
+    if (!asset.references || asset.references.length === 0) continue
+    const source = asset.kind === 'base' ? 'base' : `${asset.kind}: ${asset.id}`
+    const bucket = registry.resolvedReferences.get(referenceBucketKey(asset.kind, asset.id))
+    for (const ref of asset.references) {
+      lines.push(`- ${ref.path} —— ${ref.description}（${source}）`)
+      const abs = bucket?.get(ref.path)
+      // 同 path 多资产声明冲突：先声明先赢（索引首条与允许集指向一致）
+      if (abs && !allowed.has(ref.path)) allowed.set(ref.path, abs)
+    }
+  }
+  return {
+    indexSection: lines.length === 0 ? '' : `${REFERENCES_INDEX_HEADING}\n${lines.join('\n')}`,
+    allowed
+  }
+}
+
+/** 组装收尾：references 索引节追加进 systemPrompt 尾段（并集非空时）+ 允许集入 TurnAssembly */
+function finishTurn(
+  registry: StudioRegistry,
+  segments: string[],
+  contextLines: string[],
+  activeAssets: Array<StudioBase | StudioWorkflow | StudioProfile>
+): TurnAssembly {
+  const { indexSection, allowed } = collectActiveReferences(registry, activeAssets)
+  return {
+    systemPrompt: joinSegments([...segments, indexSection]),
+    contextLines,
+    allowedReferences: allowed
+  }
 }
 
 /** 身份封套首行（三元组 + 节点 id；profileId 缺省字段省略，同信封风格） */
@@ -105,6 +156,10 @@ export function designTargetEnvelope(design: DesignRootSnapshot): string {
  *  - 落盘 mode 的 workflow 缺失 → 一行系统提示 + 按 general 组装（base only，
  *    不注 profile），身份封套保留（目标事实仍在）
  *  - brief 悬空（需求单被删）→ 一行系统提示（S1 §5 删除边界态）
+ *  - T85 定谳 3：本回合 active 资产（base 恒在 + 命中 workflow + 命中 profile）的
+ *    references 并集非空时，systemPrompt 尾段追加「按需参考」索引节；并集即本回合
+ *    read_reference 允许集（allowedReferences，finalizeTurn 复位）。空槽 = base only
+ *    ——base 有 references 才出现该节（mode 作用域隔离，不污染其他 mode 上下文）
  */
 export function assembleTurn(
   registry: StudioRegistry,
@@ -112,28 +167,30 @@ export function assembleTurn(
   extraNotices: string[] = []
 ): TurnAssembly {
   const base = registry.base?.body ?? ''
+  const baseAsset = registry.base ? [registry.base] : []
   if (slot.status !== 'ok') {
-    return { systemPrompt: base, contextLines: [...extraNotices] }
+    return finishTurn(registry, [base], [...extraNotices], baseAsset)
   }
   const { design } = slot
   const contextLines = [designTargetEnvelope(design), ...extraNotices]
   if (slot.briefMissing) contextLines.push(ACTIVE_DESIGN_TEXTS.briefMissing)
+  const profile = design.profileId === '' ? undefined : registry.profiles.get(design.profileId)
   if (design.modeId === 'general') {
-    const profile = profileBody(registry, design.profileId)
-    return { systemPrompt: joinSegments([base, profile]), contextLines }
+    return finishTurn(registry, [base, profile?.body ?? ''], contextLines, [
+      ...baseAsset,
+      ...(profile ? [profile] : [])
+    ])
   }
   const workflow = registry.workflows.get(design.modeId)
   if (!workflow) {
     contextLines.push(ACTIVE_DESIGN_TEXTS.workflowMissing(design.modeId))
-    return { systemPrompt: base, contextLines }
+    return finishTurn(registry, [base], contextLines, baseAsset)
   }
-  const segments = [base, workflow.body, profileBody(registry, design.profileId)]
-  return { systemPrompt: joinSegments(segments), contextLines }
-}
-
-function profileBody(registry: StudioRegistry, profileId: string): string {
-  if (profileId === '') return ''
-  return registry.profiles.get(profileId)?.body ?? ''
+  return finishTurn(registry, [base, workflow.body, profile?.body ?? ''], contextLines, [
+    ...baseAsset,
+    workflow,
+    ...(profile ? [profile] : [])
+  ])
 }
 
 function joinSegments(segments: string[]): string {

@@ -8,23 +8,38 @@
  * 路径约定：调用方注入 rootDir（仓库根），内置目录 =
  * `<rootDir>/src/app/ai/pi-backend/studio/`；用户目录 = `~/.openpencil/studio/`
  * （rootDir 注入模型与 service.ts 一致，T24 起在线）。
+ *
+ * T85（资产 references 按需读取机制）：三类资产 frontmatter 可选 `references`
+ * （validate.ts 纯函数校验形态）；本模块加载期做**文件存在性检查**（相对资产文件
+ * 所在目录解析）——缺失条目摘出注册资产 + failures 显式条目（S2 §8：frontmatter
+ * 病态整条不注册，文件缺失不连坐资产本体），命中条目进 resolvedReferences
+ * 内部桶（绝对路径不出后端进程，manifest 不投影）。
+ * 扫描深度钉扎：listMarkdownFiles 非递归（仅直视子 .md 文件）——references
+ * 子目录（如 `workflows/editable-design/references/`）永不被当资产注册。
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import { splitFrontmatter, type ParsedAsset } from './parse'
-import type {
-  StudioBase,
-  StudioFailure,
-  StudioMode,
-  StudioOrigin,
-  StudioProfile,
-  StudioRegistry,
-  StudioWorkflow
+import {
+  referenceBucketKey,
+  type StudioAssetReference,
+  type StudioBase,
+  type StudioFailure,
+  type StudioMode,
+  type StudioOrigin,
+  type StudioProfile,
+  type StudioRegistry,
+  type StudioWorkflow
 } from './types'
-import { validateProfile, validateWorkflow } from './validate'
+import {
+  parseReferences,
+  validateProfile,
+  validateWorkflow,
+  type ValidationIssue
+} from './validate'
 
 const BUILTIN_STUDIO_SUBPATH = join('src', 'app', 'ai', 'pi-backend', 'studio')
 const USER_STUDIO_SUBPATH = join('.openpencil', 'studio')
@@ -99,10 +114,53 @@ function fail(
   })
 }
 
+/** resolvedReferences 桶（加载期累计，随注册表返回——内部面，manifest 不投影） */
+type ResolvedBuckets = Map<string, Map<string, string>>
+
+/**
+ * T85 定谳 1/2：references 存在性检查与绝对路径解析。解析基 = **按资产分目录**
+ * （`<资产文件所在目录>/<资产 id>/`，定谳 2「与资产同侧按资产分目录」布局——
+ * 声明 `references/imagery.md` 即 `<所在目录>/<id>/references/imagery.md`）。
+ * 命中 → 留在注册资产 + 进 resolved 桶；缺失 → 条目摘出 + failures 显式条目
+ * （文件缺失不连坐资产本体——frontmatter 病态已在 validate 段整条拦下）。
+ */
+function resolveReferences(
+  references: StudioAssetReference[] | undefined,
+  candidate: Candidate,
+  kind: 'base' | 'workflow' | 'profile',
+  resolved: ResolvedBuckets,
+  failures: StudioFailure[]
+): StudioAssetReference[] | undefined {
+  if (!references) return undefined
+  const kept: StudioAssetReference[] = []
+  for (const ref of references) {
+    const abs = join(dirname(candidate.path), candidate.id, ref.path)
+    if (existsSync(abs)) {
+      kept.push(ref)
+      let bucket = resolved.get(referenceBucketKey(kind, candidate.id))
+      if (!bucket) {
+        bucket = new Map()
+        resolved.set(referenceBucketKey(kind, candidate.id), bucket)
+      }
+      bucket.set(ref.path, abs)
+    } else {
+      fail(
+        failures,
+        candidate,
+        kind,
+        `references 声明的「${ref.path}」文件不存在`,
+        `补齐该文件（按资产分目录布局：<资产同侧目录>/${candidate.id}/${ref.path}），或从 frontmatter 删除该条声明`
+      )
+    }
+  }
+  return kept.length > 0 ? kept : undefined
+}
+
 /** base 唯一槽位：用户覆盖内置；双源皆缺 → 显式缺失态（S2 §8） */
 function loadBase(
   builtinDir: string,
   userDir: string,
+  resolved: ResolvedBuckets,
   failures: StudioFailure[]
 ): StudioBase | null {
   const baseCandidates = [
@@ -140,11 +198,22 @@ function loadBase(
     )
     return null
   }
+  // T85：base 同享 references 机制（校验同三类口径；病态 → base 不注册，同 id 错硬失败先例）
+  const referenceIssues: ValidationIssue[] = []
+  const { references } = parseReferences(parsed.frontmatter, referenceIssues)
+  if (referenceIssues.length > 0) {
+    for (const issue of referenceIssues) {
+      fail(failures, baseCandidate, 'base', issue.reason, issue.hint)
+    }
+    return null
+  }
+  const keptReferences = resolveReferences(references, baseCandidate, 'base', resolved, failures)
   return {
     kind: 'base',
     id: 'base',
     body: parsed.body,
     sections: parsed.sections,
+    ...(keptReferences ? { references: keptReferences } : {}),
     origin: baseCandidate.origin,
     path: baseCandidate.path
   }
@@ -154,6 +223,7 @@ function loadBase(
 function loadWorkflows(
   builtinDir: string,
   userDir: string,
+  resolved: ResolvedBuckets,
   failures: StudioFailure[]
 ): Map<string, StudioWorkflow> {
   const workflows = new Map<string, StudioWorkflow>()
@@ -163,11 +233,15 @@ function loadWorkflows(
       fail(failures, candidate, 'workflow', parsed.reason, parsed.hint)
       continue
     }
-    const { issues, stepBudget, subtitle, sizes } = validateWorkflow(parsed, candidate.id)
+    const { issues, stepBudget, subtitle, sizes, references } = validateWorkflow(
+      parsed,
+      candidate.id
+    )
     if (issues.length > 0) {
       for (const issue of issues) fail(failures, candidate, 'workflow', issue.reason, issue.hint)
       continue
     }
+    const keptReferences = resolveReferences(references, candidate, 'workflow', resolved, failures)
     workflows.set(candidate.id, {
       kind: 'workflow',
       id: candidate.id,
@@ -175,6 +249,7 @@ function loadWorkflows(
       ...(subtitle ? { subtitle } : {}),
       ...(stepBudget !== undefined ? { stepBudget } : {}),
       ...(sizes ? { sizes } : {}),
+      ...(keptReferences ? { references: keptReferences } : {}),
       body: parsed.body,
       sections: parsed.sections,
       origin: candidate.origin,
@@ -188,6 +263,7 @@ function loadProfiles(
   builtinDir: string,
   userDir: string,
   knownModeIds: ReadonlySet<string>,
+  resolved: ResolvedBuckets,
   failures: StudioFailure[]
 ): Map<string, StudioProfile> {
   const profiles = new Map<string, StudioProfile>()
@@ -197,15 +273,13 @@ function loadProfiles(
       fail(failures, candidate, 'profile', parsed.reason, parsed.hint)
       continue
     }
-    const { issues, applicableTo, heroComposition, version, deprecated } = validateProfile(
-      parsed,
-      candidate.id,
-      knownModeIds
-    )
+    const { issues, applicableTo, heroComposition, version, deprecated, references } =
+      validateProfile(parsed, candidate.id, knownModeIds)
     if (issues.length > 0) {
       for (const issue of issues) fail(failures, candidate, 'profile', issue.reason, issue.hint)
       continue
     }
+    const keptReferences = resolveReferences(references, candidate, 'profile', resolved, failures)
     profiles.set(candidate.id, {
       kind: 'profile',
       id: candidate.id,
@@ -214,6 +288,7 @@ function loadProfiles(
       ...(heroComposition ? { heroComposition } : {}),
       ...(version !== undefined ? { version } : {}),
       deprecated,
+      ...(keptReferences ? { references: keptReferences } : {}),
       body: parsed.body,
       sections: parsed.sections,
       origin: candidate.origin,
@@ -229,10 +304,11 @@ function loadProfiles(
  */
 export function loadStudioFromDirs(builtinDir: string, userDir: string): StudioRegistry {
   const failures: StudioFailure[] = []
-  const base = loadBase(builtinDir, userDir, failures)
-  const workflows = loadWorkflows(builtinDir, userDir, failures)
+  const resolved: ResolvedBuckets = new Map()
+  const base = loadBase(builtinDir, userDir, resolved, failures)
+  const workflows = loadWorkflows(builtinDir, userDir, resolved, failures)
   const knownModeIds = new Set<string>(['general', ...workflows.keys()])
-  const profiles = loadProfiles(builtinDir, userDir, knownModeIds, failures)
+  const profiles = loadProfiles(builtinDir, userDir, knownModeIds, resolved, failures)
 
   // ── mode 投影（PD-16：文件存在 = mode 可用；general 恒在内置特例，S2 §2）──
   const modes: StudioMode[] = [
@@ -257,7 +333,7 @@ export function loadStudioFromDirs(builtinDir: string, userDir: string): StudioR
     })
   }
 
-  return { base, workflows, profiles, modes, failures }
+  return { base, workflows, profiles, modes, failures, resolvedReferences: resolved }
 }
 
 // ── 进程级单例（启动加载 + 显式 reload；T43-plan D-c：fs.watch 不做）──

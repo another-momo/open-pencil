@@ -169,6 +169,39 @@ function sendJSON(res: ServerResponse, status: number, payload: unknown): void {
 }
 
 /**
+ * T73：显式取消端点——POST /api/pi-chat/cancel {sessionId}。
+ * 背景：唯一取消通道曾是上方 res.on('close')（T27），其触发依赖客户端
+ * socket 关闭语义穿透 vite http-proxy 到达上游连接，实证不可靠（T73-plan §1
+ * R4 curl 对照：客户端进程死后 25s+ 后端仍持续执行工具）。前端 transport 在
+ * abortSignal 触发时同步 POST 本端点（带外通道，不依赖连接生命周期）。
+ * 幂等无害：service.abort 对未知/空闲 session 是 no-op（T66 钉扎）；重复
+ * cancel（stop 连点、close 兜底叠加）不产生副作用。
+ */
+async function handlePiChatCancelRequest(
+  service: ReturnType<typeof createPiChatService>,
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  if (req.method !== 'POST') {
+    res.writeHead(405).end('Method Not Allowed')
+    return
+  }
+  let body: { sessionId?: unknown }
+  try {
+    body = JSON.parse(await readBody(req)) as { sessionId?: unknown }
+  } catch {
+    res.writeHead(400).end('Bad Request: invalid JSON')
+    return
+  }
+  if (typeof body.sessionId !== 'string' || !body.sessionId) {
+    res.writeHead(400).end('Bad Request: sessionId required')
+    return
+  }
+  await service.abort(body.sessionId)
+  res.writeHead(204).end()
+}
+
+/**
  * T60：POST /api/pi/active-design {nodeId}——②面板点选 / ③AI 声明+同意共用
  * 的移槽端点（非聊天消息）。成功 200 身份三元组；四条件驳回 422；桥不可达 502。
  */
@@ -358,6 +391,11 @@ export function createPiBackendServer({
     }
     if (url.pathname === '/api/pi-chat') {
       void handlePiChatRequest(service, req, res)
+      return
+    }
+    // T73：显式取消端点（exact match，与 /api/pi-chat 无前缀冲突）
+    if (url.pathname === '/api/pi-chat/cancel') {
+      void handlePiChatCancelRequest(service, req, res)
       return
     }
     // T60：active_design 移槽端点（须在 /api/pi/ 管理面前缀之前匹配）

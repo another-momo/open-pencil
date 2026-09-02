@@ -29,6 +29,23 @@ export class PiBackendChatTransport implements ChatTransport<UIMessage> {
   > {
     const context = await this.getContext()
     const model = this.getModelSpec?.()
+    // T73：stop 带外取消通道——Chat.stop() 只 abort 本 fetch；客户端 socket 关闭
+    // 语义穿透 vite 代理到达后端不可靠（T73-plan §1 R4 curl 实证：客户端死后
+    // 后端仍持续执行工具 25s+）。abort 触发时同步 POST 显式 cancel 端点，后端
+    // service.abort(sessionId) 直接打断当次 run。fire-and-forget：失败静默
+    // （res.on('close') 兜底仍在）；once 防重复；已 aborted 的入参信号立即补发。
+    const cancelSession = () => {
+      void fetch(`${this.api}/cancel`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sessionId: context.sessionId })
+      }).catch(() => undefined)
+    }
+    if (abortSignal?.aborted) {
+      cancelSession()
+    } else {
+      abortSignal?.addEventListener('abort', cancelSession, { once: true })
+    }
     const response = await fetch(this.api, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

@@ -6,6 +6,7 @@ import Matrix from '@open-pencil/scene-graph/matrix'
 import type { Vector } from '@open-pencil/scene-graph/primitives'
 
 import { PEN_HANDLE_RADIUS, PEN_VERTEX_RADIUS, PEN_CLOSE_RADIUS_BOOST } from '#core/constants'
+import { drawTextByScript, measureTextByScript } from '#core/canvas/renderer/fonts'
 
 import type { SkiaRenderer, RenderOverlays } from './renderer'
 
@@ -270,13 +271,10 @@ export function drawRemoteCursors(
     if (cursor.name) {
       const font = r.labelFont
       if (font) {
-        font.setSize(LABEL_FONT_SIZE)
+        // T88：远程协作者名字可能中文，按 script 分段测宽+画
         const labelX = screenX + LABEL_OFFSET_X
         const labelY = screenY + LABEL_OFFSET_Y
-        const glyphIds = font.getGlyphIDs(cursor.name)
-        const widths = font.getGlyphWidths(glyphIds)
-        let textWidth = 0
-        for (const w of widths) textWidth += w
+        const { width: textWidth } = measureTextByScript(r, cursor.name, 'label')
 
         r.auxFill.setColor(r.ck.Color4f(cr, g, b, 1))
         const bgRect = r.ck.RRectXY(
@@ -292,7 +290,7 @@ export function drawRemoteCursors(
         canvas.drawRRect(bgRect, r.auxFill)
 
         r.auxFill.setColor(r.ck.Color4f(1, 1, 1, 1))
-        canvas.drawText(cursor.name, labelX, labelY, r.auxFill, font)
+        drawTextByScript(r, canvas, r.auxFill, cursor.name, labelX, labelY, 'label')
       }
     }
   }

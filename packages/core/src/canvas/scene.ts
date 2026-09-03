@@ -21,6 +21,7 @@ import { drawVectorMultiStyleFills, paintFills } from './fills'
 import { drawLayoutGrids } from './layout-grids'
 import { renderMaskedChildIds } from './masks'
 import type { SkiaRenderer, RenderOverlays } from './renderer'
+import { drawTextByScript } from './renderer/fonts'
 import { makeSmoothRRectPath, nodeHasRadius, nodeHasSmoothCorners } from './shapes'
 import {
   configureStrokePaint,
@@ -812,12 +813,15 @@ export function renderText(r: SkiaRenderer, canvas: Canvas, node: SceneNode, fil
   } else if (r.textFont) {
     const fontSize = node.fontSize || r.DEFAULT_FONT_SIZE
     const paragraphY = textVerticalOffset(node, fontSize)
-    canvas.drawText(
+    // T88：node.text 段落 fallback 路径按 script 分段画（中文走 cjkTextFont）
+    drawTextByScript(
+      r,
+      canvas,
+      r.fillPaint,
       transformTextCase(text, node.textCase),
       0,
       paragraphY + fontSize,
-      r.fillPaint,
-      r.textFont
+      'text'
     )
   }
 

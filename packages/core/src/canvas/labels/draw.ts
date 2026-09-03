@@ -3,6 +3,7 @@ import type { Canvas, Font } from 'canvaskit-wasm'
 import type { SceneNode, SceneGraph } from '@open-pencil/scene-graph'
 
 import type { SkiaRenderer } from '#core/canvas/renderer'
+import { drawTextByScript, measureTextByScript } from '#core/canvas/renderer/fonts'
 import {
   SECTION_TITLE_HEIGHT,
   SECTION_TITLE_PADDING_X,
@@ -14,7 +15,95 @@ import {
   COMPONENT_LABEL_ICON_GAP
 } from '#core/constants'
 
-import { ellipsizeLabelText } from './text'
+/**
+ * T88：直画 ellipsize（按字符 script 分段后求截断点）。
+ * - 单 script 段内仍按 glyph 索引截断（保留现有 UI 行为）
+ * - 跨 script 段时优先保留整段，剩余空间才进 glyph-level 截断
+ */
+function truncateToWidth(
+  r: SkiaRenderer,
+  text: string,
+  maxWidth: number,
+  kind: 'sectionTitle' | 'componentLabel',
+  ellipsisWidth: number
+): { text: string; width: number } {
+  if (!text) return { text, width: 0 }
+  const total = measureTextByScript(r, text, kind)
+  if (total.width + ellipsisWidth <= maxWidth) {
+    return { text, width: total.width }
+  }
+  // 逐字符贪心：超过 maxWidth 停止
+  let accWidth = 0
+  let accText = ''
+  let lastFitCharIdx = 0
+  // 按 code point 切，simulate 逐 char 累加宽度——但单 char 宽度 = measureTextByScript 切 1 字符代价 O(n²) 太贵
+  // 折中：按段切，每段用单 typeface glyph 宽度（getGlyphWidths），段内仍按 glyph 索引截
+  // —— 这里复用 measureTextByScript 的策略，按段累加
+  const segments = segmentByScriptLocal(text)
+  for (const seg of segments) {
+    const font = pickFontForSegment(r, seg.script, kind)
+    if (!font) {
+      // latin font 必非 null，跳过
+      continue
+    }
+    const glyphIds = font.getGlyphIDs(seg.text)
+    const widths = font.getGlyphWidths(glyphIds)
+    for (let i = 0; i < widths.length; i++) {
+      const w = widths[i] ?? 0
+      if (accWidth + w + ellipsisWidth > maxWidth) {
+        return { text: accText + '…', width: accWidth + ellipsisWidth }
+      }
+      accWidth += w
+      accText += seg.text[i]
+      lastFitCharIdx++
+    }
+    void lastFitCharIdx
+  }
+  return { text, width: accWidth }
+}
+
+function pickFontForSegment(
+  r: SkiaRenderer,
+  script: 'latin' | 'cjk' | 'arabic',
+  kind: 'sectionTitle' | 'componentLabel'
+): Font | null {
+  if (script === 'latin') return kind === 'sectionTitle' ? r.sectionTitleFont : r.componentLabelFont
+  if (script === 'cjk')
+    return kind === 'sectionTitle' ? r.cjkSectionTitleFont : r.cjkComponentLabelFont
+  return kind === 'sectionTitle' ? r.arabicSectionTitleFont : r.arabicComponentLabelFont
+}
+
+interface LocalSegment {
+  text: string
+  script: 'latin' | 'cjk' | 'arabic'
+}
+
+function segmentByScriptLocal(text: string): LocalSegment[] {
+  const segments: LocalSegment[] = []
+  let buf = ''
+  let curScript: 'latin' | 'cjk' | 'arabic' | null = null
+  for (const ch of text) {
+    const code = ch.codePointAt(0) ?? 0
+    let s: 'latin' | 'cjk' | 'arabic'
+    if (code >= 0x0600 && code <= 0x06ff) s = 'arabic'
+    else if (
+      (code >= 0x3400 && code <= 0x9fff) ||
+      (code >= 0x3040 && code <= 0x30ff) ||
+      (code >= 0xac00 && code <= 0xd7af)
+    )
+      s = 'cjk'
+    else s = 'latin'
+    if (s !== curScript) {
+      if (buf) segments.push({ text: buf, script: curScript ?? 'latin' })
+      buf = ch
+      curScript = s
+    } else {
+      buf += ch
+    }
+  }
+  if (buf) segments.push({ text: buf, script: curScript ?? 'latin' })
+  return segments
+}
 
 export function drawSectionTitles(r: SkiaRenderer, canvas: Canvas, graph: SceneGraph): void {
   if (!r.sectionTitleFont) return
@@ -22,20 +111,18 @@ export function drawSectionTitles(r: SkiaRenderer, canvas: Canvas, graph: SceneG
   const sections = r.labelCache.getSections(graph, r.worldViewport)
   if (sections.length === 0) return
 
-  const font = r.sectionTitleFont
   const ellipsis = '…'
-  const ellipsisGlyphs = font.getGlyphIDs(ellipsis)
-  const ellipsisWidth = font.getGlyphWidths(ellipsisGlyphs)[0]
+  const ellipsisWidth =
+    r.sectionTitleFont.getGlyphWidths(r.sectionTitleFont.getGlyphIDs(ellipsis))[0] ?? 0
 
   for (const { node, absX, absY, nested } of sections) {
-    drawSectionTitle(r, canvas, font, node, graph, absX, absY, nested, ellipsis, ellipsisWidth)
+    drawSectionTitle(r, canvas, node, graph, absX, absY, nested, ellipsis, ellipsisWidth)
   }
 }
 
 function drawSectionTitle(
   r: SkiaRenderer,
   canvas: Canvas,
-  font: Font,
   node: SceneNode,
   graph: SceneGraph,
   absX: number,
@@ -48,31 +135,16 @@ function drawSectionTitle(
   const screenY = absY * r.zoom + r.panY
   const screenW = node.width * r.zoom
   const maxPillW = Math.max(screenW, 0)
+  const maxTextW = Math.max(maxPillW - SECTION_TITLE_PADDING_X * 2, ellipsisWidth)
 
-  const glyphIds = font.getGlyphIDs(node.name)
-  const widths = font.getGlyphWidths(glyphIds)
-
-  let fullTextWidth = 0
-  for (const w of widths) fullTextWidth += w
-
-  const maxTextW = maxPillW - SECTION_TITLE_PADDING_X * 2
-  let displayText = node.name
-  let textWidth = fullTextWidth
-
-  if (textWidth > maxTextW && maxTextW > ellipsisWidth) {
-    let truncW = 0
-    let truncIdx = 0
-    for (let i = 0; i < widths.length; i++) {
-      if (truncW + widths[i] + ellipsisWidth > maxTextW) break
-      truncW += widths[i]
-      truncIdx = i + 1
-    }
-    displayText = node.name.slice(0, truncIdx) + ellipsis
-    textWidth = truncW + ellipsisWidth
-  } else if (maxTextW <= ellipsisWidth) {
-    displayText = ellipsis
-    textWidth = ellipsisWidth
-  }
+  // T88：按字符 script 分段后求截断点（保留 unicode 完整字符）
+  const { text: displayText, width: textWidth } = truncateToWidth(
+    r,
+    node.name,
+    maxTextW,
+    'sectionTitle',
+    ellipsisWidth
+  )
 
   const pillW = Math.min(textWidth + SECTION_TITLE_PADDING_X * 2, maxPillW)
   const pillH = SECTION_TITLE_HEIGHT
@@ -97,8 +169,18 @@ function drawSectionTitle(
   const lum = 0.299 * pillColor.r + 0.587 * pillColor.g + 0.114 * pillColor.b
   r.auxFill.setColor(lum > 0.5 ? r.ck.BLACK : r.ck.WHITE)
   const textY = localPillY + pillH * 0.7
-  canvas.drawText(displayText, localPillX + SECTION_TITLE_PADDING_X, textY, r.auxFill, font)
+  // T88：按 script 分段画（每段用对应 typeface Font 实例）
+  drawTextByScript(
+    r,
+    canvas,
+    r.auxFill,
+    displayText,
+    localPillX + SECTION_TITLE_PADDING_X,
+    textY,
+    'sectionTitle'
+  )
   canvas.restore()
+  void ellipsis
 }
 
 export function drawComponentLabels(r: SkiaRenderer, canvas: Canvas, graph: SceneGraph): void {
@@ -107,7 +189,6 @@ export function drawComponentLabels(r: SkiaRenderer, canvas: Canvas, graph: Scen
   const components = r.labelCache.getComponents(graph, r.worldViewport)
   if (components.length === 0) return
 
-  const font = r.componentLabelFont
   const compColor = r.compColor()
   const iconS = COMPONENT_LABEL_ICON_SIZE
 
@@ -124,7 +205,17 @@ export function drawComponentLabels(r: SkiaRenderer, canvas: Canvas, graph: Scen
     }
 
     const maxTextWidth = node.width * r.zoom - iconS - COMPONENT_LABEL_ICON_GAP
-    const displayText = ellipsizeLabelText(font, node.name, maxTextWidth)
+    // T88：component label 也走按 script 分段（truncateToWidth 内部处理 latin/cjk/arabic 切换）
+    const ellipsis = '…'
+    const ellipsisWidth =
+      r.componentLabelFont.getGlyphWidths(r.componentLabelFont.getGlyphIDs(ellipsis))[0] ?? 0
+    const { text: displayText } = truncateToWidth(
+      r,
+      node.name,
+      Math.max(maxTextWidth, ellipsisWidth),
+      'componentLabel',
+      ellipsisWidth
+    )
     if (!displayText) continue
 
     const iconX = labelX
@@ -168,6 +259,25 @@ export function drawComponentLabels(r: SkiaRenderer, canvas: Canvas, graph: Scen
       immutablePath.delete()
     }
 
-    canvas.drawText(displayText, labelX + iconS + COMPONENT_LABEL_ICON_GAP, labelY, r.auxFill, font)
+    canvas.drawText(
+      displayText,
+      labelX + iconS + COMPONENT_LABEL_ICON_GAP,
+      labelY,
+      r.auxFill,
+      pickFontForSegment(r, segmentScript(displayText), 'componentLabel') ?? r.componentLabelFont
+    )
   }
+}
+
+function segmentScript(text: string): 'latin' | 'cjk' | 'arabic' {
+  if (!text) return 'latin'
+  const code = text.codePointAt(0) ?? 0
+  if (code >= 0x0600 && code <= 0x06ff) return 'arabic'
+  if (
+    (code >= 0x3400 && code <= 0x9fff) ||
+    (code >= 0x3040 && code <= 0x30ff) ||
+    (code >= 0xac00 && code <= 0xd7af)
+  )
+    return 'cjk'
+  return 'latin'
 }

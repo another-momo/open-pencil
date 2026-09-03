@@ -116,3 +116,21 @@ describe('bundled PuHuiTi 前插 CJK 回退链 (T84)', () => {
     expect(families[0]).toBe('Alibaba PuHuiTi')
   })
 })
+
+// T88：直画路径多 typeface 装配硬约束——
+// 校验 loadFonts 后 latin/cjk/arabic 三 typeface 在 fontManager 缓存中都为非 null 字节（直画路径硬约束；T84 仅覆盖 TypefaceFontProvider 注册层，未涉及 loadFont buffer 实际就位）。
+const T88_FAMILIES = ['Inter', 'Alibaba PuHuiTi', 'Noto Naskh Arabic'] as const
+for (const family of T88_FAMILIES) {
+  test(`T88 ${family} 字节 buffer loadFont 后 isLoaded=true`, async () => {
+    const manager = new FontManager()
+    const { provider } = recordingProvider()
+    manager.attachProvider({} as CanvasKit, provider)
+    manager.setWebFontFetch(fastEmptyFetch())
+    manager.setCnFontPieceCache(null)
+    manager.setWebFontListTimeout(50)
+
+    const buffer = await manager.loadFont(family, 'Regular')
+    expect(buffer).not.toBeNull()
+    expect(manager.isLoaded(family)).toBe(true)
+  })
+}

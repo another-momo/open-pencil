@@ -83,6 +83,18 @@ export class SkiaRenderer {
   sizeFont: Font | null = null
   sectionTitleFont: Font | null = null
   componentLabelFont: Font | null = null
+  // T88：直画路径多 typeface 装配（latin / cjk / arabic）。
+  // sectionTitleFont 等 Latin 实例绑 Inter typeface（无 CJK 字形）→ 节点名中文走 cjk * / arabic *。
+  cjkTextFont: Font | null = null
+  cjkLabelFont: Font | null = null
+  cjkSizeFont: Font | null = null
+  cjkSectionTitleFont: Font | null = null
+  cjkComponentLabelFont: Font | null = null
+  arabicTextFont: Font | null = null
+  arabicLabelFont: Font | null = null
+  arabicSizeFont: Font | null = null
+  arabicSectionTitleFont: Font | null = null
+  arabicComponentLabelFont: Font | null = null
   fontMgr: FontMgr | null = null
   fontProvider: TypefaceFontProvider | null = null
   fontsLoaded = false
@@ -517,7 +529,7 @@ export class SkiaRenderer {
       canvasY,
       this.zoom,
       this.pageId ?? graph.rootId,
-      this.sectionTitleFont,
+      this.isDestroyed() ? null : this,
       this.labelCache
     )
   }
@@ -529,7 +541,7 @@ export class SkiaRenderer {
       canvasY,
       this.zoom,
       this.pageId ?? graph.rootId,
-      this.componentLabelFont,
+      this.isDestroyed() ? null : this,
       this.labelCache
     )
   }
@@ -546,7 +558,7 @@ export class SkiaRenderer {
       canvasY,
       this.zoom,
       selectedIds,
-      this.labelFont
+      this.isDestroyed() ? null : this
     )
   }
 

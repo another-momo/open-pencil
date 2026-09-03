@@ -28,13 +28,33 @@ function disposePathCaches(r: SkiaRenderer): void {
   r.glyphSilhouetteCache.clear()
 }
 
-export function destroyRenderer(r: SkiaRenderer): void {
-  if (r.destroyed) return
-  r.destroyed = true
+function disposeFonts(r: SkiaRenderer): void {
+  // Latin (Inter)
+  r.textFont?.delete()
+  r.labelFont?.delete()
+  r.sizeFont?.delete()
+  r.sectionTitleFont?.delete()
+  r.componentLabelFont?.delete()
+  // T88：CJK / Arabic 备用 Font 实例
+  r.cjkTextFont?.delete()
+  r.cjkLabelFont?.delete()
+  r.cjkSizeFont?.delete()
+  r.cjkSectionTitleFont?.delete()
+  r.cjkComponentLabelFont?.delete()
+  r.arabicTextFont?.delete()
+  r.arabicLabelFont?.delete()
+  r.arabicSizeFont?.delete()
+  r.arabicSectionTitleFont?.delete()
+  r.arabicComponentLabelFont?.delete()
+  r.fontMgr?.delete()
+  const fontProvider = r.fontProvider
+  fontProvider?.delete()
+  r.fontProvider = null
+  r.fontsLoaded = false
+  fontManager.detachProvider(fontProvider)
+}
 
-  for (const img of r.imageCache.values()) img.delete()
-  r.imageCache.clear()
-  disposePathCaches(r)
+function disposePaints(r: SkiaRenderer): void {
   r.fillPaint.delete()
   r.strokePaint.delete()
   r.selectionPaint.delete()
@@ -43,17 +63,6 @@ export function destroyRenderer(r: SkiaRenderer): void {
   r.auxFill.delete()
   r.auxStroke.delete()
   r.opacityPaint.delete()
-  r.textFont?.delete()
-  r.labelFont?.delete()
-  r.sizeFont?.delete()
-  r.sectionTitleFont?.delete()
-  r.componentLabelFont?.delete()
-  r.fontMgr?.delete()
-  const fontProvider = r.fontProvider
-  fontProvider?.delete()
-  r.fontProvider = null
-  r.fontsLoaded = false
-  fontManager.detachProvider(fontProvider)
   r.rulerBgPaint.delete()
   r.rulerTickPaint.delete()
   r.rulerTextPaint.delete()
@@ -66,15 +75,30 @@ export function destroyRenderer(r: SkiaRenderer): void {
   r.penVertexFill.delete()
   r.penVertexStroke.delete()
   r.effectLayerPaint.delete()
+  r._flashPaint?.delete()
+}
+
+function disposeResourceCaches(r: SkiaRenderer): void {
+  for (const img of r.imageCache.values()) img.delete()
+  r.imageCache.clear()
   for (const filter of r.imageFilterCache.values()) filter?.delete()
   r.imageFilterCache.clear()
   for (const filter of r.maskFilterCache.values()) filter?.delete()
   r.maskFilterCache.clear()
   for (const pic of r.nodePictureCache.values()) pic?.delete()
   r.nodePictureCache.clear()
+}
+
+export function destroyRenderer(r: SkiaRenderer): void {
+  if (r.destroyed) return
+  r.destroyed = true
+
+  disposeResourceCaches(r)
+  disposePathCaches(r)
+  disposeFonts(r)
+  disposePaints(r)
   clearSubtreePictureCache(r)
   clearRetainedSceneState(r)
-  r._flashPaint?.delete()
   r.profiler.destroy()
   r.surface.delete()
 }

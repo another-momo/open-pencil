@@ -5,6 +5,7 @@ import { getAbsolutePosition, getWorldMatrix } from '@open-pencil/scene-graph/co
 import { rotatedCorners } from '@open-pencil/scene-graph/geometry'
 
 import type { SkiaRenderer, RenderOverlays } from '#core/canvas/renderer'
+import { drawTextByScript, measureTextByScript } from '#core/canvas/renderer/fonts'
 import {
   LABEL_OFFSET_Y,
   SIZE_PILL_PADDING_X,
@@ -78,13 +79,20 @@ function drawSingleFrameTitle(
 
   r.auxFill.setColor(r.selColor())
 
-  const displayText = ellipsizeLabelText(labelFont, node.name, node.width * r.zoom)
+  // T88：frame title 也按 script 分段测宽+截断（中文走 cjkLabelFont 宽度）
+  const maxTextWidth = node.width * r.zoom
+  const measured = measureTextByScript(r, node.name, 'label')
+  const displayText =
+    measured.width <= maxTextWidth
+      ? node.name
+      : ellipsizeLabelText(labelFont, node.name, maxTextWidth)
   if (!displayText) return
 
   canvas.save()
   canvas.translate(origin[0] * r.zoom + r.panX, origin[1] * r.zoom + r.panY)
   if (overlayRotation !== 0) canvas.rotate(overlayRotation, 0, 0)
-  canvas.drawText(displayText, 0, -LABEL_OFFSET_Y, r.auxFill, labelFont)
+  // T88：按字符 script 分段画（frame title 中文走 cjkLabelFont）
+  drawTextByScript(r, canvas, r.auxFill, displayText, 0, -LABEL_OFFSET_Y, 'label')
   canvas.restore()
 }
 

@@ -21,6 +21,8 @@
     "src/app/settings/credentials/media-credentials.ts",
     "src/components/ui/AppTextButton.vue",
     "tests/engine/text/fonts/registry.test.ts",
+    "tests/engine/text/fonts/multi-script-label-fonts.test.ts",
+    "tests/e2e/fonts/cjk-labels-fallback.spec.ts",
     "tools/font-subset/subset-fonts.py",
     "tools/font-subset/charset-cjk.txt",
     "tools/font-subset/package.json",
@@ -768,6 +770,62 @@
       "disposition": "permanent",
       "lastReviewed": "2026-09-02",
       "task": "T74"
+    },
+    {
+      "id": "P143",
+      "file": "packages/core/src/canvas/renderer/fonts.ts",
+      "reason": "T88（2026-09-03，owner 截图节点名豆腐修复）：loadFonts 三 typeface 并行加载（Inter / Alibaba PuHuiTi / Noto Naskh Arabic），新增 cjk*Font / arabic*Font ×5 = 10 Font 实例字段 + cjkFallbackFamilies / script segment helper；pickFontForText / drawTextByScript / measureTextByScript 三 helper 出口；fail-safe（缺失 typeface 降级到 latin 不抛）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-03",
+      "task": "T88"
+    },
+    {
+      "id": "P144",
+      "file": "packages/core/src/canvas/renderer.ts",
+      "reason": "T88（2026-09-03）：renderer.ts 字段块扩 cjk*/arabic* Font 字段 10 个；hitTestSectionTitle / hitTestComponentLabel / hitTestFrameTitle 入口参数由 Font|null 改 SkiaRenderer|null（hit-test 改走 measureTextByScript 测宽，含三 typeface glyph 累加）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-03",
+      "task": "T88"
+    },
+    {
+      "id": "P145",
+      "file": "packages/core/src/canvas/renderer/lifecycle.ts",
+      "reason": "T88（2026-09-03）：destroyRenderer 内 5 个 Font.delete() 后追加 10 个 cjk*/arabic* Font.delete()（CanvasKit WASM 侧 typeface 残留 2-10MB，靠 Font.delete 链回收，新加字段需同等待遇）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-03",
+      "task": "T88"
+    },
+    {
+      "id": "P146",
+      "file": "packages/core/src/canvas/labels/draw.ts",
+      "reason": "T88（2026-09-03）：drawSectionTitle / drawComponentLabels 改用 pickFontForText + drawTextByScript / measureTextByScript（segment 切换 typeface，ellipsize 按段宽累加而非单 glyph）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-03",
+      "task": "T88"
+    },
+    {
+      "id": "P147",
+      "file": "packages/core/src/canvas/labels/hit-test.ts",
+      "reason": "T88（2026-09-03）：hitTestSectionTitle / hitTestComponentLabel / hitTestFrameTitle 入口参数由 Font|null 改 SkiaRenderer|null，内部走 measureTextByScript（按 script 段切，多 typeface 参与宽度测量）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-03",
+      "task": "T88"
+    },
+    {
+      "id": "P148",
+      "file": "packages/core/src/canvas/labels/selection.ts",
+      "reason": "T88（2026-09-03）：frame title 渲染改走 pickFontForText + drawTextByScript（远程协作 cursorname 等中文 label 路径同步覆盖）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-03",
+      "task": "T88"
+    },
+    {
+      "id": "P149",
+      "file": "packages/core/src/canvas/pen-overlay.ts",
+      "reason": "T88（2026-09-03）：collab cursor.name 中文 label 渲染改走 measureTextByScript + drawTextByScript（与 frame title 同处理）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-03",
+      "task": "T88"
     }
   ],
   "deletedPaths": [

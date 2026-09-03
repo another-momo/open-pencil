@@ -299,7 +299,8 @@ function parseDesignSnapshot(raw: unknown): DesignRootSnapshot | null {
     marketingRoot: raw.marketingRoot === true,
     modeId: asString(raw.modeId),
     profileId: asString(raw.profileId),
-    briefId: asString(raw.briefId)
+    briefId: asString(raw.briefId),
+    uniqueId: asString(raw.uniqueId)
   }
 }
 

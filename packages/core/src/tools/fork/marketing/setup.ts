@@ -45,7 +45,11 @@ import {
   DESIGN_PROFILE_KEY,
   bindBriefToDesign,
   findBrief,
+  findBriefByUniqueIdViaGraph,
+  generatePluginUniqueId,
+  getBriefUniqueId,
   registerBriefDesignEntry,
+  setDesignUniqueId,
   type BriefCandidate
 } from './brief'
 import { SETUP_TEXTS } from './texts'
@@ -333,8 +337,10 @@ export function setupDesign(
   setDesignMarker(graph, root.id, DESIGN_MODE_KEY, args.modeId)
   if (args.profileId !== undefined)
     setDesignMarker(graph, root.id, DESIGN_PROFILE_KEY, args.profileId)
-  setDesignMarker(graph, root.id, DESIGN_BRIEF_KEY, brief.id)
+  setDesignMarker(graph, root.id, DESIGN_BRIEF_KEY, getBriefUniqueId(brief) || brief.id)
   setDesignMarker(graph, root.id, BRIEF_SCHEMA_VERSION_KEY, BRIEF_SCHEMA_VERSION)
+  // T91a：写 design uniqueId（跨持久化边界稳定寻址键，UUID v4）
+  setDesignUniqueId(graph, root.id, generatePluginUniqueId())
 
   // brief 关联：bound-designs 指针 + 关联设计区条目
   // （登记在身份落盘之后——条目/读侧投影读穿三元组）
@@ -372,13 +378,19 @@ export type MarketingDesignResolution =
   | { status: 'not-found'; rootId: string }
   | { status: 'ambiguous'; candidates: MarketingDesignRef[] }
 
-function toDesignRef(node: SceneNode): MarketingDesignRef {
+function toDesignRef(graph: SceneGraph, node: SceneNode): MarketingDesignRef {
+  // T91a：DESIGN_BRIEF_KEY 现存 brief 的 uniqueId（UUID）。view-model 对调用方
+  // 暴露节点 id 更合用（后续寻址、跨 API 拼装）——UUID → 节点 id 在此处解析。
+  // 老文档残留 node id 兼容：UUID 解析失败时退回原值。
+  const rawBriefId = designMarker(node, DESIGN_BRIEF_KEY)
+  const briefByUuid = rawBriefId ? findBriefByUniqueIdViaGraph(graph, rawBriefId) : undefined
+  const briefId = briefByUuid ? briefByUuid.id : rawBriefId
   return {
     rootId: node.id,
     name: node.name,
     modeId: designMarker(node, DESIGN_MODE_KEY),
     profileId: designMarker(node, DESIGN_PROFILE_KEY),
-    briefId: designMarker(node, DESIGN_BRIEF_KEY)
+    briefId
   }
 }
 
@@ -394,7 +406,7 @@ export function scanMarketingDesigns(figma: FigmaAPI): MarketingDesignRef[] {
     if (id === undefined) break
     const node = graph.getNode(id)
     if (!node) continue
-    if (isMarketingDesignRoot(node)) designs.push(toDesignRef(node))
+    if (isMarketingDesignRoot(node)) designs.push(toDesignRef(graph, node))
     stack.push(...node.childIds)
   }
   return designs
@@ -411,7 +423,7 @@ export function resolveMarketingDesign(
   if (rootId !== undefined && rootId !== '') {
     const node = figma.graph.getNode(rootId)
     return isMarketingDesignRoot(node)
-      ? { status: 'ok', design: toDesignRef(node) }
+      ? { status: 'ok', design: toDesignRef(figma.graph, node) }
       : { status: 'not-found', rootId }
   }
   const designs = scanMarketingDesigns(figma)

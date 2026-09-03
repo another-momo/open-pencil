@@ -49,6 +49,7 @@ import {
   createBrief,
   findBrief,
   findBriefZone,
+  getDesignUniqueId,
   isBrief,
   listBriefs,
   registerBriefDesignEntry,
@@ -252,14 +253,22 @@ test('bindBriefToDesign 走通用 upsert：幂等追加', () => {
   const { graph, figma } = setupToolTest()
   const brief = createBrief(figma)
 
-  bindBriefToDesign(figma, brief.id, 'design-a')
-  bindBriefToDesign(figma, brief.id, 'design-a')
-  bindBriefToDesign(figma, brief.id, 'design-b')
+  // T91a：bindBriefToDesign 现在需要真实 design 节点（用来 resolve / 写 UUID）。
+  const designA = graph.createNode('FRAME', figma.currentPage.id, { name: '设计 A' })
+  const designB = graph.createNode('FRAME', figma.currentPage.id, { name: '设计 B' })
+
+  bindBriefToDesign(figma, brief.id, designA.id)
+  bindBriefToDesign(figma, brief.id, designA.id)
+  bindBriefToDesign(figma, brief.id, designB.id)
   const fresh = expectDefined(graph.getNode(brief.id))
-  expect(briefBoundDesignIds(fresh)).toEqual(['design-a', 'design-b'])
-  // 通用 shared 面编码键可读出
+  const uuidA = getDesignUniqueId(graph.getNode(designA.id))
+  const uuidB = getDesignUniqueId(graph.getNode(designB.id))
+  expect(uuidA).not.toBe('')
+  expect(uuidB).not.toBe('')
+  expect(briefBoundDesignIds(fresh)).toEqual([uuidA, uuidB])
+  // 通用 shared 面编码键可读出（按 UUID 序列化的字符串）
   expect(getSharedPluginData(fresh, BRIEF_PLUGIN_NAMESPACE, BRIEF_BINDING_KEY)).toBe(
-    'design-a,design-b'
+    `${uuidA},${uuidB}`
   )
 })
 
@@ -325,6 +334,9 @@ test('关联设计区：registerBriefDesignEntry 幂等 + 投影读穿三元组�
     {
       entryId: first.entryId,
       designId: design.id,
+      // T91a：design uniqueId——registerBriefDesignEntry 路径不写 uniqueId；只有
+      // setup_design / bindBriefToDesign 才会触发懒补
+      uniqueId: '',
       name: '产品长图',
       modeId: BRIEF_TEXTS.missingProjection,
       deleted: false,

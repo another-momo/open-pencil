@@ -35,11 +35,12 @@ import {
   BRIEF_ZONE_MATERIALS,
   DESIGN_BRIEF_KEY,
   DESIGN_MODE_KEY,
-  briefBoundDesignIds,
   briefDesignEntryDesignId,
   briefDesignEntryIds,
   findBrief,
   findBriefZone,
+  getBriefUniqueId,
+  getDesignUniqueId,
   isBrief
 } from './brief'
 import { BRIEF_TEXTS } from './texts'
@@ -74,6 +75,12 @@ export interface BriefConclusionView {
 export interface BriefDesignEntryView {
   entryId: string | null
   designId: string
+  /**
+   * T91a：design 的稳定唯一标识符（UUID v4）。跨 .fig 序列化、re-import 仍
+   * 保留；re-import 后 designId 会变（`generateId()` 重生成）但 uniqueId 不变。
+   * 用作跨持久化边界的寻址键（写绑 / 读绑都走它）。
+   */
+  uniqueId: string
   /** Live design name; dead designs keep the entry's last projected text + 「（已删除）」 */
   name: string
   /** mode projection off the design root identity tuple (T53); 缺省「—」 */
@@ -87,12 +94,20 @@ export interface BriefDesignEntryView {
 /** One-shot view model for the brief panel */
 export interface BriefView {
   briefId: string
-  /** Root frame ids this brief is bound to (empty = unbound) */
-  boundDesigns: string[]
+  /**
+   * T91a：brief 自身的稳定唯一标识符（UUID v4）。re-import 后 briefId 会变
+   * 但 uniqueId 不变；agent / 写绑都走它。
+   */
+  uniqueId: string
   /** ContentExample text */
   content: string
   materials: BriefMaterialView[]
   conclusions: BriefConclusionView[]
+  /**
+   * T91a：合并了「brief.bound-designs 权威绑定」+「设计→brief 反向绑定但
+   * 缺条目」两个 view——agent 不再需要区分 `boundDesigns` vs `designs`。
+   * 每条带 `uniqueId` 寻址键 + `registered` 标志。
+   */
   designs: BriefDesignEntryView[]
 }
 
@@ -203,6 +218,96 @@ function designProjection(graph: SceneGraph, designId: string, fallbackName: str
  * Designs-zone view with read-time lazy reconciliation: registered entries in
  * list order (tombstoned when their design died), then designs whose pointer
  * targets this brief but which never got an entry (registered: false).
+ *
+ * T91a：去重键从节点 id 改为 design uniqueId（跨持久化稳定）。`seen` 集合
+ * 同时记 uniqueId 与 designId，应对老 design（无 uniqueId）的迁移过渡期。
+ */
+/** T91a：单源去重键映射（uniqueId + node id 双 dedupe，应对老 design 无 UUID） */
+interface DesignDedupe {
+  uniqueIds: Set<string>
+  nodeIds: Set<string>
+}
+
+/** 单条设计已见过（UUID 优先，node id 兜底） */
+function alreadySeen(dedupe: DesignDedupe, nodeId: string, uniqueId: string): boolean {
+  if (uniqueId && dedupe.uniqueIds.has(uniqueId)) return true
+  if (dedupe.nodeIds.has(nodeId)) return true
+  return false
+}
+
+/** 登记一条设计到 dedupe 集合 */
+function markSeen(dedupe: DesignDedupe, nodeId: string, uniqueId: string): void {
+  if (uniqueId) dedupe.uniqueIds.add(uniqueId)
+  dedupe.nodeIds.add(nodeId)
+}
+
+/** T91a：从关联设计区条目读已注册设计（briefDesignEntryIds 投影） */
+function collectRegisteredDesigns(
+  graph: SceneGraph,
+  listId: string,
+  dedupe: DesignDedupe,
+  out: BriefDesignEntryView[]
+): void {
+  for (const entryId of briefDesignEntryIds(graph, listId)) {
+    const designId = briefDesignEntryDesignId(graph, entryId)
+    if (!designId) continue
+    const designNode = graph.getNode(designId)
+    const uniqueId = getDesignUniqueId(designNode)
+    if (alreadySeen(dedupe, designId, uniqueId)) continue
+    markSeen(dedupe, designId, uniqueId)
+    const entryText = findChildId(graph, entryId, '设计名')
+    const fallbackName = entryText ? (graph.getNode(entryText)?.text ?? '') : ''
+    out.push({
+      entryId,
+      designId,
+      uniqueId,
+      registered: true,
+      ...designProjection(graph, designId, fallbackName)
+    })
+  }
+}
+
+/** T91a：从设计→brief 反向指针读未注册设计（registered:false） */
+function collectOrphanDesigns(
+  graph: SceneGraph,
+  pageId: string,
+  briefId: string,
+  briefUuid: string,
+  dedupe: DesignDedupe,
+  out: BriefDesignEntryView[]
+): void {
+  const page = graph.getNode(pageId)
+  for (const childId of page?.childIds ?? []) {
+    if (dedupe.nodeIds.has(childId)) continue
+    const node = graph.getNode(childId)
+    if (node?.type !== 'FRAME') continue
+    // T91a：design→brief 指针由「node id」迁到「uniqueId」匹配。
+    // 老 design（指针是 node id）继续兼容——UUID 为空时退回 node id 比对。
+    const designBriefPointer = getSharedPluginData(
+      node,
+      BRIEF_PLUGIN_NAMESPACE,
+      DESIGN_BRIEF_KEY
+    )
+    const matches = designBriefPointer
+      ? designBriefPointer === briefId || designBriefPointer === briefUuid
+      : false
+    if (!matches) continue
+    const uniqueId = getDesignUniqueId(node)
+    if (alreadySeen(dedupe, childId, uniqueId)) continue
+    markSeen(dedupe, childId, uniqueId)
+    out.push({
+      entryId: null,
+      designId: childId,
+      uniqueId,
+      registered: false,
+      ...designProjection(graph, childId, '')
+    })
+  }
+}
+
+/**
+ * T91a：去重键从节点 id 改为 design uniqueId（跨持久化稳定）。`seen` 集合
+ * 同时记 uniqueId 与 designId，应对老 design（无 uniqueId）的迁移过渡期。
  */
 function readDesigns(
   graph: SceneGraph,
@@ -210,35 +315,12 @@ function readDesigns(
   briefId: string,
   listId: string
 ): BriefDesignEntryView[] {
+  const brief = graph.getNode(briefId)
+  const briefUuid = getBriefUniqueId(brief) // 空字符串 = 老 brief（迁移前）
   const designs: BriefDesignEntryView[] = []
-  const seen = new Set<string>()
-  for (const entryId of briefDesignEntryIds(graph, listId)) {
-    const designId = briefDesignEntryDesignId(graph, entryId)
-    if (!designId || seen.has(designId)) continue
-    seen.add(designId)
-    const entryText = findChildId(graph, entryId, '设计名')
-    const fallbackName = entryText ? (graph.getNode(entryText)?.text ?? '') : ''
-    designs.push({
-      entryId,
-      designId,
-      registered: true,
-      ...designProjection(graph, designId, fallbackName)
-    })
-  }
-  const page = graph.getNode(figma.currentPage.id)
-  for (const childId of page?.childIds ?? []) {
-    if (seen.has(childId)) continue
-    const node = graph.getNode(childId)
-    if (node?.type !== 'FRAME') continue
-    if (getSharedPluginData(node, BRIEF_PLUGIN_NAMESPACE, DESIGN_BRIEF_KEY) !== briefId) continue
-    seen.add(childId)
-    designs.push({
-      entryId: null,
-      designId: childId,
-      registered: false,
-      ...designProjection(graph, childId, '')
-    })
-  }
+  const dedupe: DesignDedupe = { uniqueIds: new Set(), nodeIds: new Set() }
+  collectRegisteredDesigns(graph, listId, dedupe, designs)
+  collectOrphanDesigns(graph, figma.currentPage.id, briefId, briefUuid, dedupe, designs)
   return designs
 }
 
@@ -261,7 +343,7 @@ export function readBrief(figma: FigmaAPI, briefId?: string): BriefView | null {
 
   return {
     briefId: brief.id,
-    boundDesigns: briefBoundDesignIds(brief),
+    uniqueId: getBriefUniqueId(brief),
     content: graph.getNode(contentTextId)?.text ?? '',
     materials: readMaterials(graph, gridId),
     conclusions: readConclusions(graph, conclusionsId),

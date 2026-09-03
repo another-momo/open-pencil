@@ -54,6 +54,91 @@ export type BriefZoneId =
   | typeof BRIEF_ZONE_DESIGNS
 
 /**
+ * T91a：brief / design 跨持久化边界的稳定唯一标识符（UUID v4）。
+ * 写在节点 sharedPluginData[BRIEF_PLUGIN_NAMESPACE]['uniqueId']；序列化到 .fig
+ * 后 import 仍保留（见 tests/engine/io/fig/roundtrip/shared-plugin-data.test.ts）。
+ * 用作 brief↔design 绑定的寻址键（替代会被 `graph.generateId()` 重生成的节点 id）。
+ */
+export const BRIEF_UNIQUE_ID_KEY = 'uniqueId'
+
+/** Design 根上的 uniqueId 键（同上，design 侧） */
+export const DESIGN_UNIQUE_ID_KEY = 'uniqueId'
+
+/**
+ * T91a：生成跨实例稳定的唯一标识符。`crypto.randomUUID()` 是 Node 14.17+
+ * 与所有现代浏览器都内置的实现，跨 .fig 序列化、跨重启、跨图实例都不会冲突。
+ * 不能用 `graph.generateId()`——它产出 `0:<n++>` 形式，re-import 时重新分配。
+ */
+export function generatePluginUniqueId(): string {
+  return crypto.randomUUID()
+}
+
+/** 读 brief 根 uniqueId（缺则懒补；T91a 一次性迁移老 brief） */
+export function getBriefUniqueId(node: SceneNode | undefined): string {
+  if (!isBrief(node)) return ''
+  return briefMarker(node, BRIEF_UNIQUE_ID_KEY)
+}
+
+/** 读 design 根 uniqueId（缺则懒补；T91a 一次性迁移老 design） */
+export function getDesignUniqueId(node: SceneNode | undefined): string {
+  const v = node ? briefMarker(node, DESIGN_UNIQUE_ID_KEY) : ''
+  return v
+}
+
+/** 写 brief 根 uniqueId */
+export function setBriefUniqueId(graph: SceneGraph, nodeId: string, uuid: string): void {
+  setBriefMarker(graph, nodeId, BRIEF_UNIQUE_ID_KEY, uuid)
+}
+
+/** 写 design 根 uniqueId */
+export function setDesignUniqueId(graph: SceneGraph, nodeId: string, uuid: string): void {
+  setBriefMarker(graph, nodeId, DESIGN_UNIQUE_ID_KEY, uuid)
+}
+
+/** 扫描当前页，按 uniqueId 找 brief 根 */
+export function findBriefByUniqueId(figma: FigmaAPI, uuid: string): SceneNode | undefined {
+  if (!uuid) return undefined
+  for (const b of listBriefs(figma)) {
+    if (getBriefUniqueId(b) === uuid) return b
+  }
+  return undefined
+}
+
+/**
+ * T91a：graph-only brief 解析（不需要 figma 句柄，用于 scanMarketingDesigns
+ * 把 DESIGN_BRIEF_KEY UUID 翻成 brief 节点 id 的纯读侧路径）。
+ */
+export function findBriefByUniqueIdViaGraph(
+  graph: SceneGraph,
+  uuid: string
+): SceneNode | undefined {
+  if (!uuid) return undefined
+  for (const root of graph.nodes.values()) {
+    if (!isBrief(root)) continue
+    if (getBriefUniqueId(root) === uuid) return root
+  }
+  return undefined
+}
+
+/** 扫描当前页，按 uniqueId 找 design 根（带 DESIGN_ROLE_KEY 标记的 FRAME） */
+export function findDesignByUniqueId(figma: FigmaAPI, uuid: string): SceneNode | undefined {
+  if (!uuid) return undefined
+  const graph = figma.graph
+  const page = graph.getNode(figma.currentPageId)
+  if (!page) return undefined
+  const stack = [...page.childIds]
+  while (stack.length > 0) {
+    const id = stack.shift()
+    if (id === undefined) break
+    const node = graph.getNode(id)
+    if (!node) continue
+    if (node.type === 'FRAME' && getDesignUniqueId(node) === uuid) return node
+    stack.push(...node.childIds)
+  }
+  return undefined
+}
+
+/**
  * Design identity tuple keys on design root frames (S3 §9 pluginData 标记协议).
  * WRITTEN BY T53 setup_design — this module only reads them for projections
  * and for the design→brief pointer scan. Exported so T53 shares the key names.
@@ -154,14 +239,27 @@ export function briefBoundDesignIds(node: SceneNode | undefined): string[] {
   return raw ? raw.split(',').filter(Boolean) : []
 }
 
-/** Add rootFrameId to the brief's bound-design list via the generic upsert (no-op when already bound). */
+/** Add rootFrameId to the brief's bound-design list via the generic upsert (no-op when already bound).
+ *
+ * T91a：bound list 现在存 design uniqueId（UUID v4），而非节点 id。re-import
+ * 后节点 id 会重生成，但 UUID 不会变——绑定关系才稳定。
+ * 兼容：调用方传 node id 时自动解析为 uniqueId（不命中 uniqueId 则懒补）。
+ */
 export function bindBriefToDesign(figma: FigmaAPI, briefId: string, rootFrameId: string): void {
   const graph = figma.graph
   const brief = graph.getNode(briefId)
   if (!isBrief(brief)) return
+  const designNode = graph.getNode(rootFrameId)
+  if (!designNode) return
+  // T91a：节点 id → uniqueId 寻址
+  let designUuid = getDesignUniqueId(designNode)
+  if (!designUuid) {
+    designUuid = generatePluginUniqueId()
+    setDesignUniqueId(graph, rootFrameId, designUuid)
+  }
   const bound = briefBoundDesignIds(brief)
-  if (bound.includes(rootFrameId)) return
-  setBriefMarker(graph, briefId, BRIEF_BINDING_KEY, [...bound, rootFrameId].join(','))
+  if (bound.includes(designUuid)) return
+  setBriefMarker(graph, briefId, BRIEF_BINDING_KEY, [...bound, designUuid].join(','))
 }
 
 /**
@@ -417,6 +515,8 @@ export function createBrief(figma: FigmaAPI, x = 0, y = 0): SceneNode {
     x,
     y
   })
+  // T91a：写 brief 根 uniqueId（跨持久化边界的稳定寻址键，UUID v4）
+  setBriefUniqueId(graph, brief.id, generatePluginUniqueId())
   graph.updateNode(brief.id, {
     width: BRIEF_WIDTH,
     layoutMode: 'HORIZONTAL',

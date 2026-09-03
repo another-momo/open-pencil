@@ -132,12 +132,20 @@ describe('setup_design core：契约组', () => {
     const result = ok(run({ modeId: 'longform', profileId: 'profile-a' }))
     const root = expectDefined(graph.getNode(result.rootId))
 
-    expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, BRIEF_ROLE_KEY)).toBe(
-      MARKETING_ROLE_ROOT
-    )
+    expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, BRIEF_ROLE_KEY)).toBe(MARKETING_ROLE_ROOT)
     expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_MODE_KEY)).toBe('longform')
     expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_PROFILE_KEY)).toBe('profile-a')
-    expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_BRIEF_KEY)).toBe(brief.id)
+    // T91a：DESIGN_BRIEF_KEY 现存 brief 的 uniqueId（UUID）；断言非空 + 配对
+    expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_BRIEF_KEY)).toMatch(
+      /^[0-9a-f-]{36}$/
+    )
+    const briefUuid = getSharedPluginData(
+      expectDefined(graph.getNode(brief.id)),
+      BRIEF_PLUGIN_NAMESPACE,
+      'uniqueId'
+    )
+    expect(briefUuid).not.toBe('')
+    expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_BRIEF_KEY)).toBe(briefUuid)
     expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, BRIEF_SCHEMA_VERSION_KEY)).toBe(
       BRIEF_SCHEMA_VERSION
     )
@@ -244,9 +252,13 @@ describe('setup_design core：契约组', () => {
     const { graph, figma, brief, run } = setupPage()
     const result = ok(run({ modeId: 'longform' }))
 
-    // brief bound-designs 含新根
+    // T91a：bound-designs 现在存 design uniqueId（UUID），不是 node id。
+    // 找 design 根的 uniqueId，断言 brief 绑了它。
     const freshBrief = expectDefined(graph.getNode(brief.id))
-    expect(briefBoundDesignIds(freshBrief)).toContain(result.rootId)
+    const designRoot = expectDefined(graph.getNode(result.rootId))
+    const designUuid = getSharedPluginData(designRoot, BRIEF_PLUGIN_NAMESPACE, 'uniqueId')
+    expect(designUuid).not.toBe('')
+    expect(briefBoundDesignIds(freshBrief)).toContain(designUuid)
 
     // 关联设计区条目：designId 标记权威 + 名称投影
     const zone = expectDefined(findBriefZone(graph, freshBrief, BRIEF_ZONE_DESIGNS))
@@ -269,6 +281,8 @@ describe('setup_design core：契约组', () => {
       {
         entryId,
         designId: result.rootId,
+        // T91a：setup_design 路径写入 uniqueId（UUID v4）；断言非空即可
+        uniqueId: expect.stringMatching(/^[0-9a-f-]{36}$/),
         name: '长图',
         modeId: 'longform',
         deleted: false,

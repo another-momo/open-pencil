@@ -39,7 +39,9 @@ import {
   DESIGN_BRIEF_KEY,
   DESIGN_MODE_KEY,
   DESIGN_PROFILE_KEY,
+  DESIGN_UNIQUE_ID_KEY,
   briefBoundDesignIds,
+  findBriefByUniqueId,
   isBrief
 } from './brief'
 import { HERO_GEOMETRY_KEY } from './hero-scaffold'
@@ -94,6 +96,8 @@ export interface DesignRootSnapshot {
   modeId: string
   profileId: string
   briefId: string
+  /** T91a：design 根的 uniqueId（UUID v4）。跨 .fig 重导入仍稳定——判定 brief↔design 双向绑定用 */
+  uniqueId: string
 }
 
 /** brief 关联裸快照：页归属 + bound-designs 指针（逗号分隔串拆表） */
@@ -112,10 +116,17 @@ function pageIdOf(graph: SceneGraph, node: SceneNode): string | null {
   return null
 }
 
-/** in-proc 产源：节点 → 快照；节点不存在 → null */
+/** in-proc 产源：节点 → 快照；节点不存在 → null
+ *
+ * T91a：DESIGN_BRIEF_KEY 存的是 brief 的 uniqueId（UUID v4）。本快照对调用
+ * 方面暴露 brief 的节点 id（更合用：UI、跨 API 拼装），UUID → 节点 id 在
+ * 此处解析；老文档残留 node id 兼容。
+ */
 export function snapshotDesignRoot(figma: FigmaAPI, nodeId: string): DesignRootSnapshot | null {
   const node = figma.graph.getNode(nodeId)
   if (!node) return null
+  const rawBriefId = getSharedPluginData(node, BRIEF_PLUGIN_NAMESPACE, DESIGN_BRIEF_KEY)
+  const briefByUuid = rawBriefId ? findBriefByUniqueId(figma, rawBriefId) : undefined
   return {
     nodeId: node.id,
     name: node.name,
@@ -124,14 +135,21 @@ export function snapshotDesignRoot(figma: FigmaAPI, nodeId: string): DesignRootS
     marketingRoot: isMarketingDesignRoot(node),
     modeId: getSharedPluginData(node, BRIEF_PLUGIN_NAMESPACE, DESIGN_MODE_KEY),
     profileId: getSharedPluginData(node, BRIEF_PLUGIN_NAMESPACE, DESIGN_PROFILE_KEY),
-    briefId: getSharedPluginData(node, BRIEF_PLUGIN_NAMESPACE, DESIGN_BRIEF_KEY)
+    briefId: briefByUuid ? briefByUuid.id : rawBriefId,
+    uniqueId: getSharedPluginData(node, BRIEF_PLUGIN_NAMESPACE, DESIGN_UNIQUE_ID_KEY)
   }
 }
 
-/** in-proc 产源：briefId → 关联快照；空 id / 节点不存在 / 非 brief → null */
+/** in-proc 产源：briefId → 关联快照；空 id / 节点不存在 / 非 brief → null
+ *
+ * T91a：`briefId` 入参既可以是 brief 节点 id，也可以是 brief 的 uniqueId（UUID v4）。
+ * 设计根的 DESIGN_BRIEF_KEY 在新文档里写 UUID；老文档残留 node id 也兼容。
+ */
 export function snapshotBriefLink(figma: FigmaAPI, briefId: string): BriefLinkSnapshot | null {
   if (briefId === '') return null
-  const node = figma.graph.getNode(briefId)
+  // T91a：先按 UUID 解析（设计根 pluginData 走的寻址键）；找不到再退回 node id。
+  let node = findBriefByUniqueId(figma, briefId)
+  if (!node) node = figma.graph.getNode(briefId)
   if (!isBrief(node)) return null
   return {
     briefId: node.id,
@@ -177,7 +195,19 @@ export function checkActiveDesignCandidate(
   if (design.pageId === null || design.pageId !== currentPageId) {
     return { ok: false, reason: 'cross_page', message: ACTIVE_DESIGN_TEXTS.crossPage }
   }
-  if (!brief || brief.pageId !== currentPageId || !brief.boundDesignIds.includes(design.nodeId)) {
+  if (!brief || brief.pageId !== currentPageId) {
+    return { ok: false, reason: 'brief_mismatch', message: ACTIVE_DESIGN_TEXTS.briefMismatch }
+  }
+  // T91a：bound-designs 现在存 design 的 uniqueId（UUID）；候选是 design.nodeId。
+  // 双向一致判定走 UUID 比对（scanDesigns 已用同口径）。Design 快照里已有
+  // uniqueId 字段（addUniqueIdField），无需 figma 入参。Pure-function tests
+  // that omit uniqueId get `''`; we treat that as "fall back to node id match"
+  // — old docs without UUID keep working.
+  const designUuid = design.uniqueId || ''
+  const boundOk = designUuid !== ''
+    ? brief.boundDesignIds.includes(designUuid)
+    : brief.boundDesignIds.includes(design.nodeId)
+  if (!boundOk) {
     return { ok: false, reason: 'brief_mismatch', message: ACTIVE_DESIGN_TEXTS.briefMismatch }
   }
   return { ok: true, design }

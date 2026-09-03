@@ -78,11 +78,20 @@ export const readBriefTool = defineTool({
     }
     return {
       briefId: view.briefId,
-      boundDesigns: view.boundDesigns.map((rootFrameId) => ({
-        rootFrameId,
-        name: graph.getNode(rootFrameId)?.name ?? BRIEF_TEXTS.deletedMark,
-        page: pageNameOf(graph, rootFrameId) ?? null
-      })),
+      // T91a：从 view.designs（合并后的）按 registered:true 筛出 brief 权威绑定
+      // 列表。`rootFrameId` 字段保留——这是 brief→design 的绑定证明，agent
+      // 不需要，但保留便于老 prompt 兼容。`uniqueId` 字段同时输出供跨重启
+      // 寻址。
+      boundDesigns: view.designs
+        .filter((d) => d.registered)
+        .map((d) => ({
+          rootFrameId: d.designId,
+          uniqueId: d.uniqueId,
+          name: graph.getNode(d.designId)?.name ?? BRIEF_TEXTS.deletedMark,
+          page: pageNameOf(graph, d.designId) ?? null
+        })),
+      // T91a：designs 字段已合并 registered + unregistered 视图；每条带
+      // uniqueId（跨持久化稳定寻址键）。
       designs: view.designs,
       content: view.content,
       materials: view.materials.map((material) => ({

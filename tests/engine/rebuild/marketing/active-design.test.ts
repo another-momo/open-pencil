@@ -139,7 +139,11 @@ describe('四条件校验（端点 ②/③ 与 set_active_design 共用）', () 
     if (!check.ok) return
     expect(check.design.nodeId).toBe(rootId)
     expect(check.design.briefId).toBe(brief.id)
-    expect(briefBoundDesignIds(figma.graph.getNode(brief.id))).toContain(rootId)
+    // T91a：bound-designs 现存 design uniqueId（UUID）；按 UUID 断言
+    const design = expectDefined(figma.graph.getNode(rootId))
+    const designUuid = getSharedPluginData(design, BRIEF_PLUGIN_NAMESPACE, 'uniqueId')
+    expect(designUuid).not.toBe('')
+    expect(briefBoundDesignIds(figma.graph.getNode(brief.id))).toContain(designUuid)
   })
 
   test('驳回：节点不存在 → not_found（message 用户语言化）', () => {

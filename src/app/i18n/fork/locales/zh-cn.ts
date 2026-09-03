@@ -38,17 +38,15 @@ const zhCN = {
     chipsRetry: '重试',
     chipsCaptureSelection: '采集画布选区',
     chipsCaptureEmpty: '画布上还没有选中节点',
-    // T87：skill chips 行——单选 + 选中态拼 /skill:<name> 前缀
-    chipsSkillLabel: '技能',
-    chipsSkillClear: '清除选中技能'
+    // T89：skill dropdown trigger + 搜索占位 + 空匹配提示
+    chipsSkillChoose: '选择 skill',
+    chipsSkillSearchPlaceholder: '搜索 skill…',
+    chipsSkillEmpty: '没有匹配的 skill'
   },
-  // T87：settings 面板 Agent 能力分区（ai 区下小节）——单开关 agentSkills
-  // 控管 skill 加载 + 内建工具同闸；owner 风险提示文案。
+  // T87→T89：settings 面板 Agent 能力分区——单 AppSwitch + 一行 label。
+  // T89：删除 title + description 二键（啰嗦），skillLabel 收敛为「进阶能力」。
   agentCapabilities: {
-    agentCapabilitiesTitle: 'Agent 能力',
-    agentCapabilitiesDescription:
-      'Skill 加载与内建工具（read / bash / edit / write）的总开关。默认关闭——打开后每个新会话里 agent 将获得数据目录与 shell 的访问权。',
-    agentCapabilitiesSkillLabel: '技能与内建工具',
+    agentCapabilitiesSkillLabel: '进阶能力（read / write / edit / bash / skill）',
     agentCapabilitiesSaving: '保存中…',
     agentCapabilitiesError: '保存失败：{message}'
   },

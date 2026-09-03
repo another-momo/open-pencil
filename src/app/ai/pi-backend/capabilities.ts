@@ -14,8 +14,11 @@
  *  - getCapabilitiesForManifest() 投影只用 name + description，**绝不返回**
  *    filePath / baseDir / sourceInfo——这些是宿主内部坐标系，下发前端
  *    即泄漏内部路径（与 T45 §信任边界同质）。
- *  - 用 loadSkillsFromDir 单目录扫描，调用方控制来源（cwd/.pi/skills +
- *    agentDir/skills），不暴露 SDK 默认扫描假设。
+ *  - T89：扫描目录改为单源 `${rootDir}/.openpencil/skills`（与 key-env /
+ *    pi-agent / pi-sessions 同层私有状态目录），原 `${cwd}/.pi/skills` 与
+ *    「pi coding agent」生态位冲突，已删除；agentDir/skills 也删除（agentDir
+ *    仅用于 capabilities.json 持久化，不再承担 skill 扫描）。
+ *  - 用 loadSkillsFromDir 单目录扫描，不暴露 SDK 默认扫描假设。
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -122,27 +125,12 @@ export function createCapabilitiesStore({
   function listSkills(): ManifestSkillEntry[] {
     const caps = get()
     if (!caps.agentSkills) return []
-    // 双源扫描：cwd/.pi/skills + agentDir/skills（pi SDK 默认目录约定）——
+    // T89：单源扫描 `.openpencil/skills`（私有状态目录，与 key-env/pi-agent 同层）——
     // 不调 loadSkills 全局版，避免引入 cwd/agentDir 之外的隐式来源
-    const candidates: Array<{ dir: string; source: string }> = []
-    const userSkillsDir = join(rootDir, '.pi', 'skills')
-    if (existsSync(userSkillsDir)) candidates.push({ dir: userSkillsDir, source: 'user' })
-    if (existsSync(agentDir)) {
-      const agentSkillsDir = join(agentDir, 'skills')
-      if (existsSync(agentSkillsDir)) candidates.push({ dir: agentSkillsDir, source: 'agent' })
-    }
-    const seen = new Set<string>()
-    const out: ManifestSkillEntry[] = []
-    for (const { dir, source } of candidates) {
-      const result = loadSkillsFromDir({ dir, source })
-      for (const skill of result.skills) {
-        // name 去重（同名 skill 双源注册只展一份）——保留首次投影的描述
-        if (seen.has(skill.name)) continue
-        seen.add(skill.name)
-        out.push(projectSkill(skill))
-      }
-    }
-    return out
+    const userSkillsDir = join(rootDir, '.openpencil', 'skills')
+    if (!existsSync(userSkillsDir)) return []
+    const result = loadSkillsFromDir({ dir: userSkillsDir, source: 'user' })
+    return result.skills.map(projectSkill)
   }
 
   return { get, set, listSkills }

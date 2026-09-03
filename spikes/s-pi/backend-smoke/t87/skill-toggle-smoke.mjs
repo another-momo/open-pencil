@@ -70,7 +70,7 @@ async function sendPrompt(base, body, token) {
   }
 }
 
-// ── fixture：studio 资产集复制 + 一份 fixture skill（cwd/.pi/skills + agentDir/skills 各一份）
+// ── fixture：studio 资产集复制 + 一份 fixture skill（T89：单源 .openpencil/skills）
 const tempRoot = mkdtempSync(join(tmpdir(), 't87-skill-'))
 mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/studio'), { recursive: true })
 copyFileSync(
@@ -85,8 +85,8 @@ for (const sub of ['workflows', 'profiles']) {
 }
 mkdirSync(join(tempRoot, '.openpencil', 'pi-agent'), { recursive: true })
 
-// 1) cwd/.pi/skills/t87-demo/SKILL.md——双源 fixture 之一
-const userSkillDir = join(tempRoot, '.pi', 'skills', 't87-demo')
+// T89：单源 fixture — 仅落一份 .openpencil/skills/t87-demo/SKILL.md
+const userSkillDir = join(tempRoot, '.openpencil', 'skills', 't87-demo')
 mkdirSync(userSkillDir, { recursive: true })
 writeFileSync(
   join(userSkillDir, 'SKILL.md'),
@@ -97,23 +97,6 @@ writeFileSync(
     '---',
     '',
     'T87_SKILL_PROBE_USER_BODY',
-    ''
-  ].join('\n'),
-  'utf8'
-)
-
-// 2) agentDir/skills/t87-agent/SKILL.md——双源 fixture 之二
-const agentSkillDir = join(tempRoot, '.openpencil', 'pi-agent', 'skills', 't87-agent')
-mkdirSync(agentSkillDir, { recursive: true })
-writeFileSync(
-  join(agentSkillDir, 'SKILL.md'),
-  [
-    '---',
-    'name: t87-agent',
-    'description: T87 端到端冒烟 fixture (agent side)',
-    '---',
-    '',
-    'T87_SKILL_PROBE_AGENT_BODY',
     ''
   ].join('\n'),
   'utf8'
@@ -156,7 +139,7 @@ try {
     JSON.stringify({ capabilities: m0.capabilities, skills: m0.skills })
   )
 
-  // ── ② PUT ON → manifest.skills 出现双源 fixture（用户+代理侧）
+  // ── ② PUT ON → manifest.skills 出现单源 fixture（T89：双源改单源）
   const put = await fetch(`${BASE}/api/pi/capabilities`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json', ...authHeaders(token) },
@@ -168,8 +151,8 @@ try {
   const m1 = await (await fetch(`${BASE}/api/pi/studio/manifest`, { headers: authHeaders(token) })).json()
   const names = (m1.skills ?? []).map((s) => s.name).sort()
   check(
-    'T87 端到端②：manifest.skills 含双源 fixture 且脱敏（无 filePath/baseDir）',
-    names.includes('t87-demo') && names.includes('t87-agent') &&
+    'T87 端到端②：manifest.skills 含单源 fixture（仅 t87-demo）且脱敏（无 filePath/baseDir）',
+    names.length === 1 && names[0] === 't87-demo' &&
       m1.skills.every((s) => !('filePath' in s) && !('baseDir' in s)),
     JSON.stringify(m1.skills)
   )

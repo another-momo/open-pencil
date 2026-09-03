@@ -306,9 +306,11 @@ export function createPiChatService({
       // body 作兜底基底——per-run 钩子恒返回完整组装，基底只在无 prepareTurn
       // 的异常路径露面）+ 关闭 pi 侧上下文文件/prompt 模板加载——否则 repo
       // 的 AGENTS.md 等会混入设计会话（旧 ToolLoop 只有静态 prompt，对齐）
-      // T87：noSkills 由 capabilities.agentSkills 决定——开启时加载 pi-agent/skills
-      // + .pi/skills 下的 SKILL.md，进入 <available_skills> prompt 列表或被
-      // /skill:name 显式调用（disable-model-invocation 的不进 prompt，可被显式调）
+      // T87：noSkills 由 capabilities.agentSkills 决定——开启时加载
+      // .openpencil/skills 下的 SKILL.md，进入 <available_skills> prompt 列表或被
+      // /skill:name 显式调用（disable-model-invocation 的不进 prompt，可被显式调）。
+      // T89：扫描目录由 `.pi/skills` + `.openpencil/pi-agent/skills` 双源
+      // 收敛为 `.openpencil/skills` 单源。
       resourceLoader: await (async () => {
         const loader = new DefaultResourceLoader({
           cwd: rootDir,

@@ -1,20 +1,35 @@
 <script setup lang="ts">
 import { useTimeoutFn } from '@vueuse/core'
-import { TooltipProvider } from 'reka-ui'
+import {
+  ComboboxAnchor,
+  ComboboxContent,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxItemIndicator,
+  ComboboxPortal,
+  ComboboxRoot,
+  ComboboxTrigger,
+  ComboboxViewport,
+  TooltipProvider
+} from 'reka-ui'
 import { computed, nextTick, onMounted, ref } from 'vue'
 
 import ChatModeChips from '@/components/chat/ChatModeChips.vue'
 import {
+  atomicSkillTokenDeletionRange,
   atomicTokenDeletionRange,
   captureSelectionFromStore,
   createSelectionDraftState,
   resetSelectionDraftState,
   restoreSelectionDraftState,
   scanSelectionTokens,
+  scanSkillTokens,
   selectionTokenText,
   serializeSelectionManifest,
+  skillTokenText,
   snapshotSelectionDraftState,
   stripSelectionManifest,
+  stripSkillTokenBrackets,
   type SelectionDraftState
 } from '@/components/chat/selection-capture'
 import IconButton from '@/components/ui/IconButton.vue'
@@ -74,10 +89,22 @@ const { start: scheduleCaptureFlashEnd, stop: cancelCaptureFlashEnd } = useTimeo
 )
 
 /** backdrop 高亮分段：文本流实扫占位串 → token 段染底色（glyph 由上层
- *  textarea 提供，backdrop 全透明文字 + token 段背景块，Twitter mention 同款） */
+ *  textarea 提供，backdrop 全透明文字 + token 段背景块，Twitter mention 同款）。
+ *  T89：合并扫描「@画布选区-N」与「@skill-<name>」两类 token——同名 token
+ *  类型共用高亮样式，按 start 序合并渲染段 */
 const backdropSegments = computed(() => {
   const text = input.value
-  const tokens = scanSelectionTokens(text)
+  const selTokens = scanSelectionTokens(text).map((t) => ({
+    kind: 'sel' as const,
+    start: t.start,
+    end: t.end
+  }))
+  const skillTokens = scanSkillTokens(text).map((t) => ({
+    kind: 'skill' as const,
+    start: t.start,
+    end: t.end
+  }))
+  const tokens = [...selTokens, ...skillTokens].sort((a, b) => a.start - b.start)
   const segments: Array<{ key: number; text: string; token: boolean }> = []
   let cursor = 0
   for (const token of tokens) {
@@ -138,16 +165,16 @@ function handleCaptureSelection() {
 }
 
 /** 原子删除：光标紧邻完整占位串时 Backspace/Delete 整段删除（路线 A 的
- *  keydown 拦截面）；已拦截返回 true */
+ *  keydown 拦截面）；已拦截返回 true。
+ *  T89：两类 token 共用此拦截面（selection + skill），按检查优先 selection →
+ *  skill（任一命中即整段删） */
 function handleAtomicTokenDeletion(event: KeyboardEvent): boolean {
   const el = event.currentTarget
   if (!(el instanceof HTMLTextAreaElement)) return false
   if (event.isComposing || el.selectionStart !== el.selectionEnd) return false
-  const range = atomicTokenDeletionRange(
-    input.value,
-    el.selectionStart,
-    event.code === 'Backspace' ? 'backward' : 'forward'
-  )
+  const dir = event.code === 'Backspace' ? 'backward' : 'forward'
+  const selRange = atomicTokenDeletionRange(input.value, el.selectionStart, dir)
+  const range = selRange ?? atomicSkillTokenDeletionRange(input.value, el.selectionStart, dir)
   if (!range) return false
   event.preventDefault()
   input.value = input.value.slice(0, range.start) + input.value.slice(range.end)
@@ -190,12 +217,16 @@ function handleInputKeydown(event: KeyboardEvent) {
   if (target instanceof HTMLElement) target.closest('form')?.requestSubmit()
 }
 
-// T87：skill chips 单选（manifest 含 capabilities.agentSkills && skills 非空才渲染）。
-// 点 chip = 选中；再点 = 取消。发送时若选中，在 text 开头拼 /skill:<name>  前缀
-// （pi SDK 宿主侧 _expandSkillCommand 展开）；发送后清选中态。
-// skills 数据面来源 = manifest.skills（脱敏投影，OFF 时恒 []；capabilities
-// 关则 listSkills 守门不在结果中暴露）。
-const selectedSkillName = ref<string | null>(null)
+// T89：skill dropdown（替代 T87 chip 平铺）——reka-ui ComboboxRoot + chip 形态
+// trigger + 选项点击触发 insertTokenAtCursor。skills 数据面来源 = manifest.skills
+// （脱敏投影，OFF 时恒 []；capabilities 关则 listSkills 守门不在结果中暴露）。
+// 用户在 dropdown 内选中即向 textarea 插入「「/skill:<name>」」内联 token
+// （中文角括号是混排原子边界 / backdrop 高亮锚点，与 @画布选区-N 同款 UI 表达）。
+// 提交时 `stripSkillTokenBrackets` 仅剥中文角括号（主体不动），emit 出去的
+// 是 `/skill:<name>` 字面串（pi SDK _expandSkillCommand 唯一识别斜杠形式）。
+// 取消选中靠 textarea 内删除 token 或 atomic-deletion 拦截面。
+const skillSearch = ref('')
+const skillComboboxOpen = ref(false)
 
 const availableSkills = computed(() => {
   const manifest = piStudioManifest.value
@@ -203,14 +234,21 @@ const availableSkills = computed(() => {
   return manifest.skills
 })
 
-function toggleSkill(name: string): void {
-  selectedSkillName.value = selectedSkillName.value === name ? null : name
-}
+const filteredSkills = computed(() => {
+  const needle = skillSearch.value.trim().toLowerCase()
+  if (!needle) return availableSkills.value
+  return availableSkills.value.filter(
+    (s) => s.name.toLowerCase().includes(needle) || s.description.toLowerCase().includes(needle)
+  )
+})
 
-function skillPrefix(): string {
-  const name = selectedSkillName.value
-  if (!name) return ''
-  return `/skill:${name} `
+function handleSkillSelect(name: string): void {
+  insertTokenAtCursor(skillTokenText(name))
+  skillSearch.value = ''
+  // 触发后 refocus textarea，让用户继续输入
+  void nextTick(() => {
+    inputRef.value?.focus()
+  })
 }
 
 function handleSubmit(e: Event) {
@@ -226,11 +264,12 @@ function handleSubmit(e: Event) {
     : { text }
   // T27 快照先行：emit 即清空文本+登记表，失败回填（restoreDraft）整体恢复
   lastDraftSnapshot = snapshotSelectionDraftState(draftTokens)
-  // T87：skill chips 选中态拼到消息开头（仅本回合，下次发送清空）
-  emit('submit', skillPrefix() + submission.text)
+  // T89：skill token 中文角括号剥除（主体不动，仍是 pi SDK 识别的
+  // `/skill:<name>` 字面串）。strip 在 selection manifest 拼完之后执行，
+  // 避免误吃清单内可能含的角括号
+  emit('submit', stripSkillTokenBrackets(submission.text))
   input.value = ''
   resetSelectionDraftState(draftTokens)
-  selectedSkillName.value = null
 }
 
 // T27：父级在提交失败时回填草稿（emit 即清空是即时反馈设计，失败不该丢稿）；
@@ -277,66 +316,85 @@ defineExpose({ restoreDraft, clearDraft })
           {{ chipsText.chipsRetry }}
         </button>
       </div>
-      <!-- T87：skill chips 单选行（仅 capabilities.agentSkills && skills.length > 0 渲染） -->
-      <div
-        v-if="availableSkills.length > 0"
-        class="mb-2 flex flex-wrap items-center gap-1"
-        data-test-id="chat-skill-chips-row"
-      >
+      <!-- T89：actions 行（采集画布选区 + skill dropdown），位于 textarea 上方
+           一处承载两件事。采集按钮永远渲染；skill dropdown trigger 仅在
+           capabilities.agentSkills && skills.length > 0 时渲染 -->
+      <div class="mb-2 flex items-center gap-1" data-test-id="chat-actions-row">
+        <!-- T89（原 T70）：采集画布选区——从原 InputGroup attachment slot 挪出。
+             空选区 → 按钮短暂文案反馈、不产生 token；非空 → 光标处插入
+             「@画布选区-N」内联 token -->
         <button
-          v-for="skill in availableSkills"
-          :key="skill.name"
           type="button"
-          :data-test-id="`chat-skill-chip-${skill.name}`"
-          :title="skill.description || skill.name"
-          :aria-pressed="selectedSkillName === skill.name"
-          class="rounded-md border px-2 py-0.5 text-[11px] transition-colors"
-          :class="
-            selectedSkillName === skill.name
-              ? 'border-accent bg-accent/15 text-accent'
-              : 'border-border bg-transparent text-muted hover:border-accent/50 hover:text-surface'
-          "
-          @click="toggleSkill(skill.name)"
+          data-test-id="chat-capture-selection"
+          :disabled="isStreaming"
+          class="flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[11px] text-muted hover:border-accent/50 hover:text-surface disabled:cursor-not-allowed disabled:opacity-60"
+          @mousedown.prevent
+          @click="handleCaptureSelection"
         >
-          <span>/skill:{{ skill.name }}</span>
+          <icon-lucide-scan class="size-3 shrink-0" />
+          <span>
+            {{ captureEmptyFlash ? chipsText.chipsCaptureEmpty : chipsText.chipsCaptureSelection }}
+          </span>
         </button>
-        <button
-          v-if="selectedSkillName"
-          type="button"
-          data-test-id="chat-skill-clear"
-          class="rounded-md border border-border px-1.5 py-0.5 text-[11px] text-muted hover:bg-hover hover:text-surface"
-          :title="selectedSkillName"
-          @click="selectedSkillName = null"
+        <!-- T89 skill dropdown：reka-ui ComboboxRoot + chip 形态 trigger + 选项
+             点击触发 insertTokenAtCursor。ignore-filter 关掉 SDK 默认过滤，
+             用本地 filteredSkills（按 name + description 子串模糊匹配）。 -->
+        <ComboboxRoot
+          v-if="availableSkills.length > 0"
+          v-model:open="skillComboboxOpen"
+          v-model:search-term="skillSearch"
+          :ignore-filter="true"
         >
-          <icon-lucide-x class="size-3" />
-        </button>
+          <ComboboxAnchor as-child>
+            <ComboboxTrigger
+              data-test-id="chat-skill-trigger"
+              class="flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[11px] text-muted hover:border-accent/50 hover:text-surface data-[state=open]:border-accent/60 data-[state=open]:text-surface"
+              :disabled="isStreaming"
+            >
+              <icon-lucide-sparkles class="size-3 shrink-0" />
+              <span class="truncate">{{ chipsText.chipsSkillChoose }}</span>
+              <icon-lucide-chevron-down class="size-3 shrink-0 opacity-60" />
+            </ComboboxTrigger>
+          </ComboboxAnchor>
+          <ComboboxPortal>
+            <ComboboxContent
+              position="popper"
+              :side-offset="4"
+              class="z-50 max-h-64 min-w-[var(--reka-combobox-anchor-width)] overflow-hidden rounded-md border border-border bg-panel shadow-lg"
+            >
+              <ComboboxInput
+                v-model="skillSearch"
+                :placeholder="chipsText.chipsSkillSearchPlaceholder"
+                data-test-id="chat-skill-search"
+                class="w-full border-b border-border bg-transparent px-2.5 py-1.5 text-[11px] outline-none placeholder:text-muted"
+              />
+              <ComboboxViewport class="max-h-52 overflow-y-auto p-1">
+                <ComboboxItem
+                  v-for="skill in filteredSkills"
+                  :key="skill.name"
+                  :value="skill.name"
+                  data-test-id="chat-skill-option"
+                  class="flex cursor-pointer flex-col gap-0.5 rounded px-2 py-1 text-[11px] outline-none data-[highlighted]:bg-hover"
+                  @select="handleSkillSelect(skill.name)"
+                >
+                  <span class="font-medium text-surface">「/skill:{{ skill.name }}」</span>
+                  <span v-if="skill.description" class="text-muted">{{ skill.description }}</span>
+                  <ComboboxItemIndicator class="hidden" />
+                </ComboboxItem>
+                <div
+                  v-if="filteredSkills.length === 0"
+                  class="px-2 py-1 text-[11px] text-muted"
+                  data-test-id="chat-skill-empty"
+                >
+                  {{ chipsText.chipsSkillEmpty }}
+                </div>
+              </ComboboxViewport>
+            </ComboboxContent>
+          </ComboboxPortal>
+        </ComboboxRoot>
       </div>
       <form @submit="handleSubmit">
         <InputGroup :disabled="isStreaming">
-          <!-- T70：采集画布选区——input 上方工具条区（InputGroup attachment 槽）。
-               空选区 → 按钮短暂文案反馈、不产生 token；非空 → 光标处插入
-               「@画布选区-N」内联 token（登记表见 script T70 段） -->
-          <template #attachment>
-            <div class="flex items-center">
-              <button
-                type="button"
-                data-test-id="chat-capture-selection"
-                :disabled="isStreaming"
-                class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-muted hover:bg-hover hover:text-surface disabled:cursor-not-allowed disabled:opacity-60"
-                @mousedown.prevent
-                @click="handleCaptureSelection"
-              >
-                <icon-lucide-scan class="size-3 shrink-0" />
-                <span>
-                  {{
-                    captureEmptyFlash
-                      ? chipsText.chipsCaptureEmpty
-                      : chipsText.chipsCaptureSelection
-                  }}
-                </span>
-              </button>
-            </div>
-          </template>
           <!-- T70 路线 A：overlay 高亮 textarea——backdrop 在下层同步渲染文本流
                （全透明字形 + token 段背景块），textarea 承载输入/IME/光标；
                折行对齐靠同字号/行高/内边距 + whitespace-pre-wrap，滚动单向同步 -->

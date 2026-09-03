@@ -56,11 +56,8 @@ const agentSkills = computed({
 </script>
 
 <template>
-  <section class="flex flex-col gap-2" data-test-id="settings-agent-panel">
-    <h3 class="text-xs font-semibold text-surface">{{ msgs.agentCapabilitiesTitle }}</h3>
-    <p class="text-[11px] leading-relaxed text-muted">
-      {{ msgs.agentCapabilitiesDescription }}
-    </p>
+  <!-- T89：去繁就简——title + description 二键删除；AppSwitch label 留作唯一文案 -->
+  <section class="flex flex-col gap-1.5" data-test-id="settings-agent-panel">
     <div class="flex items-center gap-2">
       <AppSwitch
         v-model="agentSkills"

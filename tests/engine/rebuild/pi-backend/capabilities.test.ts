@@ -73,8 +73,8 @@ test('T87 set 校验：agentSkills 非布尔 → 抛错且不写盘', () => {
 })
 
 test('T87 listSkills：OFF 时空集（不泄露已扫到 skill 存在性）', () => {
-  // 即便 .pi/skills 有 SKILL.md，OFF 时 listSkills 也必须空集
-  const userSkillsDir = join(rootDir, '.pi', 'skills', 'demo')
+  // 即便 .openpencil/skills 有 SKILL.md，OFF 时 listSkills 也必须空集
+  const userSkillsDir = join(rootDir, '.openpencil', 'skills', 'demo')
   mkdirSync(userSkillsDir, { recursive: true })
   writeFileSync(
     join(userSkillsDir, 'SKILL.md'),
@@ -92,9 +92,10 @@ description: 测试
   expect(store.listSkills()).toEqual([])
 })
 
-test('T87 listSkills：ON 时扫 cwd/.pi/skills + agentDir/skills，name 去重 + 脱敏', () => {
-  // 双源 fixture：同名 + 异名各一
-  const userDir = join(rootDir, '.pi', 'skills', 'demo')
+test('T87 listSkills：ON 时扫 cwd/.openpencil/skills（单源）+ 脱敏', () => {
+  // T89：单源扫描 .openpencil/skills；原双源去重测试不再适用（同名 demo
+  // 在单源下不可能双份；保留 name 投影 + 脱敏两条核心断言）
+  const userDir = join(rootDir, '.openpencil', 'skills', 'demo')
   mkdirSync(userDir, { recursive: true })
   writeFileSync(
     join(userDir, 'SKILL.md'),
@@ -107,26 +108,13 @@ description: 用户侧 demo
 `,
     'utf8'
   )
-  const agentSkillDir = join(agentDir, 'skills', 'demo')
-  mkdirSync(agentSkillDir, { recursive: true })
+  const otherDir = join(rootDir, '.openpencil', 'skills', 'other')
+  mkdirSync(otherDir, { recursive: true })
   writeFileSync(
-    join(agentSkillDir, 'SKILL.md'),
+    join(otherDir, 'SKILL.md'),
     `---
-name: demo
-description: 代理侧 demo（应被同名去重覆盖）
----
-
-正文
-`,
-    'utf8'
-  )
-  const agentOnlyDir = join(agentDir, 'skills', 'agent-only')
-  mkdirSync(agentOnlyDir, { recursive: true })
-  writeFileSync(
-    join(agentOnlyDir, 'SKILL.md'),
-    `---
-name: agent-only
-description: 仅代理侧
+name: other
+description: 另一份
 ---
 
 正文
@@ -138,9 +126,8 @@ description: 仅代理侧
   store.set({ agentSkills: true })
   const skills = store.listSkills()
 
-  // 同名去重：demo 只出现一次（用户侧先扫到即留）
   const names = skills.map((s) => s.name).sort()
-  expect(names).toEqual(['agent-only', 'demo'])
+  expect(names).toEqual(['demo', 'other'])
   const demo = skills.find((s) => s.name === 'demo')
   expect(demo?.description).toBe('用户侧 demo')
 
@@ -151,7 +138,7 @@ description: 仅代理侧
 })
 
 test('T87 listSkills：disable-model-invocation 的 skill 也进清单（描述可空兜底）', () => {
-  const userDir = join(rootDir, '.pi', 'skills', 'hidden')
+  const userDir = join(rootDir, '.openpencil', 'skills', 'hidden')
   mkdirSync(userDir, { recursive: true })
   writeFileSync(
     join(userDir, 'SKILL.md'),
@@ -176,7 +163,7 @@ test('T87 listSkills：缺 description → SDK 拒收不进清单（description 
   // pi SDK 实证：loadSkillsFromDir 要求 SKILL.md frontmatter name + description
   // 齐备；缺 description 即非法，被丢弃不进结果。我们的脱敏兜空只兜 store
   // 收到非法描述的情况（manifest 投影层），不进 SDK 扫描。
-  const userDir = join(rootDir, '.pi', 'skills', 'no-desc')
+  const userDir = join(rootDir, '.openpencil', 'skills', 'no-desc')
   mkdirSync(userDir, { recursive: true })
   writeFileSync(
     join(userDir, 'SKILL.md'),

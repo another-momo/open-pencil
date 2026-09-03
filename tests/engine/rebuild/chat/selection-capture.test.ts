@@ -21,6 +21,7 @@ import { describe, expect, test } from 'bun:test'
 
 import { createEditorStore } from '@/app/editor/session'
 import {
+  atomicSkillTokenDeletionRange,
   atomicTokenDeletionRange,
   captureSelection,
   captureSelectionFromStore,
@@ -28,10 +29,13 @@ import {
   resetSelectionDraftState,
   restoreSelectionDraftState,
   scanSelectionTokens,
+  scanSkillTokens,
   selectionTokenText,
   serializeSelectionManifest,
+  skillTokenText,
   snapshotSelectionDraftState,
   stripSelectionManifest,
+  stripSkillTokenBrackets,
   type SelectionNodeReader,
   type SelectionTokenRegistry
 } from '@/components/chat/selection-capture'
@@ -383,5 +387,60 @@ describe('stripSelectionManifest（T70 实现点 5，T27 回填）', () => {
     expect(stripSelectionManifest('普通消息')).toBe('普通消息')
     const handTyped = '[画布选区]\n@画布选区-1 = 节点 1:23「主标题」(TEXT)'
     expect(stripSelectionManifest(handTyped)).toBe(handTyped)
+  })
+})
+
+// ── T89：skill token helper（`「/skill:<name>」`）纯函数面 ──────────────────
+describe('T89 skill token（`「/skill:<name>」`）', () => {
+  test('skillTokenText 生成字面量（角括号包裹 /skill:<name>）', () => {
+    expect(skillTokenText('demo')).toBe('「/skill:demo」')
+    expect(skillTokenText('hello-world_v2')).toBe('「/skill:hello-world_v2」')
+  })
+
+  test('scanSkillTokens：按出现顺序返 {name, start, end}；混排文本半删残串不识别', () => {
+    const text = '试试「/skill:demo」调一下，再「/skill:other」接'
+    const tokens = scanSkillTokens(text)
+    // 「/skill:demo」 = 13 chars；「/skill:other」 = 14 chars
+    expect(tokens).toEqual([
+      { name: 'demo', start: 2, end: 15 },
+      { name: 'other', start: 20, end: 34 }
+    ])
+    // 半删残串（缺末尾角括号）
+    expect(scanSkillTokens('「/skill:demo')).toEqual([])
+    // 完全独立的 plain `/skill:demo`（无角括号包裹）也不识别
+    expect(scanSkillTokens('plain /skill:demo text')).toEqual([])
+  })
+
+  test('atomicSkillTokenDeletionRange：光标紧邻完整 token → 整段区间；落中间/不紧邻 → null', () => {
+    const text = 'foo「/skill:demo」bar'
+    // backward：光标紧随 token 尾
+    const back = atomicSkillTokenDeletionRange(text, 16, 'backward')
+    expect(back).toEqual({ start: 3, end: 16 })
+    // forward：光标紧贴 token 头
+    const fwd = atomicSkillTokenDeletionRange(text, 3, 'forward')
+    expect(fwd).toEqual({ start: 3, end: 16 })
+    // 落中间 → null（走默认逐字删）
+    expect(atomicSkillTokenDeletionRange(text, 8, 'backward')).toBeNull()
+    expect(atomicSkillTokenDeletionRange(text, 8, 'forward')).toBeNull()
+    // 不紧邻（隔了一个空格）
+    expect(atomicSkillTokenDeletionRange(text, 4, 'backward')).toBeNull()
+  })
+
+  test('stripSkillTokenBrackets：仅剥中文角括号；主体不动；不动 selection token', () => {
+    expect(stripSkillTokenBrackets('试试「/skill:demo」调一下')).toBe('试试/skill:demo调一下')
+    expect(stripSkillTokenBrackets('「/skill:a」和「/skill:b」')).toBe('/skill:a和/skill:b')
+    // 空 → 空
+    expect(stripSkillTokenBrackets('')).toBe('')
+    // 无 token → 原文
+    expect(stripSkillTokenBrackets('普通消息')).toBe('普通消息')
+    // 不动 selection token（角括号语义不同：selection 是 N，这里是 :name）
+    expect(stripSkillTokenBrackets('「@画布选区-1」')).toBe('「@画布选区-1」')
+  })
+
+  test('scanSkillTokens 不误吃 selection token；stripSkillTokenBrackets 不误剥 selection token', () => {
+    const text = '「@画布选区-1」和「/skill:demo」'
+    // 「@画布选区-1」 = 10 chars（含首尾「」）；「和」= 1；「/skill:demo」 = 13
+    expect(scanSkillTokens(text)).toEqual([{ name: 'demo', start: 10, end: 23 }])
+    expect(stripSkillTokenBrackets(text)).toBe('「@画布选区-1」和/skill:demo')
   })
 })

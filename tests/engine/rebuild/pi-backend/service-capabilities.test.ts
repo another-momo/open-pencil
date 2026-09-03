@@ -80,9 +80,9 @@ describe('pi-backend service.ts capabilities seam（T87）', () => {
     expect(manifest.skills).toEqual([])
   })
 
-  test('getStudioManifest：capabilities ON 时 listSkills 反映 .pi/skills 扫描', () => {
-    // 落一份 fixture skill
-    const skillDir = join(rootDir, '.pi', 'skills', 'svc-test')
+  test('getStudioManifest：capabilities ON 时 listSkills 反映 .openpencil/skills 扫描', () => {
+    // T89：扫描目录由 `.pi/skills` 改 `.openpencil/skills`
+    const skillDir = join(rootDir, '.openpencil', 'skills', 'svc-test')
     mkdirSync(skillDir, { recursive: true })
     writeFileSync(
       join(skillDir, 'SKILL.md'),
@@ -104,7 +104,7 @@ description: service 装配 seam 测试
   })
 
   test('setCapabilities OFF → manifest.skills=[]（listSkills 守门）', () => {
-    const skillDir = join(rootDir, '.pi', 'skills', 'svc-test')
+    const skillDir = join(rootDir, '.openpencil', 'skills', 'svc-test')
     mkdirSync(skillDir, { recursive: true })
     writeFileSync(
       join(skillDir, 'SKILL.md'),

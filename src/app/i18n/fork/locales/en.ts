@@ -98,20 +98,18 @@ export const chipsMessageDefaults = {
   chipsRetry: 'Retry',
   chipsCaptureSelection: 'Capture canvas selection',
   chipsCaptureEmpty: 'Nothing selected on the canvas',
-  // T87：skill chips 行——单选 + 选中态拼 /skill:<name> 前缀
-  chipsSkillLabel: 'Skill',
-  chipsSkillClear: 'Clear selected skill'
+  // T89：skill dropdown trigger + 搜索占位 + 空匹配提示
+  chipsSkillChoose: 'Choose a skill',
+  chipsSkillSearchPlaceholder: 'Search skills…',
+  chipsSkillEmpty: 'No skills match'
 } as const
 
 /**
- * T87：settings 面板 Agent 能力分区（ai 区下小节）——单开关 agentSkills
- * 控管 skill 加载 + 内建工具同闸；owner 风险提示文案。
+ * T87→T89：settings 面板 Agent 能力分区——单 AppSwitch + 一行 label。
+ * T89：删除 title + description 二键（啰嗦），skillLabel 收敛为「进阶能力」。
  */
 export const agentCapabilitiesMessageDefaults = {
-  agentCapabilitiesTitle: 'Agent capabilities',
-  agentCapabilitiesDescription:
-    'Master toggle for skill loading and built-in tools (read / bash / edit / write). Off by default — turning this on gives the agent access to your data directory and shell on each new session.',
-  agentCapabilitiesSkillLabel: 'Skills and built-in tools',
+  agentCapabilitiesSkillLabel: 'Advanced capabilities (read / write / edit / bash / skill)',
   agentCapabilitiesSaving: 'Saving…',
   agentCapabilitiesError: params('Failed to save: {message}')
 } as const

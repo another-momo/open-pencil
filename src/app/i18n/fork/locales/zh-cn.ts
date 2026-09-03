@@ -14,6 +14,7 @@
 import type { ComponentsJSON } from '@nanostores/i18n'
 
 import type {
+  agentCapabilitiesMessageDefaults,
   askMessageDefaults,
   chipsMessageDefaults,
   confirmMessageDefaults,
@@ -36,7 +37,20 @@ const zhCN = {
     chipsManifestFailed: 'AI 工作室加载失败——选择器已禁用。',
     chipsRetry: '重试',
     chipsCaptureSelection: '采集画布选区',
-    chipsCaptureEmpty: '画布上还没有选中节点'
+    chipsCaptureEmpty: '画布上还没有选中节点',
+    // T87：skill chips 行——单选 + 选中态拼 /skill:<name> 前缀
+    chipsSkillLabel: '技能',
+    chipsSkillClear: '清除选中技能'
+  },
+  // T87：settings 面板 Agent 能力分区（ai 区下小节）——单开关 agentSkills
+  // 控管 skill 加载 + 内建工具同闸；owner 风险提示文案。
+  agentCapabilities: {
+    agentCapabilitiesTitle: 'Agent 能力',
+    agentCapabilitiesDescription:
+      'Skill 加载与内建工具（read / bash / edit / write）的总开关。默认关闭——打开后每个新会话里 agent 将获得数据目录与 shell 的访问权。',
+    agentCapabilitiesSkillLabel: '技能与内建工具',
+    agentCapabilitiesSaving: '保存中…',
+    agentCapabilitiesError: '保存失败：{message}'
   },
   panels: {
     contextTriggerLabel: '画布状态',
@@ -219,3 +233,4 @@ export type AskNamespace = typeof askMessageDefaults
 export type ChipsNamespace = typeof chipsMessageDefaults
 export type PanelsNamespace = typeof panelsMessageDefaults
 export type ConfirmNamespace = typeof confirmMessageDefaults
+export type AgentCapabilitiesNamespace = typeof agentCapabilitiesMessageDefaults

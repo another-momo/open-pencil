@@ -6,8 +6,13 @@
  * brand/ 目录同批退役）。信任边界（T24 D7 延伸）：profile 正文不下发前端；
  * failures 的 path 在注册表内已是相对 origin 目录的相对路径（registry.ts），
  * 绝对路径不出后端进程。
+ *
+ * T87：附加 capabilities + skills 字段——前者是 owner 总开关读面（前端
+ * Settings 面板展示），后者是 chips 行数据源（用户选择 /skill:<name> 前缀）。
+ * 严格脱敏：skills 只含 name/description，**绝不**透传 filePath/baseDir/sourceInfo。
  */
 
+import type { Capabilities, ManifestSkillEntry } from '../capabilities'
 import type { StudioFailure, StudioMode, StudioRegistry } from './types'
 
 /** mode 条目：general 恒在首位 + 每注册 workflow 一条（T62：types 数据面删除；
@@ -30,18 +35,33 @@ export type PiStudioFailureEntry = {
   hint: string
 }
 
+/** T87：能力开关 + skill 列表（脱敏投影） */
+export type PiStudioCapabilities = {
+  agentSkills: boolean
+}
+
 export type PiStudioManifest = {
   modes: PiStudioModeEntry[]
   profiles: PiStudioProfileSummary[]
   failures: PiStudioFailureEntry[]
+  capabilities: PiStudioCapabilities
+  skills: ManifestSkillEntry[]
 }
 
 /**
  * registry → manifest 脱敏投影（纯函数）。
  * deprecated profile 不进选择器数据面（deprecated 语义即「不展示」，S2 §5 字段）；
  * 其文件仍注册在案，failures 之外不另行报告。
+ *
+ * T87：可选 capabilities/skills 注入——调用方传 capabilities store；
+ * 缺省传 undefined 时 capabilities=OFF、skills=[]（向后兼容：t45/manifest-dump
+ * 等历史调用面不变）。store.listSkills() 内部已按 agentSkills OFF 返空集，
+ * 此处只是把当前态透传给前端。
  */
-export function toStudioManifest(registry: StudioRegistry): PiStudioManifest {
+export function toStudioManifest(
+  registry: StudioRegistry,
+  capabilities?: { get(): Capabilities; listSkills(): ManifestSkillEntry[] }
+): PiStudioManifest {
   const modes: PiStudioModeEntry[] = registry.modes.map((mode) => ({
     id: mode.id,
     label: mode.label,
@@ -59,5 +79,19 @@ export function toStudioManifest(registry: StudioRegistry): PiStudioManifest {
     reason: f.reason,
     hint: f.hint
   }))
-  return { modes, profiles, failures }
+  const caps = capabilities ? capabilities.get() : { agentSkills: false }
+  // 脱敏兜底：白名单取 name/description，不依赖 store 投影的诚信
+  // （T45 §信任边界同源约束——filePath/baseDir/sourceInfo 永不跨出后端进程）
+  const rawSkills = capabilities ? capabilities.listSkills() : []
+  const skills: ManifestSkillEntry[] = rawSkills.map((entry) => ({
+    name: String(entry.name),
+    description: typeof entry.description === 'string' ? entry.description : ''
+  }))
+  return {
+    modes,
+    profiles,
+    failures,
+    capabilities: { agentSkills: caps.agentSkills },
+    skills
+  }
 }

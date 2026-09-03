@@ -223,3 +223,58 @@ test('overlay 适配：profiles markdown=body（types 段已随 T62 整段删除
   expect(creativeMode).toBeDefined()
   expect('types' in (creativeMode ?? {})).toBe(false)
 })
+
+test('T87 投影：capabilities 默认 OFF + skills=[]（无 store 兼容）', () => {
+  put(builtinDir, 'base.md', BASE_MD)
+  put(builtinDir, join('workflows', 'longform.md'), LONGFORM_MD)
+  const m = toStudioManifest(loadStudioFromDirs(builtinDir, userDir))
+  expect(m.capabilities).toEqual({ agentSkills: false })
+  expect(m.skills).toEqual([])
+})
+
+test('T87 投影：传 fakeStore OFF 时 skills=[]；ON 时透传 name/description 且无 filePath/baseDir', () => {
+  put(builtinDir, 'base.md', BASE_MD)
+  put(builtinDir, join('workflows', 'longform.md'), LONGFORM_MD)
+  const registry = loadStudioFromDirs(builtinDir, userDir)
+  // OFF：fakeStore 拒绝透传任何 skill（真实 store 的 listSkills 守门：OFF → []）
+  const offStore = {
+    get: () => ({ agentSkills: false }),
+    listSkills: () => [
+      // 即便 store 想泄露，投影也应原样（守门在 store 侧）——这里只验投影
+      // 原样透传、不夹带 filePath/baseDir/sourceInfo
+      { name: 'should-not-leak', description: 'x', filePath: '/etc/passwd', baseDir: '/etc' }
+    ]
+  }
+  const mOff = toStudioManifest(registry, offStore)
+  expect(mOff.capabilities).toEqual({ agentSkills: false })
+  // 投影函数本身只读 name/description；任何额外字段都不进（不夹带坐标）
+  expect(Object.keys(mOff.skills[0] ?? {}).sort()).toEqual(['description', 'name'])
+  expect(mOff.skills[0]).not.toHaveProperty('filePath')
+  expect(mOff.skills[0]).not.toHaveProperty('baseDir')
+  expect(mOff.skills[0]).not.toHaveProperty('sourceInfo')
+
+  // ON：透传 name + description 空串兜底
+  const onStore = {
+    get: () => ({ agentSkills: true }),
+    listSkills: () => [
+      { name: 'demo', description: '说明' },
+      { name: 'no-desc', description: '' }
+    ]
+  }
+  const mOn = toStudioManifest(registry, onStore)
+  expect(mOn.capabilities).toEqual({ agentSkills: true })
+  expect(mOn.skills.map((s) => s.name)).toEqual(['demo', 'no-desc'])
+  expect(mOn.skills.map((s) => s.description)).toEqual(['说明', ''])
+})
+
+test('T87 投影：store 漏 description 时 manifest 投影层兜空串（脱敏白名单二次防漏）', () => {
+  // 真实 SDK 不会让 description 缺，但 store 实现或未来扩展路径可能漏——
+  // 投影白名单再次兜底：description 非字符串 → 空串
+  const store = {
+    get: () => ({ agentSkills: true }),
+    listSkills: () => [{ name: 'edge', description: undefined }]
+  }
+  put(builtinDir, 'base.md', BASE_MD)
+  const m = toStudioManifest(loadStudioFromDirs(builtinDir, userDir), store)
+  expect(m.skills).toEqual([{ name: 'edge', description: '' }])
+})

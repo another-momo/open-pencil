@@ -59,7 +59,7 @@
     "build:packages": "bun --filter @open-pencil/scene-graph build && bun --filter @open-pencil/pen build && bun --filter @open-pencil/kiwi build && bun --filter @open-pencil/fig build && bun --filter @open-pencil/core build && bun --filter @open-pencil/dom-css build && bun --filter @open-pencil/vue build && bun --filter @open-pencil/mcp build && bun --filter @open-pencil/cli build",
     "open-pencil": "bun packages/cli/src/index.ts",
     "visual-compare": "bun tools/visual-oracles/src/compare.ts",
-    "smoke:pi": "bun spikes/s-pi/backend-smoke/t22/target-smoke.mjs && bun spikes/s-pi/backend-smoke/t22/history-smoke.mjs && bun spikes/s-pi/backend-smoke/t23/sessions-smoke.mjs && bun spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs && bun spikes/s-pi/backend-smoke/t28/session-gc-smoke.mjs",
+    "smoke:pi": "bun spikes/s-pi/backend-smoke/t22/target-smoke.mjs && bun spikes/s-pi/backend-smoke/t22/history-smoke.mjs && bun spikes/s-pi/backend-smoke/t23/sessions-smoke.mjs && bun spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs && bun spikes/s-pi/backend-smoke/t28/session-gc-smoke.mjs && bun spikes/s-pi/backend-smoke/t87/skill-toggle-smoke.mjs",
     "smoke:pi:ui": "node spikes/s-pi/backend-smoke/t22/bind-smoke.mjs && node spikes/s-pi/backend-smoke/t23/sessions-bind-smoke.mjs && node spikes/s-pi/backend-smoke/t24/mode-overlay-bind-smoke.mjs"
   },
   "dependencies": {

@@ -22,6 +22,8 @@
  *  端点 POST /api/pi/active-design：401 未鉴权 / 405 非 POST / 400 坏体 /
  *     502 bridge_unavailable（无桥环境显式失败，红线 #8 不静默）
  *  路由 GET /api/pi/studio/manifest 形状 + 脱敏（无正文/无绝对路径）+ 405
+ *  T87：manifest 透传 capabilities/skills 字段（OFF 态）；capabilities 端点
+ *   GET 缺省 OFF / PUT ON-OFF 往返 / 负向 400 / 未鉴权 401
  *
  * T45（S4 W1 / T-A3）改源：种子 config.yaml → studio 文件注册表（workflows/
  * + profiles/ 复制进 tempRoot）；端点更名 /api/pi/studio/manifest，契约改为
@@ -297,6 +299,64 @@ try {
     emptyManifest.failures.some((f) => f.kind === 'base' && f.path === 'base.md') &&
       emptyManifest.failures.every((f) => !f.path.includes(':') && !f.path.startsWith('/'))
   )
+
+  // ── T87：capabilities 路由
+  // 缺省 OFF（首次请求 capabilities.json 不存在）
+  const capRes0 = await fetch(`${BASE}/api/pi/capabilities`, { headers: authHeaders(token) })
+  const cap0 = await capRes0.json()
+  check(
+    'T87 路由 capabilities：缺省 OFF（capabilities.json 不存在 → 降级 OFF）',
+    capRes0.ok && cap0.agentSkills === false,
+    JSON.stringify(cap0)
+  )
+  // manifest.skills 同步透传（OFF 时 = []）
+  check(
+    'T87 路由 manifest：capabilities.agentSkills=false + skills=[] 透传',
+    manifest.capabilities?.agentSkills === false && Array.isArray(manifest.skills) && manifest.skills.length === 0,
+    JSON.stringify({ capabilities: manifest.capabilities, skills: manifest.skills })
+  )
+
+  // PUT ON → 落盘 + 后续 GET 返 ON
+  const capPutOn = await fetch(`${BASE}/api/pi/capabilities`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ agentSkills: true })
+  })
+  const capOn = await capPutOn.json()
+  check(
+    'T87 路由 capabilities：PUT ON → 200 + 返 ON',
+    capPutOn.ok && capOn.agentSkills === true,
+    JSON.stringify(capOn)
+  )
+  const capRes1 = await fetch(`${BASE}/api/pi/capabilities`, { headers: authHeaders(token) })
+  const cap1 = await capRes1.json()
+  check(
+    'T87 路由 capabilities：PUT ON 后 GET 返 ON（持久化）',
+    capRes1.ok && cap1.agentSkills === true,
+    JSON.stringify(cap1)
+  )
+
+  // 二次拉 manifest（缓存还在原 fetch 值，验后端无状态改动；
+  // 真实场景需调 ensurePiStudioManifest 重拉；冒烟只看后端语义）
+  // OFF → 落 ON 后能跑通；为保持 t24 后续流程不依赖 ON 状态，写回 OFF
+  const capPutOff = await fetch(`${BASE}/api/pi/capabilities`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ agentSkills: false })
+  })
+  check('T87 路由 capabilities：PUT OFF → 200', capPutOff.ok)
+
+  // 负向：PUT 非布尔 → 400
+  const capBad = await fetch(`${BASE}/api/pi/capabilities`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ agentSkills: 'yes' })
+  })
+  check('T87 路由 capabilities：PUT 非布尔 → 400', capBad.status === 400, `status=${capBad.status}`)
+
+  // 负向：未鉴权 → 401
+  const capNoAuth = await fetch(`${BASE}/api/pi/capabilities`)
+  check('T87 路由 capabilities：未鉴权 → 401', capNoAuth.status === 401, `status=${capNoAuth.status}`)
 
   // ── dummy 凭据过 auth 预检（写 tempRoot 自带 agentDir，不碰真实 .openpencil）
   const cred = await fetch(`${BASE}/api/pi/credentials`, {

@@ -18,6 +18,7 @@ import { useStore } from '@nanostores/vue'
 import { locale, type Locale } from '@open-pencil/vue'
 
 import {
+  agentCapabilitiesMessageDefaults,
   askMessageDefaults,
   chipsMessageDefaults,
   confirmMessageDefaults,
@@ -40,7 +41,8 @@ export const forkI18n = createI18n<Locale, 'en'>(locale, {
         ask: mod.default.ask,
         chips: mod.default.chips,
         panels: mod.default.panels,
-        confirm: mod.default.confirm
+        confirm: mod.default.confirm,
+        agentCapabilities: mod.default.agentCapabilities
       }
     }
     return {}
@@ -66,6 +68,16 @@ export const forkPanelsMessages = forkI18n('panels', panelsMessageDefaults)
 
 /** T61：新建意图确认卡 + set_active_design 同意卡文案域（ChatNewIntentCard / ChatSetActiveDesignCard） */
 export const forkConfirmMessages = forkI18n('confirm', confirmMessageDefaults)
+
+/** T87：settings 面板 Agent 能力分区（ai 区下小节） */
+export const forkAgentCapabilitiesMessages = forkI18n(
+  'agentCapabilities',
+  agentCapabilitiesMessageDefaults
+)
+
+export function useForkAgentCapabilities() {
+  return useStore(forkAgentCapabilitiesMessages)
+}
 
 export function useForkFonts() {
   return useStore(forkFontsMessages)

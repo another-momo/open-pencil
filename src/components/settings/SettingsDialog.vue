@@ -8,6 +8,7 @@ import { useAIChat } from '@/app/ai/chat/use'
 import { useForkFonts } from '@/app/i18n/fork'
 import { appCredentialServices } from '@/app/settings/credentials/app'
 import { settingsDialogOpen, settingsDialogSection } from '@/app/settings/dialog'
+import AgentSettingsPanel from '@/components/settings/agent/AgentSettingsPanel.vue'
 import DiagnosticsSettingsPanel from '@/components/settings/diagnostics/DiagnosticsSettingsPanel.vue'
 import FontsSettingsPanel from '@/components/settings/fonts/FontsSettingsPanel.vue'
 import GeneralSettingsPanel from '@/components/settings/general/GeneralSettingsPanel.vue'
@@ -142,10 +143,12 @@ const navigationClass =
 
         <section
           v-else-if="settingsDialogSection === 'ai'"
-          class="flex h-full flex-col"
+          class="flex h-full flex-col gap-4"
           data-test-id="settings-ai-panel"
         >
           <ModelsPanel />
+          <!-- T87：Agent 能力总开关（skill 加载 + 内建工具同闸） -->
+          <AgentSettingsPanel />
         </section>
 
         <UsageSettingsPanel v-else-if="settingsDialogSection === 'usage'" />

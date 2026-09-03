@@ -97,7 +97,23 @@ export const chipsMessageDefaults = {
   chipsManifestFailed: 'AI studio failed to load — selectors are disabled.',
   chipsRetry: 'Retry',
   chipsCaptureSelection: 'Capture canvas selection',
-  chipsCaptureEmpty: 'Nothing selected on the canvas'
+  chipsCaptureEmpty: 'Nothing selected on the canvas',
+  // T87：skill chips 行——单选 + 选中态拼 /skill:<name> 前缀
+  chipsSkillLabel: 'Skill',
+  chipsSkillClear: 'Clear selected skill'
+} as const
+
+/**
+ * T87：settings 面板 Agent 能力分区（ai 区下小节）——单开关 agentSkills
+ * 控管 skill 加载 + 内建工具同闸；owner 风险提示文案。
+ */
+export const agentCapabilitiesMessageDefaults = {
+  agentCapabilitiesTitle: 'Agent capabilities',
+  agentCapabilitiesDescription:
+    'Master toggle for skill loading and built-in tools (read / bash / edit / write). Off by default — turning this on gives the agent access to your data directory and shell on each new session.',
+  agentCapabilitiesSkillLabel: 'Skills and built-in tools',
+  agentCapabilitiesSaving: 'Saving…',
+  agentCapabilitiesError: params('Failed to save: {message}')
 } as const
 
 /**

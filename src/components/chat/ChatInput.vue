@@ -22,6 +22,7 @@ import InputGroup from '@/components/ui/InputGroup.vue'
 import { piDesignAssignment } from '@/app/ai/pi-backend/assignment'
 import {
   ensurePiStudioManifest,
+  piStudioManifest,
   piStudioManifestFailed,
   retryPiStudioManifest
 } from '@/app/ai/pi-backend/mode-selection'
@@ -189,6 +190,29 @@ function handleInputKeydown(event: KeyboardEvent) {
   if (target instanceof HTMLElement) target.closest('form')?.requestSubmit()
 }
 
+// T87：skill chips 单选（manifest 含 capabilities.agentSkills && skills 非空才渲染）。
+// 点 chip = 选中；再点 = 取消。发送时若选中，在 text 开头拼 /skill:<name>  前缀
+// （pi SDK 宿主侧 _expandSkillCommand 展开）；发送后清选中态。
+// skills 数据面来源 = manifest.skills（脱敏投影，OFF 时恒 []；capabilities
+// 关则 listSkills 守门不在结果中暴露）。
+const selectedSkillName = ref<string | null>(null)
+
+const availableSkills = computed(() => {
+  const manifest = piStudioManifest.value
+  if (!manifest || !manifest.capabilities.agentSkills) return []
+  return manifest.skills
+})
+
+function toggleSkill(name: string): void {
+  selectedSkillName.value = selectedSkillName.value === name ? null : name
+}
+
+function skillPrefix(): string {
+  const name = selectedSkillName.value
+  if (!name) return ''
+  return `/skill:${name} `
+}
+
 function handleSubmit(e: Event) {
   e.preventDefault()
   const text = input.value.trim()
@@ -202,9 +226,11 @@ function handleSubmit(e: Event) {
     : { text }
   // T27 快照先行：emit 即清空文本+登记表，失败回填（restoreDraft）整体恢复
   lastDraftSnapshot = snapshotSelectionDraftState(draftTokens)
-  emit('submit', submission.text)
+  // T87：skill chips 选中态拼到消息开头（仅本回合，下次发送清空）
+  emit('submit', skillPrefix() + submission.text)
   input.value = ''
   resetSelectionDraftState(draftTokens)
+  selectedSkillName.value = null
 }
 
 // T27：父级在提交失败时回填草稿（emit 即清空是即时反馈设计，失败不该丢稿）；
@@ -249,6 +275,40 @@ defineExpose({ restoreDraft, clearDraft })
           @click="retryPiStudioManifest"
         >
           {{ chipsText.chipsRetry }}
+        </button>
+      </div>
+      <!-- T87：skill chips 单选行（仅 capabilities.agentSkills && skills.length > 0 渲染） -->
+      <div
+        v-if="availableSkills.length > 0"
+        class="mb-2 flex flex-wrap items-center gap-1"
+        data-test-id="chat-skill-chips-row"
+      >
+        <button
+          v-for="skill in availableSkills"
+          :key="skill.name"
+          type="button"
+          :data-test-id="`chat-skill-chip-${skill.name}`"
+          :title="skill.description || skill.name"
+          :aria-pressed="selectedSkillName === skill.name"
+          class="rounded-md border px-2 py-0.5 text-[11px] transition-colors"
+          :class="
+            selectedSkillName === skill.name
+              ? 'border-accent bg-accent/15 text-accent'
+              : 'border-border bg-transparent text-muted hover:border-accent/50 hover:text-surface'
+          "
+          @click="toggleSkill(skill.name)"
+        >
+          <span>/skill:{{ skill.name }}</span>
+        </button>
+        <button
+          v-if="selectedSkillName"
+          type="button"
+          data-test-id="chat-skill-clear"
+          class="rounded-md border border-border px-1.5 py-0.5 text-[11px] text-muted hover:bg-hover hover:text-surface"
+          :title="selectedSkillName"
+          @click="selectedSkillName = null"
+        >
+          <icon-lucide-x class="size-3" />
         </button>
       </div>
       <form @submit="handleSubmit">

@@ -29,6 +29,9 @@
  * T45：GET /api/pi/studio/manifest → PiStudioManifest（注册表脱敏投影，
  * 无 markdown 正文）——前端 profile 选择器数据源（T24-plan D6）。
  *
+ * T87：GET/PUT /api/pi/capabilities → 当前 agentSkills 状态 + 切换端点
+ * （settings 面板读写；PUT 校验失败 400；token 鉴权同 /api/pi/credentials）。
+ *
  * 仅运行于独立 bun/node 进程（main.ts 入口或 vite 插件 spawn 的子进程），
  * 不经 vite esbuild 打包——package 导入（@open-pencil/mcp/* 等 workspace 包）可用。
  * key 卫生：凭据只进不出（写入经 provider-admin，任何响应/日志不含 key）。
@@ -246,6 +249,45 @@ async function handleActiveDesignRequest(
   })
 }
 
+/**
+ * T87：GET/PUT /api/pi/capabilities——capabilities 单开关读写。GET 返
+ * `{ agentSkills }`（settings 面板初始值）；PUT 校验布尔、落盘、返新态。
+ * 校验失败 400；超限 413（沿用 readBody 拦截）。
+ */
+async function handleCapabilitiesRequest(
+  service: ReturnType<typeof createPiChatService>,
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  if (req.method === 'GET') {
+    sendJSON(res, 200, service.getCapabilities())
+    return
+  }
+  if (req.method !== 'PUT') {
+    res.writeHead(405).end('Method Not Allowed')
+    return
+  }
+  let body: { agentSkills?: unknown }
+  try {
+    body = JSON.parse(await readBody(req)) as { agentSkills?: unknown }
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      res.writeHead(413).end('Payload Too Large')
+      return
+    }
+    res.writeHead(400).end('Bad Request: invalid JSON')
+    return
+  }
+  try {
+    const next = service.setCapabilities({ agentSkills: body.agentSkills })
+    sendJSON(res, 200, next)
+  } catch (error) {
+    sendJSON(res, 400, {
+      error: error instanceof Error ? error.message : String(error)
+    })
+  }
+}
+
 async function handleAdminRequest(
   admin: ReturnType<typeof createProviderAdmin>,
   req: IncomingMessage,
@@ -401,6 +443,11 @@ export function createPiBackendServer({
     // T60：active_design 移槽端点（须在 /api/pi/ 管理面前缀之前匹配）
     if (url.pathname === '/api/pi/active-design') {
       void handleActiveDesignRequest(service, req, res)
+      return
+    }
+    // T87：capabilities 单开关读写端点（须在 /api/pi/ 管理面前缀之前匹配）
+    if (url.pathname === '/api/pi/capabilities') {
+      void handleCapabilitiesRequest(service, req, res)
       return
     }
     // T22/T23/T24 只读路由（须在 /api/pi/ 管理面前缀之前匹配）

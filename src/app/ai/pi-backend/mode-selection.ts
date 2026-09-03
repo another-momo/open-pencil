@@ -74,13 +74,46 @@ async function fetchPiStudioManifest(): Promise<void> {
 export async function ensurePiStudioManifest(): Promise<void> {
   if (manifestRequested) return
   manifestRequested = true
-  await fetchPiStudioManifest()
+  // T87：与 capabilities 并行拉取（独立 endpoint，不被 manifest 失败阻断）——
+  // capabilities 失败按 null 降级，不进入 piStudioManifestFailed 显式失败面
+  await Promise.all([fetchPiStudioManifest(), fetchPiCapabilities()])
 }
 
 /** 错误条重试按钮通路：允许失败后再拉（成功后幂等——manifest 不变更） */
 export async function retryPiStudioManifest(): Promise<void> {
   if (!piStudioManifestFailed.value) return
   await fetchPiStudioManifest()
+}
+
+// ── T87：capabilities 镜像（settings 面板 AppSwitch + ChatInput chips 共享） ─
+//
+// 拉取策略与 manifest 同：ensurePiStudioManifest 触发一并拉一次（同一 endpoint
+// 主题，避免前端散点），失败按 null 降级——settings 开关按关闭处理、ChatInput
+// chips 行不渲染（availableSkills computed 空集判定）。
+// PUT 由 settings 面板触发，成功后调 applyPiCapabilities mutate 本地避免
+// round-trip；不主动重新拉 manifest（manifest 在 capabilities 写入后已被
+// 后端覆盖，下一次 ensurePiStudioManifest 才会更新前端本地态——本模块不强
+// 制刷新，调用方按需 retry）。错误反馈由 settings 面板 handleError 局部
+// 承担，不扩展本模块错误面（与 manifest 失败条同源纪律）。
+export const piCapabilities = ref<{ agentSkills: boolean } | null>(null)
+
+async function fetchPiCapabilities(): Promise<void> {
+  try {
+    const res = await fetch('/api/pi/capabilities')
+    if (!res.ok) {
+      piCapabilities.value = null
+      return
+    }
+    piCapabilities.value = (await res.json()) as { agentSkills: boolean }
+  } catch (error) {
+    piCapabilities.value = null
+    console.warn('[pi-backend] capabilities 拉取失败——settings 开关按关闭处理', error)
+  }
+}
+
+/** 同步更新（settings 面板 PUT 成功后调用，乐观更新避免 round-trip） */
+export function applyPiCapabilities(next: { agentSkills: boolean }): void {
+  piCapabilities.value = next
 }
 
 // ── active_design 同步态（共享契约 5） ───────────────────────────────────────

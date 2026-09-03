@@ -54,6 +54,7 @@ import {
   type SetActiveDesignResult
 } from './active-design-host'
 import { createAskUserQuestionTool } from './ask-user-question'
+import { type Capabilities, createCapabilitiesStore } from './capabilities'
 import { readPiHistoryFile } from './history'
 import type { ImageGenCredentialStore } from './image-gen/credentials'
 import { createImageGenTool } from './image-gen/generate'
@@ -92,8 +93,13 @@ export type PiChatService = {
   readHistory(sessionId: string): UIMessage[]
   /** T23：族内全部会话摘要，按创建后缀倒序（最新在前）；零副作用纯读 */
   listSessionFamily(docKeyPrefix: string): PiSessionSummary[]
-  /** T45：studio manifest（注册表脱敏投影，无 profile 正文/绝对路径；S2 §8 failures 数据面） */
+  /** T45：studio manifest（注册表脱敏投影，无 profile 正文/绝对路径；S2 §8 failures 数据面）；
+   *  T87：附加 capabilities/skills 字段（脱敏投影） */
   getStudioManifest(): PiStudioManifest
+  /** T87：读 capabilities（settings 面板 GET 用） */
+  getCapabilities(): Capabilities
+  /** T87：写 capabilities（settings 面板 PUT 用；非法值抛错并被 server.ts 转 400） */
+  setCapabilities(input: { agentSkills: unknown }): Capabilities
   /** T60：active_design 端点（②面板点选 / ③AI 声明+同意）——四条件校验 → 移槽 → 身份三元组 */
   setActiveDesign(nodeId: string, documentId?: string): Promise<SetActiveDesignResult>
   /** T27：取消该 session 进行中的 run（SSE 断连锁停后端烧 token）；无活跃 run 时 no-op */
@@ -144,6 +150,9 @@ export function createPiChatService({
   // base.md 未落位前 failures 恒含 base 缺失一条（manifest 显式暴露数据面）。
   // T60：active_design 桥探针/写槽 IO（无状态单例，session 间共享）
   const activeDesignBridge = createBridgeSlotIO()
+  // T87：capabilities store 单例（与 stateDir/agentDir 同源）；session 装配按
+  // agentSkills 切换 noTools/noSkills；manifest 投影/GET/PUT 共用此实例
+  const capabilitiesStore = createCapabilitiesStore({ agentDir, rootDir })
 
   const sessions = new Map<string, SessionEntry>()
 
@@ -295,15 +304,18 @@ export function createPiChatService({
       sessionManager,
       // T21：静态 system prompt 经 resourceLoader 烘焙（T60：烘焙 studio base
       // body 作兜底基底——per-run 钩子恒返回完整组装，基底只在无 prepareTurn
-      // 的异常路径露面）+ 关闭 pi 侧上下文文件/skills/prompt 模板加载——否则 repo
+      // 的异常路径露面）+ 关闭 pi 侧上下文文件/prompt 模板加载——否则 repo
       // 的 AGENTS.md 等会混入设计会话（旧 ToolLoop 只有静态 prompt，对齐）
+      // T87：noSkills 由 capabilities.agentSkills 决定——开启时加载 pi-agent/skills
+      // + .pi/skills 下的 SKILL.md，进入 <available_skills> prompt 列表或被
+      // /skill:name 显式调用（disable-model-invocation 的不进 prompt，可被显式调）
       resourceLoader: await (async () => {
         const loader = new DefaultResourceLoader({
           cwd: rootDir,
           agentDir,
           systemPrompt: getStudioRegistry(rootDir).base?.body ?? '',
           noContextFiles: true,
-          noSkills: true,
+          noSkills: !capabilitiesStore.get().agentSkills,
           noPromptTemplates: true,
           extensionFactories
         })
@@ -315,7 +327,10 @@ export function createPiChatService({
       })(),
       // T20：'all' 会连 custom 工具一起禁；'builtin' 只禁内建（read/bash/edit/write）
       // 保留我们的设计工具（sdk.d.ts 语义实证，见 T20-self-check §2.1-1）
-      noTools: 'builtin',
+      // T87：capabilities.agentSkills OFF 时显式禁内建（与基线一致）；开启时
+      // 省略 noTools 字段 → SDK 默认允许全部内建工具（read/bash/edit/write），
+      // 与 skill 系统同闸开放。
+      ...(capabilitiesStore.get().agentSkills ? {} : { noTools: 'builtin' as const }),
       customTools,
       ...(modelSpec?.thinkingLevel ? { thinkingLevel: modelSpec.thinkingLevel } : {})
     })
@@ -463,7 +478,15 @@ export function createPiChatService({
   }
 
   function getStudioManifest(): PiStudioManifest {
-    return toStudioManifest(getStudioRegistry(rootDir))
+    return toStudioManifest(getStudioRegistry(rootDir), capabilitiesStore)
+  }
+
+  function getCapabilities(): Capabilities {
+    return capabilitiesStore.get()
+  }
+
+  function setCapabilities(input: { agentSkills: unknown }): Capabilities {
+    return capabilitiesStore.set(input)
   }
 
   async function setActiveDesign(
@@ -514,6 +537,8 @@ export function createPiChatService({
     readHistory,
     listSessionFamily,
     getStudioManifest,
+    getCapabilities,
+    setCapabilities,
     setActiveDesign,
     abort
   }

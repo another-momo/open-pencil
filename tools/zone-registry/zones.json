@@ -65,7 +65,8 @@
     "packages/core/src/bytes/image-mime.ts",
     "src/components/settings/provider/ImageGenKeysSection.vue",
     ".github/workflows/upstream-drift.yml",
-    "src/components/ChatPanel.vue"
+    "src/components/ChatPanel.vue",
+    "tests/engine/render/canvas/font-lifecycle.test.ts"
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [
@@ -826,6 +827,14 @@
       "disposition": "permanent",
       "lastReviewed": "2026-09-03",
       "task": "T88"
+    },
+    {
+      "id": "P150",
+      "file": "src/components/recovery/RecoveryDialog.vue",
+      "reason": "T90（2026-09-03）：reka-ui AlertDialogTitle / AlertDialogDescription 补 import（模板用了但缺导入导致 Vue 组件解析失败）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-03",
+      "task": "T90"
     }
   ],
   "deletedPaths": [
@@ -989,7 +998,6 @@
         "src/app/editor/vector/types.ts",
         "src/app/settings/preferences/store.ts",
         "src/app/shell/keyboard/clipboard.ts",
-        "src/components/recovery/RecoveryDialog.vue",
         "src/components/settings/general/GeneralSettingsPanel.vue",
         "src/components/ui/AppButton.stories.ts",
         "src/components/ui/AppButton.vue",

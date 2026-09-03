@@ -109,75 +109,38 @@ function makeScriptFonts(ck: CanvasKit, typeface: Typeface | null): ScriptFontEn
   }
 }
 
-/** T88：把 makeScriptFonts 出的 5 个 Font 实例写进 r 的对应字段 */
+/** T88：把 makeScriptFonts 出的 5 个 Font 实例写进 r 的对应字段
+ *
+ * T90 注意：必须直接写 r 上的字段，不能再回 T88 早期那种「snapshot 成
+ * ScriptFontTarget 后整体替换」的写法——快照对象上的赋值不会回到 r 上，
+ * 导致 Replace-before-delete 模式失效，旧 Font 被 delete 后 r 仍指向
+ * 已删对象。
+ */
 function assignScriptFonts(
   r: SkiaRenderer,
   typeface: Typeface | null,
   script: 'latin' | 'cjk' | 'arabic'
 ): void {
   const fonts = makeScriptFonts(r.ck, typeface)
-  const target = scriptFontTarget(r, script)
-  for (const kind of ['text', 'label', 'size', 'sectionTitle', 'componentLabel'] as const) {
-    target[kind] = fonts[kind] ?? null
-  }
-}
-
-interface ScriptFontTarget {
-  text: Font | null
-  label: Font | null
-  size: Font | null
-  sectionTitle: Font | null
-  componentLabel: Font | null
-}
-
-function scriptFontTarget(r: SkiaRenderer, script: 'latin' | 'cjk' | 'arabic'): ScriptFontTarget {
   if (script === 'latin') {
-    return {
-      text: r.textFont,
-      label: r.labelFont,
-      size: r.sizeFont,
-      sectionTitle: r.sectionTitleFont,
-      componentLabel: r.componentLabelFont
-    }
+    r.textFont = fonts.text ?? null
+    r.labelFont = fonts.label ?? null
+    r.sizeFont = fonts.size ?? null
+    r.sectionTitleFont = fonts.sectionTitle ?? null
+    r.componentLabelFont = fonts.componentLabel ?? null
+  } else if (script === 'cjk') {
+    r.cjkTextFont = fonts.text ?? null
+    r.cjkLabelFont = fonts.label ?? null
+    r.cjkSizeFont = fonts.size ?? null
+    r.cjkSectionTitleFont = fonts.sectionTitle ?? null
+    r.cjkComponentLabelFont = fonts.componentLabel ?? null
+  } else {
+    r.arabicTextFont = fonts.text ?? null
+    r.arabicLabelFont = fonts.label ?? null
+    r.arabicSizeFont = fonts.size ?? null
+    r.arabicSectionTitleFont = fonts.sectionTitle ?? null
+    r.arabicComponentLabelFont = fonts.componentLabel ?? null
   }
-  if (script === 'cjk') {
-    return {
-      text: r.cjkTextFont,
-      label: r.cjkLabelFont,
-      size: r.cjkSizeFont,
-      sectionTitle: r.cjkSectionTitleFont,
-      componentLabel: r.cjkComponentLabelFont
-    }
-  }
-  return {
-    text: r.arabicTextFont,
-    label: r.arabicLabelFont,
-    size: r.arabicSizeFont,
-    sectionTitle: r.arabicSectionTitleFont,
-    componentLabel: r.arabicComponentLabelFont
-  }
-}
-
-/** T88：清理 r 上的 15 个 Font 实例（5 latin + 5 cjk + 5 arabic） */
-function disposeAllFontInstances(r: SkiaRenderer): void {
-  const all: Array<Font | null> = [
-    r.textFont,
-    r.labelFont,
-    r.sizeFont,
-    r.sectionTitleFont,
-    r.componentLabelFont,
-    r.cjkTextFont,
-    r.cjkLabelFont,
-    r.cjkSizeFont,
-    r.cjkSectionTitleFont,
-    r.cjkComponentLabelFont,
-    r.arabicTextFont,
-    r.arabicLabelFont,
-    r.arabicSizeFont,
-    r.arabicSectionTitleFont,
-    r.arabicComponentLabelFont
-  ]
-  for (const font of all) font?.delete()
 }
 
 /**
@@ -376,15 +339,40 @@ export async function loadFonts(
   const cjkTypeface = cjkData ? r.ck.Typeface.MakeFreeTypeFaceFromData(cjkData) : null
   const arabicTypeface = arabicData ? r.ck.Typeface.MakeFreeTypeFaceFromData(arabicData) : null
 
-  // 清理旧实例
-  disposeAllFontInstances(r)
+  // T90：Replace-before-delete 模式——先创建新 Font 实例并写入 r 字段（替换
+  // 引用），再释放旧 Font。CanvasKit 内存模型下，旧 Font.delete() 之前必须
+  // 确保它没有被 r 引用，否则渲染时序里访问已删对象会触发
+  // `Cannot pass deleted object as a pointer of type Font`（T88 rulers.ts:76
+  // 实测：批量删除后重建的间隙中如有 drawRulers 等调用就会崩）。
+  // 见 docs/202609031430-t88-console-errors.md 问题二。
 
-  // Latin 构造（Inter）
+  // 1) 快照旧 Font 引用（用于稍后释放）
+  const oldFonts: Array<Font | null> = [
+    r.textFont,
+    r.labelFont,
+    r.sizeFont,
+    r.sectionTitleFont,
+    r.componentLabelFont,
+    r.cjkTextFont,
+    r.cjkLabelFont,
+    r.cjkSizeFont,
+    r.cjkSectionTitleFont,
+    r.cjkComponentLabelFont,
+    r.arabicTextFont,
+    r.arabicLabelFont,
+    r.arabicSizeFont,
+    r.arabicSectionTitleFont,
+    r.arabicComponentLabelFont
+  ]
+
+  // 2) 创建新 Font 实例并替换 r 字段引用（无论后续如何， 此步 完成后 r
+  //    不再持有旧引用——后续渲染若发生，看到的是新 Font）
   assignScriptFonts(r, latinTypeface, 'latin')
-  // CJK 构造（PuHuiTi；typeface 失败时字段保持 null → pickFontForText 降级）
   assignScriptFonts(r, cjkTypeface, 'cjk')
-  // Arabic 构造（Noto Naskh Arabic）
   assignScriptFonts(r, arabicTypeface, 'arabic')
+
+  // 3) 释放旧 Font（替换后旧对象无引用，安全 delete）
+  for (const font of oldFonts) font?.delete()
 
   if (latinTypeface) {
     r.profiler.setTypeface(latinTypeface)

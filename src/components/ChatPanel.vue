@@ -44,6 +44,7 @@ import {
   modeSizeChoices,
   parseSetActiveDesignProposed,
   postActiveDesign,
+  postIntentConfirm,
   serializeNewIntentEnvelope,
   type ActiveDesignDecisionPartData,
   type ContextSwitchPartData,
@@ -419,6 +420,9 @@ const consentDecisions = computed(() => {
   return map
 })
 
+/** T91b：setup_design awaiting 信封已决断 toolCallId 集（按 toolCallId 置灰） */
+const awaitingIntentDecisions = ref<Set<string>>(new Set())
+
 /** 从工具 part output 取 proposed（{proposed:{nodeId,...}}，共享契约 3；解析单源在 active-design.ts。
  *  注意读 output 不读 input——input 是工具入参 {node_id}，proposed 在结果里（核验钉死）） */
 function consentProposed(toolCallId: string): { nodeId: string | null; name: string | null } {
@@ -485,6 +489,78 @@ async function handleContextSwitch(payload: { name: string }) {
     {
       type: CONTEXT_SWITCH_PART_TYPE,
       data: { name: payload.name } satisfies ContextSwitchPartData
+    }
+  ])
+}
+
+// ── T91b：setup_design awaiting_new_intent_confirmation 信封处理 ─────────────
+
+/**
+ * 用户在 ChatAwaitingIntentCard 点 Confirm →
+ *   1. POST /api/pi/intent-confirm（写 document root pluginData 三键）
+ *   2. abort 当前 session（停止 AI 等待循环，避免继续重放 setup_design）
+ *   3. 注入 system 行回执（前端告诉用户成功/失败）
+ *
+ * 之后用户需自己重发 prompt 或点输入框发送按钮——abort 不会自动重放；
+ * 这是显式决策点，避免 AI 在不确定的状态下继续推进。
+ */
+async function handleIntentAwaitingConfirm(payload: {
+  toolCallId: string
+  modeId: string
+  profileId: string
+}): Promise<void> {
+  if (awaitingIntentDecisions.value.has(payload.toolCallId)) return
+  awaitingIntentDecisions.value.add(payload.toolCallId)
+  const result = await postIntentConfirm({
+    modeId: payload.modeId,
+    ...(payload.profileId !== '' ? { profileId: payload.profileId } : {})
+  })
+  // T91b：截停当前 SSE 流——AI 不再继续重放 setup_design。
+  // 用户主动重发消息即可（pluginData 已落，下次 prepareTurn 真源命中 → core 放行）。
+  try {
+    chat.value?.stop()
+  } catch (error) {
+    console.warn('[chat] stop after intent confirm failed:', error)
+  }
+  if (result.ok) {
+    toast.info(confirmText.value.awaitingIntentConfirmedToast ?? '已确认')
+    await appendHostMessage([
+      {
+        type: 'text',
+        text:
+          confirmText.value.awaitingIntentConfirmedLine ?? '已确认新建意图——可以重发需求继续创建。'
+      }
+    ])
+  } else {
+    toast.error(result.message)
+    await appendHostMessage([
+      {
+        type: 'text',
+        text:
+          confirmText.value.awaitingIntentFailedLine?.({ msg: result.message }) ??
+          `确认失败：${result.message}`
+      }
+    ])
+  }
+}
+
+/** 用户在 ChatAwaitingIntentCard 点 Cancel → 注入 system 行，置灰卡片 */
+async function handleIntentAwaitingCancel(payload: {
+  toolCallId: string
+  modeId: string
+  profileId: string
+}): Promise<void> {
+  if (awaitingIntentDecisions.value.has(payload.toolCallId)) return
+  awaitingIntentDecisions.value.add(payload.toolCallId)
+  try {
+    chat.value?.stop()
+  } catch (error) {
+    console.warn('[chat] stop after intent cancel failed:', error)
+  }
+  await appendHostMessage([
+    {
+      type: 'text',
+      text: confirmText.value.awaitingIntentCancelledLine ?? '已取消新建意图。'
     }
   ])
 }
@@ -611,6 +687,8 @@ function handleClearChat() {
             @intent-confirm="handleIntentConfirm"
             @intent-cancel="handleIntentCancel"
             @consent-decide="handleConsentDecide"
+            @intent-awaiting-confirm="handleIntentAwaitingConfirm"
+            @intent-awaiting-cancel="handleIntentAwaitingCancel"
           />
 
           <!-- Thinking indicator: shown when AI is working but no visible activity -->

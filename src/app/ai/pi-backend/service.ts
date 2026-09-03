@@ -48,9 +48,11 @@ import {
 import type { UIMessage, UIMessageChunk } from 'ai'
 
 import {
+  confirmNewIntentViaBridge,
   createActiveDesignHost,
   createBridgeSlotIO,
   setActiveDesignViaBridge,
+  type ConfirmNewIntentResult,
   type SetActiveDesignResult
 } from './active-design-host'
 import { createAskUserQuestionTool } from './ask-user-question'
@@ -102,6 +104,11 @@ export type PiChatService = {
   setCapabilities(input: { agentSkills: unknown }): Capabilities
   /** T60：active_design 端点（②面板点选 / ③AI 声明+同意）——四条件校验 → 移槽 → 身份三元组 */
   setActiveDesign(nodeId: string, documentId?: string): Promise<SetActiveDesignResult>
+  /** T91b：newIntent 确认端点——前端 ChatNewIntentCard 确认按钮触发，写 pluginData 三键 */
+  confirmNewIntent(
+    args: { modeId: string; profileId?: string },
+    documentId?: string
+  ): Promise<ConfirmNewIntentResult>
   /** T27：取消该 session 进行中的 run（SSE 断连锁停后端烧 token）；无活跃 run 时 no-op */
   abort(sessionId: string): Promise<void>
 }
@@ -498,6 +505,18 @@ export function createPiChatService({
     return setActiveDesignViaBridge(nodeId, documentId, activeDesignBridge)
   }
 
+  /** T91b：POST /api/pi/intent-confirm——前端 ChatNewIntentCard 确认后触发，写 pluginData 三键 */
+  async function confirmNewIntent(
+    args: { modeId: string; profileId?: string },
+    documentId?: string
+  ): Promise<ConfirmNewIntentResult> {
+    // T91b：能力面开关与 set_active_design 同语义——agent skills 未开 → 拒绝。
+    if (!capabilitiesStore.get().agentSkills) {
+      return { ok: false, error: 'invalid_args', message: 'agent skills 不可用' }
+    }
+    return confirmNewIntentViaBridge(args, documentId)
+  }
+
   async function abort(sessionId: string): Promise<void> {
     const entry = sessions.get(sessionId)
     // T66（T66-plan ④）：守卫去 running 布尔依赖——原 `if (!entry?.running)
@@ -542,6 +561,7 @@ export function createPiChatService({
     getCapabilities,
     setCapabilities,
     setActiveDesign,
+    confirmNewIntent,
     abort
   }
 }

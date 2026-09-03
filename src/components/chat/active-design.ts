@@ -170,6 +170,61 @@ export function parseSetActiveDesignProposed(input: unknown): {
   }
 }
 
+// ── T91b：setup_design awaiting_new_intent_confirmation 信封解析 ─────────────
+
+/** awaiting 信封详情：modeId / profileId / briefId（共享契约 5——core single source） */
+export interface SetupAwaitingIntentPayload {
+  modeId: string
+  profileId: string
+  briefId: string
+  message: string
+}
+
+/** 从工具 part output 解析 awaiting 信封（不在则返 null——卡片不渲染） */
+export function parseSetupAwaitingIntent(input: unknown): SetupAwaitingIntentPayload | null {
+  if (typeof input !== 'object' || input === null) return null
+  if ((input as { status?: unknown }).status !== 'awaiting_new_intent_confirmation') return null
+  const proposed = (input as { proposed?: unknown }).proposed
+  if (typeof proposed !== 'object' || proposed === null) return null
+  const modeId =
+    typeof (proposed as { modeId?: unknown }).modeId === 'string'
+      ? (proposed as { modeId: string }).modeId
+      : ''
+  const profileId =
+    typeof (proposed as { profileId?: unknown }).profileId === 'string'
+      ? (proposed as { profileId: string }).profileId
+      : ''
+  const briefId =
+    typeof (proposed as { briefId?: unknown }).briefId === 'string'
+      ? (proposed as { briefId: string }).briefId
+      : ''
+  if (!modeId) return null
+  const message =
+    typeof (input as { message?: unknown }).message === 'string'
+      ? (input as { message: string }).message
+      : ''
+  return { modeId, profileId, briefId, message }
+}
+
+/** T91b：POST /api/pi/intent-confirm——前端 ChatAwaitingIntentCard 确认按钮触发 */
+export async function postIntentConfirm(args: {
+  modeId: string
+  profileId?: string
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  try {
+    const res = await fetch('/api/pi/intent-confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(args)
+    })
+    const body = (await res.json().catch(() => null)) as { ok?: boolean; message?: string } | null
+    if (res.ok && body?.ok === true) return { ok: true }
+    return { ok: false, message: body?.message ?? `HTTP ${res.status}` }
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : String(error) }
+  }
+}
+
 // ── 物化判据（共享契约 4——core 单源 re-export，判定逻辑不双写） ─────────────
 
 /**

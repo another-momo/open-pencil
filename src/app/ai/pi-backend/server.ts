@@ -208,6 +208,44 @@ async function handlePiChatCancelRequest(
  * T60：POST /api/pi/active-design {nodeId}——②面板点选 / ③AI 声明+同意共用
  * 的移槽端点（非聊天消息）。成功 200 身份三元组；四条件驳回 422；桥不可达 502。
  */
+async function handleIntentConfirmRequest(
+  service: ReturnType<typeof createPiChatService>,
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  if (req.method !== 'POST') {
+    res.writeHead(405).end('Method Not Allowed')
+    return
+  }
+  let body: { modeId?: unknown; profileId?: unknown }
+  try {
+    body = JSON.parse(await readBody(req)) as { modeId?: unknown; profileId?: unknown }
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      res.writeHead(413).end('Payload Too Large')
+      return
+    }
+    res.writeHead(400).end('Bad Request: invalid JSON')
+    return
+  }
+  if (typeof body.modeId !== 'string' || body.modeId.trim() === '') {
+    res.writeHead(400).end('Bad Request: modeId required')
+    return
+  }
+  const result = await service.confirmNewIntent({
+    modeId: body.modeId,
+    ...(typeof body.profileId === 'string' ? { profileId: body.profileId } : {})
+  })
+  if (result.ok) {
+    sendJSON(res, 200, { ok: true, modeId: result.modeId, profileId: result.profileId })
+    return
+  }
+  sendJSON(res, result.error === 'bridge_unavailable' ? 502 : 422, {
+    error: result.error,
+    message: result.message
+  })
+}
+
 async function handleActiveDesignRequest(
   service: ReturnType<typeof createPiChatService>,
   req: IncomingMessage,
@@ -443,6 +481,11 @@ export function createPiBackendServer({
     // T60：active_design 移槽端点（须在 /api/pi/ 管理面前缀之前匹配）
     if (url.pathname === '/api/pi/active-design') {
       void handleActiveDesignRequest(service, req, res)
+      return
+    }
+    // T91b：newIntent 确认端点（前端 ChatNewIntentCard 触发，写 pluginData 三键）
+    if (url.pathname === '/api/pi/intent-confirm') {
+      void handleIntentConfirmRequest(service, req, res)
       return
     }
     // T87：capabilities 单开关读写端点（须在 /api/pi/ 管理面前缀之前匹配）

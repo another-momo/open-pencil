@@ -46,14 +46,17 @@ import {
   bindBriefToDesign,
   briefBoundDesignIds,
   briefSchemaVersion,
+  clearNewIntent,
   createBrief,
   findBrief,
   findBriefZone,
   getDesignUniqueId,
   isBrief,
   listBriefs,
+  readNewIntent,
   registerBriefDesignEntry,
   syncBriefDesignEntries,
+  writeNewIntent,
   type BriefZoneId
 } from '#core/tools/fork/marketing/brief'
 import { readBrief, updateBriefContent } from '#core/tools/fork/marketing/brief-edit'
@@ -408,4 +411,52 @@ test('读侧容错补显：design→brief 指针有而条目缺 → registered:f
   expect(expectDefined(readBrief(figma)).designs[0]?.registered).toBe(true)
   // 幂等：再次 sync 不重复登记
   expect(syncBriefDesignEntries(figma, brief.id)).toEqual([])
+})
+
+// ── T91b：newIntent pluginData helper round-trip ────────────────────────────
+
+test('newIntent pluginData 三键 round-trip：write → read 对称；clear 复位', () => {
+  const { figma } = setupToolTest()
+
+  // 初态：未写入 = 缺省空 state
+  expect(readNewIntent(figma)).toEqual({ modeId: '', profileId: '', confirmed: false })
+
+  // 写完整三键
+  writeNewIntent(figma, { modeId: 'longform', profileId: 'p1', confirmed: true })
+  expect(readNewIntent(figma)).toEqual({
+    modeId: 'longform',
+    profileId: 'p1',
+    confirmed: true
+  })
+
+  // 写 confirmed=false（profileId 不传 → ''——单一原子入口语义，不保留旧值）
+  writeNewIntent(figma, { modeId: 'general', confirmed: false })
+  expect(readNewIntent(figma)).toEqual({
+    modeId: 'general',
+    profileId: '',
+    confirmed: false
+  })
+
+  // profileId 缺省 = ''
+  writeNewIntent(figma, { modeId: 'general', confirmed: true })
+  expect(readNewIntent(figma)).toEqual({ modeId: 'general', profileId: '', confirmed: true })
+
+  // 清：read 返缺省空 state
+  clearNewIntent(figma)
+  expect(readNewIntent(figma)).toEqual({ modeId: '', profileId: '', confirmed: false })
+})
+
+test('newIntent confirmed 仅字面量 "true" 视为真；其他字串 / 空串视为假', () => {
+  const { figma, graph } = setupToolTest()
+  const root = expectDefined(graph.getNode(figma.graph.rootId))
+  // 直接写 pluginData 模拟"非 'true' 真值"——核心读侧只看字面量
+  setSharedPluginData(graph, root, BRIEF_PLUGIN_NAMESPACE, 'newIntentModeId', 'longform')
+  setSharedPluginData(graph, root, BRIEF_PLUGIN_NAMESPACE, 'newIntentProfileId', 'p1')
+  setSharedPluginData(graph, root, BRIEF_PLUGIN_NAMESPACE, 'newIntentConfirmed', 'TRUE')
+  expect(readNewIntent(figma).confirmed).toBe(false)
+
+  setSharedPluginData(graph, root, BRIEF_PLUGIN_NAMESPACE, 'newIntentConfirmed', 'true')
+  expect(readNewIntent(figma).confirmed).toBe(true)
+  expect(readNewIntent(figma).modeId).toBe('longform')
+  expect(readNewIntent(figma).profileId).toBe('p1')
 })

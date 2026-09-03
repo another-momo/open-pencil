@@ -313,6 +313,10 @@ test('桥探针键面常量钉扎（eval 片段插值的单一事实源）', () 
     profileKey: 'profileId',
     briefKey: 'briefId',
     bindingKey: 'bound-designs',
-    heroGeometryKey: 'hero-geometry'
+    heroGeometryKey: 'hero-geometry',
+    // T91b：newIntent pluginData 三键（键面 import 单源）
+    newIntentModeIdKey: 'newIntentModeId',
+    newIntentProfileIdKey: 'newIntentProfileId',
+    newIntentConfirmedKey: 'newIntentConfirmed'
   })
 })

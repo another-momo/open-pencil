@@ -44,10 +44,12 @@ import {
   DESIGN_MODE_KEY,
   DESIGN_PROFILE_KEY,
   bindBriefToDesign,
+  clearNewIntent,
   findBrief,
   findBriefByUniqueIdViaGraph,
   generatePluginUniqueId,
   getBriefUniqueId,
+  readNewIntent,
   registerBriefDesignEntry,
   setDesignUniqueId,
   type BriefCandidate
@@ -121,7 +123,6 @@ export type SetupDesignErrorCode =
   | 'unknown_mode'
   | 'unknown_profile'
   | 'invalid_canvas'
-  | 'unconfirmed_new_intent'
   | 'catalog_unavailable'
 
 export interface SetupDesignError {
@@ -132,6 +133,23 @@ export interface SetupDesignError {
   profileId?: string
   briefId?: string
   candidates?: BriefCandidate[]
+}
+
+/**
+ * T91b：setup_design 在 args.confirmedNewIntent 与 pluginData.newIntentConfirmed
+ * 二者皆未成立时返 awaiting 信封（替代旧版 `unconfirmed_new_intent` 错误——
+ * 那是死循环，AI 收到错误后无法自行确认）。信封结构与 `ask_user_question
+ * .awaiting_user` 同构：前端 ChatPanel 主动拦截、显示 ChatNewIntentCard、
+ * 用户答「是」→ POST `/api/pi/intent-confirm` → 再重放工具调用。
+ */
+export interface SetupDesignAwaitingIntent {
+  status: 'awaiting_new_intent_confirmation'
+  /** 提议的 mode / profile（用户确认后落到 pluginData） */
+  proposed: { modeId: string; profileId: string; briefId: string }
+  /** 宿主当前 catalog 快照（让前端渲染可选 profile 列表——若有） */
+  catalog: SetupCatalog
+  /** 用户语言化说明（与 SetupDesignError.message 同口径） */
+  message: string
 }
 
 export interface SetupDesignSuccess {
@@ -145,7 +163,7 @@ export interface SetupDesignSuccess {
   placement: Vector
 }
 
-export type SetupDesignResult = SetupDesignSuccess | SetupDesignError
+export type SetupDesignResult = SetupDesignSuccess | SetupDesignAwaitingIntent | SetupDesignError
 
 // ── 标记读写（逐键写、写前重读，同 setBriefMarker 先例）───────────────────────
 
@@ -289,6 +307,12 @@ function createDesignRoot(
  * 新建一张营销设计：校验（确认意图 → brief → mode → profile）→ 建框 →
  * 身份落盘 → brief 关联登记 → 视口聚焦。窄化后无领养无幂等——同参数再调
  * 恒新建第二框（最小空闲名递增）。
+ *
+ * T91b 新建意图确认：pluginData `newIntentConfirmed` 与 args.confirmedNewIntent
+ * 二者其一为 true 即放行。任一未成立时返 awaiting 信封（非错误）——
+ * 前端 ChatPanel 拦截展示 ChatNewIntentCard，用户确认 → POST intent-confirm
+ * → 写入 pluginData → 重放工具调用。成功后 clearNewIntent 清三键，避免下次
+ * 装配点误用旧的 modeId。
  */
 export function setupDesign(
   figma: FigmaAPI,
@@ -297,9 +321,25 @@ export function setupDesign(
 ): SetupDesignResult {
   const graph = figma.graph
 
-  // 新建意图确认拦截（双层之 core 层；宿主 wrapper 短路层走 T-B9/T-B10 接线）
-  if (args.confirmedNewIntent !== true) {
-    return { error: 'unconfirmed_new_intent', message: SETUP_TEXTS.unconfirmedNewIntent }
+  // T91b 新建意图确认拦截。args 一次性（每调携带）、
+  // pluginData 持久（用户答「是」后写一次）——任一为真即放行。
+  // 二者皆未成立 → 返 awaiting 信封，AI 不应自行重试（前端拦截强制用户介入）。
+  const pluginState = readNewIntent(figma)
+  const argsConfirmed = args.confirmedNewIntent === true
+  const pluginConfirmed = pluginState.confirmed
+  if (!argsConfirmed && !pluginConfirmed) {
+    return {
+      status: 'awaiting_new_intent_confirmation',
+      proposed: {
+        modeId: args.modeId,
+        // T91b：args 缺 profileId 时回退 pluginData，让 envelope 携带一致信息
+        // （前端 ChatAwaitingIntentCard 显示"风格"列需用）
+        profileId: args.profileId ?? pluginState.profileId,
+        briefId: args.briefId
+      },
+      catalog: catalog ?? { modes: [], profileIds: [] },
+      message: SETUP_TEXTS.unconfirmedNewIntent
+    }
   }
 
   const resolution = findBrief(figma, args.briefId === '' ? undefined : args.briefId)
@@ -335,8 +375,11 @@ export function setupDesign(
   // 设计身份落盘（PD-19）：role 标记 + 三元组 + schemaVersion；profileId 缺省不写
   setDesignMarker(graph, root.id, BRIEF_ROLE_KEY, MARKETING_ROLE_ROOT)
   setDesignMarker(graph, root.id, DESIGN_MODE_KEY, args.modeId)
-  if (args.profileId !== undefined)
-    setDesignMarker(graph, root.id, DESIGN_PROFILE_KEY, args.profileId)
+  // T91b：profileId 优先用 args（最显式），缺省时回退 pluginData 路径——保持
+  // envelope/pluginData 两条确认路径都能把 profileId 正确落到设计根。
+  const effectiveProfileId = args.profileId ?? (pluginState.profileId || undefined)
+  if (effectiveProfileId !== undefined)
+    setDesignMarker(graph, root.id, DESIGN_PROFILE_KEY, effectiveProfileId)
   setDesignMarker(graph, root.id, DESIGN_BRIEF_KEY, getBriefUniqueId(brief) || brief.id)
   setDesignMarker(graph, root.id, BRIEF_SCHEMA_VERSION_KEY, BRIEF_SCHEMA_VERSION)
   // T91a：写 design uniqueId（跨持久化边界稳定寻址键，UUID v4）
@@ -350,12 +393,17 @@ export function setupDesign(
   const proxy = figma.getNodeById(root.id)
   if (proxy) figma.viewport.scrollAndZoomIntoView([proxy])
 
+  // T91b：成功落图后清 newIntent 三键，避免下次装配点读到陈旧 modeId。
+  // 仅当本次通过 pluginData 确认时清；args 一次性确认路径（程序化调用）不污染
+  // 共享 document root。
+  if (pluginConfirmed) clearNewIntent(figma)
+
   return {
     rootId: root.id,
     name,
     size: resolved.size,
     modeId: args.modeId,
-    ...(args.profileId !== undefined ? { profileId: args.profileId } : {}),
+    ...(effectiveProfileId !== undefined ? { profileId: effectiveProfileId } : {}),
     briefId: brief.id,
     placement: position
   }

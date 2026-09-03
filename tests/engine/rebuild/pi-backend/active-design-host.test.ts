@@ -16,6 +16,8 @@
  *  - 删除悬空：清槽（writeSlot('')）+ slotCleared 提示行；brief 悬空提示行
  *  - setup_design 旗标契约（验收标准 2 宿主半）：信封真 → newIntentConfirmed
  *    返真（注入缝 __confirmedNewIntent 的真源），无信封恒假
+ *  - T91b：pluginData 探针（probeNewIntent）二源确认——document root 三键命中
+ *    → 旗标置真，与 envelope 路径 OR。clearNewIntent hook 由 onDesignCreated 触发
  */
 
 import { describe, expect, test } from 'bun:test'
@@ -149,7 +151,10 @@ function makeFakeBridge(): FakeBridge {
       writes.push(nodeId)
       slot = { ...slot, slotNodeId: nodeId }
       return Promise.resolve(true)
-    }
+    },
+    // T91b：newIntent pluginData 探针 / 清键 stub（测试默认返未确认）
+    probeNewIntent: () => Promise.resolve(null),
+    clearNewIntent: () => Promise.resolve(true)
   }
 }
 

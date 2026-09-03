@@ -45,6 +45,7 @@ import {
   type DesignRootSnapshot
 } from '@open-pencil/core/tools/fork/marketing/active-design'
 import { parseAskAnswer } from '@open-pencil/core/tools/fork/marketing/ask-user-question'
+import type { NewIntentState } from '@open-pencil/core/tools/fork/marketing/brief'
 import { ACTIVE_DESIGN_TEXTS } from '@open-pencil/core/tools/fork/marketing/texts'
 import { readDiscoveryFile } from '@open-pencil/mcp/discovery'
 
@@ -220,7 +221,20 @@ export interface ActiveDesignBridgeIO {
   probeCandidate(nodeId: string, documentId?: string): Promise<CandidateProbeData | null>
   /** nodeId '' = 清槽；桥不可达/执行失败 → false */
   writeSlot(nodeId: string, documentId?: string): Promise<boolean>
+  /**
+   * T91b：读 document root sharedPluginData 上的 newIntent 三键（modeId /
+   * profileId / confirmed）。桥不可达 → null（调用方按未确认降级）。
+   * 信源真源在浏览器端，宿主必须经桥 eval 探针拿——不通过 FigmaAPI 句柄。
+   */
+  probeNewIntent(documentId?: string): Promise<NewIntentState | null>
+  /**
+   * T91b：setup_design 成功后清 document root pluginData 三键（避免下次
+   * 装配误用旧 modeId）。桥不可达/执行失败 → false（不影响主流程——设计已落图）。
+   */
+  clearNewIntent(documentId?: string): Promise<boolean>
 }
+
+/** T91b：pluginData 三键快照形状复用 brief.ts NewIntentState（避免双写） */
 
 const K = ACTIVE_DESIGN_PROBE_KEYS
 
@@ -267,6 +281,35 @@ return { slotNodeId, currentPageId, design, brief, materialized: design ? hasMat
 
 function buildWriteSlotSource(nodeId: string): string {
   return `figma.root.setSharedPluginData(${JSON.stringify(K.namespace)}, ${JSON.stringify(K.slotKey)}, ${JSON.stringify(nodeId)});
+return { ok: true };`
+}
+
+/** T91b：探针 / 清键 桥 eval 片段共享的命名常量前缀 */
+const NEW_INTENT_EVAL_PROLOGUE = (): string => {
+  const NS = JSON.stringify(K.namespace)
+  const M = JSON.stringify(K.newIntentModeIdKey)
+  const P = JSON.stringify(K.newIntentProfileIdKey)
+  const C = JSON.stringify(K.newIntentConfirmedKey)
+  return `const NS = ${NS};
+const M = ${M};
+const P = ${P};
+const C = ${C};`
+}
+
+/** T91b：探针读 document root sharedPluginData 三键（modeId / profileId / confirmed） */
+function buildProbeNewIntentSource(): string {
+  return `${NEW_INTENT_EVAL_PROLOGUE()}
+return { modeId: figma.root.getSharedPluginData(NS, M),
+  profileId: figma.root.getSharedPluginData(NS, P),
+  confirmed: figma.root.getSharedPluginData(NS, C) === 'true' };`
+}
+
+/** T91b：清 document root 上 newIntent 三键（空串置位 = 读侧视为缺省） */
+function buildClearNewIntentSource(): string {
+  return `${NEW_INTENT_EVAL_PROLOGUE()}
+figma.root.setSharedPluginData(NS, M, '');
+figma.root.setSharedPluginData(NS, P, '');
+figma.root.setSharedPluginData(NS, C, '');
 return { ok: true };`
 }
 
@@ -352,6 +395,27 @@ export function createBridgeSlotIO(): ActiveDesignBridgeIO {
       } catch {
         return false
       }
+    },
+    probeNewIntent: async (documentId) => {
+      try {
+        const raw = await callBridgeEval(buildProbeNewIntentSource(), documentId)
+        if (!isRecord(raw)) return null
+        return {
+          modeId: asString(raw.modeId),
+          profileId: asString(raw.profileId),
+          confirmed: raw.confirmed === true
+        }
+      } catch {
+        return null
+      }
+    },
+    clearNewIntent: async (documentId) => {
+      try {
+        await callBridgeEval(buildClearNewIntentSource(), documentId)
+        return true
+      } catch {
+        return false
+      }
     }
   }
 }
@@ -428,6 +492,12 @@ export function createActiveDesignHost(deps: ActiveDesignHostDeps): ActiveDesign
     return { slot: { status: 'empty' }, notices: [ACTIVE_DESIGN_TEXTS.slotCleared] }
   }
 
+  /** T91b：探针读 pluginData，组装 intentConfirmed 旗标（OR 信封兼容路径） */
+  async function probeIntentFlag(documentId?: string): Promise<boolean> {
+    const snap = await deps.bridge.probeNewIntent(documentId)
+    return snap?.confirmed === true
+  }
+
   return {
     newIntentConfirmed: () => intentConfirmed,
     observeToolExecution(toolName, isError, details) {
@@ -437,6 +507,9 @@ export function createActiveDesignHost(deps: ActiveDesignHostDeps): ActiveDesign
     },
     async onDesignCreated(rootId, documentId) {
       await moveSlot(rootId, documentId)
+      // T91b：设计落图后清 document root pluginData 三键——避免下次装配读到
+      // 旧 modeId 误用。失败仅 warn（设计已建不需回吐；下回合探针自然读空）
+      await deps.bridge.clearNewIntent(documentId)
     },
     async prepareTurn(text, documentId) {
       // 回合开始强制清零（防御：finalizeTurn 遗漏也不跨回合滞留）
@@ -449,6 +522,11 @@ export function createActiveDesignHost(deps: ActiveDesignHostDeps): ActiveDesign
         // 裸信封（无任何参数）不注入——无可锁定字段
         const confirmedLine = ACTIVE_DESIGN_TEXTS.newIntentConfirmed(envelope)
         if (confirmedLine !== '') intentNotices.push(confirmedLine)
+      }
+      // T91b：pluginData 探针确认（二级信源；前端 ChatNewIntentCard 确认后写入）。
+      // OR 信封兼容路径——任一为真即放行。探针不可达按未确认降级（warn）。
+      if (!intentConfirmed && (await probeIntentFlag(documentId))) {
+        intentConfirmed = true
       }
       await resolveFormAnswer(text, documentId)
       const { slot, notices } = await probeSlotState(documentId)
@@ -512,5 +590,56 @@ export async function setActiveDesignViaBridge(
     briefId: check.design.briefId,
     name: check.design.name,
     materialized: probe.materialized
+  }
+}
+
+// ── 端点：newIntent 确认（T91b）──────────────────────────────────────────────
+
+export type ConfirmNewIntentResult =
+  | { ok: true; modeId: string; profileId: string }
+  | { ok: false; error: 'bridge_unavailable' | 'invalid_args'; message: string }
+
+/** T91b：写 document root sharedPluginData 三键（modeId / profileId / confirmed=true）。 */
+function buildWriteNewIntentSource(modeId: string, profileId: string): string {
+  return `const NS = ${JSON.stringify(K.namespace)};
+const M = ${JSON.stringify(K.newIntentModeIdKey)};
+const P = ${JSON.stringify(K.newIntentProfileIdKey)};
+const C = ${JSON.stringify(K.newIntentConfirmedKey)};
+figma.root.setSharedPluginData(NS, M, ${JSON.stringify(modeId)});
+figma.root.setSharedPluginData(NS, P, ${JSON.stringify(profileId)});
+figma.root.setSharedPluginData(NS, C, 'true');
+return { ok: true };`
+}
+
+/**
+ * POST /api/pi/intent-confirm 的处理本体：写 pluginData 三键（modeId /
+ * profileId / confirmed=true）。前端 ChatNewIntentCard 确认按钮触发。
+ * documentId 缺省 = 桥当前活动 tab（同工具 document_id 缺省语义）。
+ */
+export async function confirmNewIntentViaBridge(
+  args: { modeId: string; profileId?: string },
+  documentId?: string
+): Promise<ConfirmNewIntentResult> {
+  if (!args.modeId) {
+    return { ok: false, error: 'invalid_args', message: 'modeId 不能为空' }
+  }
+  const profileId = args.profileId ?? ''
+  try {
+    const discovery = await readDiscoveryFile()
+    if (!discovery) throw new Error('bridge discovery missing')
+    const code = buildWriteNewIntentSource(args.modeId, profileId)
+    const res = await postBridgeRPC(discovery, 'tool', {
+      name: 'eval',
+      args: documentId ? { code, document_id: documentId } : { code }
+    })
+    const body = (await res.json().catch(() => null)) as { ok?: boolean } | null
+    if (!res.ok || body?.ok !== true) throw new Error(`bridge eval failed: HTTP ${res.status}`)
+    return { ok: true, modeId: args.modeId, profileId }
+  } catch {
+    return {
+      ok: false,
+      error: 'bridge_unavailable',
+      message: '画布桥不可达——确认 dev server 已启动且浏览器已打开 app，然后重试。'
+    }
   }
 }

@@ -65,6 +65,17 @@ export const BRIEF_UNIQUE_ID_KEY = 'uniqueId'
 export const DESIGN_UNIQUE_ID_KEY = 'uniqueId'
 
 /**
+ * T91b：newIntent pluginData 三键——「待新建的设计区 workflow / profile / 确认旗标」
+ * 存在 document root sharedPluginData（与 activeDesignNodeId 同层），用于跨回合
+ * 持久化「用户或 AI 提议的新建意图」，装配时（assembleTurn）优先读、setup_design
+ * 执行时读 confirmed 旗标、确认或成功后清除。键名与 activeDesignNodeId 一致
+ * 单源在 BRIEF_PLUGIN_NAMESPACE 下，避免键名散落。
+ */
+export const NEW_INTENT_MODE_ID_KEY = 'newIntentModeId'
+export const NEW_INTENT_PROFILE_ID_KEY = 'newIntentProfileId'
+export const NEW_INTENT_CONFIRMED_KEY = 'newIntentConfirmed'
+
+/**
  * T91a：生成跨实例稳定的唯一标识符。`crypto.randomUUID()` 是 Node 14.17+
  * 与所有现代浏览器都内置的实现，跨 .fig 序列化、跨重启、跨图实例都不会冲突。
  * 不能用 `graph.generateId()`——它产出 `0:<n++>` 形式，re-import 时重新分配。
@@ -136,6 +147,91 @@ export function findDesignByUniqueId(figma: FigmaAPI, uuid: string): SceneNode |
     stack.push(...node.childIds)
   }
   return undefined
+}
+
+// ── T91b：newIntent 显式状态（document root sharedPluginData）────────────────
+//
+// 设计真源：仓外 docs/202609031650-new-intent-plugindata-design.md。
+// 把原本隐式的「envelope.modeId 比装配早 + 内存变量 intentConfirmed」合并为
+// document root 上的显式三键——`newIntentModeId` / `newIntentProfileId` /
+// `newIntentConfirmed`。所有 .fig 持久化边界外的进程共享同一来源，避免：
+//  - Bug 3：装配点用错 workflow
+//  - Bug 2 收尾：用户答"是"无法写入，setup_design 永远 unconfirmed_new_intent
+//
+// 写入调用方：前端 ChatNewIntentCard 确认按钮 → POST /api/pi/intent-confirm
+//             → confirmNewIntent(figma, ...) → writeNewIntent。
+// 清除调用方：setupDesign 成功落图后 → clearNewIntent；onDesignCreated hook。
+// 读取调用方：setupDesign 执行前 → 决定 awaiting 信封 vs 继续；
+//             assembleTurn 装配 → 优先于 activeDesign slot 决定 effective ids。
+//
+// 实现见文件底部 T91b 段（避免重复 + 单源纪律）；键常量 + helper 全数落下方。
+
+export interface NewIntentState {
+  modeId: string
+  profileId: string
+  confirmed: boolean
+}
+
+/** 读 document root newIntent 三键。任一缺键视为不存在（空态） */
+export function readNewIntent(figma: FigmaAPI): NewIntentState {
+  const root = figma.graph.getNode(figma.graph.rootId)
+  if (!root) return { modeId: '', profileId: '', confirmed: false }
+  const modeId = getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, NEW_INTENT_MODE_ID_KEY)
+  const profileId = getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, NEW_INTENT_PROFILE_ID_KEY)
+  const confirmed =
+    getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, NEW_INTENT_CONFIRMED_KEY) === 'true'
+  return { modeId, profileId, confirmed }
+}
+
+/** 写入 newIntent 三键——单一原子入口（前端确认按钮 / envelope 兼容写入） */
+export function writeNewIntent(
+  figma: FigmaAPI,
+  args: { modeId: string; profileId?: string; confirmed: boolean }
+): void {
+  const root = figma.graph.getNode(figma.graph.rootId)
+  if (!root) return
+  setSharedPluginData(
+    figma.graph,
+    root,
+    BRIEF_PLUGIN_NAMESPACE,
+    NEW_INTENT_MODE_ID_KEY,
+    args.modeId
+  )
+  setSharedPluginData(
+    figma.graph,
+    root,
+    BRIEF_PLUGIN_NAMESPACE,
+    NEW_INTENT_PROFILE_ID_KEY,
+    args.profileId ?? ''
+  )
+  setSharedPluginData(
+    figma.graph,
+    root,
+    BRIEF_PLUGIN_NAMESPACE,
+    NEW_INTENT_CONFIRMED_KEY,
+    args.confirmed ? 'true' : ''
+  )
+}
+
+/** 清除 newIntent 三键——setup_design 成功 / 用户取消意图 */
+export function clearNewIntent(figma: FigmaAPI): void {
+  writeNewIntent(figma, { modeId: '', profileId: '', confirmed: false })
+}
+
+/**
+ * 仅确认旗标（不改 modeId / profileId）——用于 envelope 兼容路径：
+ * 已有 modeId 但需要把 confirmed 旗标置 true。
+ */
+export function markNewIntentConfirmed(figma: FigmaAPI, confirmed: boolean): void {
+  const root = figma.graph.getNode(figma.graph.rootId)
+  if (!root) return
+  setSharedPluginData(
+    figma.graph,
+    root,
+    BRIEF_PLUGIN_NAMESPACE,
+    NEW_INTENT_CONFIRMED_KEY,
+    confirmed ? 'true' : ''
+  )
 }
 
 /**
@@ -956,3 +1052,5 @@ export function syncBriefDesignEntries(figma: FigmaAPI, briefId: string): string
   }
   return added
 }
+
+// T91b：newIntent pluginData 读写实现见文件头部 169–233 段；此处不重复定义以遵守单源纪律。

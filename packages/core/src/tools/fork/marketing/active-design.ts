@@ -37,6 +37,9 @@ import {
   BRIEF_ROLE_KEY,
   BRIEF_ROLE_VALUE,
   DESIGN_BRIEF_KEY,
+  NEW_INTENT_CONFIRMED_KEY,
+  NEW_INTENT_MODE_ID_KEY,
+  NEW_INTENT_PROFILE_ID_KEY,
   DESIGN_MODE_KEY,
   DESIGN_PROFILE_KEY,
   DESIGN_UNIQUE_ID_KEY,
@@ -204,9 +207,10 @@ export function checkActiveDesignCandidate(
   // that omit uniqueId get `''`; we treat that as "fall back to node id match"
   // — old docs without UUID keep working.
   const designUuid = design.uniqueId || ''
-  const boundOk = designUuid !== ''
-    ? brief.boundDesignIds.includes(designUuid)
-    : brief.boundDesignIds.includes(design.nodeId)
+  const boundOk =
+    designUuid !== ''
+      ? brief.boundDesignIds.includes(designUuid)
+      : brief.boundDesignIds.includes(design.nodeId)
   if (!boundOk) {
     return { ok: false, reason: 'brief_mismatch', message: ACTIVE_DESIGN_TEXTS.briefMismatch }
   }
@@ -336,5 +340,9 @@ export const ACTIVE_DESIGN_PROBE_KEYS = {
   profileKey: DESIGN_PROFILE_KEY,
   briefKey: DESIGN_BRIEF_KEY,
   bindingKey: BRIEF_BINDING_KEY,
-  heroGeometryKey: HERO_GEOMETRY_KEY
+  heroGeometryKey: HERO_GEOMETRY_KEY,
+  // T91b：newIntent pluginData 三键（键面常量 import 单源，从 brief.ts 复用）
+  newIntentModeIdKey: NEW_INTENT_MODE_ID_KEY,
+  newIntentProfileIdKey: NEW_INTENT_PROFILE_ID_KEY,
+  newIntentConfirmedKey: NEW_INTENT_CONFIRMED_KEY
 } as const

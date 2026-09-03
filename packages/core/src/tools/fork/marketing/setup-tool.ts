@@ -7,6 +7,12 @@
  * agent 领土）。本 wrapper 只做提取与类型转置，不把注入缝参数名写进任何
  * 用户可见文案。MCP/headless 无注入：仅 modeId='general' 且不带
  * profileId 可用，其余返回 catalog_unavailable 结构化错误。
+ *
+ * T91b 新建意图确认：args 一次性 `__confirmedNewIntent` 与 document root
+ * pluginData `newIntentConfirmed` 二者其一为真即放行——后者由用户在前端
+ * ChatNewIntentCard 点确认后经 `/api/pi/intent-confirm` 写入。任一未成立
+ * 时返 `awaiting_new_intent_confirmation` 信封（非错误），前端 ChatPanel
+ * 主动拦截展示确认卡。
  */
 
 import { defineTool, type ToolDef } from '#core/tools/schema'
@@ -27,7 +33,7 @@ export const setupDesignTool = defineTool({
   name: 'setup_design',
   mutates: true,
   description:
-    'Create a NEW marketing design root frame for the given mode and register it in the 关联设计区 of the 需求单 (design brief) it serves. Call this ONLY when the user wants a new design — the host must confirm the new-design intent out-of-band first; without that confirmation the call returns { error: "unconfirmed_new_intent" } and nothing is created (ask the user whether they want a new design, then retry). There is no adopt/continue here: repeat calls always create another frame (named "<label> 2", "3", ...). Canvas size: each mode may declare size presets in the host catalog (modes[].sizes — pick the preset whose label matches the user intent, e.g. 小红书长图), overridable via the canvas param; with neither, the default is 750-wide with HUG height (grows with content). Height null in the result means HUG. Placement is automatic (right of existing page content) and the viewport scrolls to the new frame.',
+    'Create a NEW marketing design root frame for the given mode and register it in the 关联设计区 of the 需求单 (design brief) it serves. Call this ONLY when the user wants a new design — the host must confirm the new-design intent out-of-band first. Without confirmation the call returns { status: "awaiting_new_intent_confirmation" } (an awaiting envelope, not an error) and the host prompts the user to confirm; once the user confirms, the host writes the newIntentConfirmed marker and the next call proceeds. There is no adopt/continue here: repeat calls always create another frame (named "<label> 2", "3", ...). Canvas size: each mode may declare size presets in the host catalog (modes[].sizes — pick the preset whose label matches the user intent, e.g. 小红书长图), overridable via the canvas param; with neither, the default is 750-wide with HUG height (grows with content). Height null in the result means HUG. Placement is automatic (right of existing page content) and the viewport scrolls to the new frame.',
   params: {
     modeId: {
       type: 'string',

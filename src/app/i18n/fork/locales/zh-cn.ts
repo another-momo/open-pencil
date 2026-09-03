@@ -120,7 +120,18 @@ const zhCN = {
     consentDeclinedBadge: '已拒绝',
     consentDeclinedLine: '已拒绝切换到 {name}——当前目标不变。',
     consentFailedLine: '切换失败——目标设计可能已被移动或删除。',
-    contextSwitchLine: '—— 已切换到「{name}」——'
+    contextSwitchLine: '—— 已切换到「{name}」——',
+    // T91b：setup_design awaiting_new_intent_confirmation 信封卡片（AI 提议，用户二元决策）
+    awaitingIntentTitle: 'AI 想新建一张设计——需要你确认',
+    awaitingIntentMode: '模式',
+    awaitingIntentProfile: '风格',
+    awaitingIntentBrief: '需求单',
+    awaitingIntentConfirm: '确认',
+    awaitingIntentCancel: '取消',
+    awaitingIntentConfirmedToast: '已确认新建意图',
+    awaitingIntentConfirmedLine: '已确认新建意图——可以重发需求继续创建。',
+    awaitingIntentCancelledLine: '已取消新建意图。',
+    awaitingIntentFailedLine: '确认失败：{msg}'
   },
   ask: {
     askFormTitle: 'AI 向你提问',

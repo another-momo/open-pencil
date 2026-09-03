@@ -16,9 +16,11 @@ import {
   CONTEXT_SWITCH_PART_TYPE,
   NEW_INTENT_PART_TYPE,
   normalizeSizeChoices,
+  parseSetupAwaitingIntent,
   type ContextSwitchPartData,
   type NewIntentPartData
 } from './active-design'
+import ChatAwaitingIntentCard from './ChatAwaitingIntentCard.vue'
 import ChatNewIntentCard from './ChatNewIntentCard.vue'
 import ChatSetActiveDesignCard from './ChatSetActiveDesignCard.vue'
 import { classifyToolState } from './tool-state'
@@ -45,6 +47,9 @@ const emit = defineEmits<{
   intentCancel: [payload: { messageId: string }]
   /** T61：set_active_design 同意卡决断（同意调端点 / 不同意本地系统行） */
   consentDecide: [payload: { toolCallId: string; agree: boolean }]
+  /** T91b：setup_design awaiting_new_intent_confirmation 信封 → ChatPanel 调 intent-confirm + abort */
+  intentAwaitingConfirm: [payload: { toolCallId: string; modeId: string; profileId: string }]
+  intentAwaitingCancel: [payload: { toolCallId: string; modeId: string; profileId: string }]
 }>()
 const { dialogs } = useI18n()
 const confirmText = useForkConfirm()
@@ -182,6 +187,32 @@ function filePartFilename(part: FilePart): string {
               })
             "
             @cancel="emit('intentCancel', { messageId: message.id })"
+          />
+          <!-- T91b：setup_design awaiting_new_intent_confirmation 信封 → ChatAwaitingIntentCard。
+            先于通用折叠工具卡——core 返的 awaiting 信封不是 error，不能落进 error 视觉。 -->
+          <ChatAwaitingIntentCard
+            v-else-if="
+              isToolUIPart(part) &&
+              getToolName(part) === 'setup_design' &&
+              part.state === 'output-available' &&
+              parseSetupAwaitingIntent(part.output) !== null
+            "
+            :payload="parseSetupAwaitingIntent(part.output)!"
+            :disabled="streaming"
+            @confirm="
+              emit('intentAwaitingConfirm', {
+                toolCallId: part.toolCallId,
+                modeId: parseSetupAwaitingIntent(part.output)!.modeId,
+                profileId: parseSetupAwaitingIntent(part.output)!.profileId
+              })
+            "
+            @cancel="
+              emit('intentAwaitingCancel', {
+                toolCallId: part.toolCallId,
+                modeId: parseSetupAwaitingIntent(part.output)!.modeId,
+                profileId: parseSetupAwaitingIntent(part.output)!.profileId
+              })
+            "
           />
           <!-- T65（决策 D3）：上下文切换回执 → 对话流分割线（非气泡） -->
           <div

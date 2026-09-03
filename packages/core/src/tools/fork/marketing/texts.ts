@@ -38,6 +38,10 @@ export const BRIEF_TEXTS = {
  * setup_design 文案（T53）：画布命名基底 + 结构化错误的用户语言化 message
  * （zh-cn 外置）。参数化消息用函数形态，插值只发生在调用侧；文案不出现
  * 注入缝参数名（__catalog / __confirmedNewIntent 不进用户视野）。
+ *
+ * T91b：`unconfirmedNewIntent` 仍在 awaiting 信封 message 字段复用——非
+ * 错误路径，而是 AI 提议后等待用户决策的提示文案。错误面已收六码（新设计
+ * intent 改 awaiting 信封，不再有 unconfirmed_new_intent 错误）。
  */
 export const SETUP_TEXTS = {
   /** general mode 根 frame 的命名基底 */

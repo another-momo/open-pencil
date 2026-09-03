@@ -202,6 +202,17 @@ export const confirmMessageDefaults = {
   consentDeclinedBadge: 'Declined',
   consentDeclinedLine: params('Declined switching to {name} — the current design is unchanged.'),
   consentFailedLine: 'Switch failed — the target design may have been moved or deleted.',
+  // T91b：setup_design awaiting_new_intent_confirmation 信封卡片
+  awaitingIntentTitle: 'The AI wants to create a new design — confirm?',
+  awaitingIntentMode: 'Mode',
+  awaitingIntentProfile: 'Profile',
+  awaitingIntentBrief: 'Brief',
+  awaitingIntentConfirm: 'Confirm',
+  awaitingIntentCancel: 'Cancel',
+  awaitingIntentConfirmedToast: 'New-design intent confirmed',
+  awaitingIntentConfirmedLine: 'Confirmed — resend your request to create the design.',
+  awaitingIntentCancelledLine: 'New-design intent cancelled.',
+  awaitingIntentFailedLine: params('Confirm failed: {msg}'),
   contextSwitchLine: params('—— Switched to {name} ——')
 } as const
 

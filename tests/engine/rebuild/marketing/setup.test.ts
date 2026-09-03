@@ -7,7 +7,7 @@
  * 验收映射（T53-plan §3 + T62-plan §2 + T65-plan §2.2）：
  * ① 缺省尺寸建框（750 宽）；② HUG 语义（初始高 400 / primaryAxisSizing HUG）；③ 标记五键读穿（role + 三元组 + schemaVersion）；
  * ④ 最小空闲「label N」命名（去重域 = 仅 modeId）；⑤ briefId 不存在 → brief_not_found；
- * ⑥ modeId 校验（general 恒过 / unknown_mode / 无尺寸 mode 同走缺省）；⑧ 未确认 → unconfirmed_new_intent 且无框落地；
+ * ⑥ modeId 校验（general 恒过 / unknown_mode / 无尺寸 mode 同走缺省）；⑧ 未确认 → awaiting_new_intent_confirmation 信封且无框落地；
  * ⑨ 关联设计区登记 + bound-designs 指针 + 读穿投影。
  * 另钉：信封字段、恒新建、放置右 +100/y 跟随、scrollAndZoomIntoView、catalog 缺省仅 general 可用、unknown_profile、
  * __catalog/__confirmedNewIntent 注入缝（ToolDef 层）、scan/resolve 三态、canvas 三态与优先序。
@@ -30,8 +30,11 @@ import {
   DESIGN_MODE_KEY,
   DESIGN_PROFILE_KEY,
   briefBoundDesignIds,
+  clearNewIntent,
   createBrief,
-  findBriefZone
+  findBriefZone,
+  readNewIntent,
+  writeNewIntent
 } from '#core/tools/fork/marketing/brief'
 import { readBrief } from '#core/tools/fork/marketing/brief-edit'
 import {
@@ -132,7 +135,9 @@ describe('setup_design core：契约组', () => {
     const result = ok(run({ modeId: 'longform', profileId: 'profile-a' }))
     const root = expectDefined(graph.getNode(result.rootId))
 
-    expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, BRIEF_ROLE_KEY)).toBe(MARKETING_ROLE_ROOT)
+    expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, BRIEF_ROLE_KEY)).toBe(
+      MARKETING_ROLE_ROOT
+    )
     expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_MODE_KEY)).toBe('longform')
     expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_PROFILE_KEY)).toBe('profile-a')
     // T91a：DESIGN_BRIEF_KEY 现存 brief 的 uniqueId（UUID）；断言非空 + 配对
@@ -228,24 +233,53 @@ describe('setup_design core：契约组', () => {
     )
   })
 
-  test('⑧ 未确认 → unconfirmed_new_intent 且无框落地', () => {
+  test('⑧ 未确认 → awaiting_new_intent_confirmation 信封且无框落地', () => {
     const { graph, figma, brief } = setupPage()
     const before = expectDefined(graph.getNode(figma.currentPage.id)).childIds.length
 
-    err(
-      setupDesign(figma, { modeId: 'longform', briefId: brief.id }, CATALOG),
-      'unconfirmed_new_intent'
+    // T91b：未确认不再是错误——返 awaiting 信封。args 缺 / args=false 都返。
+    const r1 = setupDesign(figma, { modeId: 'longform', briefId: brief.id }, CATALOG)
+    expect(r1).toMatchObject({
+      status: 'awaiting_new_intent_confirmation',
+      proposed: { modeId: 'longform', briefId: brief.id }
+    })
+    const r2 = setupDesign(
+      figma,
+      { modeId: 'general', briefId: brief.id, confirmedNewIntent: false },
+      CATALOG
     )
-    err(
-      setupDesign(
-        figma,
-        { modeId: 'general', briefId: brief.id, confirmedNewIntent: false },
-        CATALOG
-      ),
-      'unconfirmed_new_intent'
-    )
+    expect(r2).toMatchObject({
+      status: 'awaiting_new_intent_confirmation',
+      proposed: { modeId: 'general', briefId: brief.id }
+    })
     expect(expectDefined(graph.getNode(figma.currentPage.id)).childIds.length).toBe(before)
     expect(scanMarketingDesigns(figma)).toEqual([])
+  })
+
+  // T91b：pluginData 路径双面——args 缺 + pluginData 确认 → 放行 + 落图后清三键；
+  // args 缺 + pluginData 未确认 → 返 awaiting 信封；clearNewIntent 复位。
+  test('⑧b pluginData 双源确认 + 清三键（放行 + 落图后清 + 未确认返 awaiting）', () => {
+    const { graph, figma, brief } = setupPage()
+
+    // case 1: pluginData confirmed → 放行；落图后 pluginData 三键应清
+    writeNewIntent(figma, { modeId: 'longform', profileId: 'p1', confirmed: true })
+    const okResult = setupDesign(figma, { modeId: 'longform', briefId: brief.id }, CATALOG)
+    if ('rootId' in okResult) {
+      const root = expectDefined(graph.getNode(okResult.rootId))
+      expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_MODE_KEY)).toBe('longform')
+      expect(getSharedPluginData(root, BRIEF_PLUGIN_NAMESPACE, DESIGN_PROFILE_KEY)).toBe('p1')
+    } else throw new Error('expected setupDesign success')
+    expect(readNewIntent(figma)).toEqual({ modeId: '', profileId: '', confirmed: false })
+
+    // case 2: pluginData 未确认 → awaiting 信封
+    writeNewIntent(figma, { modeId: 'longform', profileId: 'p1' })
+    const waitResult = setupDesign(figma, { modeId: 'longform', briefId: brief.id }, CATALOG)
+    expect(waitResult).toMatchObject({
+      status: 'awaiting_new_intent_confirmation',
+      proposed: { modeId: 'longform', profileId: 'p1', briefId: brief.id }
+    })
+    clearNewIntent(figma)
+    expect(readNewIntent(figma)).toEqual({ modeId: '', profileId: '', confirmed: false })
   })
 
   test('⑨ 关联设计区登记：条目 designId + 名称投影 + bound-designs 指针 + 读穿三元组', () => {
@@ -556,17 +590,21 @@ describe('setup_design ToolDef：schema 与注入缝', () => {
     err(invalid, 'invalid_canvas')
   })
 
-  test('无 __confirmedNewIntent → unconfirmed_new_intent（T-B10 落地前 AI 恒表现）', () => {
+  test('无 __confirmedNewIntent → awaiting_new_intent_confirmation 信封（T91b 非错误路径）', () => {
     const { graph, figma } = setupToolTest()
     const brief = createBrief(figma)
     const before = expectDefined(graph.getNode(figma.currentPage.id)).childIds.length
 
+    // T91b：args.__confirmedNewIntent 缺省 = 未确认 = 返 awaiting 信封
     const result = setupDesignTool.execute(figma, {
       modeId: 'general',
       briefId: brief.id,
       __catalog: JSON.stringify(CATALOG)
     }) as SetupDesignResult
-    err(result, 'unconfirmed_new_intent')
+    expect(result).toMatchObject({
+      status: 'awaiting_new_intent_confirmation',
+      proposed: { modeId: 'general', briefId: brief.id }
+    })
     expect(expectDefined(graph.getNode(figma.currentPage.id)).childIds.length).toBe(before)
   })
 

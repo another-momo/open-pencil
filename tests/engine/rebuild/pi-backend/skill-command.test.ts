@@ -19,9 +19,7 @@ test('T91o owner 情况②：句尾/句中提及 → 提到消息头', () => {
     '/skill:pixel-style-poster-skill 生成一只小猫图片'
   )
   // 句中紧贴提及移除后接缝收敛为单空格
-  expect(normalizeSkillCommandText('用/skill:demo这个技能画图')).toBe(
-    '/skill:demo 用 这个技能画图'
-  )
+  expect(normalizeSkillCommandText('用/skill:demo这个技能画图')).toBe('/skill:demo 用 这个技能画图')
 })
 
 test('T91o 仅命令无正文 → 纯命令（SDK spaceIndex=-1 路径）', () => {

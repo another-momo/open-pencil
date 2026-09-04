@@ -147,7 +147,9 @@ const navigationClass =
           data-test-id="settings-ai-panel"
         >
           <ModelsPanel />
-          <!-- T87：Agent 能力总开关（skill 加载 + 内建工具同闸） -->
+          <!-- T96：ModelsPanel 与 Agent 能力分区之间的视觉分隔（预研 §5.3） -->
+          <div class="border-t border-border" />
+          <!-- T87：Agent 能力配置（T96：builtinTools 三档位 + agentSkills 开关） -->
           <AgentSettingsPanel />
         </section>
 

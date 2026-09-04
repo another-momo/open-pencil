@@ -24,7 +24,7 @@ import {
 import { toToolResult } from './tool-result'
 
 const ASK_USER_QUESTION_DESCRIPTION =
-  'Present an in-chat form with questions for the user, then END the current turn. The frontend renders a form card (single_select option cards, image_select canvas-node thumbnails, text inputs) and always offers a free-text field that doubles as a fourth answer kind (the user\'s own words, may arrive as an optional "freeText" key on the answer envelope) and as a skip reason. Returns {formId, status:"awaiting_user", questions}: the run TERMINATES with this call — do not call further tools and do not write any more text after it. The user\'s answers will arrive as the next user message. Rules: 1-8 questions; ids unique and non-empty; labels non-empty; single_select needs options (2-12 items, each {id,label,hint?}) and must not carry imageOptions; image_select needs imageOptions (1-12 items, each {nodeId,label?} referencing canvas nodes) and must not carry options; text carries neither; required defaults to true — set false for optional questions. Batch everything you need to ask into ONE call.'
+  'Present an in-chat form with questions for the user, then END the current turn. The frontend renders a form card (single_select option cards, image_select canvas-node thumbnails, text inputs); every single_select/image_select question additionally offers an "Other" option that reveals a free-text input. In the answer envelope JSON, each question id maps to an object: {"value":"<optionId or text>"} for a normal answer, or {"value":"__freeText","freeText":"<the user\'s own words>"} when the user picked "Other" — treat that freeText as a first-class answer for that question. Returns {formId, status:"awaiting_user", questions}: the run TERMINATES with this call — do not call further tools and do not write any more text after it. The user\'s answers will arrive as the next user message. Rules: 1-8 questions; ids unique and non-empty; labels non-empty; single_select needs options (2-12 items, each {id,label,hint?}) and must not carry imageOptions; image_select needs imageOptions (1-12 items, each {nodeId,label?} referencing canvas nodes) and must not carry options; text carries neither; required defaults to true — set false for optional questions. Batch everything you need to ask into ONE call.'
 
 /** awaiting 信封 details 形状（mapping.ts tool-output-available 骑 details 到前端）；
  * type 别名（非 interface）以获得隐式索引签名，免类型断言 */
@@ -95,7 +95,7 @@ export function createAskUserQuestionTool(deps: AskUserQuestionToolDeps = {}) {
         `Form rendered to the user (formId=${formId}, ${details.questions.length} question${details.questions.length === 1 ? '' : 's'}).`,
         'Turn ends here: do not call any more tools and do not write any more text — end this reply immediately.',
         "The user's answer (or skip) will arrive as the next user message; resume from that content.",
-        'The answer envelope JSON may include an optional "freeText" field with the user\'s own words — treat it as a first-class answer.'
+        'Answer envelope JSON: each question id maps to {"value":"..."} for a chosen option or text answer, or {"value":"__freeText","freeText":"..."} when the user chose "Other" — treat that freeText as a first-class answer for that question.'
       ].join('\n')
       return {
         content: [{ type: 'text', text }],

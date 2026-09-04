@@ -365,9 +365,9 @@
     {
       "id": "P44",
       "file": "src/components/settings/SettingsDialog.vue",
-      "reason": "T25: MCP 导航/区块/导入切除（settings-mcp 面随 integrations/mcp 删除） T34: git merge 把 base 88c10770 的 mcp nav button 带回（面板未回——点击落裸 v-else 的 Storage，僵尸 nav） T36(2026-08-28): 删 mcp nav button + 裸 v-else 收窄为 v-else-if storage + 显式空态 fallback（owner 拍板③）；i18n 死键 settingsMCP 保留不删——packages/vue 的 messages/dialogs.ts 与 zh-cn/dialogs.json 经 T35 还原与上游字节一致，删键会制造新 patch 徒增下轮合并冲突面，死文案无害（取舍注记，owner 拍板③附带评估）；T41：设置对话框接入字体分区（FontsSettingsPanel 分支 + 导航按钮）；T54（2026-09-01）：media 段挂载 ImageGenKeysSection（生图凭证预设下拉+单 key 输入）",
+      "reason": "T25: MCP 导航/区块/导入切除（settings-mcp 面随 integrations/mcp 删除） T34: git merge 把 base 88c10770 的 mcp nav button 带回（面板未回——点击落裸 v-else 的 Storage，僵尸 nav） T36(2026-08-28): 删 mcp nav button + 裸 v-else 收窄为 v-else-if storage + 显式空态 fallback（owner 拍板③）；i18n 死键 settingsMCP 保留不删——packages/vue 的 messages/dialogs.ts 与 zh-cn/dialogs.json 经 T35 还原与上游字节一致，删键会制造新 patch 徒增下轮合并冲突面，死文案无害（取舍注记，owner 拍板③附带评估）；T41：设置对话框接入字体分区（FontsSettingsPanel 分支 + 导航按钮）；T54（2026-09-01）：media 段挂载 ImageGenKeysSection（生图凭证预设下拉+单 key 输入）；T96（2026-09-04）：ai 区 ModelsPanel 与 AgentSettingsPanel 之间加分隔线（预研 §5.3 视觉分组）",
       "disposition": "permanent",
-      "lastReviewed": "2026-09-01"
+      "lastReviewed": "2026-09-04"
     },
     {
       "id": "P45",

@@ -43,10 +43,17 @@ const zhCN = {
     chipsSkillSearchPlaceholder: '搜索 skill…',
     chipsSkillEmpty: '没有匹配的 skill'
   },
-  // T87→T89：settings 面板 Agent 能力分区——单 AppSwitch + 一行 label。
-  // T89：删除 title + description 二键（啰嗦），skillLabel 收敛为「进阶能力」。
+  // T87→T89→T96：settings 面板 Agent 能力分区文案。
+  // T96：三档位重构——章节标题/描述 + 文件访问三档 + 技能系统开关标签/描述。
   agentCapabilities: {
-    agentCapabilitiesSkillLabel: '进阶能力（read / write / edit / bash / skill）',
+    agentCapabilitiesTitle: 'Agent 能力',
+    agentCapabilitiesDescription: '配置文件访问和技能系统',
+    builtinToolsLabel: '文件访问',
+    builtinToolsOff: '关闭 - 不访问文件',
+    builtinToolsReadonly: '只读 - 查看文件但不修改',
+    builtinToolsFull: '完整 - 读写文件和执行命令',
+    agentSkillsLabel: '技能系统',
+    agentSkillsDescription: '启用 AI 使用专业技能',
     agentCapabilitiesSaving: '保存中…',
     agentCapabilitiesError: '保存失败：{message}'
   },
@@ -141,10 +148,11 @@ const zhCN = {
     askFormTitle: 'AI 向你提问',
     askSubmit: '提交作答',
     askSkip: '跳过表单',
-    askSkipPlaceholder: '其他 / 补充说明（可选）…',
     askRequiredHint: '请先作答必填题',
     askOptional: '选答',
     askTextPlaceholder: '输入你的回答…',
+    askOtherOption: '其他',
+    askOtherPlaceholder: '输入你自己的回答…',
     askAnswered: '已作答',
     askSkipped: '已跳过',
     askImageUnavailable: '预览不可用',

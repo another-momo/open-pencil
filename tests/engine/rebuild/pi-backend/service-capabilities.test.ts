@@ -1,27 +1,38 @@
 /**
  * T87：service.ts 装配 capabilities seam——store 实例接进 service，
  * getStudioManifest 透传 capabilities + skills，getCapabilities/setCapabilities
- * 委托给 store。session 装配按 capabilities 切换 noTools/noSkills 留给
- * 真后端 t24/t87 冒烟钉扎（mock.createAgentSession 拿不到真 config 字段
- * 的副作用，本测试聚焦装配 seam 不深挖）。
+ * 委托给 store。
+ * T96：三档位装配门控钉扎——mock createAgentSession/DefaultResourceLoader
+ * 捕获装配入参，钉 off→noTools:'builtin' / readonly→tools 只读四件 /
+ * full→两键全省略，及 noSkills 由 agentSkills 独控（与 builtinTools 解耦）。
  */
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+// T96：装配入参捕获袋（createAgentSession options + DefaultResourceLoader ctor）
+const capturedSessionOptions: Record<string, unknown>[] = []
+const capturedLoaderOptions: Record<string, unknown>[] = []
+
 // mock pi SDK 同 service-abort.test：只桩 createAgentSession + DefaultResourceLoader，
 // 其余走真实现（capabilities.ts 依赖真 loadSkillsFromDir）
 mock.module('@earendil-works/pi-coding-agent', () => ({
-  createAgentSession: async () => ({
-    session: {
-      prompt: () => Promise.resolve(),
-      subscribe: () => () => undefined,
-      abort: () => Promise.resolve(),
-      sessionManager: { getSessionFile: () => null }
+  createAgentSession: async (options: Record<string, unknown>) => {
+    capturedSessionOptions.push(options)
+    return {
+      session: {
+        prompt: () => Promise.resolve(),
+        subscribe: () => () => undefined,
+        abort: () => Promise.resolve(),
+        sessionManager: { getSessionFile: () => null }
+      }
     }
-  }),
+  },
   DefaultResourceLoader: class {
+    constructor(options: Record<string, unknown>) {
+      capturedLoaderOptions.push(options)
+    }
     async reload(): Promise<void> {
       // eslint-disable-next-line no-promise-executor-return -- 同步桩返回
       return Promise.resolve() as Promise<void>
@@ -66,21 +77,27 @@ describe('pi-backend service.ts capabilities seam（T87）', () => {
   beforeEach(() => {
     rootDir = mkdtempSync(join(tmpdir(), 'pi-svc-cap-'))
     mkdirSync(join(rootDir, '.openpencil', 'pi-agent'), { recursive: true })
+    capturedSessionOptions.length = 0
+    capturedLoaderOptions.length = 0
   })
 
   test('getCapabilities：缺省 OFF（capabilities.json 不存在 → 失败安全）', () => {
     const svc = makeService(rootDir)
-    expect(svc.getCapabilities()).toEqual({ agentSkills: false })
+    expect(svc.getCapabilities()).toEqual({ builtinTools: 'off', agentSkills: false })
   })
 
   test('setCapabilities → getCapabilities 往返：与 capabilitiesStore 实例共享', () => {
     const svc = makeService(rootDir)
-    expect(svc.setCapabilities({ agentSkills: true })).toEqual({ agentSkills: true })
-    expect(svc.getCapabilities()).toEqual({ agentSkills: true })
+    // T96：set 只给 agentSkills 时 builtinTools 保留旧值（缺省 'off'）
+    expect(svc.setCapabilities({ agentSkills: true })).toEqual({
+      builtinTools: 'off',
+      agentSkills: true
+    })
+    expect(svc.getCapabilities()).toEqual({ builtinTools: 'off', agentSkills: true })
 
     // 落盘后可被新实例读出（验证持久化层一致）
     const svc2 = makeService(rootDir)
-    expect(svc2.getCapabilities()).toEqual({ agentSkills: true })
+    expect(svc2.getCapabilities()).toEqual({ builtinTools: 'off', agentSkills: true })
   })
 
   test('setCapabilities 非布尔 → 抛错', () => {
@@ -88,10 +105,17 @@ describe('pi-backend service.ts capabilities seam（T87）', () => {
     expect(() => svc.setCapabilities({ agentSkills: 'yes' })).toThrow(/boolean/)
   })
 
+  test('T96 setCapabilities 非法 builtinTools → 抛错', () => {
+    const svc = makeService(rootDir)
+    expect(() => svc.setCapabilities({ agentSkills: true, builtinTools: 'write' })).toThrow(
+      /builtinTools/
+    )
+  })
+
   test('getStudioManifest：含 capabilities + skills 字段（OFF 时 skills=[]）', () => {
     const svc = makeService(rootDir)
     const manifest = svc.getStudioManifest()
-    expect(manifest.capabilities).toEqual({ agentSkills: false })
+    expect(manifest.capabilities).toEqual({ builtinTools: 'off', agentSkills: false })
     expect(manifest.skills).toEqual([])
   })
 
@@ -112,9 +136,9 @@ description: service 装配 seam 测试
     )
 
     const svc = makeService(rootDir)
-    svc.setCapabilities({ agentSkills: true })
+    svc.setCapabilities({ agentSkills: true, builtinTools: 'full' })
     const manifest = svc.getStudioManifest()
-    expect(manifest.capabilities).toEqual({ agentSkills: true })
+    expect(manifest.capabilities).toEqual({ builtinTools: 'full', agentSkills: true })
     expect(manifest.skills).toEqual([{ name: 'svc-test', description: 'service 装配 seam 测试' }])
   })
 
@@ -133,5 +157,47 @@ description: x
     )
     const svc = makeService(rootDir)
     expect(svc.getStudioManifest().skills).toEqual([])
+  })
+
+  // ── T96：三档位装配门控（createAgentSession 入参捕获） ─────────────────
+
+  test('T96 装配门控：builtinTools off（缺省）→ noTools:"builtin"，无 tools 键', async () => {
+    const svc = makeService(rootDir)
+    await svc.prompt('s-off', 'hi', () => undefined)
+    const opts = capturedSessionOptions.at(-1)
+    expect(opts).toBeDefined()
+    expect(opts?.noTools).toBe('builtin')
+    expect('tools' in (opts ?? {})).toBe(false)
+  })
+
+  test('T96 装配门控：builtinTools readonly → tools 只读四件，无 noTools 键', async () => {
+    const svc = makeService(rootDir)
+    svc.setCapabilities({ agentSkills: false, builtinTools: 'readonly' })
+    await svc.prompt('s-ro', 'hi', () => undefined)
+    const opts = capturedSessionOptions.at(-1)
+    expect(opts?.tools).toEqual(['read', 'grep', 'find', 'ls'])
+    expect('noTools' in (opts ?? {})).toBe(false)
+  })
+
+  test('T96 装配门控：builtinTools full → noTools/tools 两键全省略（SDK 默认）', async () => {
+    const svc = makeService(rootDir)
+    svc.setCapabilities({ agentSkills: true, builtinTools: 'full' })
+    await svc.prompt('s-full', 'hi', () => undefined)
+    const opts = capturedSessionOptions.at(-1)
+    expect('noTools' in (opts ?? {})).toBe(false)
+    expect('tools' in (opts ?? {})).toBe(false)
+  })
+
+  test('T96 解耦钉扎：noSkills 由 agentSkills 独控，与 builtinTools 无关', async () => {
+    const svc = makeService(rootDir)
+    // builtinTools full + agentSkills false → loader noSkills 仍 true
+    svc.setCapabilities({ agentSkills: false, builtinTools: 'full' })
+    await svc.prompt('s-noskills', 'hi', () => undefined)
+    expect(capturedLoaderOptions.at(-1)?.noSkills).toBe(true)
+    // agentSkills true + builtinTools off → loader noSkills false，session 仍 noTools
+    svc.setCapabilities({ agentSkills: true, builtinTools: 'off' })
+    await svc.prompt('s-skills-only', 'hi', () => undefined)
+    expect(capturedLoaderOptions.at(-1)?.noSkills).toBe(false)
+    expect(capturedSessionOptions.at(-1)?.noTools).toBe('builtin')
   })
 })

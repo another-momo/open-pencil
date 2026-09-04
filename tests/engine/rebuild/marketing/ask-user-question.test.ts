@@ -1,6 +1,9 @@
 /**
  * T56（Phase 3 W2/T-B5）：ask_user_question 校验矩阵 + awaiting 信封 + formId 模式 +
  * Case B 四项组合 + 答案信封序列化/解析 round-trip（验收锚 T56-plan §3.1）。
+ * T95：answers 改 per-question `{ value?, freeText? }` 结构（FREE_TEXT_OPTION_ID =
+ * 「其他」选项），旧格式（T83 裸 string 值 / 全局 freeText 键）迁移 + 作答校验
+ * 纯函数矩阵（isAskQuestionAnswered/missingRequiredAskAnswers）。
  *
  * core 层（#core/tools/fork/marketing/ask-user-question）纯函数直测；
  * pi 工具工厂（@/app/ai/pi-backend/ask-user-question）经注入确定性 formId 钉
@@ -10,10 +13,14 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   FORM_ID_PATTERN,
+  FREE_TEXT_OPTION_ID,
+  isAskQuestionAnswered,
   makeFormId,
+  missingRequiredAskAnswers,
   parseAskAnswer,
   serializeAskAnswer,
-  validateAskUserQuestions
+  validateAskUserQuestions,
+  type AskQuestionSpec
 } from '@open-pencil/core/tools/fork/marketing/ask-user-question'
 
 import { createAskUserQuestionTool } from '@/app/ai/pi-backend/ask-user-question'
@@ -304,21 +311,39 @@ describe('createAskUserQuestionTool：awaiting 信封（软终止）', () => {
   })
 })
 
-describe('答案信封 serializeAskAnswer/parseAskAnswer round-trip', () => {
-  test('作答信封：首行标记 + JSON 行，解析还原', () => {
+describe('答案信封 serializeAskAnswer/parseAskAnswer round-trip（T95 per-question 结构）', () => {
+  test('作答信封：首行标记 + JSON 行，解析还原 { value } 结构', () => {
     const text = serializeAskAnswer('form-abc-000000', {
       aborted: false,
-      answers: { q1: 'a', q2: '自由文本' }
+      answers: { q1: { value: 'a' }, q2: { value: '自由文本' } }
     })
     expect(text.startsWith('[表单作答 formId=form-abc-000000]\n')).toBe(true)
     expect(parseAskAnswer(text)).toEqual({
       formId: 'form-abc-000000',
       aborted: false,
-      answers: { q1: 'a', q2: '自由文本' }
+      answers: { q1: { value: 'a' }, q2: { value: '自由文本' } }
     })
   })
 
-  test('跳过信封：aborted:true + freeText', () => {
+  test('per-question「其他」：value=__freeText + freeText 原样 round-trip', () => {
+    const text = serializeAskAnswer('form-abc-000000', {
+      aborted: false,
+      answers: {
+        q1: { value: 'a' },
+        q2: { value: FREE_TEXT_OPTION_ID, freeText: '我喜欢紫色' }
+      }
+    })
+    expect(parseAskAnswer(text)).toEqual({
+      formId: 'form-abc-000000',
+      aborted: false,
+      answers: {
+        q1: { value: 'a' },
+        q2: { value: FREE_TEXT_OPTION_ID, freeText: '我喜欢紫色' }
+      }
+    })
+  })
+
+  test('跳过信封：aborted:true + freeText（跳过理由分支不动）', () => {
     const text = serializeAskAnswer('form-abc-000000', { aborted: true, freeText: '都不想选' })
     expect(text.startsWith('[表单跳过 formId=form-abc-000000]\n')).toBe(true)
     expect(parseAskAnswer(text)).toEqual({
@@ -328,31 +353,23 @@ describe('答案信封 serializeAskAnswer/parseAskAnswer round-trip', () => {
     })
   })
 
-  test('第四种作答（T83）：作答信封带 freeText 键，解析还原 answers + freeText', () => {
-    const text = serializeAskAnswer('form-abc-000000', {
-      aborted: false,
-      answers: { q1: 'a' },
-      freeText: '我想要更大胆的配色'
-    })
-    expect(text.startsWith('[表单作答 formId=form-abc-000000]\n')).toBe(true)
-    expect(parseAskAnswer(text)).toEqual({
-      formId: 'form-abc-000000',
-      aborted: false,
-      answers: { q1: 'a' },
-      freeText: '我想要更大胆的配色'
-    })
-  })
-
-  test('第四种作答（T83）：无 freeText 键不留键；空白 freeText 丢弃', () => {
-    const noFreeText = parseAskAnswer('[表单作答 formId=x]\n{"aborted":false,"answers":{"a":"1"}}')
-    expect(noFreeText).toEqual({ formId: 'x', aborted: false, answers: { a: '1' } })
-    expect(noFreeText && 'freeText' in noFreeText).toBe(false)
-
-    const blank = parseAskAnswer(
-      '[表单作答 formId=x]\n{"aborted":false,"answers":{"a":"1"},"freeText":"  "}'
+  test('归一：空键丢弃（value/freeText 均空白）；「其他」无 freeText 仍留 value', () => {
+    const parsed = parseAskAnswer(
+      '[表单作答 formId=x]\n' +
+        JSON.stringify({
+          aborted: false,
+          answers: {
+            q1: { value: '  ', freeText: ' ' },
+            q2: { value: 'ok' },
+            q3: { value: FREE_TEXT_OPTION_ID }
+          }
+        })
     )
-    expect(blank).toEqual({ formId: 'x', aborted: false, answers: { a: '1' } })
-    expect(blank && 'freeText' in blank).toBe(false)
+    expect(parsed).toEqual({
+      formId: 'x',
+      aborted: false,
+      answers: { q2: { value: 'ok' }, q3: { value: FREE_TEXT_OPTION_ID } }
+    })
   })
 
   test('容错：坏 JSON / 缺标记行 / 单行文本 → null', () => {
@@ -369,14 +386,156 @@ describe('答案信封 serializeAskAnswer/parseAskAnswer round-trip', () => {
     expect(parseAskAnswer('[表单作答 formId=x]\n"str"')).toBeNull()
   })
 
-  test('容错：answers 非字符串值过滤；freeText 缺失补空串；标记行尾空白容忍', () => {
+  test('容错：非对象/空白值过滤；freeText 缺失补空串；标记行尾空白容忍', () => {
     expect(
       parseAskAnswer('[表单作答 formId=x] \n{"aborted":false,"answers":{"a":1,"b":"ok"}}')
-    ).toEqual({ formId: 'x', aborted: false, answers: { b: 'ok' } })
+    ).toEqual({ formId: 'x', aborted: false, answers: { b: { value: 'ok' } } })
     expect(parseAskAnswer('[表单跳过 formId=x]\n{"aborted":true}')).toEqual({
       formId: 'x',
       aborted: true,
       freeText: ''
     })
+  })
+})
+
+describe('旧格式迁移（T83 全局 freeText → 首个未作答选择类题的「其他」，审查文档 §5.3/§6.2）', () => {
+  const QUESTIONS: AskQuestionSpec[] = [
+    {
+      id: 'q1',
+      kind: 'single_select',
+      label: '设计方案',
+      required: true,
+      options: [
+        { id: 'a', label: 'A' },
+        { id: 'b', label: 'B' }
+      ]
+    },
+    {
+      id: 'q2',
+      kind: 'image_select',
+      label: '选一帧',
+      required: true,
+      imageOptions: [{ nodeId: '0:1' }]
+    },
+    { id: 'q3', kind: 'text', label: '补充', required: false }
+  ]
+  const legacyEnvelope = (payload: unknown) => `[表单作答 formId=x]\n${JSON.stringify(payload)}`
+
+  test('旧格式：裸 string 值 → { value }；全局 freeText 归到首个未作答选择类题', () => {
+    const parsed = parseAskAnswer(
+      legacyEnvelope({ aborted: false, answers: { q1: 'a', q3: '备注' }, freeText: '综合想法' }),
+      QUESTIONS
+    )
+    expect(parsed).toEqual({
+      formId: 'x',
+      aborted: false,
+      answers: {
+        q1: { value: 'a' },
+        q3: { value: '备注' },
+        q2: { value: FREE_TEXT_OPTION_ID, freeText: '综合想法' }
+      }
+    })
+  })
+
+  test('旧格式：选择类题全已答 → 不覆盖已选选项，legacy freeText 原样保留', () => {
+    const parsed = parseAskAnswer(
+      legacyEnvelope({ aborted: false, answers: { q1: 'a', q2: '0:1' }, freeText: '综合想法' }),
+      QUESTIONS
+    )
+    expect(parsed).toEqual({
+      formId: 'x',
+      aborted: false,
+      answers: { q1: { value: 'a' }, q2: { value: '0:1' } },
+      freeText: '综合想法'
+    })
+  })
+
+  test('旧格式：未传 questions → 不猜归属，legacy freeText 原样保留', () => {
+    const parsed = parseAskAnswer(
+      legacyEnvelope({ aborted: false, answers: { q1: 'a' }, freeText: '综合想法' })
+    )
+    expect(parsed).toEqual({
+      formId: 'x',
+      aborted: false,
+      answers: { q1: { value: 'a' } },
+      freeText: '综合想法'
+    })
+  })
+
+  test('旧格式：全是 text 题 → 无选择类题可归因，legacy freeText 原样保留', () => {
+    const parsed = parseAskAnswer(
+      legacyEnvelope({ aborted: false, answers: {}, freeText: '综合想法' }),
+      [QUESTIONS[2]]
+    )
+    expect(parsed).toEqual({
+      formId: 'x',
+      aborted: false,
+      answers: {},
+      freeText: '综合想法'
+    })
+  })
+
+  test('旧格式：空白全局 freeText 直接丢弃（T83 同律）', () => {
+    const parsed = parseAskAnswer(
+      legacyEnvelope({ aborted: false, answers: { q1: 'a' }, freeText: '  ' }),
+      QUESTIONS
+    )
+    expect(parsed).toEqual({ formId: 'x', aborted: false, answers: { q1: { value: 'a' } } })
+    expect(parsed && 'freeText' in parsed).toBe(false)
+  })
+})
+
+describe('作答校验 isAskQuestionAnswered/missingRequiredAskAnswers（审查文档 §4.4/§5.2）', () => {
+  const select: AskQuestionSpec = {
+    id: 'q1',
+    kind: 'single_select',
+    label: '设计方案',
+    required: true,
+    options: [
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' }
+    ]
+  }
+  const text: AskQuestionSpec = { id: 'q2', kind: 'text', label: '补充', required: true }
+  const optional: AskQuestionSpec = { id: 'q3', kind: 'text', label: '选答', required: false }
+
+  test('单题有效性：普通选项 / text 值 / 「其他」+freeText / 「其他」空 freeText', () => {
+    expect(isAskQuestionAnswered(select, { value: 'a' })).toBe(true)
+    expect(isAskQuestionAnswered(select, undefined)).toBe(false)
+    expect(isAskQuestionAnswered(select, {})).toBe(false)
+    expect(isAskQuestionAnswered(select, { value: FREE_TEXT_OPTION_ID })).toBe(false)
+    expect(isAskQuestionAnswered(select, { value: FREE_TEXT_OPTION_ID, freeText: '  ' })).toBe(
+      false
+    )
+    expect(
+      isAskQuestionAnswered(select, { value: FREE_TEXT_OPTION_ID, freeText: '我的想法' })
+    ).toBe(true)
+    expect(isAskQuestionAnswered(text, { value: '  ' })).toBe(false)
+    expect(isAskQuestionAnswered(text, { value: '写了一段' })).toBe(true)
+  })
+
+  test('必填缺口列表：未答/「其他」空输入被拦；选答不拦；全有效 → 空数组', () => {
+    expect(missingRequiredAskAnswers([select, text, optional], {}).map((q) => q.id)).toEqual([
+      'q1',
+      'q2'
+    ])
+    expect(
+      missingRequiredAskAnswers([select, text, optional], {
+        q1: { value: FREE_TEXT_OPTION_ID, freeText: '' },
+        q2: { value: 'ok' }
+      }).map((q) => q.id)
+    ).toEqual(['q1'])
+    expect(
+      missingRequiredAskAnswers([select, text, optional], {
+        q1: { value: 'b' },
+        q2: { value: 'ok' }
+      })
+    ).toEqual([])
+    expect(
+      missingRequiredAskAnswers([select, text, optional], {
+        q1: { value: FREE_TEXT_OPTION_ID, freeText: '紫色' },
+        q2: { value: 'ok' }
+      })
+    ).toEqual([])
   })
 })

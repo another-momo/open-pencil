@@ -65,15 +65,17 @@ export const imageGenMessageDefaults = {
   imageGenOffline: 'pi backend unreachable — start the dev server with `bun run dev`.'
 } as const
 
-/** T56：ask_user_question 聊天内表单卡片（AskUserQuestionCard）英文默认值 */
+/** T56：ask_user_question 聊天内表单卡片（AskUserQuestionCard）英文默认值；
+ * T95：per-question「其他」选项（askOtherOption/askOtherPlaceholder）——全局 textarea 随重设计移除，askSkipPlaceholder 退役 */
 export const askMessageDefaults = {
   askFormTitle: 'The AI is asking a few questions',
   askSubmit: 'Submit answers',
   askSkip: 'Skip this form',
-  askSkipPlaceholder: 'Other / additional notes (optional)…',
   askRequiredHint: 'Please answer the required questions first',
   askOptional: 'Optional',
   askTextPlaceholder: 'Type your answer…',
+  askOtherOption: 'Other',
+  askOtherPlaceholder: 'Type your own answer…',
   askAnswered: 'Answered',
   askSkipped: 'Skipped',
   askImageUnavailable: 'Preview unavailable',
@@ -105,11 +107,20 @@ export const chipsMessageDefaults = {
 } as const
 
 /**
- * T87→T89：settings 面板 Agent 能力分区——单 AppSwitch + 一行 label。
- * T89：删除 title + description 二键（啰嗦），skillLabel 收敛为「进阶能力」。
+ * T87→T89→T96：settings 面板 Agent 能力分区文案。
+ * T96：三档位重构（预研 §5.4）——新增章节标题/描述 + builtinTools 三档 radio
+ * 键组 + agentSkills 开关标签/描述；旧单键 agentCapabilitiesSkillLabel 删除
+ * （唯一消费点 AgentSettingsPanel 同批重构）。
  */
 export const agentCapabilitiesMessageDefaults = {
-  agentCapabilitiesSkillLabel: 'Advanced capabilities (read / write / edit / bash / skill)',
+  agentCapabilitiesTitle: 'Agent Capabilities',
+  agentCapabilitiesDescription: 'Configure file access and skill system',
+  builtinToolsLabel: 'File Access',
+  builtinToolsOff: 'Off - No file access',
+  builtinToolsReadonly: 'Read-only - View files without modification',
+  builtinToolsFull: 'Full - Read, write, edit, and execute commands',
+  agentSkillsLabel: 'Skill System',
+  agentSkillsDescription: 'Enable AI to use specialized skills',
   agentCapabilitiesSaving: 'Saving…',
   agentCapabilitiesError: params('Failed to save: {message}')
 } as const

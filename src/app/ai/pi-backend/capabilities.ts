@@ -1,14 +1,22 @@
 /**
  * T87：Agent 能力总开关（pi 原生 skill 支持 + 内建工具同闸）。
+ * T96：单开关拆分为两个正交面——builtinTools 三档位（off/readonly/full）
+ * 控内建工具装配，agentSkills 布尔独控 skill 加载（预研 §4.2）。
  *
  * 存储：.openpencil/pi-agent/capabilities.json（tmp+rename 原子写；坏 JSON
  * 降级 OFF——同 image-gen/credentials 纪律但无敏感字段，0o600 仅对齐设置文件
  * 既存卫生标准；绝无任何 key/secret 字段）。
  *
- * 单开关语义（owner 决策 ①）：
- *  - agentSkills: boolean ——启用时一并打开 skill 加载（pi SDK 路径）与内建
- *    工具（read/bash/edit/write——T20 起 noTools: 'builtin' 关闭）；关闭时两者
- *    同步回到 OFF 状态。缺省 OFF（首次配置前不暴露新攻击面）。
+ * 双键语义（T96，owner 任务卡）：
+ *  - builtinTools: 'off' | 'readonly' | 'full' ——session 装配门控：
+ *    off → noTools:'builtin'；readonly → tools:[read/grep/find/ls]；
+ *    full → 省略字段走 SDK 默认（read/bash/edit/write）。缺省 'off'
+ *    （首次配置前不暴露新攻击面）。
+ *  - agentSkills: boolean ——skill 加载开关（pi SDK 路径 noSkills），
+ *    与 builtinTools 解耦。缺省 false。
+ *
+ * v1 → v2 迁移：旧文件 {version:1, agentSkills} 读盘时按旧同闸语义映射
+ * builtinTools = agentSkills ? 'full' : 'off'；写盘恒 version:2。
  *
  * 脱敏边界（T45 同源约束）：
  *  - getCapabilitiesForManifest() 投影只用 name + description，**绝不返回**
@@ -28,16 +36,25 @@ import { type Skill, loadSkillsFromDir } from '@earendil-works/pi-coding-agent'
 /**
  * 持久化形状：版本号字段防升级期旧文件残留。布尔外不留用户可调字段——
  * 扩展面走新键 + 版本号 + 读时兼容（坏文件/缺字段 → 落到 OFF）。
+ * T96：v2 增 builtinTools；v1 文件读盘时按旧同闸语义迁移（见 readFromDisk）。
  */
 interface CapabilitiesFile {
-  version: 1
+  version: 2
+  builtinTools: BuiltinToolsLevel
   agentSkills: boolean
 }
 
-const DEFAULTS: CapabilitiesFile = { version: 1, agentSkills: false }
+/** T96：内建工具三档位（off 无内建 / readonly 只读四件 / full SDK 默认全集） */
+export type BuiltinToolsLevel = 'off' | 'readonly' | 'full'
+
+const BUILTIN_TOOLS_LEVELS: readonly BuiltinToolsLevel[] = ['off', 'readonly', 'full']
+
+const DEFAULTS: CapabilitiesFile = { version: 2, builtinTools: 'off', agentSkills: false }
 
 export type Capabilities = {
-  /** agentSkills 单开关；service.ts 装配据此切换 noTools/noSkills */
+  /** 内建工具档位；service.ts 装配据此切换 noTools/tools */
+  builtinTools: BuiltinToolsLevel
+  /** skill 加载开关；service.ts 装配据此切换 noSkills（与 builtinTools 解耦） */
   agentSkills: boolean
 }
 
@@ -54,10 +71,11 @@ export type CapabilitiesStore = {
   /** 进程级内存缓存；缺省 OFF；返回纯值对象（解构给 service.ts / GET 端点共用） */
   get(): Capabilities
   /**
-   * PUT 写入：agentSkills 非布尔 → 抛错；正常路径落盘 + 更新缓存；
+   * PUT 写入：agentSkills 非布尔 → 抛错；builtinTools 给了就必须是三档字面量
+   * （缺省保留旧值——兼容只写 agentSkills 的调用面）；正常路径落盘 + 更新缓存；
    * 返回最新 Capabilities（含校验后的归一值）。
    */
-  set(input: { agentSkills: unknown }): Capabilities
+  set(input: { agentSkills: unknown; builtinTools?: unknown }): Capabilities
   /**
    * 扫描能力开关打开时实际可见的 skill 列表（脱敏投影）。
    * OFF 时返回 []——避免在能力未授权时泄露已扫到的 skill 存在性。
@@ -77,26 +95,48 @@ export function createCapabilitiesStore({
 
   function readFromDisk(): Capabilities {
     try {
-      const raw = JSON.parse(readFileSync(filePath, 'utf8')) as Partial<CapabilitiesFile>
-      if (typeof raw.agentSkills === 'boolean') {
-        return { agentSkills: raw.agentSkills }
+      const raw = JSON.parse(readFileSync(filePath, 'utf8')) as {
+        version?: unknown
+        builtinTools?: unknown
+        agentSkills?: unknown
       }
-      return { agentSkills: DEFAULTS.agentSkills }
+      // T96 v1 → v2 迁移：旧单开关语义是「skill + 内建工具同闸」——
+      // agentSkills true 等价于 builtinTools 'full'，false 等价于 'off'
+      if (raw.version === 1 && typeof raw.agentSkills === 'boolean') {
+        return { builtinTools: raw.agentSkills ? 'full' : 'off', agentSkills: raw.agentSkills }
+      }
+      if (
+        raw.version === 2 &&
+        typeof raw.builtinTools === 'string' &&
+        (BUILTIN_TOOLS_LEVELS as readonly string[]).includes(raw.builtinTools) &&
+        typeof raw.agentSkills === 'boolean'
+      ) {
+        return {
+          builtinTools: raw.builtinTools as BuiltinToolsLevel,
+          agentSkills: raw.agentSkills
+        }
+      }
+      return { builtinTools: DEFAULTS.builtinTools, agentSkills: DEFAULTS.agentSkills }
     } catch {
       // ENOENT / 坏 JSON → 缺省 OFF（capabilities 面 fail-safe，
       // 缺配置/坏文件视为未授权，避免把半残状态带入 session）
-      return { agentSkills: DEFAULTS.agentSkills }
+      return { builtinTools: DEFAULTS.builtinTools, agentSkills: DEFAULTS.agentSkills }
     }
   }
 
   function get(): Capabilities {
     if (cache === null || cache === undefined) cache = readFromDisk()
-    return { agentSkills: cache.agentSkills }
+    return { builtinTools: cache.builtinTools, agentSkills: cache.agentSkills }
   }
 
   function writeToDisk(next: Capabilities): void {
     mkdirSync(agentDir, { recursive: true })
-    const doc: CapabilitiesFile = { version: 1, agentSkills: next.agentSkills }
+    // 写盘恒 version:2（迁移在读盘完成，落盘即新形状）
+    const doc: CapabilitiesFile = {
+      version: 2,
+      builtinTools: next.builtinTools,
+      agentSkills: next.agentSkills
+    }
     const tmpPath = `${filePath}.tmp`
     // 0o600 与 settings 文件齐平（capabilities 不含敏感字段，但同目录
     // 其他文件（auth.json/image-gen.json）已是 0o600，统一防越权读）
@@ -104,11 +144,23 @@ export function createCapabilitiesStore({
     renameSync(tmpPath, filePath)
   }
 
-  function set(input: { agentSkills: unknown }): Capabilities {
+  function set(input: { agentSkills: unknown; builtinTools?: unknown }): Capabilities {
     if (typeof input.agentSkills !== 'boolean') {
       throw new TypeError('agentSkills must be boolean')
     }
-    const next: Capabilities = { agentSkills: input.agentSkills }
+    if (input.builtinTools !== undefined) {
+      if (
+        typeof input.builtinTools !== 'string' ||
+        !(BUILTIN_TOOLS_LEVELS as readonly string[]).includes(input.builtinTools)
+      ) {
+        throw new TypeError('builtinTools must be "off" | "readonly" | "full"')
+      }
+    }
+    const next: Capabilities = {
+      // builtinTools 缺省时保留旧值——兼容只写 agentSkills 的调用面（T96 前形状）
+      builtinTools: (input.builtinTools as BuiltinToolsLevel | undefined) ?? get().builtinTools,
+      agentSkills: input.agentSkills
+    }
     writeToDisk(next)
     cache = next
     return next

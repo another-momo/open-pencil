@@ -35,10 +35,11 @@ export type PiStudioFailureEntry = {
   hint: string
 }
 
-/** T87：能力开关 + skill 列表（脱敏投影） */
-export type PiStudioCapabilities = {
-  agentSkills: boolean
-}
+/** T87：能力开关 + skill 列表（脱敏投影）。
+ * T96：形状单源到 capabilities.ts Capabilities（builtinTools 三档位 +
+ * agentSkills）——字面量重写会与 Capabilities 同构触发 test:type-shapes
+ * 重复形状门禁；别名对齐 PiStudioModeEntry = StudioMode 先例 */
+export type PiStudioCapabilities = Capabilities
 
 export type PiStudioManifest = {
   modes: PiStudioModeEntry[]
@@ -79,7 +80,9 @@ export function toStudioManifest(
     reason: f.reason,
     hint: f.hint
   }))
-  const caps = capabilities ? capabilities.get() : { agentSkills: false }
+  const caps: Capabilities = capabilities
+    ? capabilities.get()
+    : { builtinTools: 'off', agentSkills: false }
   // 脱敏兜底：白名单取 name/description，不依赖 store 投影的诚信
   // （T45 §信任边界同源约束——filePath/baseDir/sourceInfo 永不跨出后端进程）
   const rawSkills = capabilities ? capabilities.listSkills() : []
@@ -91,7 +94,7 @@ export function toStudioManifest(
     modes,
     profiles,
     failures,
-    capabilities: { agentSkills: caps.agentSkills },
+    capabilities: { builtinTools: caps.builtinTools, agentSkills: caps.agentSkills },
     skills
   }
 }

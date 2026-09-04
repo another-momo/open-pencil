@@ -11,10 +11,17 @@
  *  - formId 生成（makeFormId）：`form-<时间戳36进制>-<随机6位>`，now/rand 可注入
  *    （测试确定性）。
  *  - 答案信封序列化/解析（serializeAskAnswer/parseAskAnswer）：用户消息文本
- *    首行 `[表单作答 formId=…]` / `[表单跳过 formId=…]` + 次行 JSON
- *    （{"aborted":false,"answers":{…},"freeText"?:"…"} / {"aborted":true,"freeText":"…"}），
- *    解析容错——坏 JSON/缺标记行/类型不符 → null。作答分支的 freeText = 第四种
- *    作答（用户原话，一等答案内容；T83 升格，S3 §6），跳过分支的 freeText = 跳过理由。
+ *    首行 `[表单作答 formId=…]` / `[表单跳过 formId=…]` + 次行 JSON。
+ *    作答分支 answers 为 per-question 结构（T95，审查文档 §3.3）：
+ *    `{ qid: { value } }` 普通选项/文本，`{ qid: { value: '__freeText', freeText } }`
+ *    表示选了「其他」选项（FREE_TEXT_OPTION_ID）——freeText 不再是全局字段，
+ *    而是每个选择类问题的自包含一等答案；跳过分支 freeText = 跳过理由（不动）。
+ *    解析容错——坏 JSON/缺标记行/类型不符 → null；旧格式（T83：值是裸 string /
+ *    全局 freeText 键）自动迁移——string → { value }，全局 freeText 在传入
+ *    questions 时归到首个未作答选择类问题的「其他」，无法归因则原样保留在
+ *    解析结果的 legacy freeText 字段（无损不覆盖，审查文档 §5.3/§6.2 落地口径）。
+ *  - 作答校验纯函数（isAskQuestionAnswered/missingRequiredAskAnswers）：
+ *    「其他」需 freeText 非空白才算有效作答（审查文档 §4.4/§5.2），前端卡片共用。
  *
  * 纯函数、零 figma/pi 依赖——bun 直接可测。
  */
@@ -240,8 +247,20 @@ export function makeFormId(now: () => number = Date.now, rand: () => number = Ma
 const ANSWER_MARKER = /^\[表单作答 formId=([^\]\s]+)\]\s*$/
 const SKIP_MARKER = /^\[表单跳过 formId=([^\]\s]+)\]\s*$/
 
+/** 特殊选项值：选择类问题的「其他」选项 id（T95，审查文档 §3.3） */
+export const FREE_TEXT_OPTION_ID = '__freeText'
+
+/**
+ * per-question 作答（T95）：普通选项/文本 → { value }；
+ * 「其他」→ { value: FREE_TEXT_OPTION_ID, freeText }（freeText 非空白才算有效作答）
+ */
+export interface AskQuestionAnswer {
+  value?: string
+  freeText?: string
+}
+
 export type AskAnswerPayload =
-  | { aborted: false; answers: Record<string, string>; freeText?: string }
+  | { aborted: false; answers: Record<string, AskQuestionAnswer> }
   | { aborted: true; freeText: string }
 
 /** 前端提交路径用的完整载荷（formId + 判别联合） */
@@ -252,13 +271,60 @@ export function serializeAskAnswer(formId: string, payload: AskAnswerPayload): s
   return `${marker}\n${JSON.stringify(payload)}`
 }
 
-export type ParsedAskAnswer = { formId: string } & AskAnswerPayload
+/**
+ * 解析结果：作答分支带可选 legacy freeText——仅旧格式（T83 全局 freeText）
+ * 无法归因到选择类问题时原样保留（无损不覆盖；见 parseAskAnswer 迁移段）
+ */
+export type ParsedAskAnswer =
+  | {
+      formId: string
+      aborted: false
+      answers: Record<string, AskQuestionAnswer>
+      freeText?: string
+    }
+  | { formId: string; aborted: true; freeText: string }
+
+/** 单键归一：旧格式裸 string → { value }；新格式对象取非空白 value/freeText；空键丢弃 */
+function normalizeQuestionAnswer(value: unknown): AskQuestionAnswer | null {
+  if (typeof value === 'string') {
+    return value.trim() !== '' ? { value } : null
+  }
+  if (!isRecord(value)) return null
+  const answer: AskQuestionAnswer = {}
+  if (typeof value.value === 'string' && value.value.trim() !== '') answer.value = value.value
+  if (typeof value.freeText === 'string' && value.freeText.trim() !== '') {
+    answer.freeText = value.freeText
+  }
+  return answer.value !== undefined || answer.freeText !== undefined ? answer : null
+}
+
+/**
+ * 旧格式（T83）全局 freeText 迁移（审查文档 §5.3/§6.2）：给了 questions 归到首个
+ * 未作答的选择类问题的「其他」；无法归因（未传 questions / 选择类问题全已答 /
+ * 全是 text 题）→ 返回原文由调用方保留，不覆盖已选选项（无损优先于示意代码的
+ * 无条件覆盖）。
+ */
+function migrateLegacyFreeText(
+  answers: Record<string, AskQuestionAnswer>,
+  freeText: string,
+  questions?: AskQuestionSpec[]
+): string | undefined {
+  if (!questions) return freeText
+  const target = questions.filter((q) => q.kind !== 'text').find((q) => !(q.id in answers))
+  if (!target) return freeText
+  answers[target.id] = { value: FREE_TEXT_OPTION_ID, freeText }
+  return undefined
+}
 
 /**
  * 解析答案信封——只认首行标记（ChatPanel answeredFormIds 派生同律）；
  * 坏 JSON、缺标记、aborted 与标记不符、JSON 非对象 → null（容错不 throw）。
+ * questions 可选：传入时旧格式全局 freeText 参与归因迁移（见 migrateLegacyFreeText）。
  */
-export function parseAskAnswer(text: string): ParsedAskAnswer | null {
+export function parseAskAnswer(
+  text: string,
+  questions?: AskQuestionSpec[]
+): ParsedAskAnswer | null {
   const newline = text.indexOf('\n')
   if (newline === -1) return null
   const firstLine = text.slice(0, newline)
@@ -284,16 +350,48 @@ export function parseAskAnswer(text: string): ParsedAskAnswer | null {
       freeText: typeof payload.freeText === 'string' ? payload.freeText : ''
     }
   }
-  const answers: Record<string, string> = {}
+  const answers: Record<string, AskQuestionAnswer> = {}
   if (isRecord(payload.answers)) {
     for (const [key, value] of Object.entries(payload.answers)) {
-      if (typeof value === 'string') answers[key] = value
+      const answer = normalizeQuestionAnswer(value)
+      if (answer) answers[key] = answer
     }
   }
   const parsed: ParsedAskAnswer = { formId, aborted: false, answers }
-  // 第四种作答（T83）：freeText 非空白才物化——不留空键，round-trip 钉扎保持绿
+  // 旧格式迁移（T95）：全局 freeText 非空白才处理；空白直接丢弃（T83 同律）
   if (typeof payload.freeText === 'string' && payload.freeText.trim() !== '') {
-    parsed.freeText = payload.freeText
+    const legacy = migrateLegacyFreeText(answers, payload.freeText, questions)
+    if (legacy !== undefined) parsed.freeText = legacy
   }
   return parsed
+}
+
+// ── 作答校验（前端卡片共用；审查文档 §4.4/§5.2） ──
+
+/**
+ * 单题是否已有效作答：text → value 非空白；选择类普通选项 → value 非空且非
+ * FREE_TEXT_OPTION_ID；「其他」→ value === FREE_TEXT_OPTION_ID 且 freeText 非空白。
+ */
+export function isAskQuestionAnswered(
+  question: AskQuestionSpec,
+  answer: AskQuestionAnswer | undefined
+): boolean {
+  if (!answer) return false
+  if (question.kind === 'text') {
+    return typeof answer.value === 'string' && answer.value.trim() !== ''
+  }
+  if (answer.value === FREE_TEXT_OPTION_ID) {
+    return typeof answer.freeText === 'string' && answer.freeText.trim() !== ''
+  }
+  return typeof answer.value === 'string' && answer.value !== ''
+}
+
+/** 未有效作答的必填题列表（空数组 = 可提交） */
+export function missingRequiredAskAnswers(
+  questions: AskQuestionSpec[],
+  answers: Record<string, AskQuestionAnswer>
+): AskQuestionSpec[] {
+  return questions.filter(
+    (question) => question.required && !isAskQuestionAnswered(question, answers[question.id])
+  )
 }

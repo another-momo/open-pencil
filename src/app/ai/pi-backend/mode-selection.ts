@@ -38,7 +38,7 @@ import {
 } from '@open-pencil/core/tools/fork/marketing/brief'
 import { isMarketingDesignRoot } from '@open-pencil/core/tools/fork/marketing/setup'
 
-import type { PiStudioManifest } from '@/app/ai/pi-backend/studio/manifest'
+import type { PiStudioCapabilities, PiStudioManifest } from '@/app/ai/pi-backend/studio/manifest'
 import {
   getActiveEditorStoreOrNull,
   useActiveEditorStoreRef,
@@ -95,7 +95,10 @@ export async function retryPiStudioManifest(): Promise<void> {
 // 后端覆盖，下一次 ensurePiStudioManifest 才会更新前端本地态——本模块不强
 // 制刷新，调用方按需 retry）。错误反馈由 settings 面板 handleError 局部
 // 承担，不扩展本模块错误面（与 manifest 失败条同源纪律）。
-export const piCapabilities = ref<{ agentSkills: boolean } | null>(null)
+// T96：形状扩为 PiStudioCapabilities（builtinTools 三档 + agentSkills）——
+// type-only 复用 manifest.ts 别名（最终单源 capabilities.ts Capabilities），
+// 不另立字面类型（test:type-shapes 门禁禁同构重复）。
+export const piCapabilities = ref<PiStudioCapabilities | null>(null)
 
 async function fetchPiCapabilities(): Promise<void> {
   try {
@@ -104,7 +107,7 @@ async function fetchPiCapabilities(): Promise<void> {
       piCapabilities.value = null
       return
     }
-    piCapabilities.value = (await res.json()) as { agentSkills: boolean }
+    piCapabilities.value = (await res.json()) as PiStudioCapabilities
   } catch (error) {
     piCapabilities.value = null
     console.warn('[pi-backend] capabilities 拉取失败——settings 开关按关闭处理', error)
@@ -112,7 +115,7 @@ async function fetchPiCapabilities(): Promise<void> {
 }
 
 /** 同步更新（settings 面板 PUT 成功后调用，乐观更新避免 round-trip） */
-export function applyPiCapabilities(next: { agentSkills: boolean }): void {
+export function applyPiCapabilities(next: PiStudioCapabilities): void {
   piCapabilities.value = next
 }
 

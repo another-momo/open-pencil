@@ -550,7 +550,9 @@ describe('事件④：formId 映射移槽', () => {
     })
     host.finalizeTurn()
 
-    await host.prepareTurn(serializeAskAnswer(FORM_ID, { aborted: false, answers: { q1: 'a' } }))
+    await host.prepareTurn(
+      serializeAskAnswer(FORM_ID, { aborted: false, answers: { q1: { value: 'a' } } })
+    )
     expect(bridge.writes).toEqual(['d1'])
     host.finalizeTurn()
   })
@@ -566,7 +568,10 @@ describe('事件④：formId 映射移槽', () => {
     })
     host.finalizeTurn()
 
-    const answerText = serializeAskAnswer(FORM_ID, { aborted: false, answers: { q1: 'a' } })
+    const answerText = serializeAskAnswer(FORM_ID, {
+      aborted: false,
+      answers: { q1: { value: 'a' } }
+    })
     const { promptText } = await host.prepareTurn(answerText)
     expect(promptText).toBe(answerText)
     host.finalizeTurn()

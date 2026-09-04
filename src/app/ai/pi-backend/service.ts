@@ -100,8 +100,9 @@ export type PiChatService = {
   getStudioManifest(): PiStudioManifest
   /** T87：读 capabilities（settings 面板 GET 用） */
   getCapabilities(): Capabilities
-  /** T87：写 capabilities（settings 面板 PUT 用；非法值抛错并被 server.ts 转 400） */
-  setCapabilities(input: { agentSkills: unknown }): Capabilities
+  /** T87：写 capabilities（settings 面板 PUT 用；非法值抛错并被 server.ts 转 400）；
+   *  T96：builtinTools 可选——给了就必须是三档字面量，缺省保留旧值 */
+  setCapabilities(input: { agentSkills: unknown; builtinTools?: unknown }): Capabilities
   /** T60：active_design 端点（②面板点选 / ③AI 声明+同意）——四条件校验 → 移槽 → 身份三元组 */
   setActiveDesign(nodeId: string, documentId?: string): Promise<SetActiveDesignResult>
   /** T91b：newIntent 确认端点——前端 ChatNewIntentCard 确认按钮触发，写 pluginData 三键 */
@@ -158,7 +159,8 @@ export function createPiChatService({
   // T60：active_design 桥探针/写槽 IO（无状态单例，session 间共享）
   const activeDesignBridge = createBridgeSlotIO()
   // T87：capabilities store 单例（与 stateDir/agentDir 同源）；session 装配按
-  // agentSkills 切换 noTools/noSkills；manifest 投影/GET/PUT 共用此实例
+  // builtinTools 切换 noTools/tools、按 agentSkills 切换 noSkills（T96 解耦）；
+  // manifest 投影/GET/PUT 共用此实例
   const capabilitiesStore = createCapabilitiesStore({ agentDir, rootDir })
 
   const sessions = new Map<string, SessionEntry>()
@@ -341,10 +343,14 @@ export function createPiChatService({
       })(),
       // T20：'all' 会连 custom 工具一起禁；'builtin' 只禁内建（read/bash/edit/write）
       // 保留我们的设计工具（sdk.d.ts 语义实证，见 T20-self-check §2.1-1）
-      // T87：capabilities.agentSkills OFF 时显式禁内建（与基线一致）；开启时
-      // 省略 noTools 字段 → SDK 默认允许全部内建工具（read/bash/edit/write），
-      // 与 skill 系统同闸开放。
-      ...(capabilitiesStore.get().agentSkills ? {} : { noTools: 'builtin' as const }),
+      // T96：capabilities.builtinTools 三档位门控（与 agentSkills 解耦）——
+      // off 显式禁内建（与 T87 前基线一致）；readonly 显式 tools 只读四件
+      // （read/grep/find/ls，SDK createReadOnlyTools 同集，预研 §2.1/§2.3）；
+      // full 省略字段 → SDK 默认允许全部内建工具（read/bash/edit/write）。
+      ...(capabilitiesStore.get().builtinTools === 'off' ? { noTools: 'builtin' as const } : {}),
+      ...(capabilitiesStore.get().builtinTools === 'readonly'
+        ? { tools: ['read', 'grep', 'find', 'ls'] }
+        : {}),
       customTools,
       ...(modelSpec?.thinkingLevel ? { thinkingLevel: modelSpec.thinkingLevel } : {})
     })
@@ -499,7 +505,7 @@ export function createPiChatService({
     return capabilitiesStore.get()
   }
 
-  function setCapabilities(input: { agentSkills: unknown }): Capabilities {
+  function setCapabilities(input: { agentSkills: unknown; builtinTools?: unknown }): Capabilities {
     return capabilitiesStore.set(input)
   }
 

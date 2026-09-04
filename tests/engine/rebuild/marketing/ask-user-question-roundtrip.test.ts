@@ -4,6 +4,8 @@ import { describe, expect, test } from 'bun:test'
  * pi JSONL 会话文件经 readPiHistoryFile 恢复后，tool part 的 input.questions
  * 完整、output 折叠 awaiting 信封 details（formId/status）；后续用户消息里的
  * 答案信封文本原样存续（answeredFormIds 派生的输入）。
+ * T95：新格式（per-question { value } / __freeText）与旧格式（T83 全局 freeText）
+ * 双通道 round-trip——旧会话信封带 questions 解析自动迁移钉扎。
  *
  * 先例：tests/engine/rebuild/image-gen/orchestration.test.ts 的 `@/app/...`
  * 导入口径；会话文件格式 = pi parseSessionEntries 的 JSONL（header + message 行）。
@@ -13,8 +15,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import {
+  FREE_TEXT_OPTION_ID,
   parseAskAnswer,
-  serializeAskAnswer
+  serializeAskAnswer,
+  validateAskUserQuestions
 } from '@open-pencil/core/tools/fork/marketing/ask-user-question'
 
 import { readPiHistoryFile } from '@/app/ai/pi-backend/history'
@@ -43,6 +47,13 @@ const AWAITING_DETAILS = {
   status: 'awaiting_user',
   questions: QUESTIONS
 }
+
+/** QUESTIONS 经 core 校验归一的 AskQuestionSpec[]（parseAskAnswer 迁移参） */
+const QUESTIONS_PARSED = (() => {
+  const validated = validateAskUserQuestions({ questions: QUESTIONS })
+  if ('error' in validated) throw new Error(validated.message)
+  return validated.questions
+})()
 
 function sessionFile(lines: unknown[]): string {
   const dir = mkdtempSync(join(tmpdir(), 't56-history-'))
@@ -109,7 +120,7 @@ describe('readPiHistoryFile × ask_user_question round-trip', () => {
   test('答案信封用户消息原样存续，parseAskAnswer 可还原 formId（answeredFormIds 输入）', () => {
     const envelope = serializeAskAnswer('form-roundtrip-000000', {
       aborted: false,
-      answers: { hero_pick: '0:11', tone: 'warm' }
+      answers: { hero_pick: { value: '0:11' }, tone: { value: 'warm' } }
     })
     const file = sessionFile([
       { type: 'session', id: 's-t56', timestamp: '2026-09-01T00:00:00Z', cwd: '/tmp' },
@@ -149,18 +160,19 @@ describe('readPiHistoryFile × ask_user_question round-trip', () => {
     expect(parsed).toEqual({
       formId: 'form-roundtrip-000000',
       aborted: false,
-      answers: { hero_pick: '0:11', tone: 'warm' }
+      answers: { hero_pick: { value: '0:11' }, tone: { value: 'warm' } }
     })
   })
 
-  test('第四种作答（T83）：带 freeText 的作答信封跨重载存续并还原', () => {
+  test('per-question「其他」（T95）：__freeText 作答信封跨重载存续并还原', () => {
     const envelope = serializeAskAnswer('form-roundtrip-000000', {
       aborted: false,
-      answers: { tone: 'cold' },
-      freeText: '候选都不满意，想要更简洁的构图'
+      answers: {
+        tone: { value: FREE_TEXT_OPTION_ID, freeText: '候选都不满意，想要更简洁的构图' }
+      }
     })
     const file = sessionFile([
-      { type: 'session', id: 's-t83', timestamp: '2026-09-02T00:00:00Z', cwd: '/tmp' },
+      { type: 'session', id: 's-t95', timestamp: '2026-09-04T00:00:00Z', cwd: '/tmp' },
       messageEntry('m1', null, {
         role: 'user',
         content: [{ type: 'text', text: envelope }]
@@ -176,7 +188,51 @@ describe('readPiHistoryFile × ask_user_question round-trip', () => {
     expect(parseAskAnswer(text)).toEqual({
       formId: 'form-roundtrip-000000',
       aborted: false,
+      answers: {
+        tone: { value: FREE_TEXT_OPTION_ID, freeText: '候选都不满意，想要更简洁的构图' }
+      }
+    })
+  })
+
+  test('旧格式（T83 全局 freeText）：历史会话信封跨重载存续，带 questions 解析自动迁移', () => {
+    // 旧会话文件里的信封是 T83 形态（裸 string 值 + 全局 freeText）——手写原文钉扎兼容
+    const legacyEnvelope = `[表单作答 formId=form-roundtrip-000000]\n${JSON.stringify({
+      aborted: false,
       answers: { tone: 'cold' },
+      freeText: '候选都不满意，想要更简洁的构图'
+    })}`
+    const file = sessionFile([
+      { type: 'session', id: 's-t83', timestamp: '2026-09-02T00:00:00Z', cwd: '/tmp' },
+      messageEntry('m1', null, {
+        role: 'user',
+        content: [{ type: 'text', text: legacyEnvelope }]
+      })
+    ])
+
+    const messages = readPiHistoryFile(file)
+    expect(messages).toHaveLength(1)
+    const text = messages[0].parts
+      .filter((part) => part.type === 'text')
+      .map((part) => (part as { text: string }).text)
+      .join('')
+    // 传 questions → 全局 freeText 归到首个未作答选择类题（hero_pick；tone 已答、note 是 text）
+    const migrated = parseAskAnswer(text, QUESTIONS_PARSED)
+    expect(migrated).toEqual({
+      formId: 'form-roundtrip-000000',
+      aborted: false,
+      answers: {
+        tone: { value: 'cold' },
+        hero_pick: {
+          value: FREE_TEXT_OPTION_ID,
+          freeText: '候选都不满意，想要更简洁的构图'
+        }
+      }
+    })
+    // 不传 questions → 不猜归属，legacy freeText 原样保留（无损）
+    expect(parseAskAnswer(text)).toEqual({
+      formId: 'form-roundtrip-000000',
+      aborted: false,
+      answers: { tone: { value: 'cold' } },
       freeText: '候选都不满意，想要更简洁的构图'
     })
   })

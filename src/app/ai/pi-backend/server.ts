@@ -29,8 +29,9 @@
  * T45：GET /api/pi/studio/manifest → PiStudioManifest（注册表脱敏投影，
  * 无 markdown 正文）——前端 profile 选择器数据源（T24-plan D6）。
  *
- * T87：GET/PUT /api/pi/capabilities → 当前 agentSkills 状态 + 切换端点
- * （settings 面板读写；PUT 校验失败 400；token 鉴权同 /api/pi/credentials）。
+ * T87：GET/PUT /api/pi/capabilities → 当前 builtinTools/agentSkills 状态 +
+ * 切换端点（T96 三档位；settings 面板读写；PUT 校验失败 400；token 鉴权
+ * 同 /api/pi/credentials）。
  *
  * 仅运行于独立 bun/node 进程（main.ts 入口或 vite 插件 spawn 的子进程），
  * 不经 vite esbuild 打包——package 导入（@open-pencil/mcp/* 等 workspace 包）可用。
@@ -288,8 +289,9 @@ async function handleActiveDesignRequest(
 }
 
 /**
- * T87：GET/PUT /api/pi/capabilities——capabilities 单开关读写。GET 返
- * `{ agentSkills }`（settings 面板初始值）；PUT 校验布尔、落盘、返新态。
+ * T87：GET/PUT /api/pi/capabilities——capabilities 读写。GET 返
+ * `{ builtinTools, agentSkills }`（settings 面板初始值）；PUT 校验 agentSkills
+ * 布尔 + builtinTools 三档字面量（T96，缺省保留旧值）、落盘、返新态。
  * 校验失败 400；超限 413（沿用 readBody 拦截）。
  */
 async function handleCapabilitiesRequest(
@@ -305,9 +307,12 @@ async function handleCapabilitiesRequest(
     res.writeHead(405).end('Method Not Allowed')
     return
   }
-  let body: { agentSkills?: unknown }
+  let body: { agentSkills?: unknown; builtinTools?: unknown }
   try {
-    body = JSON.parse(await readBody(req)) as { agentSkills?: unknown }
+    body = JSON.parse(await readBody(req)) as {
+      agentSkills?: unknown
+      builtinTools?: unknown
+    }
   } catch (error) {
     if (error instanceof PayloadTooLargeError) {
       res.writeHead(413).end('Payload Too Large')
@@ -317,7 +322,10 @@ async function handleCapabilitiesRequest(
     return
   }
   try {
-    const next = service.setCapabilities({ agentSkills: body.agentSkills })
+    const next = service.setCapabilities({
+      agentSkills: body.agentSkills,
+      builtinTools: body.builtinTools
+    })
     sendJSON(res, 200, next)
   } catch (error) {
     sendJSON(res, 400, {

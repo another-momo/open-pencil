@@ -6,19 +6,26 @@
  * 归一；校验失败 → 无效定义降级提示，不崩），`output.formId`（awaiting 信封
  * details 骑 mapping 到 output）决定可提交态——formId 未就位时提交/跳过禁用。
  *
- * 作答 → emit submit {formId, aborted:false, answers}；逃生口自由文本 + 跳过 →
- * emit submit {formId, aborted:true, freeText}。提交后本地禁用态；重载后由父级
- * answered prop（formId 相关性，ChatPanel answeredFormIds 派生）置灰。
+ * T95 per-question freeText（审查文档 §3/§4）：选择类问题（single_select/
+ * image_select）选项列表末尾挂「其他」选项——选中（value === FREE_TEXT_OPTION_ID）
+ * 出现输入框，freeText 是该题自包含的一等答案；点普通选项清空 freeText。
+ * 必填校验走 core missingRequiredAskAnswers（「其他」需 freeText 非空白）。
+ * 作答 → emit submit {formId, aborted:false, answers: Record<qid, AskQuestionAnswer>}；
+ * 跳过 → emit submit {formId, aborted:true, freeText:''}。提交后本地禁用态；
+ * 重载后由父级 answered prop（formId 相关性，ChatPanel answeredFormIds 派生）置灰。
  *
  * 图像候选：nodeId → 当前编辑器 store renderExportImage（T55）缩略图；
  * 节点缺失/导出失败 → 占位块显 label（不崩）。v1 仅当前编辑器文档。
  */
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import {
+  FREE_TEXT_OPTION_ID,
+  missingRequiredAskAnswers,
   validateAskUserQuestions,
   type AskFormSubmission,
   type AskImageOption,
+  type AskQuestionAnswer,
   type AskQuestionSpec
 } from '@open-pencil/core/tools/fork/marketing/ask-user-question'
 
@@ -62,48 +69,72 @@ const formId = computed(() => {
   return null
 })
 
-const selections = reactive<Record<string, string>>({})
-const textAnswers = reactive<Record<string, string>>({})
-const freeText = ref('')
+// per-question 作答槽（T95）：{ value } 普通选项/文本；
+// { value: FREE_TEXT_OPTION_ID, freeText } 选了「其他」
+const answers = reactive<Record<string, AskQuestionAnswer>>({})
 const submittedKind = ref<'answer' | 'skip' | null>(null)
 const showRequiredHint = ref(false)
 
 const isLocked = computed(() => answered || submittedKind.value !== null || disabled)
 
-function answerOf(question: AskQuestionSpec): string {
-  if (question.kind === 'text') return (textAnswers[question.id] ?? '').trim()
-  return selections[question.id] ?? ''
-}
-
-const missingRequired = computed(() =>
-  questions.value.filter((question) => question.required && answerOf(question) === '')
+// 预建每题作答槽（questions 由流式 input 派生，后到题也要补槽）——
+// 模板 v-model="answers[qid].value" 要求槽位恒存在
+watch(
+  questions,
+  (list) => {
+    for (const question of list) {
+      if (!answers[question.id]) answers[question.id] = {}
+    }
+  },
+  { immediate: true }
 )
+
+const missingRequired = computed(() => missingRequiredAskAnswers(questions.value, answers))
+
+function selectOption(questionId: string, optionId: string) {
+  if (optionId === FREE_TEXT_OPTION_ID) {
+    // 选「其他」：保留已有 freeText（如有），输入框出现
+    answers[questionId] = { ...answers[questionId], value: optionId }
+    return
+  }
+  // 普通选项：清空 freeText（审查文档 §4.3），输入框消失
+  answers[questionId] = { value: optionId }
+}
 
 function handleSubmit() {
   if (isLocked.value || !formId.value) return
-  const trimmedFreeText = freeText.value.trim()
-  // 第四种作答（T83，S3 §6）：freeText 非空即一等答案，必填校验豁免
-  if (!trimmedFreeText && missingRequired.value.length > 0) {
+  if (missingRequired.value.length > 0) {
     showRequiredHint.value = true
     return
   }
-  const answers: Record<string, string> = {}
+  // 提交归一：text/普通选项 → { value }（trim）；「其他」freeText 非空白才成键，
+  // 空白「其他」视同未作答（选答题直接不落键）
+  const normalized: Record<string, AskQuestionAnswer> = {}
   for (const question of questions.value) {
-    const value = answerOf(question)
-    if (value) answers[question.id] = value
+    const answer = answers[question.id]
+    if (!answer) continue
+    if (question.kind === 'text') {
+      const value = answer.value?.trim() ?? ''
+      if (value) normalized[question.id] = { value }
+      continue
+    }
+    if (!answer.value) continue
+    if (answer.value === FREE_TEXT_OPTION_ID) {
+      const freeText = answer.freeText?.trim() ?? ''
+      if (freeText) normalized[question.id] = { value: FREE_TEXT_OPTION_ID, freeText }
+      continue
+    }
+    normalized[question.id] = { value: answer.value }
   }
   submittedKind.value = 'answer'
-  if (trimmedFreeText) {
-    emit('submit', { formId: formId.value, aborted: false, answers, freeText: trimmedFreeText })
-    return
-  }
-  emit('submit', { formId: formId.value, aborted: false, answers })
+  emit('submit', { formId: formId.value, aborted: false, answers: normalized })
 }
 
 function handleSkip() {
   if (isLocked.value || !formId.value) return
   submittedKind.value = 'skip'
-  emit('submit', { formId: formId.value, aborted: true, freeText: freeText.value.trim() })
+  // T95：全局输入框随重设计移除（审查文档 §4），跳过不再附理由
+  emit('submit', { formId: formId.value, aborted: true, freeText: '' })
 }
 
 // ── 图像候选缩略图（当前编辑器文档；失败 → null → 占位块） ──
@@ -189,7 +220,7 @@ onBeforeUnmount(() => {
           }}</span>
         </div>
 
-        <!-- single_select：选项卡片组 -->
+        <!-- single_select：选项卡片组 + 末位「其他」（T95） -->
         <div v-if="question.kind === 'single_select'" class="flex flex-col gap-1">
           <button
             v-for="option in question.options ?? []"
@@ -199,62 +230,103 @@ onBeforeUnmount(() => {
             :data-test-id="`ask-option-${question.id}-${option.id}`"
             class="rounded-md border px-2.5 py-1.5 text-left text-[11px] transition-colors"
             :class="
-              selections[question.id] === option.id
+              answers[question.id]?.value === option.id
                 ? 'border-accent bg-accent/10 text-surface'
                 : 'border-border bg-input text-surface hover:bg-hover'
             "
-            @click="selections[question.id] = option.id"
+            @click="selectOption(question.id, option.id)"
           >
             <div>{{ option.label }}</div>
             <div v-if="option.hint" class="mt-0.5 text-[10px] text-muted">{{ option.hint }}</div>
           </button>
-        </div>
-
-        <!-- image_select：画布节点缩略图网格 -->
-        <div v-else-if="question.kind === 'image_select'" class="grid grid-cols-3 gap-1.5">
           <button
-            v-for="option in question.imageOptions ?? []"
-            :key="option.nodeId"
             type="button"
             :disabled="isLocked"
-            :data-test-id="`ask-image-option-${question.id}-${option.nodeId}`"
-            class="overflow-hidden rounded-md border transition-colors"
+            :data-test-id="`ask-other-${question.id}`"
+            class="rounded-md border px-2.5 py-1.5 text-left text-[11px] transition-colors"
             :class="
-              selections[question.id] === option.nodeId
-                ? 'border-accent'
-                : 'border-border hover:border-accent/50'
+              answers[question.id]?.value === FREE_TEXT_OPTION_ID
+                ? 'border-accent bg-accent/10 text-surface'
+                : 'border-border bg-input text-surface hover:bg-hover'
             "
-            @click="selections[question.id] = option.nodeId"
+            @click="selectOption(question.id, FREE_TEXT_OPTION_ID)"
           >
-            <div class="flex h-20 items-center justify-center bg-input">
-              <img
-                v-if="thumbnailURL(option.nodeId)"
-                :src="thumbnailURL(option.nodeId)"
-                :alt="option.label ?? option.nodeId"
-                class="max-h-full max-w-full object-contain"
-                draggable="false"
-              />
-              <div v-else class="flex flex-col items-center gap-1 px-1 text-[10px] text-muted">
-                <icon-lucide-loader-circle
-                  v-if="thumbnails[option.nodeId] === undefined"
-                  class="size-3 animate-spin"
-                />
-                <template v-else>
-                  <icon-lucide-image-off class="size-3" />
-                  <span>{{ askDialogs.askImageUnavailable }}</span>
-                </template>
-              </div>
-            </div>
-            <div class="truncate px-1.5 py-1 text-[10px] text-surface">
-              {{ option.label ?? option.nodeId }}
-            </div>
+            {{ askDialogs.askOtherOption }}
           </button>
         </div>
 
+        <!-- image_select：画布节点缩略图网格 + 下方「其他」（T95） -->
+        <div v-else-if="question.kind === 'image_select'" class="flex flex-col gap-1.5">
+          <div class="grid grid-cols-3 gap-1.5">
+            <button
+              v-for="option in question.imageOptions ?? []"
+              :key="option.nodeId"
+              type="button"
+              :disabled="isLocked"
+              :data-test-id="`ask-image-option-${question.id}-${option.nodeId}`"
+              class="overflow-hidden rounded-md border transition-colors"
+              :class="
+                answers[question.id]?.value === option.nodeId
+                  ? 'border-accent'
+                  : 'border-border hover:border-accent/50'
+              "
+              @click="selectOption(question.id, option.nodeId)"
+            >
+              <div class="flex h-20 items-center justify-center bg-input">
+                <img
+                  v-if="thumbnailURL(option.nodeId)"
+                  :src="thumbnailURL(option.nodeId)"
+                  :alt="option.label ?? option.nodeId"
+                  class="max-h-full max-w-full object-contain"
+                  draggable="false"
+                />
+                <div v-else class="flex flex-col items-center gap-1 px-1 text-[10px] text-muted">
+                  <icon-lucide-loader-circle
+                    v-if="thumbnails[option.nodeId] === undefined"
+                    class="size-3 animate-spin"
+                  />
+                  <template v-else>
+                    <icon-lucide-image-off class="size-3" />
+                    <span>{{ askDialogs.askImageUnavailable }}</span>
+                  </template>
+                </div>
+              </div>
+              <div class="truncate px-1.5 py-1 text-[10px] text-surface">
+                {{ option.label ?? option.nodeId }}
+              </div>
+            </button>
+          </div>
+          <button
+            type="button"
+            :disabled="isLocked"
+            :data-test-id="`ask-other-${question.id}`"
+            class="rounded-md border px-2.5 py-1.5 text-left text-[11px] transition-colors"
+            :class="
+              answers[question.id]?.value === FREE_TEXT_OPTION_ID
+                ? 'border-accent bg-accent/10 text-surface'
+                : 'border-border bg-input text-surface hover:bg-hover'
+            "
+            @click="selectOption(question.id, FREE_TEXT_OPTION_ID)"
+          >
+            {{ askDialogs.askOtherOption }}
+          </button>
+        </div>
+
+        <!-- 「其他」选中后的 freeText 输入框（T95：随普通选项选中消失） -->
+        <input
+          v-if="question.kind !== 'text' && answers[question.id]?.value === FREE_TEXT_OPTION_ID"
+          v-model="answers[question.id].freeText"
+          type="text"
+          :disabled="isLocked"
+          :placeholder="askDialogs.askOtherPlaceholder"
+          :data-test-id="`ask-other-input-${question.id}`"
+          class="block w-full rounded-md border border-border bg-input px-2.5 py-1.5 text-[11px] text-surface outline-none placeholder:text-muted focus:border-accent disabled:opacity-60"
+        />
+
         <!-- text：自由文本输入 -->
         <input
-          v-else
-          v-model="textAnswers[question.id]"
+          v-if="question.kind === 'text'"
+          v-model="answers[question.id].value"
           type="text"
           :disabled="isLocked"
           :placeholder="askDialogs.askTextPlaceholder"
@@ -266,16 +338,6 @@ onBeforeUnmount(() => {
       <div v-if="showRequiredHint && !isLocked" class="text-[10px] text-red-400">
         {{ askDialogs.askRequiredHint }}
       </div>
-
-      <!-- 自由文本：第四种作答（随提交回传，豁免必填）+ 跳过理由（必带，S3 §6 / T83） -->
-      <textarea
-        v-model="freeText"
-        rows="2"
-        :disabled="isLocked"
-        :placeholder="askDialogs.askSkipPlaceholder"
-        data-test-id="ask-form-freetext"
-        class="block w-full resize-none rounded-md border border-border bg-input px-2.5 py-1.5 text-[11px] text-surface outline-none placeholder:text-muted focus:border-accent disabled:opacity-60"
-      />
 
       <div class="flex items-center justify-end gap-2">
         <button

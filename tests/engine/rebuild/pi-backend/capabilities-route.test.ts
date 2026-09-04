@@ -1,5 +1,6 @@
 /**
  * T87：GET/PUT /api/pi/capabilities 路由的 HTTP 往返。
+ * T96：v2 形状（builtinTools 三档）+ PUT 三档校验 + 部分更新（缺省保留旧值）。
  *
  * 真 createPiBackendServer + mock pi-coding-agent（夹具同 chat-cancel-route）。
  * 覆盖：GET 缺省 OFF / PUT ON 落盘回读 / PUT 非布尔 400 / 方法白名单 /
@@ -92,18 +93,20 @@ afterAll(async () => {
   await teardown()
 })
 
-async function getCapabilities(): Promise<{ status: number; body: { agentSkills: boolean } }> {
+type CapabilitiesBody = { builtinTools: string; agentSkills: boolean }
+
+async function getCapabilities(): Promise<{ status: number; body: CapabilitiesBody }> {
   const res = await fetch(`${baseURL}/api/pi/capabilities`, {
     headers: { authorization: `Bearer ${TOKEN}` }
   })
-  return { status: res.status, body: (await res.json()) as { agentSkills: boolean } }
+  return { status: res.status, body: (await res.json()) as CapabilitiesBody }
 }
 
-async function putCapabilities(agentSkills: unknown): Promise<{ status: number; body: unknown }> {
+async function putCapabilities(payload: unknown): Promise<{ status: number; body: unknown }> {
   const res = await fetch(`${baseURL}/api/pi/capabilities`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${TOKEN}` },
-    body: JSON.stringify({ agentSkills })
+    body: JSON.stringify(payload)
   })
   return { status: res.status, body: await res.json() }
 }
@@ -116,16 +119,16 @@ describe('GET/PUT /api/pi/capabilities（T87）', () => {
   test('GET 缺省 OFF', async () => {
     const r = await getCapabilities()
     expect(r.status).toBe(200)
-    expect(r.body).toEqual({ agentSkills: false })
+    expect(r.body).toEqual({ builtinTools: 'off', agentSkills: false })
   })
 
   test('PUT ON → 落盘 + 后续 GET 返 ON（同实例）', async () => {
-    const put = await putCapabilities(true)
+    const put = await putCapabilities({ agentSkills: true, builtinTools: 'full' })
     expect(put.status).toBe(200)
-    expect(put.body).toEqual({ agentSkills: true })
+    expect(put.body).toEqual({ builtinTools: 'full', agentSkills: true })
 
     const get1 = await getCapabilities()
-    expect(get1.body).toEqual({ agentSkills: true })
+    expect(get1.body).toEqual({ builtinTools: 'full', agentSkills: true })
 
     // 验证文件持久化：关闭 server，新 server 实例（同一 rootDir）应能读到 ON
     if (server) {
@@ -144,22 +147,41 @@ describe('GET/PUT /api/pi/capabilities（T87）', () => {
     baseURL = `http://127.0.0.1:${address.port}`
 
     const get2 = await getCapabilities()
-    expect(get2.body).toEqual({ agentSkills: true })
+    expect(get2.body).toEqual({ builtinTools: 'full', agentSkills: true })
   })
 
   test('PUT 非布尔 → 400（不动落盘）', async () => {
-    const put1 = await putCapabilities('yes')
+    const put1 = await putCapabilities({ agentSkills: 'yes' })
     expect(put1.status).toBe(400)
-    const put2 = await putCapabilities(1)
+    const put2 = await putCapabilities({ agentSkills: 1 })
     expect(put2.status).toBe(400)
     const get = await getCapabilities()
-    expect(get.body).toEqual({ agentSkills: false })
+    expect(get.body).toEqual({ builtinTools: 'off', agentSkills: false })
+  })
+
+  test('T96 PUT 非法 builtinTools → 400（不动落盘）', async () => {
+    const put1 = await putCapabilities({ agentSkills: true, builtinTools: 'everything' })
+    expect(put1.status).toBe(400)
+    const put2 = await putCapabilities({ agentSkills: true, builtinTools: 1 })
+    expect(put2.status).toBe(400)
+    const get = await getCapabilities()
+    expect(get.body).toEqual({ builtinTools: 'off', agentSkills: false })
+  })
+
+  test('T96 PUT 只给 agentSkills → builtinTools 保留旧值（部分更新）', async () => {
+    const put1 = await putCapabilities({ agentSkills: true, builtinTools: 'readonly' })
+    expect(put1.status).toBe(200)
+    const put2 = await putCapabilities({ agentSkills: false })
+    expect(put2.status).toBe(200)
+    expect(put2.body).toEqual({ builtinTools: 'readonly', agentSkills: false })
+    const get = await getCapabilities()
+    expect(get.body).toEqual({ builtinTools: 'readonly', agentSkills: false })
   })
 
   test('PUT OFF → 关闭后 skills=[]（listSkills 守门）', async () => {
-    await putCapabilities(false)
+    await putCapabilities({ agentSkills: false })
     const get = await getCapabilities()
-    expect(get.body).toEqual({ agentSkills: false })
+    expect(get.body).toEqual({ builtinTools: 'off', agentSkills: false })
   })
 
   test('POST/DELETE → 405（方法白名单）', async () => {
@@ -202,7 +224,7 @@ describe('GET/PUT /api/pi/capabilities（T87）', () => {
     })
     expect(res.status).toBe(200)
     const body = (await res.json()) as { capabilities?: unknown; skills?: unknown }
-    expect(body.capabilities).toEqual({ agentSkills: false })
+    expect(body.capabilities).toEqual({ builtinTools: 'off', agentSkills: false })
     expect(body.skills).toEqual([])
   })
 })

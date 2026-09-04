@@ -2,6 +2,8 @@
  * T87：capabilities store 单测——缺省 OFF、set/get 往返、坏 JSON 降级、
  * listSkills 仅在 ON 时扫 + 双源去重 + 脱敏白名单。
  * T96：v2 形状（builtinTools 三档 + agentSkills 解耦）+ v1→v2 读盘迁移钉扎。
+ * T91o：expandSkillText 宿主侧展开——OFF 透传 / 贴中文展开 / 多 skill /
+ * 未知名透传。
  *
  * 测试 fixture：mkdtemp 建临时 agentDir + rootDir；capabilities store 与
  * 真 pi SDK loadSkillsFromDir 协作（这是核心机制，不 mock）。
@@ -246,4 +248,66 @@ name: no-desc
   const store = createCapabilitiesStore({ agentDir, rootDir })
   store.set({ agentSkills: true })
   expect(store.listSkills()).toEqual([])
+})
+
+// ── T91o：expandSkillText 宿主侧展开（解除 SDK「仅开头 + 单命令」双限制） ──
+
+/** 造一个含 frontmatter + 正文的临时 skill，返其目录 */
+function writeSkill(name: string, body: string): void {
+  const dir = join(rootDir, '.openpencil', 'skills', name)
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(
+    join(dir, 'SKILL.md'),
+    `---\nname: ${name}\ndescription: ${name} 描述\n---\n\n${body}\n`,
+    'utf8'
+  )
+}
+
+test('T91o expandSkillText：agentSkills OFF → 原文透传（与 SDK noSkills 同语义）', () => {
+  writeSkill('demo', 'DEMO 正文')
+  const store = createCapabilitiesStore({ agentDir, rootDir })
+  store.set({ agentSkills: false })
+  expect(store.expandSkillText('/skill:demo 画图')).toBe('/skill:demo 画图')
+})
+
+test('T91o expandSkillText：名后直接贴中文（无空格）也展开，块与正文空行分隔', () => {
+  // owner 情况①：SDK 契约下 skillName 会吞掉整段正文查无此 skill 透传
+  writeSkill('demo', 'DEMO 正文')
+  const store = createCapabilitiesStore({ agentDir, rootDir })
+  store.set({ agentSkills: true })
+  const out = store.expandSkillText('/skill:demo使用这个技能生成一张小猫图片')
+  expect(out).toContain('<skill name="demo"')
+  expect(out).toContain('DEMO 正文')
+  expect(out).toContain('</skill>\n\n使用这个技能生成一张小猫图片')
+  // frontmatter 不进展开体
+  expect(out).not.toContain('description:')
+})
+
+test('T91o expandSkillText：句中/句尾提及就地展开；一条消息可激活多个 skill', () => {
+  // owner 情况② + 多 skill：SDK 单命令契约下句中/句尾整条透传
+  writeSkill('aaa', 'AAA 正文')
+  writeSkill('bbb', 'BBB 正文')
+  const store = createCapabilitiesStore({ agentDir, rootDir })
+  store.set({ agentSkills: true })
+
+  const tail = store.expandSkillText('生成一只小猫图片 /skill:aaa')
+  // 前文已有空格分隔 → 不再插空行，块原位展开
+  expect(tail.startsWith('生成一只小猫图片 <skill name="aaa"')).toBe(true)
+  expect(tail).toContain('AAA 正文')
+
+  const multi = store.expandSkillText('/skill:aaa 和 /skill:bbb 各出一张')
+  expect(multi).toContain('<skill name="aaa"')
+  expect(multi).toContain('AAA 正文')
+  expect(multi).toContain('<skill name="bbb"')
+  expect(multi).toContain('BBB 正文')
+  // 两 skill 块之间的正文保留
+  expect(multi).toContain('</skill> 和 ')
+})
+
+test('T91o expandSkillText：未知 skill 名透传；无 /skill: 提及原文不动', () => {
+  writeSkill('demo', 'DEMO 正文')
+  const store = createCapabilitiesStore({ agentDir, rootDir })
+  store.set({ agentSkills: true })
+  expect(store.expandSkillText('/skill:ghost 不存在')).toBe('/skill:ghost 不存在')
+  expect(store.expandSkillText('普通消息')).toBe('普通消息')
 })

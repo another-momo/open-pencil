@@ -393,6 +393,12 @@ export function createPiChatService({
     // 数据）。不做 promise 缓存去重：引入的复杂度大于 dev 场景收益。
     const entry = sessions.get(sessionId) ?? (await createSession(sessionId, options.model))
     entry.target.documentId = options.documentId
+    // T91o：宿主侧 skill 展开（capabilities.expandSkillText，原理见其注释）——
+    // 进 session 前把全部 /skill:<name> 提及就地展开为 <skill> 块，解除 SDK
+    // 「仅消息开头 + 单命令」双限制（owner 情况①②实测：透传后模型猎文件
+    // 失败）。展开后文本不再以 /skill: 开头，SDK _expandSkillCommand 自然
+    // passthrough，不会二次展开
+    const expandedText = capabilitiesStore.expandSkillText(text)
     // 同一 session 的 prompt 串行：pi 在 streaming 中再 prompt 需要 streamingBehavior，
     // dev 单用户场景直接排队即可
     // T27：rejection 接力——先吞掉前次 queue 的 rejection 再挂新 run；否则一次失败
@@ -400,7 +406,7 @@ export function createPiChatService({
     // （await 旧 rejected 队列立即抛）。当次 run 的 rejection 仍经 await 透传给调用方。
     entry.queue = entry.queue
       .catch(() => undefined)
-      .then(() => runPrompt(entry, sessionId, text, emit))
+      .then(() => runPrompt(entry, sessionId, expandedText, emit))
     await entry.queue
   }
 

@@ -2,6 +2,8 @@
  * T87：Agent 能力总开关（pi 原生 skill 支持 + 内建工具同闸）。
  * T96：单开关拆分为两个正交面——builtinTools 三档位（off/readonly/full）
  * 控内建工具装配，agentSkills 布尔独控 skill 加载（预研 §4.2）。
+ * T91o：expandSkillText 宿主侧 skill 展开——解除 SDK「仅消息开头 + 单
+ * 命令」双限制（句中提及/名后贴中文/多 skill，见方法注释）。
  *
  * 存储：.openpencil/pi-agent/capabilities.json（tmp+rename 原子写；坏 JSON
  * 降级 OFF——同 image-gen/credentials 纪律但无敏感字段，0o600 仅对齐设置文件
@@ -81,6 +83,20 @@ export type CapabilitiesStore = {
    * OFF 时返回 []——避免在能力未授权时泄露已扫到的 skill 存在性。
    */
   listSkills(): ManifestSkillEntry[]
+  /**
+   * T91o：宿主侧 skill 展开。pi SDK `_expandSkillCommand`（agent-session.js:953）
+   * 只认「整条消息以 /skill: 开头 + skill 名到首个 ASCII 空格止」，两个硬限制：
+   * 名后直接贴中文（无空格）→ skillName 吞掉整段正文、查无此 skill 透传；
+   * 提及在句中/句尾 → startsWith 不过、整条透传。透传后模型只拿到字面
+   * /skill: 文本，退化成 find/read/ls 猎 SKILL.md——.openpencil/skills 是
+   * 隐藏目录、fd 默认不搜隐藏目录，永远猎不到（owner 情况①②实测）。
+   * 本方法解除双限制：文本内全部 `/skill:<name>` 提及就地展开为 SDK 同款
+   * `<skill>` 块（位置自由、一条消息可激活多个 skill）；未知名透传（SDK
+   * 同语义）；agentSkills OFF 时不展开（与 SDK noSkills 查无 skill 透传
+   * 同语义）。展开后文本不再以 /skill: 开头，SDK 侧自然 passthrough 不
+   * 二次展开。
+   */
+  expandSkillText(text: string): string
 }
 
 export function createCapabilitiesStore({
@@ -185,5 +201,36 @@ export function createCapabilitiesStore({
     return result.skills.map(projectSkill)
   }
 
-  return { get, set, listSkills }
+  /** SKILL.md frontmatter 剥离（SDK stripFrontmatter 未导出；frontmatter = 文件头 --- 包裹块） */
+  function stripSkillFrontmatter(content: string): string {
+    return content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim()
+  }
+
+  function expandSkillText(text: string): string {
+    if (!get().agentSkills) return text
+    const userSkillsDir = join(rootDir, '.openpencil', 'skills')
+    if (!existsSync(userSkillsDir)) return text
+    const { skills } = loadSkillsFromDir({ dir: userSkillsDir, source: 'user' })
+    if (skills.length === 0) return text
+    return text.replace(
+      /\/skill:([A-Za-z0-9_-]+)/g,
+      (match: string, name: string, offset: number, whole: string) => {
+        const skill = skills.find((s) => s.name === name)
+        // 未知 skill 名透传（SDK _expandSkillCommand 同语义）
+        if (!skill) return match
+        // 与 SDK 展开块同构（agent-session.js:965）：模型经 location/baseDir
+        // 读取 skill 引用的相对资源
+        const body = stripSkillFrontmatter(readFileSync(skill.filePath, 'utf8'))
+        const block = `<skill name="${skill.name}" location="${skill.filePath}">\nReferences are relative to ${skill.baseDir}.\n\n${body}\n</skill>`
+        // 就地展开的呼吸间隔：紧贴前后的正文（尤其中文混排无空格）用空行
+        // 隔开，让 skill 块在消息体内边界清晰
+        const before = offset > 0 && !/\s/.test(whole[offset - 1]) ? '\n\n' : ''
+        const afterIndex = offset + match.length
+        const after = afterIndex < whole.length && !/\s/.test(whole[afterIndex]) ? '\n\n' : ''
+        return `${before}${block}${after}`
+      }
+    )
+  }
+
+  return { get, set, listSkills, expandSkillText }
 }

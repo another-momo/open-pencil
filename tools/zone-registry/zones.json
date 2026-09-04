@@ -848,7 +848,7 @@
     {
       "id": "P152",
       "file": "tests/engine/app/document/recovery/store.test.ts",
-      "reason": "T91d（2026-09-04）：fake-indexeddb 在 CI Linux runner 偶发 5s timeout（慢盘冷启动），IndexedDB 测试 timeout 提到 20s——防抖护栏不改语义",
+      "reason": "T91d（2026-09-04）：fake-indexeddb 在 CI Linux runner 偶发 5s timeout（慢盘冷启动），IndexedDB 测试 timeout 提到 20s——防抖护栏不改语义；T91h（2026-09-04）：stall 根因锁定为 bun test 下 setImmediate 派发通道偶发不派发（run 33840822799 事件循环空闲 20s 挂死，同轮 setTimeout 通道精确触发实证可用；win32 本机 bun 1.3.5 下 AbortSignal.timeout 单测 100% 挂死同族 bug）——beforeAll→afterAll 遮蔽 globalThis.setImmediate 强制 fake-indexeddb queueTask 走 setTimeout(0) 降级路径（queueTask 调用时读全局且优雅降级，全仓无 setImmediate 直接调用，grep 实证），beforeEach 补 CI_SAFE_TIMEOUT",
       "disposition": "permanent",
       "lastReviewed": "2026-09-04",
       "task": "T91d"

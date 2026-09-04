@@ -840,7 +840,7 @@
     {
       "id": "P151",
       "file": "packages/core/src/io/formats/raster/headless.ts",
-      "reason": "T91c（2026-09-04）：initCanvasKit binDir 用 fileURLToPath 替代 URL.pathname——win32 下 pathname 返回 '/D:/...' 带前导斜杠导致 fs.readFileSync ENOENT；POSIX 两写法结果一致",
+      "reason": "T91c（2026-09-04）：initCanvasKit binDir 用 fileURLToPath 替代 URL.pathname——win32 下 pathname 返回 '/D:/...' 带前导斜杠导致 fs.readFileSync ENOENT；POSIX 两写法结果一致；T91i（2026-09-04）：node:url 顶层 import 经 io barrel 进浏览器 bundle 被 vite 外部化、访问即抛错导致 dev 页面打不开（owner 实测实证）——改为手写等价转换（decodeURIComponent(pathname) + 剥 win32 前导斜杠），零 node 内置依赖",
       "disposition": "permanent",
       "lastReviewed": "2026-09-04",
       "task": "T91c"

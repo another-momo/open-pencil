@@ -1,5 +1,3 @@
-import { fileURLToPath } from 'node:url'
-
 import type { CanvasKit } from 'canvaskit-wasm'
 
 import type { SceneGraph } from '@open-pencil/scene-graph'
@@ -15,9 +13,10 @@ export async function initCanvasKit(): Promise<CanvasKit> {
   if (cachedCk) return cachedCk
   const CanvasKitInit = (await import('canvaskit-wasm/full')).default
   const ckPath = import.meta.resolve('canvaskit-wasm/full')
-  // fileURLToPath 而非 URL.pathname：win32 下 pathname 是 '/D:/...' 带前导斜杠，
-  // fs.readFileSync 打不开；POSIX 下两者结果一致。
-  const binDir = fileURLToPath(new URL('.', ckPath))
+  // T91c 要 fileURLToPath 语义但不能 import node:url——本模块经 io barrel
+  // 进浏览器 bundle，vite 把 node:url 外部化、浏览器访问即抛错（owner dev
+  // 页面打不开实证）。手写等价转换：pathname 剥 win32 前导斜杠 + 百分号解码。
+  const binDir = decodeURIComponent(new URL('.', ckPath).pathname).replace(/^\/(?=[A-Za-z]:\/)/, '')
   cachedCk = await CanvasKitInit({ locateFile: (file: string) => binDir + file })
   return cachedCk
 }

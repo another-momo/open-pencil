@@ -213,7 +213,11 @@ export const confirmMessageDefaults = {
   awaitingIntentConfirmedLine: 'Confirmed — resend your request to create the design.',
   awaitingIntentCancelledLine: 'New-design intent cancelled.',
   awaitingIntentFailedLine: params('Confirm failed: {msg}'),
-  contextSwitchLine: params('—— Switched to {name} ——')
+  contextSwitchLine: params('—— Switched to {name} ——'),
+  // T93：reasoning part 折叠卡标题（ChatMessage.vue，预研 §5.2 方案 A）
+  reasoningTitle: 'Thinking process',
+  // T94：用户主动停止回执（ChatPanel toast + ChatMessage 末条消息底部小字行）
+  chatStopped: 'Stopped'
 } as const
 
 /** T41：字体白名单设置面板（SettingsDialog fonts 分区）英文默认值；T42：来源开关 + 目录组 + 筛选/折叠/批量 */

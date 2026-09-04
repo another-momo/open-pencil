@@ -131,7 +131,11 @@ const zhCN = {
     awaitingIntentConfirmedToast: '已确认新建意图',
     awaitingIntentConfirmedLine: '已确认新建意图——可以重发需求继续创建。',
     awaitingIntentCancelledLine: '已取消新建意图。',
-    awaitingIntentFailedLine: '确认失败：{msg}'
+    awaitingIntentFailedLine: '确认失败：{msg}',
+    // T93：reasoning part 折叠卡标题（ChatMessage.vue）
+    reasoningTitle: '思考过程',
+    // T94：用户主动停止回执（ChatPanel toast + ChatMessage 末条消息底部小字行）
+    chatStopped: '已停止'
   },
   ask: {
     askFormTitle: 'AI 向你提问',

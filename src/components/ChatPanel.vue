@@ -100,6 +100,13 @@ void ensureChat()
   })
 const messagesEnd = ref<HTMLDivElement>()
 const debugCopied = refAutoReset(false, 1500)
+// T94：用户主动停止标记——stop() 引发的 SSE 断开是预期行为，不是错误。
+// 旗标在下一次 status 落 ready / error 时消费复位（stop 按钮只在 streaming /
+// submitted 时出现，见 ChatInput isStreaming 守卫，旗标不会无条件残留）
+const isUserStopped = ref(false)
+// T94：停止回执瞬时旗标（4s 自动复位，refAutoReset 同 debugCopied 纪律）——
+// 驱动末条消息底部「已停止」小字行（ChatMessage stopped prop）
+const justStopped = refAutoReset(false, 4000)
 
 const messages = computed(() => chat.value?.messages ?? [])
 
@@ -147,6 +154,8 @@ const isThinking = computed(() => {
   if (parts.length === 0) return true
   const lastPart = parts[parts.length - 1] as JSONObject
   if (lastPart.type === 'step-start') return true
+  // T93：reasoning 流式期间保持三圆点——否则思考过程零反馈（预研 §5.1）
+  if (lastPart.type === 'reasoning') return true
   if ('toolCallId' in lastPart && lastPart.state === 'output-available') return true
   if ('toolCallId' in lastPart && lastPart.state === 'output-error') return true
   return s === 'submitted'
@@ -163,9 +172,32 @@ watch(
   () => chatFailure.value?.reason,
   (reason) => {
     if (!reason) return
+    // T94：用户主动停止引发的 SSE 断开会走 onError → chatFailure——吞掉
+    // （停止不是错误）；旗标复位交给下方 status watcher（error 分支）
+    if (isUserStopped.value) {
+      clearChatFailure()
+      return
+    }
     toast.error(failureMessage.value ?? dialogs.value.chatRequestFailed)
   }
 )
+// T94：停止收尾——ready = 正常停止（toast + 末条消息瞬时「已停止」行）；
+// error = 停止引发的断开被 AI SDK 判负（onError 先于 setStatus 同步触发，
+// chatFailure 已由上方 watcher 吞掉），此处消费旗标 + clearError 把 status
+// 拉回 ready，与干净 abort 路径终态一致（ai@7 AbstractChat.makeRequest 实证：
+// isAbort 命中时落 ready，竞态漏网时落 error）
+watch(status, (s) => {
+  if (!isUserStopped.value) return
+  if (s === 'ready') {
+    isUserStopped.value = false
+    justStopped.value = true
+    toast.info(confirmText.value.chatStopped)
+  } else if (s === 'error') {
+    isUserStopped.value = false
+    clearChatFailure()
+    chat.value?.clearError()
+  }
+})
 watch(
   () => activeTab.value?.id,
   async () => {
@@ -285,6 +317,9 @@ async function handleSubmit(text: string) {
 }
 
 function handleStop() {
+  // T94：先立旗标再 stop——stop 触发的 SSE 断开若被 SDK 判负（status='error'），
+  // chatFailure watcher 凭旗标吞掉该假错误
+  isUserStopped.value = true
   chat.value?.stop()
 }
 
@@ -681,6 +716,7 @@ function handleClearChat() {
             :key="msg.id"
             :message="msg"
             :streaming="isStreamingMessage(msg, index)"
+            :stopped="index === messages.length - 1 && justStopped"
             :answered-form-ids="answeredFormIds"
             :consent-decisions="consentDecisions"
             @form-submit="handleFormSubmit"

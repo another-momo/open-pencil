@@ -49,7 +49,11 @@ import {
 import { readDiscoveryFile } from '@open-pencil/mcp/discovery'
 
 import { postBridgeRPC } from './bridge-rpc'
-import { isMediaToolOutput, MEDIA_OUTPUT_TOOLS, sanitizeMediaToolOutput } from './media-output'
+import {
+  isMediaToolOutput,
+  MEDIA_OUTPUT_TOOLS,
+  sanitizeMediaToolOutputForModel
+} from './media-output'
 import type { SetupDesignContext } from './setup-catalog'
 
 /** T53：schema 外注入缝仅服务此工具（catalog + 新建意图确认旗标） */
@@ -242,12 +246,14 @@ function defineBridgeTool(
       }
       // T55（S3 §5 通道 A）：登记媒体工具的结果把 base64 图像提升为 pi
       // ImageContent——模型收到的是真图像模态而非 JSON 内嵌字符串；
-      // 文本副本脱敏（base64 → 尺寸标记）保留 note/node/exportInfo 元数据
+      // 文本副本保留 note/node/exportInfo 元数据。T92：文本副本完全 omit
+      // base64（模型已从 image part 拿到真图，"[inlined as file part, N chars]"
+      // 占位符对模型是纯噪音；占位符仅 UI 通道 sanitizeMediaToolOutput 保留）
       if (MEDIA_OUTPUT_TOOLS.has(def.name) && isMediaToolOutput(result)) {
         return {
           content: [
             { type: 'image', data: result.base64, mimeType: result.mimeType },
-            { type: 'text', text: JSON.stringify(sanitizeMediaToolOutput(result)) }
+            { type: 'text', text: JSON.stringify(sanitizeMediaToolOutputForModel(result)) }
           ],
           details: result
         }

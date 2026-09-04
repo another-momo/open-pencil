@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { isFileUIPart, isTextUIPart, isToolUIPart, getToolName } from 'ai'
+import { isFileUIPart, isReasoningUIPart, isTextUIPart, isToolUIPart, getToolName } from 'ai'
 import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from 'reka-ui'
 import { Markdown } from 'vue-stream-markdown'
 import { useI18n, vTestId } from '@open-pencil/vue'
@@ -23,6 +23,7 @@ import {
 import ChatAwaitingIntentCard from './ChatAwaitingIntentCard.vue'
 import ChatNewIntentCard from './ChatNewIntentCard.vue'
 import ChatSetActiveDesignCard from './ChatSetActiveDesignCard.vue'
+import { displayToolOutput } from './tool-output'
 import { classifyToolState } from './tool-state'
 
 import { useForkConfirm } from '@/app/i18n/fork'
@@ -30,11 +31,14 @@ import { useForkConfirm } from '@/app/i18n/fork'
 const {
   message,
   streaming = false,
+  stopped = false,
   answeredFormIds,
   consentDecisions
 } = defineProps<{
   message: UIMessage
   streaming?: boolean
+  /** T94：用户主动停止回执——末条消息底部瞬时「已停止」小字行（ChatPanel justStopped 派生） */
+  stopped?: boolean
   /** T56：已作答/已跳过表单的 formId 集（ChatPanel 扫用户消息信封派生） */
   answeredFormIds?: ReadonlySet<string>
   /** T61：set_active_design 同意决定（ChatPanel 扫 data part 记录派生，按 toolCallId） */
@@ -107,15 +111,6 @@ function toolDisplayName(part: ToolPart): string {
     .replace(/^mcp__[^_]+__/, '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
-}
-
-function hasErrorOutput(part: ToolPart): boolean {
-  return (
-    part.state === 'output-available' &&
-    typeof part.output === 'object' &&
-    part.output !== null &&
-    'error' in part.output
-  )
 }
 
 function toolState(part: ToolPart): 'pending' | 'done' | 'error' {
@@ -268,16 +263,35 @@ function filePartFilename(part: FilePart): string {
                 v-if="toolState(part) !== 'pending'"
                 class="data-[state=closed]:collapsible-up data-[state=open]:collapsible-down overflow-hidden text-[10px]"
               >
+                <!-- T92：displayToolOutput 统一出口——media 输出 base64 裁成
+                  [omitted N chars]（对齐老分支 displayOutput 语义） -->
                 <pre class="mt-1 overflow-x-auto rounded bg-input p-2 text-muted">{{
-                  part.state === 'output-error' && part.errorText
-                    ? part.errorText
-                    : hasErrorOutput(part)
-                      ? (part.output as { error: string }).error
-                      : JSON.stringify(part.output, null, 2)
+                  displayToolOutput(part)
                 }}</pre>
               </CollapsibleContent>
             </CollapsibleRoot>
           </div>
+
+          <!-- T93：reasoning part 折叠渲染（预研 §5.2 方案 A）——流式展开，结束折叠；
+            视觉沿用 tool/file 卡骨架，标题走 fork i18n confirm 组（contextSwitchLine 先例） -->
+          <details
+            v-else-if="isReasoningUIPart(part)"
+            data-test-id="chat-reasoning"
+            :open="streaming"
+            class="rounded-lg border border-border bg-canvas px-2 py-1"
+          >
+            <summary
+              class="flex cursor-pointer items-center gap-1 text-[11px] text-muted select-none"
+            >
+              <icon-lucide-brain class="size-3" />
+              {{ confirmText.reasoningTitle }}
+            </summary>
+            <div
+              class="mt-1 border-l-2 border-muted pl-2 text-[11px] whitespace-pre-wrap text-muted"
+            >
+              {{ part.text }}
+            </div>
+          </details>
 
           <!-- Text -->
           <div
@@ -334,6 +348,17 @@ function filePartFilename(part: FilePart): string {
           }}
         </div>
       </template>
+
+      <!-- T94：用户主动停止回执——末条消息底部瞬时小字行（ChatPanel justStopped
+        4s 自动复位）；停止是预期操作，不走 error 视觉 -->
+      <div
+        v-if="stopped"
+        data-test-id="chat-stopped-hint"
+        class="flex items-center gap-1.5 text-[11px] text-muted"
+      >
+        <icon-lucide-circle-stop class="size-3" />
+        <span>{{ confirmText.chatStopped }}</span>
+      </div>
     </div>
   </div>
 </template>

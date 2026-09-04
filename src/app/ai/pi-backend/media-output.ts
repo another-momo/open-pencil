@@ -36,12 +36,25 @@ export function isMediaToolOutput(output: unknown): output is MediaToolOutput {
 }
 
 /**
- * details 载荷脱敏：base64 替换为尺寸标记（图像本体走 file chunk），其余
- * 元数据（note/node/exportInfo/...）原样保留给工具卡片与调试面。
+ * details 载荷脱敏（UI 通道）：base64 替换为尺寸标记（图像本体走 file chunk），
+ * 其余元数据（note/node/exportInfo/...）原样保留给工具卡片与调试面。
+ *
+ * T92：UI 与模型通道分函数——UI 侧保留占位符（告诉人类"有内容被裁了"），
+ * 模型侧用 sanitizeMediaToolOutputForModel 完全 omit（模型已从 image part
+ * 拿到真图，占位符对模型是纯噪音）。
  */
 export function sanitizeMediaToolOutput(output: MediaToolOutput): Record<string, unknown> {
   const { base64, ...rest } = output
   return { ...rest, base64: `[inlined as file part, ${base64.length} chars]` }
+}
+
+/**
+ * 模型通道脱敏（T92）：完全丢弃 base64 键，不留占位符。仅用于 tools.ts
+ * content[1].text（模型元数据副本）；UI 通道不得使用（占位符是给人的信号）。
+ */
+export function sanitizeMediaToolOutputForModel(output: MediaToolOutput): Record<string, unknown> {
+  const { base64: _base64, ...rest } = output
+  return rest
 }
 
 /**

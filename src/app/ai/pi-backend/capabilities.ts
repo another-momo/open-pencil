@@ -44,11 +44,11 @@ export type Capabilities = {
 /**
  * 投影脱敏后的 skill 条目（manifest 透传前端 chips 用）。
  * 注意：仅投影 name/description；filePath/baseDir 永不跨出后端进程。
+ * T91g：形状单源到 SDK Skill 的 Pick——字面量写法与 design-jsx/schema.ts
+ * DesignJSXNamedDefinition 同构，触发 test:type-shapes 重复形状门禁
+ * （CI run 33838280417）；Pick 既消重复又锚定投影来源。
  */
-export type ManifestSkillEntry = {
-  name: string
-  description: string
-}
+export type ManifestSkillEntry = Pick<Skill, 'name' | 'description'>
 
 export type CapabilitiesStore = {
   /** 进程级内存缓存；缺省 OFF；返回纯值对象（解构给 service.ts / GET 端点共用） */

@@ -6,6 +6,11 @@ import { createMemoryRecoveryStore } from '@/app/document/recovery/memory'
 
 const bytes = new Uint8Array([1, 2, 3, 4])
 
+// T91c：fake-indexeddb 在 CI Linux runner 上 beforeEach deleteDatabase 偶发
+// 超过默认 5s timeout（慢盘 + 冷启动），把 timeout 提到 20s——只是防抖
+// 护栏，不改测试语义。
+const CI_SAFE_TIMEOUT = 20_000
+
 describe('document recovery store', () => {
   beforeEach(async () => {
     await new Promise<void>((resolve) => {
@@ -16,29 +21,33 @@ describe('document recovery store', () => {
     })
   })
 
-  test('stores metadata and FIG bytes atomically in IndexedDB', async () => {
-    const store = createIdbRecoveryStore()
-    const metadata = await store.write({
-      id: 'recovery-1',
-      documentName: 'Agent draft',
-      sceneVersion: 12,
-      figBytes: bytes
-    })
+  test(
+    'stores metadata and FIG bytes atomically in IndexedDB',
+    async () => {
+      const store = createIdbRecoveryStore()
+      const metadata = await store.write({
+        id: 'recovery-1',
+        documentName: 'Agent draft',
+        sceneVersion: 12,
+        figBytes: bytes
+      })
 
-    expect(metadata).toMatchObject({
-      id: 'recovery-1',
-      documentName: 'Agent draft',
-      sceneVersion: 12,
-      byteLength: 4,
-      formatVersion: 1
-    })
-    expect(await store.list()).toEqual([metadata])
-    expect(await store.read('recovery-1')).toEqual({ ...metadata, figBytes: bytes })
+      expect(metadata).toMatchObject({
+        id: 'recovery-1',
+        documentName: 'Agent draft',
+        sceneVersion: 12,
+        byteLength: 4,
+        formatVersion: 1
+      })
+      expect(await store.list()).toEqual([metadata])
+      expect(await store.read('recovery-1')).toEqual({ ...metadata, figBytes: bytes })
 
-    await store.remove('recovery-1')
-    expect(await store.list()).toEqual([])
-    expect(await store.read('recovery-1')).toBeNull()
-  })
+      await store.remove('recovery-1')
+      expect(await store.list()).toEqual([])
+      expect(await store.read('recovery-1')).toBeNull()
+    },
+    CI_SAFE_TIMEOUT
+  )
 
   test('memory store owns input and output bytes', async () => {
     const store = createMemoryRecoveryStore()

@@ -844,6 +844,14 @@
       "disposition": "permanent",
       "lastReviewed": "2026-09-04",
       "task": "T91c"
+    },
+    {
+      "id": "P152",
+      "file": "tests/engine/app/document/recovery/store.test.ts",
+      "reason": "T91d（2026-09-04）：fake-indexeddb 在 CI Linux runner 偶发 5s timeout（慢盘冷启动），IndexedDB 测试 timeout 提到 20s——防抖护栏不改语义",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-04",
+      "task": "T91d"
     }
   ],
   "deletedPaths": [

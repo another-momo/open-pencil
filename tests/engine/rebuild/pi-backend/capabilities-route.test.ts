@@ -31,7 +31,22 @@ mock.module('@earendil-works/pi-coding-agent', () => ({
     open: () => ({ getSessionFile: () => null })
   },
   defineTool: (def: unknown) => def,
-  parseSessionEntries: () => []
+  // T91c 修复：mock.module 是 process 级（bun:test 语义），
+  // 同批跑的 marketing/ask-user-question-roundtrip.test.ts 用 readPiHistoryFile
+  // 依赖真 parseSessionEntries；stub 成 () => [] 会让 roundtrip 测试拿到空历史。
+  // 这里用 SDK 同等语义的 15 行纯函数（JSONL 逐行 JSON.parse，容错 skip）。
+  parseSessionEntries: (content: string): unknown[] => {
+    const entries: unknown[] = []
+    for (const line of content.trim().split('\n')) {
+      if (!line.trim()) continue
+      try {
+        entries.push(JSON.parse(line))
+      } catch {
+        // skip malformed
+      }
+    }
+    return entries
+  }
 }))
 
 import { createPiBackendServer } from '@/app/ai/pi-backend/server'

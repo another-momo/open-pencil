@@ -246,6 +246,8 @@ export function drawComponentLabels(r: SkiaRenderer, canvas: Canvas, graph: Scen
 function segmentScript(text: string): 'latin' | 'cjk' | 'arabic' {
   // T88 已抽单源：分类逻辑用 renderer/fonts.ts 的 charToScript（canonical），
   // 不再本地维护 codepoint range 表
-  const first = [...text][0]
-  return first ? charToScript(first) : 'latin'
+  // oxlint no-spread-on-string：用 codePointAt 而非 [...text][0]（避免撕 surrogate pair）
+  const code = text.codePointAt(0)
+  if (code === undefined) return 'latin'
+  return charToScript(String.fromCodePoint(code))
 }

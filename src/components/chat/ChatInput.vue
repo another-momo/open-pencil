@@ -12,26 +12,23 @@ import {
   ComboboxViewport,
   TooltipProvider
 } from 'reka-ui'
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 import ChatModeChips from '@/components/chat/ChatModeChips.vue'
 import {
-  atomicSkillTokenDeletionRange,
   atomicTokenDeletionRange,
   captureSelectionFromStore,
   createSelectionDraftState,
   resetSelectionDraftState,
   restoreSelectionDraftState,
   scanSelectionTokens,
-  scanSkillTokens,
   selectionTokenText,
   serializeSelectionManifest,
-  skillTokenText,
   snapshotSelectionDraftState,
   stripSelectionManifest,
-  stripSkillTokenBrackets,
   type SelectionDraftState
 } from '@/components/chat/selection-capture'
+import { composeSkillSubmission, extractLeadingSkillCommand } from '@/components/chat/skill-chip'
 import IconButton from '@/components/ui/IconButton.vue'
 import InputGroup from '@/components/ui/InputGroup.vue'
 import { piDesignAssignment } from '@/app/ai/pi-backend/assignment'
@@ -90,21 +87,14 @@ const { start: scheduleCaptureFlashEnd, stop: cancelCaptureFlashEnd } = useTimeo
 
 /** backdrop 高亮分段：文本流实扫占位串 → token 段染底色（glyph 由上层
  *  textarea 提供，backdrop 全透明文字 + token 段背景块，Twitter mention 同款）。
- *  T89：合并扫描「@画布选区-N」与「@skill-<name>」两类 token——同名 token
- *  类型共用高亮样式，按 start 序合并渲染段 */
+ *  T91p：skill 不再是文本内 token（chip 化，见 pinnedSkill），backdrop 只扫
+ *  「@画布选区-N」一类 */
 const backdropSegments = computed(() => {
   const text = input.value
-  const selTokens = scanSelectionTokens(text).map((t) => ({
-    kind: 'sel' as const,
+  const tokens = scanSelectionTokens(text).map((t) => ({
     start: t.start,
     end: t.end
   }))
-  const skillTokens = scanSkillTokens(text).map((t) => ({
-    kind: 'skill' as const,
-    start: t.start,
-    end: t.end
-  }))
-  const tokens = [...selTokens, ...skillTokens].sort((a, b) => a.start - b.start)
   const segments: Array<{ key: number; text: string; token: boolean }> = []
   let cursor = 0
   for (const token of tokens) {
@@ -126,6 +116,10 @@ function syncBackdropScroll() {
   const el = inputRef.value
   const backdrop = backdropRef.value
   if (el && backdrop) backdrop.scrollTop = el.scrollTop
+  // T91p：chip 是绝对定位覆盖层，不随 textarea 内容滚动——垂直滚动时手动
+  // 同步位移，保持与首行正文对齐
+  const chip = skillChipRef.value
+  if (el && chip) chip.style.transform = el.scrollTop > 0 ? `translateY(-${el.scrollTop}px)` : ''
 }
 
 function insertTokenAtCursor(token: string) {
@@ -166,15 +160,13 @@ function handleCaptureSelection() {
 
 /** 原子删除：光标紧邻完整占位串时 Backspace/Delete 整段删除（路线 A 的
  *  keydown 拦截面）；已拦截返回 true。
- *  T89：两类 token 共用此拦截面（selection + skill），按检查优先 selection →
- *  skill（任一命中即整段删） */
+ *  T91p：skill chip 化后文本内只剩选区 token 一类 */
 function handleAtomicTokenDeletion(event: KeyboardEvent): boolean {
   const el = event.currentTarget
   if (!(el instanceof HTMLTextAreaElement)) return false
   if (event.isComposing || el.selectionStart !== el.selectionEnd) return false
   const dir = event.code === 'Backspace' ? 'backward' : 'forward'
-  const selRange = atomicTokenDeletionRange(input.value, el.selectionStart, dir)
-  const range = selRange ?? atomicSkillTokenDeletionRange(input.value, el.selectionStart, dir)
+  const range = atomicTokenDeletionRange(input.value, el.selectionStart, dir)
   if (!range) return false
   event.preventDefault()
   input.value = input.value.slice(0, range.start) + input.value.slice(range.end)
@@ -205,6 +197,16 @@ const piModelLabel = computed(
 // header ChatContextBar 双段式 trigger 一处（trigger 文案本身即引导）
 
 function handleInputKeydown(event: KeyboardEvent) {
+  // T91p：光标在 0 位且有钉头 chip 时 Backspace 移除 chip（chip 不进文本流，
+  // 它是光标前唯一的「东西」；mention chip 行首 Backspace 删除的通行交互）
+  if (event.code === 'Backspace' && pinnedSkill.value && !event.isComposing) {
+    const el = event.currentTarget
+    if (el instanceof HTMLTextAreaElement && el.selectionStart === 0 && el.selectionEnd === 0) {
+      event.preventDefault()
+      pinnedSkill.value = null
+      return
+    }
+  }
   // T70：Backspace/Delete 先过原子删除拦截（紧邻完整占位串 → 整段删除）；
   // IME 合成中/有选区时不拦（isComposing/selectionStart≠selectionEnd 在
   // handleAtomicTokenDeletion 内判）
@@ -217,16 +219,29 @@ function handleInputKeydown(event: KeyboardEvent) {
   if (target instanceof HTMLElement) target.closest('form')?.requestSubmit()
 }
 
-// T89：skill dropdown（替代 T87 chip 平铺）——reka-ui ComboboxRoot + chip 形态
-// trigger + 选项点击触发 insertTokenAtCursor。skills 数据面来源 = manifest.skills
-// （脱敏投影，OFF 时恒 []；capabilities 关则 listSkills 守门不在结果中暴露）。
-// 用户在 dropdown 内选中即向 textarea 插入「「/skill:<name>」」内联 token
-// （中文角括号是混排原子边界 / backdrop 高亮锚点，与 @画布选区-N 同款 UI 表达）。
-// 提交时 `stripSkillTokenBrackets` 仅剥中文角括号（主体不动），emit 出去的
-// 是 `/skill:<name>` 字面串（pi SDK _expandSkillCommand 唯一识别斜杠形式）。
-// 取消选中靠 textarea 内删除 token 或 atomic-deletion 拦截面。
+// T91p：skill chip（钉头单例内联芯片，替代 T89 文本内 token）——owner 决议：
+// skill 是命令不是引用，与选区 token（任意位置、多实例）本质不同；chip 恒钉
+// 消息最前、全消息最多一个、新选覆盖旧选。chip 是纯组件状态（pinnedSkill），
+// 不进 textarea 文本流（文本态可被光标进入逐字编辑，观感怪异）；视觉上以
+// 覆盖层 chip + textarea/backdrop text-indent 让出首行宽度实现「在输入框内、
+// 与正文同行同高」（owner 效果图）。提交时 composeSkillSubmission 把
+// `/skill:<name>` 拼到消息头（后端 T91o normalizeSkillCommandText 再兜底
+// 手输/粘贴的裸提及）；移除靠光标在 0 位时按 Backspace。
+// skills 数据面来源 = manifest.skills（脱敏投影，OFF 时恒 []；capabilities
+// 关则 listSkills 守门不在结果中暴露）。
 const skillSearch = ref('')
 const skillComboboxOpen = ref(false)
+/** 钉头 skill chip（null = 未选）；新选直接覆盖旧选 */
+const pinnedSkill = ref<string | null>(null)
+const skillChipRef = ref<HTMLElement | null>(null)
+/** chip 实测宽度 → textarea/backdrop 首行 text-indent（chip 与正文同行衔接） */
+const skillChipIndent = ref(0)
+
+watch(pinnedSkill, async () => {
+  await nextTick()
+  skillChipIndent.value =
+    pinnedSkill.value && skillChipRef.value ? skillChipRef.value.offsetWidth : 0
+})
 
 const availableSkills = computed(() => {
   const manifest = piStudioManifest.value
@@ -255,7 +270,8 @@ const filteredSkills = computed(() => {
 // reviewer 误以为双重写源）。
 function handleSkillSelect(event: Event, name: string): void {
   event.preventDefault()
-  insertTokenAtCursor(skillTokenText(name))
+  // 钉头单例：赋值即覆盖旧选
+  pinnedSkill.value = name
   skillSearch.value = ''
   skillComboboxOpen.value = false
   // 触发后 refocus textarea，让用户继续输入
@@ -267,7 +283,9 @@ function handleSkillSelect(event: Event, name: string): void {
 function handleSubmit(e: Event) {
   e.preventDefault()
   const text = input.value.trim()
-  if (!text) return
+  // T91p：chip 单独成命令也允许提交（`/skill:<name>` 纯命令，SDK
+  // spaceIndex=-1 路径，args 为空）
+  if (!text && !pinnedSkill.value) return
   // T70：文本流实扫占位串 → 尾部追加 [画布选区] 清单（发送瞬间 graph 状态
   // 为准；无 token 时 serialize 原样返回）。store 缺席（storybook/测试面）
   // 退化为原文提交。
@@ -277,21 +295,24 @@ function handleSubmit(e: Event) {
     : { text }
   // T27 快照先行：emit 即清空文本+登记表，失败回填（restoreDraft）整体恢复
   lastDraftSnapshot = snapshotSelectionDraftState(draftTokens)
-  // T89：skill token 中文角括号剥除（主体不动，仍是 pi SDK 识别的
-  // `/skill:<name>` 字面串）。strip 在 selection manifest 拼完之后执行，
-  // 避免误吃清单内可能含的角括号
-  emit('submit', stripSkillTokenBrackets(submission.text))
+  // T91p：chip 拼到消息头（composeSkillSubmission；SDK 命令契约的宿主侧
+  // 整形兜底在 backend normalizeSkillCommandText，双层幂等）
+  emit('submit', composeSkillSubmission(pinnedSkill.value, submission.text))
   input.value = ''
+  pinnedSkill.value = null
   resetSelectionDraftState(draftTokens)
 }
 
 // T27：父级在提交失败时回填草稿（emit 即清空是即时反馈设计，失败不该丢稿）；
-// 用户已另起新输入时不覆盖
+// 用户已另起新输入（或已另选 chip）时不覆盖
 // T70：回填文本 = 提交文本剥掉尾部 [画布选区] 清单（占位串本体保留）；
 // token 登记表 + 序号从快照一并恢复（快照只消费一次，防旧快照串新稿）
+// T91p：提交文本开头的 /skill:<name> 命令拆回 chip 状态（extractLeadingSkillCommand）
 function restoreDraft(text: string) {
-  if (input.value.trim()) return
-  input.value = stripSelectionManifest(text)
+  if (input.value.trim() || pinnedSkill.value) return
+  const command = extractLeadingSkillCommand(text)
+  if (command) pinnedSkill.value = command.name
+  input.value = stripSelectionManifest(command ? command.rest : text)
   if (lastDraftSnapshot) {
     restoreSelectionDraftState(draftTokens, lastDraftSnapshot)
     lastDraftSnapshot = null
@@ -299,8 +320,10 @@ function restoreDraft(text: string) {
 }
 // T61：新建意图确认卡「确认并发送」经父级清掉拦截时回填的草稿
 // T70：token 登记表/序号/快照随草稿一并清空（序号归 1）
+// T91p：chip 状态随草稿一并清空
 function clearDraft() {
   input.value = ''
+  pinnedSkill.value = null
   resetSelectionDraftState(draftTokens)
   lastDraftSnapshot = null
 }
@@ -349,9 +372,10 @@ defineExpose({ restoreDraft, clearDraft })
             {{ captureEmptyFlash ? chipsText.chipsCaptureEmpty : chipsText.chipsCaptureSelection }}
           </span>
         </button>
-        <!-- T89 skill dropdown：reka-ui ComboboxRoot + chip 形态 trigger + 选项
-             点击触发 insertTokenAtCursor。ignore-filter 关掉 SDK 默认过滤，
-             用本地 filteredSkills（按 name + description 子串模糊匹配）。 -->
+        <!-- T89 skill dropdown：reka-ui ComboboxRoot + chip 形态 trigger；
+             T91p：选项点击钉 pinnedSkill（不再插文本 token）。ignore-filter
+             关掉 SDK 默认过滤，用本地 filteredSkills（按 name + description
+             子串模糊匹配）。 -->
         <ComboboxRoot
           v-if="availableSkills.length > 0"
           v-model:open="skillComboboxOpen"
@@ -421,6 +445,7 @@ defineExpose({ restoreDraft, clearDraft })
               aria-hidden="true"
               class="pointer-events-none absolute inset-0 overflow-hidden px-3 pt-2.5 pb-1 text-xs leading-relaxed break-words whitespace-pre-wrap text-transparent select-none"
               :class="{ 'opacity-60': isStreaming }"
+              :style="skillChipIndent > 0 ? { textIndent: `${skillChipIndent}px` } : undefined"
             >
               <span
                 v-for="segment in backdropSegments"
@@ -431,15 +456,31 @@ defineExpose({ restoreDraft, clearDraft })
                 >{{ segment.text }}</span
               >
             </div>
+            <!-- T91p：钉头 skill chip——覆盖层渲染（accent 色 icon + 名称，
+                 整体不可编辑、不抢指针事件），textarea/backdrop 用同值
+                 text-indent 让出首行宽度；宽度实测见 watch(pinnedSkill)；
+                 垂直滚动位移同步见 syncBackdropScroll -->
+            <div
+              v-if="pinnedSkill"
+              ref="skillChipRef"
+              aria-hidden="true"
+              data-test-id="chat-skill-chip"
+              class="pointer-events-none absolute top-2.5 left-3 z-10 flex items-center gap-1 pr-1 text-xs leading-relaxed text-accent"
+              :class="{ 'opacity-60': isStreaming }"
+            >
+              <icon-lucide-sparkles class="size-3.5 shrink-0" />
+              <span class="font-medium">{{ pinnedSkill }}</span>
+            </div>
             <textarea
               ref="inputRef"
               v-model="input"
               data-test-id="chat-input"
-              :placeholder="dialogs.describeChange"
+              :placeholder="pinnedSkill ? '' : dialogs.describeChange"
               :disabled="isStreaming"
               rows="2"
               aria-label="Describe a change"
               class="relative block min-h-12 w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-xs leading-relaxed text-surface outline-none placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60"
+              :style="skillChipIndent > 0 ? { textIndent: `${skillChipIndent}px` } : undefined"
               @keydown="handleInputKeydown"
               @scroll="syncBackdropScroll"
               @copy.stop

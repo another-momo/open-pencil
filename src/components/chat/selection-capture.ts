@@ -177,74 +177,13 @@ export function scanSelectionTokens(text: string): ScannedSelectionToken[] {
   return tokens
 }
 
-// ── T89：Skill 内联 token（`「/skill:<name>」`）─────────────────────────────
+// ── T89：Skill 内联 token（`「/skill:<name>」`）── 已退役（T91p）────────────
 //
-// 与 selection token 同款 backdrop 高亮范式（路线 A）。T89 owner 决议：内联显示
-// 直接用 pi 原生 `/skill:<name>` 形式（pi SDK `_expandSkillCommand` 唯一识别，
-// service.ts:311），不再 transform——textarea 内存什么、emit 出去就是什么，零
-// 隐式替换。
-//  - skill token **不带侧挂登记表**（与 selection token 的差别）
-//  - skill name 仅约束 `[A-Za-z0-9_-]+`（与 pi SDK 命名约定对齐）
-
-/** Skill 占位串字面量：`「/skill:<name>」`（角括号是字面量的一部分，混排原子边界） */
-const SKILL_TOKEN_PATTERN_SOURCE = '「/skill:([A-Za-z0-9_-]+)」'
-
-const SKILL_TOKEN_PATTERN_GLOBAL = new RegExp(SKILL_TOKEN_PATTERN_SOURCE, 'g')
-
-export function skillTokenText(name: string): string {
-  return `「/skill:${name}」`
-}
-
-export interface ScannedSkillToken {
-  name: string
-  start: number
-  end: number
-}
-
-/** 文本流内全部完整 skill token（按出现顺序；半删的残串不识别） */
-export function scanSkillTokens(text: string): ScannedSkillToken[] {
-  const tokens: ScannedSkillToken[] = []
-  for (const match of text.matchAll(SKILL_TOKEN_PATTERN_GLOBAL)) {
-    tokens.push({
-      name: match[1],
-      start: match.index,
-      end: match.index + match[0].length
-    })
-  }
-  return tokens
-}
-
-/**
- * 提交时 strip：把文本流内 `「「/skill:<name>」」` 还原为 pi SDK 期望的
- * `/skill:<name>`（仅剥中文角括号，主体不动；与 selection token 的
- * `stripSelectionManifest` 同质——括号是混排原子边界，仅 UI 表达）。
- * 与 selection token 不同：skill token 的 manifest 是「本回合提交什么 = pi
- * 立刻能展开什么」，所以 strip 后 emit 出去的就是 `/skill:<name>` 字面串。
- */
-export function stripSkillTokenBrackets(text: string): string {
-  return text.replace(/「(\/skill:[A-Za-z0-9_-]+)」/g, '$1')
-}
-
-/**
- * Skill token 的原子删除区间（与 selection token 同 keydown 拦截面）：
- *  - backward：光标紧随 skill token 尾 → [tokenStart, cursor)
- *  - forward：光标紧贴 skill token 头 → [cursor, tokenEnd)
- * 光标落在 token 中间/不紧邻 → null
- */
-export function atomicSkillTokenDeletionRange(
-  text: string,
-  cursor: number,
-  direction: 'backward' | 'forward'
-): { start: number; end: number } | null {
-  if (direction === 'backward') {
-    const match = new RegExp(`${SKILL_TOKEN_PATTERN_SOURCE}$`).exec(text.slice(0, cursor))
-    if (!match) return null
-    return { start: cursor - match[0].length, end: cursor }
-  }
-  const match = new RegExp(`^${SKILL_TOKEN_PATTERN_SOURCE}`).exec(text.slice(cursor))
-  if (!match) return null
-  return { start: cursor, end: cursor + match[0].length }
-}
+// T89 的文本内 skill token（backdrop 高亮范式）在 T91p 被 chip 化取代：
+// owner 决议 skill 是命令不是引用——恒钉消息最前、单例、新选覆盖旧选，
+// 且文本态 token 可被光标进入逐字编辑观感怪异。新机制见
+// src/components/chat/skill-chip.ts（compose/extract 纯函数）+ ChatInput
+// pinnedSkill 覆盖层。本文件不再承载任何 skill token 逻辑。
 
 // ── 原子删除区间（路线 A keydown 拦截） ─────────────────────────────────────
 

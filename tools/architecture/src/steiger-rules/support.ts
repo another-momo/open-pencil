@@ -24,7 +24,11 @@ type TextRuleCheck = (
 
 export const FILE_PREFIX_GROUP_ALLOWLIST = new Set([
   'packages/core/src/lint/rules::no',
-  'tests/engine::visual'
+  'tests/engine::visual',
+  // T91f：tests/e2e/fonts 的 3 个 cjk- 前缀文件中 2 个是上游 follow-pure 布局
+  // （fork 只新增 labels-fallback 一个），收拢为 cjk/ 子目录会对上游文件制造
+  // 永久性合并摩擦——用规则自带豁免而非重构上游目录。
+  'tests/e2e/fonts::cjk'
 ])
 
 type ImportRef = {

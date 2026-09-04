@@ -12,7 +12,7 @@ import {
   ComboboxViewport,
   TooltipProvider
 } from 'reka-ui'
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 import ChatModeChips from '@/components/chat/ChatModeChips.vue'
 import {
@@ -251,6 +251,13 @@ function handleSkillSelect(name: string): void {
   })
 }
 
+// T91m：重开 dropdown 时清空搜索词——reka 在 select 后把选中项 value 回填
+// searchTerm（盖过 handleSkillSelect 的清零），不干预则每次打开都残留上次
+// 选中的 skill 名，必须先手删才能看到完整列表（owner 实测）。
+watch(skillComboboxOpen, (open) => {
+  if (open) skillSearch.value = ''
+})
+
 function handleSubmit(e: Event) {
   e.preventDefault()
   const text = input.value.trim()
@@ -357,10 +364,13 @@ defineExpose({ restoreDraft, clearDraft })
             </ComboboxTrigger>
           </ComboboxAnchor>
           <ComboboxPortal>
+            <!-- T91m：max-w 盖帽 + 单行截断——长 description 曾把 popover
+                 撑到 2321px 横贯页面（owner 实测）；每项一行名称+一行描述；
+                 min-w 锚宽语义保留 -->
             <ComboboxContent
               position="popper"
               :side-offset="4"
-              class="z-50 max-h-64 min-w-[var(--reka-combobox-anchor-width)] overflow-hidden rounded-md border border-border bg-panel shadow-lg"
+              class="z-50 max-h-64 w-max max-w-[min(28rem,calc(100vw-2rem))] min-w-[var(--reka-combobox-anchor-width)] overflow-hidden rounded-md border border-border bg-panel shadow-lg"
             >
               <ComboboxInput
                 v-model="skillSearch"
@@ -377,8 +387,10 @@ defineExpose({ restoreDraft, clearDraft })
                   class="flex cursor-pointer flex-col gap-0.5 rounded px-2 py-1 text-[11px] outline-none data-[highlighted]:bg-hover"
                   @select="handleSkillSelect(skill.name)"
                 >
-                  <span class="font-medium text-surface">「/skill:{{ skill.name }}」</span>
-                  <span v-if="skill.description" class="text-muted">{{ skill.description }}</span>
+                  <span class="truncate font-medium text-surface">「/skill:{{ skill.name }}」</span>
+                  <span v-if="skill.description" class="truncate text-muted">{{
+                    skill.description
+                  }}</span>
                   <ComboboxItemIndicator class="hidden" />
                 </ComboboxItem>
                 <div

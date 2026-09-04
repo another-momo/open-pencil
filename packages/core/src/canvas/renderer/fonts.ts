@@ -269,12 +269,16 @@ export function measureTextByScript(
   return { width, glyphCount }
 }
 
-interface ScriptSegment {
+/**
+ * T88 已抽单源：script 分段是全仓唯一实现（labels/draw.ts 的 ellipsize
+ * 也 import 这里），不要在本模块外再写本地 segment 副本。
+ */
+export interface ScriptSegment {
   text: string
   script: 'latin' | 'cjk' | 'arabic'
 }
 
-function segmentByScript(text: string): ScriptSegment[] {
+export function segmentByScript(text: string): ScriptSegment[] {
   const segments: ScriptSegment[] = []
   let buf = ''
   let curScript: 'latin' | 'cjk' | 'arabic' | null = null
@@ -293,7 +297,8 @@ function segmentByScript(text: string): ScriptSegment[] {
   return segments
 }
 
-function charToScript(ch: string): 'latin' | 'cjk' | 'arabic' {
+/** T88 已抽单源：字符 → 粗粒度 script 分类的唯一实现（基于 #core/text/coverage）。 */
+export function charToScript(ch: string): 'latin' | 'cjk' | 'arabic' {
   const script = fontFallbackScriptForCharacter(ch, null)
   if (script === 'arabic') return 'arabic'
   if (script?.startsWith('cjk')) return 'cjk'

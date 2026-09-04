@@ -836,6 +836,14 @@
       "disposition": "permanent",
       "lastReviewed": "2026-09-03",
       "task": "T90"
+    },
+    {
+      "id": "P151",
+      "file": "packages/core/src/io/formats/raster/headless.ts",
+      "reason": "T91c（2026-09-04）：initCanvasKit binDir 用 fileURLToPath 替代 URL.pathname——win32 下 pathname 返回 '/D:/...' 带前导斜杠导致 fs.readFileSync ENOENT；POSIX 两写法结果一致",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-04",
+      "task": "T91c"
     }
   ],
   "deletedPaths": [

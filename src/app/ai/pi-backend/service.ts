@@ -318,6 +318,10 @@ export function createPiChatService({
       // /skill:name 显式调用（disable-model-invocation 的不进 prompt，可被显式调）。
       // T89：扫描目录由 `.pi/skills` + `.openpencil/pi-agent/skills` 双源
       // 收敛为 `.openpencil/skills` 单源。
+      // T91b 修复：SDK 默认只扫 cwd/.pi/skills 与 agentDir/skills——T89 单源
+      // `.openpencil/skills` 不被 SDK 感知，/skill:name 展开透传原文（CI 冒烟④
+      // 失败实证）。用 additionalSkillPaths 显式把单源目录喂给 SDK，
+      // 保持 T89 单源决策同时让 SDK 实际加载到。
       resourceLoader: await (async () => {
         const loader = new DefaultResourceLoader({
           cwd: rootDir,
@@ -326,6 +330,7 @@ export function createPiChatService({
           noContextFiles: true,
           noSkills: !capabilitiesStore.get().agentSkills,
           noPromptTemplates: true,
+          additionalSkillPaths: [join(rootDir, '.openpencil', 'skills')],
           extensionFactories
         })
         // createAgentSession 只在自构 loader 时才 reload（sdk.js `if (!resourceLoader)`

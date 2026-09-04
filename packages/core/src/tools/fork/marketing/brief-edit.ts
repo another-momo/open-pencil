@@ -283,11 +283,7 @@ function collectOrphanDesigns(
     if (node?.type !== 'FRAME') continue
     // T91a：design→brief 指针由「node id」迁到「uniqueId」匹配。
     // 老 design（指针是 node id）继续兼容——UUID 为空时退回 node id 比对。
-    const designBriefPointer = getSharedPluginData(
-      node,
-      BRIEF_PLUGIN_NAMESPACE,
-      DESIGN_BRIEF_KEY
-    )
+    const designBriefPointer = getSharedPluginData(node, BRIEF_PLUGIN_NAMESPACE, DESIGN_BRIEF_KEY)
     const matches = designBriefPointer
       ? designBriefPointer === briefId || designBriefPointer === briefUuid
       : false

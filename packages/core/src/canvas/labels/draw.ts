@@ -3,7 +3,12 @@ import type { Canvas, Font } from 'canvaskit-wasm'
 import type { SceneNode, SceneGraph } from '@open-pencil/scene-graph'
 
 import type { SkiaRenderer } from '#core/canvas/renderer'
-import { drawTextByScript, measureTextByScript } from '#core/canvas/renderer/fonts'
+import {
+  charToScript,
+  drawTextByScript,
+  measureTextByScript,
+  segmentByScript
+} from '#core/canvas/renderer/fonts'
 import {
   SECTION_TITLE_HEIGHT,
   SECTION_TITLE_PADDING_X,
@@ -39,7 +44,8 @@ function truncateToWidth(
   // 按 code point 切，simulate 逐 char 累加宽度——但单 char 宽度 = measureTextByScript 切 1 字符代价 O(n²) 太贵
   // 折中：按段切，每段用单 typeface glyph 宽度（getGlyphWidths），段内仍按 glyph 索引截
   // —— 这里复用 measureTextByScript 的策略，按段累加
-  const segments = segmentByScriptLocal(text)
+  // T88 已抽单源：分段用 renderer/fonts.ts 的 segmentByScript（canonical 分类）
+  const segments = segmentByScript(text)
   for (const seg of segments) {
     const font = pickFontForSegment(r, seg.script, kind)
     if (!font) {
@@ -71,38 +77,6 @@ function pickFontForSegment(
   if (script === 'cjk')
     return kind === 'sectionTitle' ? r.cjkSectionTitleFont : r.cjkComponentLabelFont
   return kind === 'sectionTitle' ? r.arabicSectionTitleFont : r.arabicComponentLabelFont
-}
-
-interface LocalSegment {
-  text: string
-  script: 'latin' | 'cjk' | 'arabic'
-}
-
-function segmentByScriptLocal(text: string): LocalSegment[] {
-  const segments: LocalSegment[] = []
-  let buf = ''
-  let curScript: 'latin' | 'cjk' | 'arabic' | null = null
-  for (const ch of text) {
-    const code = ch.codePointAt(0) ?? 0
-    let s: 'latin' | 'cjk' | 'arabic'
-    if (code >= 0x0600 && code <= 0x06ff) s = 'arabic'
-    else if (
-      (code >= 0x3400 && code <= 0x9fff) ||
-      (code >= 0x3040 && code <= 0x30ff) ||
-      (code >= 0xac00 && code <= 0xd7af)
-    )
-      s = 'cjk'
-    else s = 'latin'
-    if (s !== curScript) {
-      if (buf) segments.push({ text: buf, script: curScript ?? 'latin' })
-      buf = ch
-      curScript = s
-    } else {
-      buf += ch
-    }
-  }
-  if (buf) segments.push({ text: buf, script: curScript ?? 'latin' })
-  return segments
 }
 
 export function drawSectionTitles(r: SkiaRenderer, canvas: Canvas, graph: SceneGraph): void {
@@ -270,14 +244,8 @@ export function drawComponentLabels(r: SkiaRenderer, canvas: Canvas, graph: Scen
 }
 
 function segmentScript(text: string): 'latin' | 'cjk' | 'arabic' {
-  if (!text) return 'latin'
-  const code = text.codePointAt(0) ?? 0
-  if (code >= 0x0600 && code <= 0x06ff) return 'arabic'
-  if (
-    (code >= 0x3400 && code <= 0x9fff) ||
-    (code >= 0x3040 && code <= 0x30ff) ||
-    (code >= 0xac00 && code <= 0xd7af)
-  )
-    return 'cjk'
-  return 'latin'
+  // T88 已抽单源：分类逻辑用 renderer/fonts.ts 的 charToScript（canonical），
+  // 不再本地维护 codepoint range 表
+  const first = [...text][0]
+  return first ? charToScript(first) : 'latin'
 }

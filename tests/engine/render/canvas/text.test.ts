@@ -48,7 +48,10 @@ function createMockRenderer(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     fontsLoaded: true,
     fontProvider: {},
-    textFont: {},
+    textFont: {
+      getGlyphIDs: mock((text: string) => new Uint32Array([...text].length).fill(1)),
+      getGlyphWidths: mock((ids: Uint32Array) => new Float32Array(ids.length).fill(10))
+    },
     fillPaint: { getColor: () => new Float32Array([0, 0, 0, 1]) },
     effectLayerPaint: {
       setBlendMode: mock(() => undefined),
@@ -247,12 +250,15 @@ describe('renderText', () => {
   })
 
   test('falls back to drawText only when fonts are NOT loaded', () => {
+    // 断言更新理由（T88）：fonts-not-loaded 分支改为 drawTextByScript 按 script
+    // 分段绘制，'Hello 你好' 切成 latin + cjk 两段；mock 未提供 cjkTextFont，
+    // cjk 段降级 latin font，因此 drawText 共调 2 次（旧断言为直画 1 次）。
     const r = createMockRenderer({ fontsLoaded: false, fontProvider: null })
     const canvas = createMockCanvas()
 
     renderText(r, canvas as never, textNode())
 
-    expect(canvas.drawText).toHaveBeenCalledTimes(1)
+    expect(canvas.drawText).toHaveBeenCalledTimes(2)
     expect(r.buildParagraph).not.toHaveBeenCalled()
   })
 

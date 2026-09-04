@@ -10,13 +10,7 @@
  */
 import { beforeAll, describe, expect, test } from 'bun:test'
 
-import {
-  exportFigFile,
-  FigmaAPI,
-  initCodec,
-  parseFigFile,
-  SceneGraph
-} from '@open-pencil/core'
+import { exportFigFile, FigmaAPI, initCodec, parseFigFile, SceneGraph } from '@open-pencil/core'
 import { parseFigBuffer } from '@open-pencil/fig'
 
 const NS = 'open-pencil-marketing'
@@ -47,9 +41,7 @@ describe('fig roundtrip sharedPluginData', () => {
     const reBrief = reFigma.wrapNode(reimportedBrief.id)
 
     expect(reBrief.getSharedPluginData(NS, 'role')).toBe('brief')
-    expect(reBrief.getSharedPluginData(NS, 'uniqueId')).toBe(
-      '550e8400-e29b-41d4-a716-446655440000'
-    )
+    expect(reBrief.getSharedPluginData(NS, 'uniqueId')).toBe('550e8400-e29b-41d4-a716-446655440000')
     expect(reBrief.getSharedPluginData(NS, 'bound-designs')).toBe('0:188')
   })
 
@@ -138,9 +130,7 @@ describe('fig roundtrip sharedPluginData', () => {
 
     expect(rawNode?.pluginData).toBeDefined()
     if (!rawNode?.pluginData) return
-    const hit = rawNode.pluginData.find(
-      (e) => e.pluginID === NS && e.key === `${NS}/role`
-    )
+    const hit = rawNode.pluginData.find((e) => e.pluginID === NS && e.key === `${NS}/role`)
     expect(hit).toBeDefined()
     if (!hit) return
     expect(hit.value).toBe('brief')

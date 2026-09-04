@@ -52,10 +52,7 @@ function recordingFont(label: string): Font {
 }
 
 /** 假 SkiaRenderer：仅暴露 pickFontForText / drawTextByScript / measureTextByScript 需要的字段 */
-function recordingRenderer(opts: {
-  withCjk: boolean
-  withArabic: boolean
-}): {
+function recordingRenderer(opts: { withCjk: boolean; withArabic: boolean }): {
   r: SkiaRenderer
   draws: Array<{ text: string; fontLabel: string }>
   latinSectionFont: Font

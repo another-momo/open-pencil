@@ -66,6 +66,7 @@ import { createReadReferenceTool } from './read-reference'
 import { runSessionGc } from './session-gc'
 import type { PiSessionSummary } from './session-summary'
 import { buildSetupCatalog, type SetupDesignContext } from './setup-catalog'
+import { normalizeSkillCommandText } from './skill-command'
 import { getStudioRegistry } from './studio'
 import { toStudioManifest, type PiStudioManifest } from './studio/manifest'
 import { createOpenPencilTools } from './tools'
@@ -393,12 +394,13 @@ export function createPiChatService({
     // 数据）。不做 promise 缓存去重：引入的复杂度大于 dev 场景收益。
     const entry = sessions.get(sessionId) ?? (await createSession(sessionId, options.model))
     entry.target.documentId = options.documentId
-    // T91o：宿主侧 skill 展开（capabilities.expandSkillText，原理见其注释）——
-    // 进 session 前把全部 /skill:<name> 提及就地展开为 <skill> 块，解除 SDK
-    // 「仅消息开头 + 单命令」双限制（owner 情况①②实测：透传后模型猎文件
-    // 失败）。展开后文本不再以 /skill: 开头，SDK _expandSkillCommand 自然
-    // passthrough，不会二次展开
-    const expandedText = capabilitiesStore.expandSkillText(text)
+    // T91o：/skill: 命令归一化（skill-command.ts，原理见其头注）——把首个
+    // /skill:<name> 提及整形成 SDK 原生可展开的「开头 + 空格收尾」命令形，
+    // 展开动作留给 SDK _expandSkillCommand（块格式/transcript 与 pi CLI
+    // 一致）；owner 情况①（名后贴中文透传）②（句中提及透传后模型猎文件）
+    // 实证驱动。prepareTurn 的 promptText 即剥完信封的用户原文（位置 0
+    // 不变），SDK startsWith 契约稳定命中
+    const expandedText = normalizeSkillCommandText(text)
     // 同一 session 的 prompt 串行：pi 在 streaming 中再 prompt 需要 streamingBehavior，
     // dev 单用户场景直接排队即可
     // T27：rejection 接力——先吞掉前次 queue 的 rejection 再挂新 run；否则一次失败

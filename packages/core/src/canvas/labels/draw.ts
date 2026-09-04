@@ -3,12 +3,7 @@ import type { Canvas, Font } from 'canvaskit-wasm'
 import type { SceneNode, SceneGraph } from '@open-pencil/scene-graph'
 
 import type { SkiaRenderer } from '#core/canvas/renderer'
-import {
-  charToScript,
-  drawTextByScript,
-  measureTextByScript,
-  segmentByScript
-} from '#core/canvas/renderer/fonts'
+import { drawTextByScript, measureTextByScript, segmentByScript } from '#core/canvas/renderer/fonts'
 import {
   SECTION_TITLE_HEIGHT,
   SECTION_TITLE_PADDING_X,
@@ -233,21 +228,16 @@ export function drawComponentLabels(r: SkiaRenderer, canvas: Canvas, graph: Scen
       immutablePath.delete()
     }
 
-    canvas.drawText(
+    // T88：按 script 分段画，与 sectionTitle 同口径——中英混排节点名（如「App 设计」）
+    // 各段用对应 typeface；此前只看首字符选单一字体，汉字会落 latin typeface 出豆腐字
+    drawTextByScript(
+      r,
+      canvas,
+      r.auxFill,
       displayText,
       labelX + iconS + COMPONENT_LABEL_ICON_GAP,
       labelY,
-      r.auxFill,
-      pickFontForSegment(r, segmentScript(displayText), 'componentLabel') ?? r.componentLabelFont
+      'componentLabel'
     )
   }
-}
-
-function segmentScript(text: string): 'latin' | 'cjk' | 'arabic' {
-  // T88 已抽单源：分类逻辑用 renderer/fonts.ts 的 charToScript（canonical），
-  // 不再本地维护 codepoint range 表
-  // oxlint no-spread-on-string：用 codePointAt 而非 [...text][0]（避免撕 surrogate pair）
-  const code = text.codePointAt(0)
-  if (code === undefined) return 'latin'
-  return charToScript(String.fromCodePoint(code))
 }

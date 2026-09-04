@@ -365,7 +365,7 @@
     {
       "id": "P44",
       "file": "src/components/settings/SettingsDialog.vue",
-      "reason": "T25: MCP 导航/区块/导入切除（settings-mcp 面随 integrations/mcp 删除） T34: git merge 把 base 88c10770 的 mcp nav button 带回（面板未回——点击落裸 v-else 的 Storage，僵尸 nav） T36(2026-08-28): 删 mcp nav button + 裸 v-else 收窄为 v-else-if storage + 显式空态 fallback（owner 拍板③）；i18n 死键 settingsMCP 保留不删——packages/vue 的 messages/dialogs.ts 与 zh-cn/dialogs.json 经 T35 还原与上游字节一致，删键会制造新 patch 徒增下轮合并冲突面，死文案无害（取舍注记，owner 拍板③附带评估）；T41：设置对话框接入字体分区（FontsSettingsPanel 分支 + 导航按钮）；T54（2026-09-01）：media 段挂载 ImageGenKeysSection（生图凭证预设下拉+单 key 输入）；T96（2026-09-04）：ai 区 ModelsPanel 与 AgentSettingsPanel 之间加分隔线（预研 §5.3 视觉分组）",
+      "reason": "T25: MCP 导航/区块/导入切除（settings-mcp 面随 integrations/mcp 删除） T34: git merge 把 base 88c10770 的 mcp nav button 带回（面板未回——点击落裸 v-else 的 Storage，僵尸 nav） T36(2026-08-28): 删 mcp nav button + 裸 v-else 收窄为 v-else-if storage + 显式空态 fallback（owner 拍板③）；i18n 死键 settingsMCP 保留不删——packages/vue 的 messages/dialogs.ts 与 zh-cn/dialogs.json 经 T35 还原与上游字节一致，删键会制造新 patch 徒增下轮合并冲突面，死文案无害（取舍注记，owner 拍板③附带评估）；T41：设置对话框接入字体分区（FontsSettingsPanel 分支 + 导航按钮）；T54（2026-09-01）：media 段挂载 ImageGenKeysSection（生图凭证预设下拉+单 key 输入）；T96（2026-09-04）：ai 区 ModelsPanel 与 AgentSettingsPanel 之间加分隔线（预研 §5.3 视觉分组）；T91k（2026-09-04）：ai 区去 h-full，AgentSettingsPanel 进入对话框容器统一滚动流（owner 拍板：独立悬挂挤压模型清单可视面积）",
       "disposition": "permanent",
       "lastReviewed": "2026-09-04"
     },
@@ -848,7 +848,7 @@
     {
       "id": "P152",
       "file": "tests/engine/app/document/recovery/store.test.ts",
-      "reason": "T91d（2026-09-04）：fake-indexeddb 在 CI Linux runner 偶发 5s timeout（慢盘冷启动），IndexedDB 测试 timeout 提到 20s——防抖护栏不改语义；T91h（2026-09-04）：stall 根因锁定为 bun test 下 setImmediate 派发通道偶发不派发（run 33840822799 事件循环空闲 20s 挂死，同轮 setTimeout 通道精确触发实证可用；win32 本机 bun 1.3.5 下 AbortSignal.timeout 单测 100% 挂死同族 bug）——beforeAll→afterAll 遮蔽 globalThis.setImmediate 强制 fake-indexeddb queueTask 走 setTimeout(0) 降级路径（queueTask 调用时读全局且优雅降级，全仓无 setImmediate 直接调用，grep 实证），beforeEach 补 CI_SAFE_TIMEOUT",
+      "reason": "T91d（2026-09-04）：fake-indexeddb 在 CI Linux runner 偶发 5s timeout（慢盘冷启动），IndexedDB 测试 timeout 提到 20s——防抖护栏不改语义；T91h（2026-09-04）曾尝试遮蔽 globalThis.setImmediate 强制 fake-indexeddb 走 setTimeout 通道——run 33844404386 实证无效（签名逐字一致），已回滚；T91j 定论：多文件同进程事件投递 stall，根因未明，改 CI 侧拆独立进程消除（见 P154），本文件保留 20s 超时 + beforeEach CI_SAFE_TIMEOUT 作为兜底护栏",
       "disposition": "permanent",
       "lastReviewed": "2026-09-04",
       "task": "T91d"
@@ -860,6 +860,14 @@
       "disposition": "permanent",
       "lastReviewed": "2026-09-04",
       "task": "T91f"
+    },
+    {
+      "id": "P154",
+      "file": ".github/workflows/ci.yml",
+      "reason": "T91j（2026-09-04）：engine tests 步骤把 tests/engine/app/document/recovery/store.test.ts 拆独立 bun test 进程——fake-indexeddb 在多文件同进程下偶发事件投递 stall（run 33840822799/33844404386 实证：循环空闲挂满 20s watchdog；bun 版本/测试规模/耗时时长三不变排除规模诱因），单进程从未复现（本地 600ms 绿），确定性消除 flake；bash 循环对全部 shard 通用（仅 app 组命中该文件）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-04",
+      "task": "T91j"
     }
   ],
   "deletedPaths": [

@@ -143,9 +143,10 @@ const navigationClass =
 
         <section
           v-else-if="settingsDialogSection === 'ai'"
-          class="flex h-full flex-col gap-4"
+          class="flex flex-col gap-4"
           data-test-id="settings-ai-panel"
         >
+          <!-- T91k：去 h-full——本区与 Agent 能力同流，由外层对话框容器统一滚动 -->
           <ModelsPanel />
           <!-- T96：ModelsPanel 与 Agent 能力分区之间的视觉分隔（预研 §5.3） -->
           <div class="border-t border-border" />

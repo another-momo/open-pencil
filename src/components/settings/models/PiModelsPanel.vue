@@ -218,7 +218,9 @@ onMounted(() => void refreshPiCatalog())
 </script>
 
 <template>
-  <div class="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
+  <!-- T91k：根节点不再自滚——滚动职责上交 SettingsDialog 标签页容器，
+       让 AgentSettingsPanel 跟在模型清单下方同流滚动（owner 拍板） -->
+  <div class="flex flex-col">
     <section data-test-id="pi-providers-panel">
       <div class="mb-2 flex items-center justify-between">
         <div>

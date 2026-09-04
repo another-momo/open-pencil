@@ -41,6 +41,7 @@ mock.module('@earendil-works/pi-coding-agent', () => ({
       if (!line.trim()) continue
       try {
         entries.push(JSON.parse(line))
+        // oxlint-disable-next-line open-pencil/no-silent-catch -- 容错 skip 是 SDK 真语义：malformed 行静默跳过，非错误吞没
       } catch {
         // skip malformed
       }

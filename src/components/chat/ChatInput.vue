@@ -12,7 +12,7 @@ import {
   ComboboxViewport,
   TooltipProvider
 } from 'reka-ui'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 
 import ChatModeChips from '@/components/chat/ChatModeChips.vue'
 import {
@@ -242,21 +242,27 @@ const filteredSkills = computed(() => {
   )
 })
 
-function handleSkillSelect(name: string): void {
+// T91m：reka ComboboxItem 在 select 后会 `modelValue.value = props.value`
+// 并在 ComboboxInput 侧挂 `watch(modelValue, { immediate: true })` ——
+// 每次重新挂载（Presence 控制，开关 dropdown 即重挂）时，watcher 从
+// `rootContext.modelValue` 推回 input 的 searchTerm。若不清 modelValue，
+// 上次选中的 skill 名会随重挂一起回到输入框（owner 实测）。
+// 解决：在 select 事件里 `event.preventDefault()` 阻断 reka 的 onSelect 续作
+// （既不写 modelValue 也不自动关 dropdown），由我们手动 `skillComboboxOpen
+// = false` 关闭；modelValue 保持 undefined，下次挂载 watcher 读 undefined →
+// `resetSearchTerm()` 走 else 分支写 ''，输入框干净。同时去掉 Root 上无意义
+// 的 `v-model:search-term`（Root 没声明此 prop，是 dead binding，混入会让
+// reviewer 误以为双重写源）。
+function handleSkillSelect(event: Event, name: string): void {
+  event.preventDefault()
   insertTokenAtCursor(skillTokenText(name))
   skillSearch.value = ''
+  skillComboboxOpen.value = false
   // 触发后 refocus textarea，让用户继续输入
   void nextTick(() => {
     inputRef.value?.focus()
   })
 }
-
-// T91m：重开 dropdown 时清空搜索词——reka 在 select 后把选中项 value 回填
-// searchTerm（盖过 handleSkillSelect 的清零），不干预则每次打开都残留上次
-// 选中的 skill 名，必须先手删才能看到完整列表（owner 实测）。
-watch(skillComboboxOpen, (open) => {
-  if (open) skillSearch.value = ''
-})
 
 function handleSubmit(e: Event) {
   e.preventDefault()
@@ -349,7 +355,6 @@ defineExpose({ restoreDraft, clearDraft })
         <ComboboxRoot
           v-if="availableSkills.length > 0"
           v-model:open="skillComboboxOpen"
-          v-model:search-term="skillSearch"
           :ignore-filter="true"
         >
           <ComboboxAnchor as-child>
@@ -385,7 +390,7 @@ defineExpose({ restoreDraft, clearDraft })
                   :value="skill.name"
                   data-test-id="chat-skill-option"
                   class="flex cursor-pointer flex-col gap-0.5 rounded px-2 py-1 text-[11px] outline-none data-[highlighted]:bg-hover"
-                  @select="handleSkillSelect(skill.name)"
+                  @select="handleSkillSelect($event, skill.name)"
                 >
                   <span class="truncate font-medium text-surface">「/skill:{{ skill.name }}」</span>
                   <span v-if="skill.description" class="truncate text-muted">{{

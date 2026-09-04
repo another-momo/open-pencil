@@ -3,8 +3,9 @@
  * getStudioManifest 透传 capabilities + skills，getCapabilities/setCapabilities
  * 委托给 store。
  * T96：三档位装配门控钉扎——mock createAgentSession/DefaultResourceLoader
- * 捕获装配入参，钉 off→noTools:'builtin' / readonly→tools 只读四件 /
- * full→两键全省略，及 noSkills 由 agentSkills 独控（与 builtinTools 解耦）。
+ * 捕获装配入参，钉 off→noTools:'builtin' / readonly→tools 只读四件+全部
+ * 自定义工具名（SDK tools 是全局白名单，不带 customTools 会把设计工具一并
+ * 禁用）/ full→两键全省略，及 noSkills 由 agentSkills 独控（与 builtinTools 解耦）。
  */
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
@@ -170,12 +171,18 @@ description: x
     expect('tools' in (opts ?? {})).toBe(false)
   })
 
-  test('T96 装配门控：builtinTools readonly → tools 只读四件，无 noTools 键', async () => {
+  test('T96 装配门控：builtinTools readonly → tools 只读四件 + 全部自定义工具，无 noTools 键', async () => {
     const svc = makeService(rootDir)
     svc.setCapabilities({ agentSkills: false, builtinTools: 'readonly' })
     await svc.prompt('s-ro', 'hi', () => undefined)
     const opts = capturedSessionOptions.at(-1)
-    expect(opts?.tools).toEqual(['read', 'grep', 'find', 'ls'])
+    // SDK tools 语义是全局白名单（只激活名单内工具）——readonly 档必须把
+    // customTools 名一并列入，否则设计工具全丢（owner 实测回归实证）
+    const customNames = ((opts?.customTools ?? []) as Array<{ name: string }>).map(
+      (tool) => tool.name
+    )
+    expect(customNames.length).toBeGreaterThan(0)
+    expect(opts?.tools).toEqual(['read', 'grep', 'find', 'ls', ...customNames])
     expect('noTools' in (opts ?? {})).toBe(false)
   })
 

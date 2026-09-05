@@ -23,6 +23,7 @@ import {
   atomicTokenDeletionRange,
   captureSelectionFromStore,
   createSelectionDraftState,
+  removeSelectionToken,
   resetSelectionDraftState,
   restoreSelectionDraftState,
   scanSelectionTokens,
@@ -94,30 +95,31 @@ const { start: scheduleCaptureFlashEnd, stop: cancelCaptureFlashEnd } = useTimeo
   { immediate: false }
 )
 
-/** backdrop 高亮分段：文本流实扫占位串 → token 段染底色（glyph 由上层
- *  textarea 提供，backdrop 全透明文字 + token 段背景块，Twitter mention 同款）。
- *  T91p：skill 不再是文本内 token（chip 化，见 pinnedSkill），backdrop 只扫
- *  「@画布选区-N」一类 */
+/** backdrop 文本流分段：纯字形对齐层——无 token 染底（视觉表达完全交给
+ *  attachment chip 行；backdrop 仅承担 textarea 滚动度量 + 折行对齐的
+ *  全透明字符镜像）。保留 token 段扫描是因 selection-capture 的 scan API
+ *  单一出口（serialize 也用同扫描器）。 */
 const backdropSegments = computed(() => {
   const text = input.value
   const tokens = scanSelectionTokens(text).map((t) => ({
     start: t.start,
     end: t.end
   }))
-  const segments: Array<{ key: number; text: string; token: boolean }> = []
+  const segments: Array<{ key: number; text: string }> = []
   let cursor = 0
   for (const token of tokens) {
     if (token.start > cursor) {
-      segments.push({ key: segments.length, text: text.slice(cursor, token.start), token: false })
+      segments.push({ key: segments.length, text: text.slice(cursor, token.start) })
     }
-    segments.push({ key: segments.length, text: text.slice(token.start, token.end), token: true })
+    // token 段继续拆出（与 textarea 文本流逐字对齐），但不染底
+    segments.push({ key: segments.length, text: text.slice(token.start, token.end) })
     cursor = token.end
   }
   if (cursor < text.length) {
-    segments.push({ key: segments.length, text: text.slice(cursor), token: false })
+    segments.push({ key: segments.length, text: text.slice(cursor) })
   }
   // 尾部 ZWSP：末尾换行在 div 里塌缩不占高，补上以对齐 textarea 滚动度量
-  segments.push({ key: segments.length, text: '\u200B', token: false })
+  segments.push({ key: segments.length, text: '\u200B' })
   return segments
 })
 
@@ -185,6 +187,21 @@ function handleCaptureSelection() {
   draftTokens.nextSeq += 1
   draftTokens.registry.set(entry.n, entry)
   insertTokenAtCursor(selectionTokenText(entry.n))
+}
+
+/** chip 行 X 按钮：从文本流里删掉该 n 的全部占位串（视觉代理消失 = 文本同步）——
+ *  payload 不变（提交仍走 serializeSelectionManifest，少一条占位串 → 清单少一行） */
+function handleRemoveToken(n: number) {
+  const next = removeSelectionToken(input.value, n)
+  if (next === input.value) return
+  const el = inputRef.value
+  input.value = next
+  void nextTick(() => {
+    el?.focus()
+    // 光标落到删除段起点（最左一个匹配位）即可——剩余光标位置由用户接管
+    const cursor = Math.min(input.value.length, el ? el.selectionStart : input.value.length)
+    el?.setSelectionRange(cursor, cursor)
+  })
 }
 
 /** 原子删除：光标紧邻完整占位串时 Backspace/Delete 整段删除（路线 A 的
@@ -466,16 +483,19 @@ defineExpose({ restoreDraft, clearDraft })
       <form @submit="handleSubmit">
         <InputGroup :disabled="isStreaming">
           <!-- Batch 2g：token chip 条——文本流实扫到的已采集引用 token 每个
-               一条 chip（首节点缩略图 + 节点名）；renderer 缺席/渲染失败时
-               缩略图位降级为 box 图标（ChatNodePreview 内部兜底），chip 退化
-               为图标 + 名称纯文本形态，token 文本模型/高亮/提交行为不变 -->
+               一条 chip（首节点缩略图 + 节点名 + 移除 X）；视觉代理完全承担
+               选区的输入框呈现（backdrop 不再染底，只做对齐层）。X 按钮从
+               文本流里删掉该 n 的全部占位串（payload 序列化实扫，删占位串
+               = 清单少一行，提交语义不变）。renderer 缺席/渲染失败时缩略图
+               位降级为 box 图标（ChatNodePreview 内部兜底） -->
           <template v-if="tokenChips.length > 0" #attachment>
             <div class="flex flex-wrap gap-1 px-2 pt-2">
               <div
                 v-for="chip in tokenChips"
                 :key="chip.n"
                 data-test-id="chat-token-chip"
-                class="flex min-w-0 max-w-full items-center gap-1 rounded-md border border-border bg-canvas px-1.5 py-0.5 text-[11px] text-surface"
+                :data-token-n="chip.n"
+                class="flex min-w-0 max-w-full items-center gap-1 rounded-md border border-border bg-canvas py-0.5 pr-0.5 pl-1.5 text-[11px] text-surface"
               >
                 <ChatNodePreview
                   :node-id="chip.preview.nodeId"
@@ -484,12 +504,24 @@ defineExpose({ restoreDraft, clearDraft })
                   :renderer="chipRenderContext().renderer"
                 />
                 <span class="min-w-0 truncate">{{ chip.label }}</span>
+                <button
+                  type="button"
+                  :data-test-id="`chat-token-chip-remove`"
+                  :data-token-n="chip.n"
+                  :aria-label="`移除引用 ${chip.label}`"
+                  class="flex size-4 shrink-0 items-center justify-center rounded text-muted hover:bg-hover hover:text-surface focus:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                  @mousedown.prevent
+                  @click="handleRemoveToken(chip.n)"
+                >
+                  <icon-lucide-x class="size-3" />
+                </button>
               </div>
             </div>
           </template>
-          <!-- T70 路线 A：overlay 高亮 textarea——backdrop 在下层同步渲染文本流
-               （全透明字形 + token 段背景块），textarea 承载输入/IME/光标；
-               折行对齐靠同字号/行高/内边距 + whitespace-pre-wrap，滚动单向同步 -->
+          <!-- T70 路线 A → Batch 2g：overlay 对齐层——backdrop 在下层渲染全透明
+               字形（无 token 染底；视觉表达完全交给 attachment chip），
+               textarea 承载输入/IME/光标；折行对齐靠同字号/行高/内边距 +
+               whitespace-pre-wrap，滚动单向同步 -->
           <div class="relative">
             <div
               ref="backdropRef"
@@ -501,9 +533,6 @@ defineExpose({ restoreDraft, clearDraft })
               <span
                 v-for="segment in backdropSegments"
                 :key="segment.key"
-                :class="
-                  segment.token ? 'box-decoration-clone rounded-[3px] bg-accent/25' : undefined
-                "
                 >{{ segment.text }}</span
               >
             </div>

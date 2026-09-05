@@ -3,7 +3,7 @@ import { computed } from 'vue'
 
 import { useEditorCommands, useViewportKind } from '@open-pencil/vue'
 
-import { useAIChat } from '@/app/ai/chat/use'
+import { useAIChat } from '@/app/ai/fork/use'
 import { useEditorStore } from '@/app/editor/active-store'
 import { createKeyboardActions } from '@/app/shell/keyboard/actions'
 import { bindEditorClipboard } from '@/app/shell/keyboard/clipboard'

@@ -1,23 +1,20 @@
+// Batch 2a 路径分离（2026-09-05）：本文件自 src/app/ai/chat/use.ts 迁入 owned
+// 路径 src/app/ai/fork/，原上游路径留给 deletedPaths 落账——pi 单路径后 chat
+// 入口已实质重写，与上游同名文件不再存在合并语义。
 import { ref } from 'vue'
 
 import { IS_BROWSER } from '@open-pencil/core/constants'
 
-import { createChatSessionManager } from '@/app/ai/chat/transports'
 import { loadPiChatHistory, mintPiSessionId } from '@/app/ai/pi-backend/document-key'
 import { exposeChatTransportOverride } from '@/app/browser-bridge'
 import { getActiveEditorStore } from '@/app/editor/active-store'
-import {
-  browserCredentialsRemembered,
-  pexelsKeyStatus,
-  setPexelsKey,
-  setRememberCredentials,
-  setUnsplashKey,
-  unsplashKeyStatus
-} from '@/app/settings/credentials/stock-photo-keys'
+
+import { createChatSessionManager } from './transports'
 
 /**
  * T25：pi 单路径后的 chat 入口——会话钩子恒挂（T22 D2/D3），模型/凭证旧面
- * 已切除；stock-photo key 与 remember 开关经此处 re-export 给设置 UI。
+ * 已切除。Batch 2a 路径分离：stock-photo key 与 remember 开关不再经此处
+ * re-export——设置 UI 直取源头 owned 文件 @/app/settings/credentials/stock-photo-keys。
  */
 const activeTab = ref<'design' | 'code' | 'ai'>('design')
 
@@ -37,12 +34,6 @@ if (IS_BROWSER) {
 export function useAIChat() {
   return {
     activeTab,
-    pexelsKeyStatus,
-    setPexelsKey,
-    unsplashKeyStatus,
-    setUnsplashKey,
-    browserCredentialsRemembered,
-    setRememberCredentials,
     ensureChat: chatSession.ensureChat,
     resetChat: chatSession.resetChat,
     chatFailure: chatSession.failure,

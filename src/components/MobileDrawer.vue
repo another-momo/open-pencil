@@ -6,7 +6,7 @@ import type { PanInfo } from 'motion-v'
 import { computed, ref } from 'vue'
 import { useI18n } from '@open-pencil/vue'
 
-import ChatPanel from './ChatPanel.vue'
+import ChatPanel from './chat/ChatPanel.vue'
 import CodePanel from './CodePanel.vue'
 import DesignPanel from './DesignPanel.vue'
 import LayerTree from './LayerTree/LayerTree.vue'

@@ -4,7 +4,7 @@
  *
  * 走既有 override 钩子（browser-bridge.ts exposeChatTransportOverride，与 e2e
  * mock 注入同一条管道），因此 transports.ts / use.ts / ChatPanel.vue 零改动。
- * 副作用顺序：本模块显式 import '@/app/ai/chat/use'，保证 window.openPencil
+ * 副作用顺序：本模块显式 import '@/app/ai/fork/use'，保证 window.openPencil
  * .setChatTransport 已暴露后再注册工厂。
  *
  * T22：sessionId 不再按浏览器 tab 固定——工厂收到 Chat 所属 EditorStore，
@@ -14,7 +14,7 @@
 
 import { IS_BROWSER } from '@open-pencil/core/constants'
 
-import '@/app/ai/chat/use'
+import '@/app/ai/fork/use'
 import { getPiDesignModelSpec } from '@/app/ai/pi-backend/assignment'
 import { getPiRequestContext } from '@/app/ai/pi-backend/document-key'
 import { PiBackendChatTransport } from '@/app/ai/pi-backend/transport'

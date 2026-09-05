@@ -4,9 +4,12 @@ import { computed } from 'vue'
 import { useI18n } from '@open-pencil/vue'
 import { IS_TAURI } from '@open-pencil/core/constants'
 
-import { useAIChat } from '@/app/ai/chat/use'
 import { useForkFonts } from '@/app/i18n/fork'
 import { appCredentialServices } from '@/app/settings/credentials/app'
+import {
+  browserCredentialsRemembered,
+  setRememberCredentials
+} from '@/app/settings/credentials/stock-photo-keys'
 import { settingsDialogOpen, settingsDialogSection } from '@/app/settings/dialog'
 import AgentSettingsPanel from '@/components/settings/agent/AgentSettingsPanel.vue'
 import DiagnosticsSettingsPanel from '@/components/settings/diagnostics/DiagnosticsSettingsPanel.vue'
@@ -23,7 +26,6 @@ import { AppDialogFooter, AppDialogHeader, AppDialogRoot } from '@/components/ui
 
 const { dialogs } = useI18n()
 const fontsMsgs = useForkFonts()
-const { browserCredentialsRemembered, setRememberCredentials } = useAIChat()
 function onOpenChange(open: boolean): void {
   settingsDialogOpen.value = open
 }

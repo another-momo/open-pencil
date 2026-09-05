@@ -1,14 +1,14 @@
+// Batch 2a 路径分离（2026-09-05）：本文件自 src/app/ai/chat/transports.ts 迁入
+// owned 路径 src/app/ai/fork/，原上游路径留给 deletedPaths 落账——pi 单路径
+// 会话管理器为 fork 实质重写（override transport 唯一来源），不再跟随上游。
 import { Chat } from '@ai-sdk/vue'
 import type { ChatTransport, FinishReason, UIMessage } from 'ai'
 import { ref } from 'vue'
 
-import {
-  classifyAIChatError,
-  classifyAIChatFinish,
-  type AIChatFailure
-} from '@/app/ai/chat/failure'
 import { recordChatCompleted, recordChatFailed } from '@/app/diagnostics'
 import type { getActiveEditorStore } from '@/app/editor/active-store'
+
+import { classifyAIChatError, classifyAIChatFinish, type AIChatFailure } from './failure'
 
 type EditorStore = ReturnType<typeof getActiveEditorStore>
 

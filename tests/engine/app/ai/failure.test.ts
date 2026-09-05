@@ -4,7 +4,7 @@ import {
   classifyAIChatError,
   classifyAIChatFinish,
   isInsufficientCreditError
-} from '@/app/ai/chat/failure'
+} from '@/app/ai/fork/failure'
 
 describe('AI chat failures', () => {
   test('recognizes provider credit and quota failures', () => {

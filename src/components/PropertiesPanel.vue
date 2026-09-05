@@ -2,9 +2,9 @@
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
 
 import { useI18n } from '@open-pencil/vue'
-import { useAIChat } from '@/app/ai/chat/use'
+import { useAIChat } from '@/app/ai/fork/use'
 
-import ChatPanel from './ChatPanel.vue'
+import ChatPanel from './chat/ChatPanel.vue'
 import CodePanel from './CodePanel.vue'
 import DesignPanel from './DesignPanel.vue'
 import ZoomDropdown from './editor/ZoomDropdown.vue'

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// Batch 2a 命名分离（2026-09-05）：本组件自 ChatMessage.vue 改名 PiChatMessage.vue，
+// 原名留给 deletedPaths 落账——组件已实质重写，与上游 ChatMessage 无合并语义。
 import { computed } from 'vue'
 import { isFileUIPart, isReasoningUIPart, isTextUIPart, isToolUIPart, getToolName } from 'ai'
 import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from 'reka-ui'

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+// Batch 2a 路径分离（2026-09-05）：本面板自 src/components/ChatPanel.vue 迁入
+// ownedRoot src/components/chat/，原上游路径留给 deletedPaths 落账；ChatInput/
+// ChatMessage 同批改名 PiChatInput/PiChatMessage 完成命名分离。
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -14,7 +17,7 @@ import { refAutoReset } from '@vueuse/core'
 import { computed, markRaw, nextTick, ref, watch } from 'vue'
 import { isTextUIPart } from 'ai'
 
-import { copyChatLog } from '@/app/ai/debug'
+import { copyChatLog } from '@/app/ai/fork/debug'
 import {
   getPiCurrentSessionId,
   hasPiDocId,
@@ -31,10 +34,10 @@ import {
 } from '@/app/ai/pi-backend/mode-selection'
 import { activeTab } from '@/app/tabs'
 import { getActiveEditorStore } from '@/app/editor/active-store'
-import ChatBriefDialog from '@/components/chat/ChatBriefDialog.vue'
-import ChatContextBar from '@/components/chat/ChatContextBar.vue'
-import ChatInput from '@/components/chat/ChatInput.vue'
-import ChatMessage from '@/components/chat/ChatMessage.vue'
+import ChatBriefDialog from './ChatBriefDialog.vue'
+import ChatContextBar from './ChatContextBar.vue'
+import PiChatInput from './PiChatInput.vue'
+import PiChatMessage from './PiChatMessage.vue'
 import {
   ACTIVE_DESIGN_DECISION_PART_TYPE,
   CONTEXT_SWITCH_PART_TYPE,
@@ -49,12 +52,12 @@ import {
   type ActiveDesignDecisionPartData,
   type ContextSwitchPartData,
   type NewIntentPartData
-} from '@/components/chat/active-design'
+} from './active-design'
 import AppPlaceholder from '@/components/ui/AppPlaceholder.vue'
 import AppTextButton from '@/components/ui/AppTextButton.vue'
 import Tip from '@/components/ui/Tip.vue'
 import { menuItem, useMenuUI } from '@/components/ui/menu'
-import { useAIChat } from '@/app/ai/chat/use'
+import { useAIChat } from '@/app/ai/fork/use'
 import { toast } from '@/app/shell/ui'
 import { useI18n } from '@open-pencil/vue'
 
@@ -79,7 +82,7 @@ const notifications = useNotificationMessages()
 const confirmText = useForkConfirm()
 
 const chat = ref<Chat<UIMessage> | null>(null)
-// T27：提交失败时经此把草稿回填进输入框（ChatInput 提交即清空——见 restoreDraft）；
+// T27：提交失败时经此把草稿回填进输入框（PiChatInput 提交即清空——见 restoreDraft）；
 // 结构化类型即可，不 import 组件类型（避免 script 侧只剩类型引用触发 consistent-type-imports）
 const chatInputRef = ref<{ restoreDraft: (text: string) => void; clearDraft: () => void } | null>(
   null
@@ -102,10 +105,10 @@ const messagesEnd = ref<HTMLDivElement>()
 const debugCopied = refAutoReset(false, 1500)
 // T94：用户主动停止标记——stop() 引发的 SSE 断开是预期行为，不是错误。
 // 旗标在下一次 status 落 ready / error 时消费复位（stop 按钮只在 streaming /
-// submitted 时出现，见 ChatInput isStreaming 守卫，旗标不会无条件残留）
+// submitted 时出现，见 PiChatInput isStreaming 守卫，旗标不会无条件残留）
 const isUserStopped = ref(false)
 // T94：停止回执瞬时旗标（4s 自动复位，refAutoReset 同 debugCopied 纪律）——
-// 驱动末条消息底部「已停止」小字行（ChatMessage stopped prop）
+// 驱动末条消息底部「已停止」小字行（PiChatMessage stopped prop）
 const justStopped = refAutoReset(false, 4000)
 
 const messages = computed(() => chat.value?.messages ?? [])
@@ -377,7 +380,7 @@ async function interceptNewIntent(
     return false
   }
   pendingIntentDraft.value = text
-  // 消息留输入框（ChatInput 提交即清空——拦截不等于发送）
+  // 消息留输入框（PiChatInput 提交即清空——拦截不等于发送）
   chatInputRef.value?.restoreDraft(text)
   return true
 }
@@ -711,7 +714,7 @@ function handleClearChat() {
 
         <!-- Messages -->
         <div v-else data-test-id="chat-messages" class="flex flex-col gap-3">
-          <ChatMessage
+          <PiChatMessage
             v-for="(msg, index) in messages"
             :key="msg.id"
             :message="msg"
@@ -785,7 +788,7 @@ function handleClearChat() {
       </AppTextButton>
     </div>
 
-    <ChatInput
+    <PiChatInput
       ref="chatInputRef"
       :status="status"
       @submit="handleSubmit"

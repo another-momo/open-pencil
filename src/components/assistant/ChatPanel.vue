@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Batch 2a 路径分离（2026-09-05）：本面板自 src/components/ChatPanel.vue 迁入
-// ownedRoot src/components/chat/，原上游路径留给 deletedPaths 落账；ChatInput/
-// ChatMessage 同批改名 PiChatInput/PiChatMessage 完成命名分离。
+// ownedRoot src/components/assistant/（Batch 2f 自 chat/ 整体改名），原上游路径
+// 留给 deletedPaths 落账；ChatInput/ChatMessage 同批改名 PiChatInput/PiChatMessage 完成命名分离。
 import {
   DropdownMenuContent,
   DropdownMenuItem,

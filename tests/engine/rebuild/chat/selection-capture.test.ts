@@ -34,7 +34,7 @@ import {
   stripSelectionManifest,
   type SelectionNodeReader,
   type SelectionTokenRegistry
-} from '@/components/chat/selection-capture'
+} from '@/components/assistant/selection-capture'
 
 import { expectDefined } from '#tests/helpers/assert'
 

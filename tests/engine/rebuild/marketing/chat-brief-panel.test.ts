@@ -35,7 +35,7 @@ import {
   saveBriefContent,
   saveMaterialCaption,
   scanCurrentPageBriefs
-} from '@/components/chat/active-design'
+} from '@/components/assistant/active-design'
 
 import {
   BRIEF_WIDTH,
@@ -137,7 +137,7 @@ describe('T79 B2：ensureGraphFonts 在排版结算前 await', () => {
     }))
 
     // 强制重新加载 active-design（拿到 mock 后的依赖）
-    const { createBriefOnPage: freshCreate } = await import('@/components/chat/active-design')
+    const { createBriefOnPage: freshCreate } = await import('@/components/assistant/active-design')
     const store = createEditorStore()
     await freshCreate(store, '内容')
 

@@ -971,7 +971,7 @@ defineExpose({ restoreDraft, clearDraft })
 
 .chat-inline-editor :deep(.chat-inline-chip-inner) {
   font-size: 11px;
-  color: var(--op-surface, rgb(245 245 250));
+  color: var(--color-surface);
   line-height: 1.2;
 }
 
@@ -982,7 +982,7 @@ defineExpose({ restoreDraft, clearDraft })
   width: 16px;
   height: 16px;
   border-radius: 4px;
-  color: var(--op-muted, rgb(150 150 160));
+  color: var(--color-muted);
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -991,7 +991,7 @@ defineExpose({ restoreDraft, clearDraft })
 }
 
 .chat-inline-editor :deep(.chat-inline-chip-x:hover) {
-  background: var(--op-hover, rgb(50 50 56));
-  color: var(--op-surface, rgb(245 245 250));
+  background: var(--color-hover);
+  color: var(--color-surface);
 }
 </style>

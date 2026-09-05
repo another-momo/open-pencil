@@ -1,5 +1,5 @@
 {
-  "$comment": "Zone registry for rebuild/v2 (docs/rebuild/02-phase-0.md). Truth for path ownership; CI-enforced via tools/zone-registry/src/check.ts (check:zones). Rules: modified upstream files must be registered patches; new files only under ownedRoots (or upstreamMergeTarball.paths for byte-identical tarball merges); deletedPaths must not exist. upstreamMergeTarball (T32): structured whitelist for byte-identical tarball-merge copies, one entry per merge with base SHA; any local drift from base is a violation — see docs/rebuild/04-porting-discipline.md §5. Patch id gaps P62-P73/P75-P82: migrated to upstreamMergeTarball by T32; P83-P97: reserved by T32 plan but superseded by the tarball field, never issued. P8: removed by T36 — target src/app/ai/chat/storage.ts already deleted and in deletedPaths (double accounting). P60/P61: removed by T36 — both test files byte-identical to base 88c10770 (T32 migration miss; phantom patches). P98-P102: removed by T36 — the five objects are fork-new files already in ownedFiles (double accounting, no base to anchor); ownership truth stays in ownedFiles. pendingReclass is planning metadata (files stay follow-pure until the reclassification ritual; note: a file may carry a deletion-cut patch while still pending reclassification). P4/P5/P47: removed by T65 (2026-09-01) — src/components/chat/ promoted to ownedRoot and src/components/ChatPanel.vue to ownedFiles (ChatPanel 族改动幅度已远超 patch 语义，owner 拍板转 owned 区); patches retired as double accounting, their history stays in git. tool-state.ts removed from T32 tarball.paths (now covered by chat/ ownedRoot; byte-identical to base 88c10770 at promotion time). tests/engine/io/ promoted to ownedRoot by T91a (2026-09-03) — fig codec 测试集 T91a 起大量新增 round-trip 测试（shared-plugin-data round-trip 等），已远超 patch 语义，owner 拍板转 owned 区（与 T65 chat/ 同模式）。tests/engine/io/ demoted back to follow by Batch 2d (2026-09-05) — 实测上游 head 存在该目录且持续供血（方案 §4.5：owned 上游活跃目录是语义矛盾，新增静默落入零决策）；T91a 唯一新增测试 shared-plugin-data.test.ts 迁 tests/engine/rebuild/io/（ownedRoot 内），其余 85 文件均上游 base 原有留原位。Batch 3 全量落账（2026-09-05，方案 §6）：ownedRoots 换名 src/components/chat/→src/components/assistant/（Batch 2f 整目录搬家，方案 §4.5 深层错配根治——腾出上游仍在用的目录名进 deletedPaths 前缀），新增 src/app/ai/fork/（Batch 2a 路径分离产物）、src/app/automation/（Batch 2c 桥内核迁入+mcp 外壳裁撤后只剩内部桥，方案 §4.3 owner 拍板升 owned）、.github/workflows/（CI 纯 fork 治理设施，方案 §4.3）；ownedFiles 出清 .github/workflows/upstream-drift.yml 与 src/components/ChatPanel.vue（均已被新 ownedRoot 覆盖），新增 src/app/browser-bridge.ts（pendingReclass 出清，P41 退役——R-mutex）与 2e/2b 吸收产物 7 件；deletedPaths 增 packages/cli/、packages/mcp/、tests/engine/cli/、tests/engine/mcp/、src/app/automation/mcp/、tests/helpers/mcp/、src/components/chat/ 七条目录前缀 + bunfig.toml 等散件（Batch 2b cli 纯删 / 2c mcp 裁撤 / 2f chat 搬家收口），src/components/chat/ 旧 6 墓碑与 tests/helpers/mcp/acp-session.ts 因子前缀成立转冗余删除（Batch 0 ownedRoot 删除豁免已生效）；patches 退役 P6/P7/P52（目标已迁 ai/fork/，旧路径进 deletedPaths）、P39/P41/P104/P105/P135/P136/P141（automation 升 owned / browser-bridge 升 ownedFile / automation/mcp 删除——ownedRoot 下修改免登记，patch 失锚或冗余）、P56/P139/P140（packages/mcp 目标已删）、P142（锚定语义随 automation/mcp/runtime.ts 删除失效，由 P183 承接 mcp-runtime.test.ts 现状）；pendingReclass 7 项全部出清（chat/ 与 debug 已分离删除、automation/ 与 workflows/ 升 owned、browser-bridge 升 ownedFile、packages/mcp 与 packages/cli 已删）；T31 tarball.paths 出清 tests/engine/app/chat/tool-state.test.ts（Batch 2f import 改指致 drift，转 patch P191）。relocations 搬移台账（2026-09-05，方案 §6，owner 拍板建立机制）：登记历史搬移事件——上游旧位置 → fork 新家园（空数组 = 纯裁撤无继承者），与 deletedPaths 互补（deletedPaths 管删除事实，relocations 管搬移意图与去向，便于上游对旧位置后续改动时机器化产出移植评估信号）。七条回填对应 Batch 2a/2b/2c/2f + T46：mcp 裁撤内核迁入（stdio/tool registration 外壳未迁——本表只登记有去向的产物，无外壳去向故无条目）、cli 裁撤（CanvasKit 初始化/字体预备吸收进 core/io、fixture 导出归 visual-oracles）、chat→fork 路径分离（整目录进 deletedPaths）、chat→assistant 整目录搬家（腾出上游仍在用的目录名）、mcp 外壳纯删、mcp 测试随迁、system-prompt 谱系转写（T46 副本退役、studio/ 唯一真源）。check.ts RELOCATION_WATCH 规则（advisory，永不 fail gate）遍历本表对 upstreamBase..upstream/master name-status diff 做命中——目录前缀用 startsWith，文件精确匹配，rename 的 from/to 都算；命中即打印移植评估摘要（不改退出码、不计入 violation 数），默认模式只打摘要行、--drift 追加每文件明细。",
+  "$comment": "Zone registry for rebuild/v2 (docs/rebuild/02-phase-0.md). Truth for path ownership; CI-enforced via tools/zone-registry/src/check.ts (check:zones). Rules: modified upstream files must be registered patches; new files only under ownedRoots (or upstreamMergeTarball.paths for byte-identical tarball merges); deletedPaths must not exist. upstreamMergeTarball (T32): structured whitelist for byte-identical tarball-merge copies, one entry per merge with base SHA; any local drift from base is a violation — see docs/rebuild/04-porting-discipline.md §5. Patch id gaps P62-P73/P75-P82: migrated to upstreamMergeTarball by T32; P83-P97: reserved by T32 plan but superseded by the tarball field, never issued. P8: removed by T36 — target src/app/ai/chat/storage.ts already deleted and in deletedPaths (double accounting). P60/P61: removed by T36 — both test files byte-identical to base 88c10770 (T32 migration miss; phantom patches). P98-P102: removed by T36 — the five objects are fork-new files already in ownedFiles (double accounting, no base to anchor); ownership truth stays in ownedFiles. pendingReclass is planning metadata (files stay follow-pure until the reclassification ritual; note: a file may carry a deletion-cut patch while still pending reclassification). P4/P5/P47: removed by T65 (2026-09-01) — src/components/chat/ promoted to ownedRoot and src/components/ChatPanel.vue to ownedFiles (ChatPanel 族改动幅度已远超 patch 语义，owner 拍板转 owned 区); patches retired as double accounting, their history stays in git. tool-state.ts removed from T32 tarball.paths (now covered by chat/ ownedRoot; byte-identical to base 88c10770 at promotion time). tests/engine/io/ promoted to ownedRoot by T91a (2026-09-03) — fig codec 测试集 T91a 起大量新增 round-trip 测试（shared-plugin-data round-trip 等），已远超 patch 语义，owner 拍板转 owned 区（与 T65 chat/ 同模式）。tests/engine/io/ demoted back to follow by Batch 2d (2026-09-05) — 实测上游 head 存在该目录且持续供血（方案 §4.5：owned 上游活跃目录是语义矛盾，新增静默落入零决策）；T91a 唯一新增测试 shared-plugin-data.test.ts 迁 tests/engine/rebuild/io/（ownedRoot 内），其余 85 文件均上游 base 原有留原位。Batch 3 全量落账（2026-09-05，方案 §6）：ownedRoots 换名 src/components/chat/→src/components/assistant/（Batch 2f 整目录搬家，方案 §4.5 深层错配根治——腾出上游仍在用的目录名进 deletedPaths 前缀），新增 src/app/ai/fork/（Batch 2a 路径分离产物）、src/app/automation/（Batch 2c 桥内核迁入+mcp 外壳裁撤后只剩内部桥，方案 §4.3 owner 拍板升 owned）、.github/workflows/（CI 纯 fork 治理设施，方案 §4.3）；ownedFiles 出清 .github/workflows/upstream-drift.yml 与 src/components/ChatPanel.vue（均已被新 ownedRoot 覆盖），新增 src/app/browser-bridge.ts（pendingReclass 出清，P41 退役——R-mutex）与 2e/2b 吸收产物 7 件；deletedPaths 增 packages/cli/、packages/mcp/、tests/engine/cli/、tests/engine/mcp/、src/app/automation/mcp/、tests/helpers/mcp/、src/components/chat/ 七条目录前缀 + bunfig.toml 等散件（Batch 2b cli 纯删 / 2c mcp 裁撤 / 2f chat 搬家收口），src/components/chat/ 旧 6 墓碑与 tests/helpers/mcp/acp-session.ts 因子前缀成立转冗余删除（Batch 0 ownedRoot 删除豁免已生效）；patches 退役 P6/P7/P52（目标已迁 ai/fork/，旧路径进 deletedPaths）、P39/P41/P104/P105/P135/P136/P141（automation 升 owned / browser-bridge 升 ownedFile / automation/mcp 删除——ownedRoot 下修改免登记，patch 失锚或冗余）、P56/P139/P140（packages/mcp 目标已删）、P142（锚定语义随 automation/mcp/runtime.ts 删除失效，由 P183 承接 mcp-runtime.test.ts 现状）；pendingReclass 7 项全部出清（chat/ 与 debug 已分离删除、automation/ 与 workflows/ 升 owned、browser-bridge 升 ownedFile、packages/mcp 与 packages/cli 已删）；T31 tarball.paths 出清 tests/engine/app/chat/tool-state.test.ts（Batch 2f import 改指致 drift，转 patch P191）。relocations 搬移台账（2026-09-05，方案 §6，owner 拍板建立机制）：登记历史搬移事件——上游旧位置 → fork 新家园（空数组 = 纯裁撤无继承者），与 deletedPaths 互补（deletedPaths 管删除事实，relocations 管搬移意图与去向，便于上游对旧位置后续改动时机器化产出移植评估信号）。七条回填对应 Batch 2a/2b/2c/2f + T46：mcp 裁撤内核迁入（stdio/tool registration 外壳未迁——本表只登记有去向的产物，无外壳去向故无条目）、cli 裁撤（CanvasKit 初始化/字体预备吸收进 core/io、fixture 导出归 visual-oracles）、chat→fork 路径分离（整目录进 deletedPaths）、chat→assistant 整目录搬家（腾出上游仍在用的目录名）、mcp 外壳纯删、mcp 测试随迁、system-prompt 谱系转写（T46 副本退役、studio/ 唯一真源）。check.ts RELOCATION_WATCH 规则（advisory，永不 fail gate）遍历本表对 upstreamBase..upstream/master name-status diff 做命中——目录前缀用 startsWith，文件精确匹配，rename 的 from/to 都算；命中即打印移植评估摘要（不改退出码、不计入 violation 数），默认模式只打摘要行、--drift 追加每文件明细。 P192-P196 (ux3 patch 退役批, 2026-09-05): 与 T98 上游合并吸收语义重叠——P192/P193 已被上游 be942783d 域命名空间迁移完全吸收；P194/P195/P196 涉及 panel 路由与索引，与本次合并协同退役（主 agent 收口时审）。",
   "ownedRoots": [
     "docs/",
     "tools/zone-registry/",
@@ -75,30 +75,41 @@
     "tools/visual-oracles/src/render-fixture.ts",
     "tests/engine/tools/all-tools-execution.test.ts"
   ],
-  "stubs": ["src/app/collab/use.ts"],
+  "stubs": [
+    "src/app/collab/use.ts"
+  ],
   "pendingReclass": [],
   "relocations": [
     {
       "oldPath": "packages/mcp/",
-      "newPaths": ["src/app/automation/bridge/server/"],
+      "newPaths": [
+        "src/app/automation/bridge/server/"
+      ],
       "since": "Batch 2c (2026-09-05)",
       "note": "mcp 裁撤内核迁入；stdio/tool registration 等外壳未迁"
     },
     {
       "oldPath": "packages/cli/",
-      "newPaths": ["packages/core/src/io/", "tools/visual-oracles/src/render-fixture.ts"],
+      "newPaths": [
+        "packages/core/src/io/",
+        "tools/visual-oracles/src/render-fixture.ts"
+      ],
       "since": "Batch 2b (2026-09-05)",
       "note": "cli 裁撤；CanvasKit 初始化/字体预备吸收进 core/io，fixture 导出归 visual-oracles"
     },
     {
       "oldPath": "src/app/ai/chat/",
-      "newPaths": ["src/app/ai/fork/"],
+      "newPaths": [
+        "src/app/ai/fork/"
+      ],
       "since": "Batch 2a (2026-09-05)",
       "note": "路径分离：use/failure/transports 迁 fork；2026-09-05 整目录进 deletedPaths"
     },
     {
       "oldPath": "src/components/chat/",
-      "newPaths": ["src/components/assistant/"],
+      "newPaths": [
+        "src/components/assistant/"
+      ],
       "since": "Batch 2f (2026-09-05)",
       "note": "整目录搬家腾出上游仍在用的目录名"
     },
@@ -110,13 +121,17 @@
     },
     {
       "oldPath": "tests/engine/mcp/",
-      "newPaths": ["tests/engine/tools/"],
+      "newPaths": [
+        "tests/engine/tools/"
+      ],
       "since": "Batch 2c (2026-09-05)",
       "note": "mcp 测试随迁"
     },
     {
       "oldPath": "src/app/ai/chat/system-prompt.md",
-      "newPaths": ["src/app/ai/pi-backend/studio/base.md"],
+      "newPaths": [
+        "src/app/ai/pi-backend/studio/base.md"
+      ],
       "since": "T46 (2026-08)",
       "note": "提示词谱系：T46 转写副本 2026-09-05 退役，studio/ 唯一真源"
     }
@@ -470,8 +485,9 @@
       "id": "P74",
       "file": "src/app/editor/clipboard/system.ts",
       "reason": "T31: eslint(complexity) 21>20 重构——上游 7a311677 引入的 clipboard 降级链单函数超仓内 lint 阈值，按纯度最小重构抽 helper tryModernClipboardWrite（61+/47-，行为不变，system.ts L97-98 有注记；上游本体未做此拆分时我们维护此补丁）。纠正此前误记的「上游合并快进」理由（T36 大扫除，2026-08-28）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-28"
+      "disposition": "revoked",
+      "lastReviewed": "2026-09-05",
+      "retiredReason": "T98: 上游 PR #601 (clipboard/system.ts → clipboard/system/{browser,tauri,transfer,types,index}.ts) 已拆分原 system.ts 单文件到目录，单函数 complexity 降低；本地 tryModernClipboardWrite helper 语义被分散到 system/{browser,tauri}.ts 各路径，无合并后文件可锚定。Revoked（吸收）"
     },
     {
       "id": "P103",
@@ -668,57 +684,64 @@
       "id": "P143",
       "file": "packages/core/src/canvas/renderer/fonts.ts",
       "reason": "T88（2026-09-03，owner 截图节点名豆腐修复）：loadFonts 三 typeface 并行加载（Inter / Alibaba PuHuiTi / Noto Naskh Arabic），新增 cjk*Font / arabic*Font ×5 = 10 Font 实例字段 + cjkFallbackFamilies / script segment helper；pickFontForText / drawTextByScript / measureTextByScript 三 helper 出口；fail-safe（缺失 typeface 降级到 latin 不抛）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-03",
-      "task": "T88"
+      "disposition": "revoked",
+      "lastReviewed": "2026-09-05",
+      "task": "T88",
+      "retiredReason": "T98: 上游整文件回退到 base 形态（仅 5 个 latin Font + fontProvider 注册），删除 T88 多 typeface 系统 + 13 个 helper；合并后取 upstream 形态整文件覆盖。Revoked（语义回退）"
     },
     {
       "id": "P144",
       "file": "packages/core/src/canvas/renderer.ts",
       "reason": "T88（2026-09-03）：renderer.ts 字段块扩 cjk*/arabic* Font 字段 10 个；hitTestSectionTitle / hitTestComponentLabel / hitTestFrameTitle 入口参数由 Font|null 改 SkiaRenderer|null（hit-test 改走 measureTextByScript 测宽，含三 typeface glyph 累加）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-03",
-      "task": "T88"
+      "disposition": "revoked",
+      "lastReviewed": "2026-09-05",
+      "task": "T88",
+      "retiredReason": "T98: 上游删除 10 个 cjk/arabic Font 字段，新增 labelParagraphCache 字段；合并后取 upstream 形态整文件覆盖。Revoked（语义回退）"
     },
     {
       "id": "P145",
       "file": "packages/core/src/canvas/renderer/lifecycle.ts",
       "reason": "T88（2026-09-03）：destroyRenderer 内 5 个 Font.delete() 后追加 10 个 cjk*/arabic* Font.delete()（CanvasKit WASM 侧 typeface 残留 2-10MB，靠 Font.delete 链回收，新加字段需同等待遇）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-03",
-      "task": "T88"
+      "disposition": "revoked",
+      "lastReviewed": "2026-09-05",
+      "task": "T88",
+      "retiredReason": "T98: 上游 destroyRenderer 恢复仅 5 个 Font.delete()（无 cjk/arabic Font 字段了）；合并后取 upstream 形态整文件覆盖。Revoked（语义回退）"
     },
     {
       "id": "P146",
       "file": "packages/core/src/canvas/labels/draw.ts",
       "reason": "T88（2026-09-03）：drawSectionTitle / drawComponentLabels 改用 pickFontForText + drawTextByScript / measureTextByScript（segment 切换 typeface，ellipsize 按段宽累加而非单 glyph）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-03",
-      "task": "T88"
+      "disposition": "revoked",
+      "lastReviewed": "2026-09-05",
+      "task": "T88",
+      "retiredReason": "T98: 上游采用 labelParagraphCache 方案，draw.ts 与 upstream byte-identical（174 行），A2 手术件整文件覆盖。Revoked（吸收）"
     },
     {
       "id": "P147",
       "file": "packages/core/src/canvas/labels/hit-test.ts",
       "reason": "T88（2026-09-03）：hitTestSectionTitle / hitTestComponentLabel / hitTestFrameTitle 入口参数由 Font|null 改 SkiaRenderer|null，内部走 measureTextByScript（按 script 段切，多 typeface 参与宽度测量）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-03",
-      "task": "T88"
+      "disposition": "revoked",
+      "lastReviewed": "2026-09-05",
+      "task": "T88",
+      "retiredReason": "T98: 上游回到 measureGlyphWidth 单 typeface 测宽；合并后取 upstream 形态整文件覆盖。Revoked（已知回归：CJK/Arabic 标签命中盒偏窄）"
     },
     {
       "id": "P148",
       "file": "packages/core/src/canvas/labels/selection.ts",
       "reason": "T88（2026-09-03）：frame title 渲染改走 pickFontForText + drawTextByScript（远程协作 cursorname 等中文 label 路径同步覆盖）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-03",
-      "task": "T88"
+      "disposition": "revoked",
+      "lastReviewed": "2026-09-05",
+      "task": "T88",
+      "retiredReason": "T98: 上游 frame title 改 labelParagraphCache.draw；合并后取 upstream 形态整文件覆盖。Revoked（吸收）"
     },
     {
       "id": "P149",
       "file": "packages/core/src/canvas/pen-overlay.ts",
       "reason": "T88（2026-09-03）：collab cursor.name 中文 label 渲染改走 measureTextByScript + drawTextByScript（与 frame title 同处理）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-03",
-      "task": "T88"
+      "disposition": "revoked",
+      "lastReviewed": "2026-09-05",
+      "task": "T88",
+      "retiredReason": "T98: 上游回到 r.labelFont.getGlyphIDs + canvas.drawText 单 typeface 路径；合并后取 upstream 形态整文件覆盖。Revoked（已知回归：协作 cursor 中文名出 tofu）"
     },
     {
       "id": "P150",
@@ -1023,15 +1046,17 @@
       "id": "P192",
       "file": "packages/vue/src/i18n/messages/dialogs.ts",
       "reason": "ux3（2026-09-05）：删除 usage/diagnostics 面板 25 个 panel-only i18n 键致 TARBALL_DRIFT，按 checker 提示出清转 patch；T63 消费点迁移仍是合并期事项",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-05"
+      "disposition": "revoked",
+      "lastReviewed": "2026-09-05",
+      "retiredReason": "T98: 上游 be942783d 重构已删 messages/dialogs.ts 并将 32 键迁移至 messages/diagnostics.ts（去 diagnostics 前缀）+ 2 键至 messages/settings.ts（usage/diagnostics 面板导航键）。合并后该文件被 upstream 删除，键已重命名/重锚；本地 34 键删除清单（ux3 P192 计划）的目标已天然达成——consumed panel code（src/components/settings/{usage,diagnostics}/）已在 deletedPaths，新诊断键成为孤儿键（无 import 方，零影响）。Revoked（吸收）"
     },
     {
       "id": "P193",
       "file": "packages/vue/src/i18n/locales/zh-cn/dialogs.json",
       "reason": "ux3（2026-09-05）：zh-cn 翻译同步删除 25 个 panel-only 键致 TARBALL_DRIFT，随 P192 一并出清转 patch",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-05"
+      "disposition": "revoked",
+      "lastReviewed": "2026-09-05",
+      "retiredReason": "T98: 上游 be942783d 已删 locales/zh-cn/dialogs.json 并将 zh-cn 翻译随 messages/ 同步迁移（重命名键）。Revoked（吸收）"
     },
     {
       "id": "P194",
@@ -1258,8 +1283,10 @@
     {
       "base": "88c1077071328b8df68f282543f16e20e97930b4",
       "task": "T63",
-      "lastReviewed": "2026-09-01",
-      "paths": []
+      "lastReviewed": "2026-09-05",
+      "paths": [],
+      "retired": true,
+      "retiredReason": "T98: T63 tarball paths 已空（commit f3363f414 + abd2f0285 已把对话框相关 patches 全部转 P192-P196/patches）；上游 be942783d + PR #644 i18n 域命名空间迁移合并后将直接吸收。Tarball 载体退役，留作历史轨迹。"
     }
   ]
 }

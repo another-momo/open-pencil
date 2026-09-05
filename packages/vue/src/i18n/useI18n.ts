@@ -12,7 +12,6 @@ import {
   commandMessages,
   commonMessages,
   credentialsMessages,
-  diagnosticsMessages,
   editorMessages,
   filesMessages,
   fontsMessages,
@@ -42,7 +41,6 @@ export const useCollaborationMessages = () => useI18nNamespace(collaborationMess
 export const useCommandMessages = () => useI18nNamespace(commandMessages)
 export const useCommonMessages = () => useI18nNamespace(commonMessages)
 export const useCredentialMessages = () => useI18nNamespace(credentialsMessages)
-export const useDiagnosticsMessages = () => useI18nNamespace(diagnosticsMessages)
 export const useEditorMessages = () => useI18nNamespace(editorMessages)
 export const useFileMessages = () => useI18nNamespace(filesMessages)
 export const useFontMessages = () => useI18nNamespace(fontsMessages)
@@ -70,7 +68,6 @@ export function useI18n() {
     commands: useCommandMessages(),
     common: useCommonMessages(),
     credentials: useCredentialMessages(),
-    diagnostics: useDiagnosticsMessages(),
     editor: useEditorMessages(),
     files: useFileMessages(),
     fonts: useFontMessages(),

@@ -7,7 +7,6 @@ import collaboration from './collaboration.json'
 import commands from './commands.json'
 import common from './common.json'
 import credentials from './credentials.json'
-import diagnostics from './diagnostics.json'
 import editor from './editor.json'
 import files from './files.json'
 import fonts from './fonts.json'
@@ -33,7 +32,6 @@ export default {
   commands,
   common,
   credentials,
-  diagnostics,
   editor,
   files,
   fonts,

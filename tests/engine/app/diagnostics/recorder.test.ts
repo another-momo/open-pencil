@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, test } from 'bun:test'
 
 import { diagnostics, recordChatCompleted } from '@/app/diagnostics'
-import { isDiagnosticsEnabled } from '@/app/diagnostics/settings'
-
-void isDiagnosticsEnabled
 
 describe('diagnostics recorder', () => {
   beforeEach(async () => {

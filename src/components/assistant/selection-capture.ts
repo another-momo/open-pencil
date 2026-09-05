@@ -215,9 +215,7 @@ export function removeSelectionToken(text: string, n: number): string {
 // 完全一致的序列化结果。
 
 /** 分段模型：有序段，文本段或 token 段（二选一） */
-export type InputSegment =
-  | { kind: 'text'; text: string }
-  | { kind: 'token'; n: number }
+export type InputSegment = { kind: 'text'; text: string } | { kind: 'token'; n: number }
 
 /** 文本串 → 分段数组。半删残串（非完整 `「@画布选区-N」`）不切，归并到
  *  相邻文本段里；这与 scanSelectionTokens 的「只识别完整占位串」一致——

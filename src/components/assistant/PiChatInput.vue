@@ -674,47 +674,50 @@ defineExpose({ restoreDraft, clearDraft })
                 <!-- 空编辑器补一个 <br> 占位，否则首次输入光标无落点 -->
                 <br v-if="segments.length === 0" />
                 <template v-for="(seg, idx) in segments" :key="`seg-${idx}`">
-                <span
-                  v-if="seg.kind === 'token'"
-                  contenteditable="false"
-                  :data-token-n="seg.n"
-                  class="chat-inline-chip"
-                  data-test-id="chat-token-chip"
-                >
-                  <ChatNodePreview
-                    v-if="chipForN(seg.n)"
-                    :node-id="chipForN(seg.n)!.preview.nodeId"
-                    :page-id="chipForN(seg.n)!.preview.pageId"
-                    :graph="chipRenderContext().graph"
-                    :renderer="chipRenderContext().renderer"
-                  />
-                  <span v-else class="chat-inline-chip-placeholder" aria-hidden="true"></span>
-                  <span class="chat-inline-chip-inner">{{ chipLabelForN(seg.n) }}</span>
-                  <button
-                    type="button"
-                    class="chat-inline-chip-x"
-                    aria-label="移除引用"
+                  <span
+                    v-if="seg.kind === 'token'"
+                    contenteditable="false"
                     :data-token-n="seg.n"
-                    @mousedown.prevent
-                    @click.stop="handleRemoveToken(seg.n)"
+                    class="chat-inline-chip"
+                    data-test-id="chat-token-chip"
                   >
-                    <svg
-                      class="size-3"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
+                    <ChatNodePreview
+                      v-if="chipForN(seg.n)"
+                      :node-id="chipForN(seg.n)!.preview.nodeId"
+                      :page-id="chipForN(seg.n)!.preview.pageId"
+                      :graph="chipRenderContext().graph"
+                      :renderer="chipRenderContext().renderer"
+                    />
+                    <span v-else class="chat-inline-chip-placeholder" aria-hidden="true"></span>
+                    <span class="chat-inline-chip-inner">{{ chipLabelForN(seg.n) }}</span>
+                    <button
+                      type="button"
+                      class="chat-inline-chip-x"
+                      aria-label="移除引用"
+                      :data-token-n="seg.n"
+                      @mousedown.prevent
+                      @click.stop="handleRemoveToken(seg.n)"
                     >
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                  </button>
-                </span>
-                <template v-else>
-                  <template v-for="(line, lineIdx) in seg.text.split('\n')" :key="`line-${idx}-${lineIdx}`">
-                    <br v-if="lineIdx > 0" />
-                    <span>{{ line }}</span>
+                      <svg
+                        class="size-3"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                  <template v-else>
+                    <template
+                      v-for="(line, lineIdx) in seg.text.split('\n')"
+                      :key="`line-${idx}-${lineIdx}`"
+                    >
+                      <br v-if="lineIdx > 0" />
+                      <span>{{ line }}</span>
+                    </template>
                   </template>
-                </template>
                 </template>
               </template>
             </div>

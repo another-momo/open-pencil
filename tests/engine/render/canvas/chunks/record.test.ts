@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, mock, test } from 'bun:test'
 
 import { SceneGraph } from '@open-pencil/scene-graph'
 
-import { initCanvasKit } from '#cli/headless'
+import { initCanvasKit } from '@open-pencil/core/io'
 import { SkiaRenderer } from '#core/canvas'
 import type { RenderChunk } from '#core/canvas/renderer/chunks'
 import {

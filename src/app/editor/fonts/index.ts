@@ -20,11 +20,8 @@ import {
   createTauriDownloadedFontCache,
   downloadedFontCacheSummary as tauriDownloadedFontCacheSummary
 } from '@/app/editor/fonts/cache'
-<<<<<<< HEAD
 import { createCnFontPieceCache } from '@/app/editor/fonts/idb-cache'
 import { toast } from '@/app/shell/ui'
-=======
->>>>>>> refs/remotes/upstream/master
 import { isTauri } from '@/app/tauri/env'
 import { tauriFetch } from '@/app/tauri/http'
 import { IS_TAURI } from '@/constants'

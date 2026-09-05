@@ -953,8 +953,8 @@ defineExpose({ restoreDraft, clearDraft })
   margin: 0 1px;
   padding: 1px 2px 1px 4px;
   border-radius: 6px;
-  border: 1px solid var(--op-border, rgb(64 64 72));
-  background: var(--op-canvas, rgb(28 28 32));
+  border: 1px solid var(--color-border);
+  background: var(--color-panel-field);
   vertical-align: baseline;
   white-space: nowrap;
   user-select: none;

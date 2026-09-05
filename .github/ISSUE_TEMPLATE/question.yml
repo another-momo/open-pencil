@@ -31,7 +31,6 @@ body:
         - Canvas rendering
         - .fig import/export
         - SVG/PDF/raster export
-        - CLI
         - MCP / automation
         - Tauri desktop
         - Collaboration

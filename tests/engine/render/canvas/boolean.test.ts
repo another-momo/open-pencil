@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 
+import { initCanvasKit } from '@open-pencil/core/io'
 import type { SceneNode } from '@open-pencil/scene-graph'
 
-import { initCanvasKit } from '#cli/headless'
 import { makeBooleanOperationPath } from '#core/canvas/boolean'
 import type { SkiaRenderer } from '#core/canvas/renderer'
 import { makeNodeShapePath, makePolygonPath, makeRRect } from '#core/canvas/shapes'

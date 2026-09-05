@@ -10,8 +10,7 @@ import {
   type SceneGraph,
   type SceneNode
 } from '@open-pencil/core'
-
-import { initCanvasKit } from '#cli/headless'
+import { initCanvasKit } from '@open-pencil/core/io'
 
 import { expectDefined } from '#tests/helpers/assert'
 import { repoPath } from '#tests/helpers/paths'

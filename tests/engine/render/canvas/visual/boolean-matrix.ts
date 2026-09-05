@@ -1,9 +1,9 @@
 import { writeFile } from 'node:fs/promises'
 
+import { initCanvasKit } from '@open-pencil/core/io'
 import type { SceneNode } from '@open-pencil/scene-graph'
 import { parseSVGPath } from '@open-pencil/scene-graph/parse-path'
 
-import { initCanvasKit } from '#cli/headless'
 import { SkiaRenderer } from '#core/canvas'
 
 import { createAPI } from '#tests/engine/figma/api/helpers'

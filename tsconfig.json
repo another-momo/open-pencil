@@ -31,9 +31,6 @@
       "#core/*": [
         "./packages/core/src/*"
       ],
-      "#cli/*": [
-        "./packages/cli/src/*"
-      ],
       "#mcp/*": [
         "./packages/mcp/src/*"
       ],
@@ -45,9 +42,6 @@
       ],
       "tinykeys": [
         "./node_modules/tinykeys/dist/tinykeys.d.ts"
-      ],
-      "@open-pencil/cli/library": [
-        "./packages/cli/src/library/index.ts"
       ],
       "@open-pencil/vue": [
         "./packages/vue/src/index.ts"

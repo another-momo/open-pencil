@@ -1,8 +1,7 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
 
 import { renderNodesToImage, SceneGraph, SkiaRenderer } from '@open-pencil/core'
-
-import { initCanvasKit } from '#cli/headless'
+import { initCanvasKit } from '@open-pencil/core/io'
 
 import { expectDefined } from '#tests/helpers/assert'
 

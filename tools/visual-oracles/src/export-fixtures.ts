@@ -3,7 +3,7 @@
 import { mkdirSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 
-import { $ } from 'bun'
+import { exportFixturePageToPNG } from './render-fixture'
 
 interface FixtureExportTarget {
   file: string
@@ -49,7 +49,7 @@ for (const target of TARGETS) {
 
   const outputPath = `${outputDir}/${target.outputName}`
   console.log(`Exporting ${target.file} / ${target.page} → ${outputPath}`)
-  await $`bun open-pencil export ${target.file} --page ${target.page} --output ${outputPath}`
+  await exportFixturePageToPNG(target.file, target.page, outputPath)
 }
 
 console.log(`Fixture visuals written to ${outputDir}`)

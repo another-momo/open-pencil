@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto'
 
 import type { WebSocket } from 'ws'
 
-import { isAuthorized } from '#mcp/auth'
-import type { RPCJSONObject } from '#mcp/json'
-import type { PendingRequest } from '#mcp/rpc-types'
+import { isAuthorized } from './auth'
+import type { RPCJSONObject } from './json'
+import type { PendingRequest } from './rpc-types'
 
 // T27：长回合场景（大文档批量工具调用）可经 OPENPENCIL_RPC_TIMEOUT_MS 放宽。
 // T54（Phase 3 W2/T-B3）：默认值 20s → 300s——generate_image 双段执行经桥落图，
@@ -23,7 +23,7 @@ const APP_NOT_CONNECTED_MESSAGE =
 
 type BrowserRPCBridgeOptions = {
   authToken: string | null
-  onConnectionChange: () => void
+  onConnectionChange?: () => void
 }
 
 type ConnectionListener = (connected: boolean) => void
@@ -88,7 +88,7 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
   }
 
   function notifyConnectionChange() {
-    onConnectionChange()
+    onConnectionChange?.()
     const connected = isConnected()
     for (const listener of connectionListeners) listener(connected)
   }

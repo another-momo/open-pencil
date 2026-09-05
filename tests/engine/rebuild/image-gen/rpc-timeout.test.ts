@@ -11,8 +11,7 @@ import {
   BRIDGE_RPC_DEFAULT_TIMEOUT_MS,
   bridgeCallTimeoutMs
 } from '@/app/ai/pi-backend/image-gen/bridge-call'
-
-import { DEFAULT_RPC_TIMEOUT_MS, rpcTimeoutMs } from '#mcp/browser-rpc'
+import { DEFAULT_RPC_TIMEOUT_MS, rpcTimeoutMs } from '@/app/automation/bridge/server/browser-rpc'
 
 function saveEnv(): string | undefined {
   return process.env.OPENPENCIL_RPC_TIMEOUT_MS
@@ -23,7 +22,7 @@ function restoreEnv(saved: string | undefined): void {
   else process.env.OPENPENCIL_RPC_TIMEOUT_MS = saved
 }
 
-describe('桥 RPC 超时（packages/mcp/src/browser-rpc.ts）', () => {
+describe('桥 RPC 超时（automation/bridge/server/browser-rpc.ts）', () => {
   test('缺省 ≥ 240s 生图上限 + 余量', () => {
     const saved = saveEnv()
     try {

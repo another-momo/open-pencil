@@ -34,7 +34,7 @@
  * 同 /api/pi/credentials）。
  *
  * 仅运行于独立 bun/node 进程（main.ts 入口或 vite 插件 spawn 的子进程），
- * 不经 vite esbuild 打包——package 导入（@open-pencil/mcp/* 等 workspace 包）可用。
+ * 不经 vite esbuild 打包——@/ 别名经 bun 的 tsconfig paths 解析可用。
  * key 卫生：凭据只进不出（写入经 provider-admin，任何响应/日志不含 key）。
  *
  * T28（决策单 #1）：除 /health 外全部端点要求 Authorization: Bearer <token>

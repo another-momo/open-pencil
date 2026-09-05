@@ -10,7 +10,7 @@
     "order": "asc",
     "ignoreCase": true,
     "newlinesBetween": true,
-    "internalPattern": ["@open-pencil/", "@/", "#core/", "#vue/", "#mcp/", "#tests/"],
+    "internalPattern": ["@open-pencil/", "@/", "#core/", "#vue/", "#tests/"],
     "customGroups": [
       {
         "groupName": "type-workspace",
@@ -22,12 +22,12 @@
       { "groupName": "app", "elementNamePattern": ["@/**"] },
       {
         "groupName": "type-package-alias",
-        "elementNamePattern": ["#core/**", "#vue/**", "#mcp/**"],
+        "elementNamePattern": ["#core/**", "#vue/**"],
         "modifiers": ["type"]
       },
       {
         "groupName": "package-alias",
-        "elementNamePattern": ["#core/**", "#vue/**", "#mcp/**"]
+        "elementNamePattern": ["#core/**", "#vue/**"]
       },
       {
         "groupName": "type-test-alias",

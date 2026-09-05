@@ -22,8 +22,6 @@ We will investigate privately before discussing details in public. If the report
 
 Please give us a reasonable opportunity to investigate and release a fix before publishing details publicly.
 
-## MCP server
+## Automation bridge
 
-The MCP HTTP transport (`openpencil-mcp-http`) binds to `127.0.0.1` by default with `eval` disabled, CORS disabled, and file access restricted to the working directory. See [MCP docs](https://openpencil.dev/reference/mcp-tools) for configuration.
-
-The stdio transport (`openpencil-mcp`) is intended for local use only and does not apply these restrictions.
+The automation bridge (spawned by the dev server or the production host) binds to `127.0.0.1` by default — a Unix domain socket on macOS/Linux with owner-only permissions, localhost TCP otherwise — and requires a bearer token for `/rpc` unless explicitly disabled.

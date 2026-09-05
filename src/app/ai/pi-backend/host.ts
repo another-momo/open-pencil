@@ -6,10 +6,10 @@
  * 职责（对齐两个 vite 插件的行为，env 语义刻意复制而非共享导入——automation
  * 面在 pendingReclass 区且有「只允许相对导入」约束，重分类仪式未到不动它；
  * 复制面各约 10 行，来源注释见 spawnBridge/spawnBackend）：
- *  1. spawn MCP 桥（packages/mcp/src/index.ts，TCP 7600 + token）
+ *  1. spawn 自动化桥（src/app/automation/bridge/server/index.ts，TCP 7600 + token）
  *  2. spawn pi 后端（src/app/ai/pi-backend/main.ts，7700 + token env 注入）
  *  3. 托管 dist/（MIME 表 + SPA fallback），index.html 注入桥 token 运行时
- *     全局（配合 spawn.ts P104 的 window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__
+ *     全局（配合 bridge/runtime.ts P104 的 window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__
  *     hook——上游生产形态靠 Tauri 读 discovery 文件，web 形态无该通道）
  *  4. 反代 /api/pi* → 127.0.0.1:7700 并注入 Bearer（流式管道透传，SSE 不缓冲；
  *     客户端断连即销毁上游请求，chat abort 语义与 vite proxy 一致）
@@ -31,8 +31,9 @@ import {
 import { extname, join, normalize, resolve } from 'node:path'
 
 import { AUTOMATION_HTTP_PORT } from '@open-pencil/core/constants'
-import { readDiscoveryFile } from '@open-pencil/mcp/discovery'
-import { getSocketPath, platformHasUnixSockets } from '@open-pencil/mcp/transport'
+
+import { readDiscoveryFile } from '@/app/automation/bridge/server/discovery'
+import { getSocketPath, platformHasUnixSockets } from '@/app/automation/bridge/server/paths'
 
 import { PI_BACKEND_DEFAULT_PORT } from './config'
 
@@ -88,7 +89,7 @@ async function stopChild(child: ChildProcess | null, label: string): Promise<voi
 
 async function spawnBridge(): Promise<void> {
   // env 语义复制自 automation/bridge/vite-plugin.ts createAutomationEnvironment
-  // （默认 configuration：鉴权开、root=cwd、无禁用工具）
+  // （鉴权开、corsOrigin 指向宿主来源）
   //
   // T34 评估：跟不跟 OPENPENCIL_MCP_DISCOVERY_PATH 隔离（0f981ff2）？
   // 不跟——host.ts 自身是生产形态，7600 端口独占（serveOrigin 也固定），
@@ -97,21 +98,18 @@ async function spawnBridge(): Promise<void> {
   // 构成冲突；若未来扩成同主机多 host.ts 实例，再补 OPENPENCIL_MCP_DISCOVERY_PATH
   // 临时目录隔离——届时复用 vite-plugin 的 sha256(runtimeId) 方案即可。
   const socketPath = platformHasUnixSockets() ? await getSocketPath() : null
-  bridge = spawn('bun', ['run', 'packages/mcp/src/index.ts'], {
+  bridge = spawn('bun', ['run', 'src/app/automation/bridge/server/index.ts'], {
     stdio: ['ignore', 'inherit', 'pipe'],
     env: {
       ...process.env,
       PORT: String(AUTOMATION_HTTP_PORT),
-      OPENPENCIL_MCP_TCP: '1',
       ...(socketPath ? { OPENPENCIL_MCP_SOCKET: socketPath } : {}),
       OPENPENCIL_MCP_AUTH_TOKEN: automationToken,
-      OPENPENCIL_MCP_CORS_ORIGIN: serveOrigin,
-      OPENPENCIL_MCP_ROOT: rootDir,
-      OPENPENCIL_MCP_DISABLED_TOOLS: ''
+      OPENPENCIL_MCP_CORS_ORIGIN: serveOrigin
     }
   })
-  bridge.on('error', (err) => console.error(`[host] 无法 spawn MCP 桥：${err.message}`))
-  passthroughStderr(bridge, 'MCP 桥')
+  bridge.on('error', (err) => console.error(`[host] 无法 spawn 自动化桥：${err.message}`))
+  passthroughStderr(bridge, '自动化桥')
 }
 
 async function spawnBackend(): Promise<void> {
@@ -187,7 +185,7 @@ const MIME_TYPES: Record<string, string> = {
   '.webmanifest': 'application/manifest+json'
 }
 
-/** index.html 前置注入运行时桥 token（spawn.ts P104 消费；dev 构建无此需求但注入无害） */
+/** index.html 前置注入运行时桥 token（bridge/runtime.ts P104 消费；dev 构建无此需求但注入无害） */
 function withRuntimeToken(html: string): string {
   const script = `<script>window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__=${JSON.stringify(automationToken)}</script>`
   const headIndex = html.indexOf('<head>')
@@ -324,8 +322,8 @@ function main(): void {
   void (async () => {
     await spawnBridge()
     await spawnBackend()
-    await waitFor('MCP 桥（discovery 文件）', 15_000, bridgeReadyProbe)
-    console.error(`[host] MCP 桥就绪（127.0.0.1:${AUTOMATION_HTTP_PORT}）`)
+    await waitFor('自动化桥（discovery 文件）', 15_000, bridgeReadyProbe)
+    console.error(`[host] 自动化桥就绪（127.0.0.1:${AUTOMATION_HTTP_PORT}）`)
     await waitFor(`pi 后端（/health @ ${backendPort}）`, 15_000, backendReadyProbe)
     console.error(`[host] pi 后端就绪（127.0.0.1:${backendPort}）`)
     const server = createServer(handleRequest)
@@ -354,7 +352,7 @@ async function shutdown(): Promise<void> {
   if (shuttingDown) return
   shuttingDown = true
   await stopChild(backend, 'pi 后端')
-  await stopChild(bridge, 'MCP 桥')
+  await stopChild(bridge, '自动化桥')
 }
 process.on('SIGINT', () => void shutdown().then(() => process.exit(0)))
 process.on('SIGTERM', () => void shutdown().then(() => process.exit(0)))

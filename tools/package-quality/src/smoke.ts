@@ -224,13 +224,7 @@ try {
   run(['npm', 'init', '-y'], tempDir)
   run(['npm', 'install', '--ignore-scripts', '--no-audit', '--no-fund', ...tarballs], tempDir)
 
-  // @open-pencil/mcp/stdio is a CLI entry point that creates a WebSocket
-  // connection on import. It is verified via the openpencil-mcp --help
-  // command below, not via import eval.
-  const evalSkipSpecifiers = new Set(['@open-pencil/mcp/stdio'])
-
   for (const specifier of [...publicImportSpecifiers].sort()) {
-    if (evalSkipSpecifiers.has(specifier)) continue
     nodeEval(`await import(${JSON.stringify(specifier)})`, tempDir)
   }
 
@@ -276,10 +270,6 @@ try {
     "const { jsx, jsxToDesignDocument } = await import('@open-pencil/dom-css/jsx-runtime'); const document = await jsxToDesignDocument(jsx('section', { class: 'card', style: { width: '120px' }, children: 'OpenPencil' })); const node = document.children[0]; if (node?.type !== 'element' || node.inlineStyle?.width !== '120px') throw new Error('DOM/CSS JSX runtime smoke failed')",
     tempDir
   )
-
-  run(['node', 'node_modules/.bin/openpencil', '--help'], tempDir)
-  run(['node', 'node_modules/.bin/openpencil-mcp', '--help'], tempDir)
-  run(['node', 'node_modules/.bin/openpencil-mcp-http', '--help'], tempDir)
 
   console.log('Packed package smoke tests passed.')
 } finally {

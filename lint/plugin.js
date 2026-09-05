@@ -1020,7 +1020,7 @@ const noCrossPackageSourceImports = createImportSourceRule({
   check: (source) =>
     (source.includes('/packages/') ||
       /^(?:\.\.\/){2,}packages\//.test(source) ||
-      /^(?:\.\.\/)+(?:core|vue|cli|mcp)\/src\//.test(source)) &&
+      /^(?:\.\.\/)+(?:core|vue|cli)\/src\//.test(source)) &&
     `Use workspace package exports or package-local aliases instead of cross-package source import '${source}'.`
 })
 
@@ -1071,12 +1071,6 @@ const noCoreParentRelativeImports = createParentRelativeImportRule({
   message: 'Use the #core/* package-local alias instead of parent-relative core imports.'
 })
 
-const noMcpParentRelativeImports = createParentRelativeImportRule({
-  description: 'Disallow parent-relative imports in MCP internals — use #mcp/* aliases',
-  applies: (file) => file.includes('/packages/mcp/src/'),
-  message: 'Use the #mcp/* package-local alias instead of parent-relative MCP imports.'
-})
-
 const noVueParentRelativeImports = createParentRelativeImportRule({
   description: 'Disallow parent-relative imports in Vue SDK internals — use #vue/* aliases',
   applies: (file) => file.includes('/packages/vue/src/'),
@@ -1090,13 +1084,6 @@ function createExactCoreBarrelImportRule({ description, applies, message }) {
     check: (source) => source === '@open-pencil/core' && message
   })
 }
-
-const noMcpCoreBarrelImports = createExactCoreBarrelImportRule({
-  description: 'Disallow MCP imports from @open-pencil/core root barrel — use domain subpaths',
-  applies: (file) => file.includes('/packages/mcp/src/'),
-  message:
-    'Use a targeted @open-pencil/core subpath in MCP code instead of the compatibility barrel.'
-})
 
 const noScriptCoreBarrelImports = createExactCoreBarrelImportRule({
   description: 'Disallow script imports from @open-pencil/core root barrel — use domain subpaths',
@@ -1432,7 +1419,11 @@ const preferVueUseIntervals = {
   },
   create(context) {
     const file = normalizedFilename(context)
-    const applies = file.includes('/src/app/') || file.includes('/packages/vue/src/')
+    // automation/bridge/server 是 bun 拉起的 Node 子进程（无 Vue 运行时），
+    // WebSocket 心跳只能手写 setInterval/clearInterval
+    const applies =
+      (file.includes('/src/app/') || file.includes('/packages/vue/src/')) &&
+      !file.includes('/src/app/automation/bridge/server/')
     if (!applies) return {}
 
     function intervalName(callee) {
@@ -1620,7 +1611,6 @@ const nonComponentSourceDirectoriesKebabCase = {
     const roots = [
       '/src/app/',
       '/packages/core/src/',
-      '/packages/mcp/src/',
       '/packages/vue/src/canvas/',
       '/packages/vue/src/controls/',
       '/packages/vue/src/document/',
@@ -2214,9 +2204,7 @@ const plugin = {
     'no-cross-package-source-imports': noCrossPackageSourceImports,
     'no-deep-parent-relative-imports': noDeepParentRelativeImports,
     'no-core-parent-relative-imports': noCoreParentRelativeImports,
-    'no-mcp-parent-relative-imports': noMcpParentRelativeImports,
     'no-vue-parent-relative-imports': noVueParentRelativeImports,
-    'no-mcp-core-barrel-imports': noMcpCoreBarrelImports,
     'no-script-core-barrel-imports': noScriptCoreBarrelImports,
     'no-core-self-package-imports': noCoreSelfPackageImports,
     'no-inline-prompt-constants': noInlinePromptConstants,

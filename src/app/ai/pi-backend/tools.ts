@@ -4,7 +4,7 @@
  * 链路（注册期 recon 实证，见 docs/rebuild/tasks/T20-self-check.md §2.1）：
  *  1. pi session 注册 customTools（service.ts），noTools: 'builtin' 只禁内建
  *  2. LLM 调起工具 → execute() 在本进程执行
- *  3. readDiscoveryFile()（@open-pencil/mcp/discovery）拿 7600 桥的端口与 token
+ *  3. readDiscoveryFile()（automation/bridge/server/discovery）拿 7600 桥的端口与 token
  *  4. POST /rpc {command:'tool', args:{name, args}} → MCP server 经 WS 中继给
  *     浏览器编辑器（WorkspaceView mount 时自动连桥）→ core ALL_TOOLS 执行
  *  5. 返回 {ok, result} / {ok:false, error}，包装为 AgentToolResult
@@ -14,7 +14,7 @@
  * insert_library_component / create_shape；前三者与旧 src/app/ai/tools/
  * index.ts:98-104 白名单一致，create_shape 为 T20 hello-tool 保留）。
  * schema 经 paramToTypeBox 从 core ParamDef 迷你 schema 生成（仿 MCP 侧
- * paramToZod 先例 packages/mcp/src/tool/schema.ts），core registry 保持
+ * paramToZod 先例已随 MCP 外壳裁撤），core registry 保持
  * 单一事实源。
  *
  * T21 step budget：旧 MAX_AGENT_STEPS=50 语义平移——每 prompt 计 turn 数
@@ -46,7 +46,8 @@ import {
   type ParamDef,
   type ToolDef
 } from '@open-pencil/core/tools'
-import { readDiscoveryFile } from '@open-pencil/mcp/discovery'
+
+import { readDiscoveryFile } from '@/app/automation/bridge/server/discovery'
 
 import { postBridgeRPC } from './bridge-rpc'
 import {

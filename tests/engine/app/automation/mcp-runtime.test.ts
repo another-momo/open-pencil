@@ -1,31 +1,19 @@
 import { describe, expect, test } from 'bun:test'
 
-import type { ToolDescriptor } from '@open-pencil/mcp/tools'
-
-import { createMCPRuntimeService, type MCPRuntimeDependencies } from '@/app/automation/mcp/runtime'
-
-function descriptor(name = 'get_page_tree'): ToolDescriptor {
-  return {
-    name,
-    description: name,
-    effect: 'read',
-    availability: 'default',
-    capabilities: ['document:read'],
-    enabled: true
-  }
-}
+import {
+  createMCPRuntimeService,
+  type MCPRuntimeDependencies
+} from '@/app/automation/bridge/runtime'
 
 function setup(overrides: Partial<MCPRuntimeDependencies> = {}) {
   const calls: string[] = []
-  const catalogs: ToolDescriptor[][] = []
   const dependencies: MCPRuntimeDependencies = {
     canConnect: () => true,
     connect: () => {
       calls.push('connect')
       return () => calls.push('disconnect-bridge')
     },
-    readHealth: async () => ({ status: 'ok', version: '0.14.0', tools: [descriptor()] }),
-    setToolDescriptors: (tools) => catalogs.push(tools),
+    readHealth: async () => ({ status: 'ok', version: '0.14.0' }),
     spawn: async () => ({
       authToken: 'token',
       managed: true,
@@ -35,20 +23,19 @@ function setup(overrides: Partial<MCPRuntimeDependencies> = {}) {
     }),
     ...overrides
   }
-  return { calls, catalogs, service: createMCPRuntimeService(dependencies) }
+  return { calls, service: createMCPRuntimeService(dependencies) }
 }
 
 const getStore = () => ({}) as never
 
 describe('MCP runtime service', () => {
   test('starts only after a healthy server response', async () => {
-    const { calls, catalogs, service } = setup()
+    const { calls, service } = setup()
 
     expect(await service.start(getStore)).toEqual({ ok: true })
     expect(service.state.status).toBe('running')
     expect(service.state.version).toBe('0.14.0')
     expect(calls).toEqual(['connect'])
-    expect(catalogs.at(-1)?.map((tool) => tool.name)).toEqual(['get_page_tree'])
   })
 
   test('serializes refresh behind stop so stale health cannot restore running state', async () => {
@@ -61,7 +48,7 @@ describe('MCP runtime service', () => {
       readHealth: async () => {
         healthCalls++
         if (healthCalls === 2) await blockedHealth
-        return { status: 'ok', tools: [descriptor()] }
+        return { status: 'ok' }
       }
     })
     await service.start(getStore)
@@ -91,7 +78,7 @@ describe('MCP runtime service', () => {
   })
 
   test('clears local runtime state even when server shutdown fails', async () => {
-    const { catalogs, service } = setup({
+    const { service } = setup({
       spawn: async () => ({
         authToken: 'token',
         managed: true,
@@ -107,7 +94,6 @@ describe('MCP runtime service', () => {
     expect(result.ok).toBe(false)
     expect(service.state.status).toBe('error')
     expect(service.state.version).toBeNull()
-    expect(catalogs.at(-1)).toEqual([])
   })
 
   test('does not start a replacement when shutdown fails', async () => {

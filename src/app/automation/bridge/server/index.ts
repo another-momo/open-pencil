@@ -1,12 +1,11 @@
 #!/usr/bin/env node
-import { startServer } from '#mcp/server'
-import { readToolPolicyFromEnv } from '#mcp/tool/policy'
+import { startServer } from './server'
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   process.stdout.write(
-    `openpencil-mcp-http\n\n` +
-      `Start the OpenPencil MCP server.\n\n` +
-      `On macOS/Linux, the server listens on a Unix domain socket by default\n` +
+    `openpencil automation bridge\n\n` +
+      `Start the OpenPencil automation bridge (editor WebSocket + /rpc HTTP relay).\n\n` +
+      `On macOS/Linux, the bridge listens on a Unix domain socket by default\n` +
       `with optional TCP for browser clients. On Windows, only TCP is available.\n\n` +
       `Options:\n` +
       `  --help, -h    Show this help message\n\n` +
@@ -15,17 +14,13 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
       `  OPENPENCIL_MCP_SOCKET        Override Unix socket path (recorded in the discovery file)\n` +
       `  OPENPENCIL_MCP_DISCOVERY_PATH Override discovery file (mcp.json) location; defaults to the\n` +
       `                               platform path. Parent dir created 0o700. Mainly for test isolation.\n` +
-      `  OPENPENCIL_MCP_TCP           Deprecated — TCP is controlled by PORT (>0 = on, 0 = off)\n` +
-      `  OPENPENCIL_MCP_AUTH_TOKEN    Bearer token for MCP and RPC auth\n` +
-      `  OPENPENCIL_MCP_ROOT          Allowed directory for file-scoped tools (default: current working directory)\n` +
-      `  OPENPENCIL_MCP_EVAL          Set to 1 to enable the eval tool\n` +
-      `  OPENPENCIL_MCP_DISABLED_TOOLS Comma-separated tool names to omit\n` +
+      `  OPENPENCIL_MCP_AUTH_TOKEN    Bearer token for /rpc auth\n` +
       `  OPENPENCIL_MCP_CORS_ORIGIN   Allowed CORS origin\n` +
-      `  OPENPENCIL_MCP_APP_TIMEOUT_MS  If set, close the server and remove its discovery\n` +
+      `  OPENPENCIL_MCP_APP_TIMEOUT_MS  If set, close the bridge and remove its discovery\n` +
       `                               file after no app is attached for this many ms. The\n` +
       `                               grace period starts at startup and after disconnects.\n` +
       `                               Unset/0 disables it (default) — do not set this for\n` +
-      `                               manual/CLI use, since nothing may ever register.\n`
+      `                               manual use, since nothing may ever register.\n`
   )
   process.exit(0)
 }
@@ -44,8 +39,6 @@ if (rawPort < 0 || rawPort > 65535) {
   process.exit(1)
 }
 const port = rawPort
-// OPENPENCIL_MCP_TCP is accepted for backward compat but has no effect —
-// the PORT value alone determines whether TCP is enabled (PORT=0 is the kill switch).
 const withTcp = port > 0
 
 const MAX_APP_TIMEOUT_MS = 2_147_483_647
@@ -67,15 +60,10 @@ if (rawAppTimeoutText) {
   }
 }
 
-const toolPolicy = readToolPolicyFromEnv()
-
 const handle = await startServer({
   httpPort: withTcp ? port : 0,
   withTcp,
   socketPath: process.env.OPENPENCIL_MCP_SOCKET?.trim() || null,
-  enableEval: toolPolicy.allowEval,
-  disabledTools: toolPolicy.disabledTools,
-  mcpRoot: process.env.OPENPENCIL_MCP_ROOT?.trim() || process.cwd(),
   // Auth token: undefined → auto-generate, empty string → disable auth,
   // non-empty → use trimmed value. Whitespace-only is rejected to prevent a
   // silent fallback to an auto-generated token when the operator intended to
@@ -97,13 +85,13 @@ const handle = await startServer({
   appAttachTimeoutMs
 })
 
-process.stderr.write(`OpenPencil MCP server\n`)
+process.stderr.write(`OpenPencil automation bridge\n`)
 if (handle.socketPath) process.stderr.write(`  Socket: ${handle.socketPath}\n`)
 if (handle.httpPort) process.stderr.write(`  HTTP:   http://127.0.0.1:${handle.httpPort}\n`)
 
 // Graceful shutdown on signals
 const shutdown = async () => {
-  process.stderr.write('\nShutting down MCP server...\n')
+  process.stderr.write('\nShutting down automation bridge...\n')
   await handle.close()
   process.exit(0)
 }

@@ -1,7 +1,7 @@
 /**
  * T28（决策单 #1，owner 拍板 2026-08-25）：pi 后端 bearer token 鉴权。
  *
- * 机制对齐 7600 桥（packages/mcp/src/auth.ts）：sha256 摘要 + timingSafeEqual
+ * 机制对齐 7600 桥（automation/bridge/server/auth.ts）：sha256 摘要 + timingSafeEqual
  * 定时常数比较（不直接比原始 token，防时序侧信道；摘要定长天然规避长度差异
  * 导致的 timingSafeEqual 抛错）。
  *

@@ -3,7 +3,7 @@
  *
  * 与 pi-backend/tools.ts callBridgeTool 同语义（discovery 读取 → POST /rpc →
  * {ok,result}/{ok:false,error}，连接失败/401 单次重读 discovery 重试），两点差异：
- *  1. 显式 fetch 超时：桥 RPC 超时（packages/mcp/src/browser-rpc.ts，
+ *  1. 显式 fetch 超时：桥 RPC 超时（automation/bridge/server/browser-rpc.ts，
  *     OPENPENCIL_RPC_TIMEOUT_MS，缺省 300s）+ 60s 余量——生图链路 240s 级，
  *     裸 fetch 无超时会无限悬挂（tools.ts 既有段不在本任务改动面，集成期可
  *     归并共用，见 T54 报告）
@@ -14,9 +14,9 @@
  * 凭证永不进桥 payload（红线）。
  */
 
-import { readDiscoveryFile } from '@open-pencil/mcp/discovery'
+import { readDiscoveryFile } from '@/app/automation/bridge/server/discovery'
 
-/** 桥 RPC 缺省超时本地副本（与 packages/mcp/src/browser-rpc.ts DEFAULT_RPC_TIMEOUT_MS
+/** 桥 RPC 缺省超时本地副本（与 automation/bridge/server/browser-rpc.ts DEFAULT_RPC_TIMEOUT_MS
  * 保持一致，tests/engine/rebuild/image-gen/rpc-timeout.test.ts 钉扎两者一致） */
 export const BRIDGE_RPC_DEFAULT_TIMEOUT_MS = 300_000
 /** fetch 在桥 RPC 超时之上再加的余量（桥内超时先触发并回 502，fetch 兜底防悬挂） */

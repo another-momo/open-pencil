@@ -4,7 +4,7 @@ import { useEventListener, useUrlSearchParams } from '@vueuse/core'
 import { useRoute } from 'vue-router'
 
 import { exposeCollaborationActions } from '@/app/browser-bridge'
-import { startMCPRuntime, stopMCPRuntime } from '@/app/automation/mcp/runtime'
+import { startMCPRuntime, stopMCPRuntime } from '@/app/automation/bridge/runtime'
 import { COLLAB_KEY, useCollab } from '@/app/collab/use'
 import { useKeyboard } from '@/app/shell/keyboard/use'
 import { openFileFromPath, useEditorMenu } from '@/app/shell/menu/use'

@@ -59,7 +59,6 @@ bun run test         # Playwright E2E (auto-starts dev server)
 ## Project structure
 
 - `packages/core` — scene graph, renderer, layout, codec (zero DOM deps)
-- `packages/mcp` — MCP server for AI tools (stdio + HTTP)
 - `packages/docs` — VitePress documentation site (openpencil.dev)
 - `src/` — Tauri/Vite desktop editor
 

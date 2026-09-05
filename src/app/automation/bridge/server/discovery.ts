@@ -2,11 +2,11 @@ import { randomBytes } from 'node:crypto'
 import { access, constants, lstat, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { Socket } from 'node:net'
 
-import { getDiscoveryPath, getSocketPath, platformHasUnixSockets } from '#mcp/transport/paths'
+import { getDiscoveryPath, getSocketPath, platformHasUnixSockets } from './paths'
 
 /**
  * Metadata written to the discovery file so clients can auto-locate
- * the running MCP server without knowing the socket path or TCP port.
+ * the running automation bridge without knowing the socket path or TCP port.
  *
  * WARNING: The discovery file contains a plaintext auth token. Do not sync
  * this file to cloud storage or include it in backups without encryption.
@@ -21,7 +21,6 @@ export interface DiscoveryInfo {
   authToken: string | null
   version: string
   startedAt: string
-  disabledTools?: string[]
 }
 
 /**
@@ -91,8 +90,7 @@ export async function readDiscoveryFile(): Promise<DiscoveryInfo | null> {
 }
 
 function validateDiscoveryFields(obj: { [key: string]: unknown }): DiscoveryInfo | null {
-  const { pid, version, httpPort, authRequired, startedAt, socketPath, authToken, disabledTools } =
-    obj
+  const { pid, version, httpPort, authRequired, startedAt, socketPath, authToken } = obj
   if (typeof pid !== 'number' || !Number.isInteger(pid) || pid <= 0) return null
   if (typeof version !== 'string') return null
   if (typeof httpPort !== 'number' || !Number.isInteger(httpPort)) return null
@@ -102,12 +100,6 @@ function validateDiscoveryFields(obj: { [key: string]: unknown }): DiscoveryInfo
   if (typeof socketPath !== 'string' && socketPath !== null) return null
   if (socketPath === '') return null
   if (authToken !== null && typeof authToken !== 'string') return null
-  if (
-    disabledTools !== undefined &&
-    (!Array.isArray(disabledTools) || disabledTools.some((name) => typeof name !== 'string'))
-  ) {
-    return null
-  }
   return {
     pid,
     version,
@@ -115,8 +107,7 @@ function validateDiscoveryFields(obj: { [key: string]: unknown }): DiscoveryInfo
     authRequired,
     startedAt,
     socketPath,
-    authToken,
-    disabledTools: disabledTools ?? []
+    authToken
   }
 }
 

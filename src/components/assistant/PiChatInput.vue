@@ -12,14 +12,23 @@
 //   （segmentsFromText / segmentsToText）钉扎在 selection-capture.ts 与
 //   tests/engine/rebuild/chat/selection-capture.test.ts。
 //
-// DOM↔模型同步纪律（contenteditable 最大坑点）：
-//   - **DOM 是编辑期 master**：用户打字/移动光标由浏览器维护；我们通过
-//     `input` / `compositionend` 事件单向读取 DOM → input.value。
-//   - **只在结构性变化时写 DOM**：挂载、采集插入 chip、X 删除 chip、原子
-//     删除、clearDraft、restoreDraft。重写时用结构 diff（chip 序号集合 + 文本
-//     段落边界），未变不动；并把光标按模型文本偏移归位（IME 合成期不重写）。
+// DOM↔模型同步纪律（contenteditable 最大坑点 + ux6 修复）：
+//   - **单一真相 = input.value（segments）**。任何插入/删除只改模型，由 Vue
+//     统一渲染。禁止任何路径直接动 editor 的 children（insertBefore/
+//     appendChild/innerHTML/selectNodeContents+addRange 落 caret 等）。
+//   - **DOM 是编辑期 master**：用户打字/移动光标由浏览器维护；`@input` /
+//     `@compositionend` 触发单向 DOM → input.value 同步（syncTextFromDom）。
+//   - **结构变化 key 重挂**：segments 容器挂 `:key="segVersion"`；结构变化
+//     （chip 增删、清空、回填）→ segVersion++ → Vue 整段重建（patch 失配
+//     风险归零）。纯文本字符级输入不递增 → Vue 沿用原节点改 textContent
+//     （光标稳定纪律）。
+//   - **caret 恢复**：所有结构变化（采集插入 / X 删除 / 原子删除 / 粘贴 /
+//     clearDraft / restoreDraft）都用 pendingCaretOffset 存目标文本偏移，
+//     nextTick 后用 textOffsetToDom → Selection/Range 落回。文本段插入时
+//     caret 落插入点尾；chip 插入时落 chip 后；删除时落删除段起点。
 //   - **IME 合成期禁止任何 DOM 写回**——compositionstart 锁门、compositionend
-//     解锁。这是中文/日文 IME 流不断流的核心保证。
+//     解锁。这是中文/日文 IME 流不断流的核心保证；v-if="!isComposing" 锁
+//     segments 模板让 Vue 在合成期完全不碰 children。
 import { useTimeoutFn } from '@vueuse/core'
 import {
   ComboboxAnchor,
@@ -159,6 +168,140 @@ function chipRenderContext(): { graph: SceneGraph | null; renderer: SkiaRenderer
   return { graph: store?.graph ?? null, renderer: store?.renderer ?? null }
 }
 
+// ── 结构版本 + caret 恢复面（ux6 修复：单一真相） ───────────────────────────
+//
+// segVersion：每次 segments 结构变化（chip 增删 / 清空 / 回填）递增，作为
+// segments 容器 v-for 的 :key，触发 Vue 整段重建。这把"DOM/VNode 失配"
+// 问题彻底消掉——children 是新挂的 vnode 树，patch 路径走 mount 而非 patch。
+//
+// pendingCaretOffset：结构变化路径在改 model 前先把"目标 caret 文本偏移"
+// 存这里，nextTick 后由 watch(input) 触发 restoreCaret 走 textOffsetToDom
+// 落回。纯文本字符级输入（segVersion 不变）不经过此路径——Vue 直接改
+// textContent，光标靠浏览器原生行为维持。
+
+const segVersion = ref(0)
+/** 下一次 segments 重渲后要把 caret 落到的文本偏移；null = 不动 caret */
+const pendingCaretOffset = ref<number | null>(null)
+
+/** 结构变化后 caret 落位：把目标文本偏移转成 {node, offset}，用 Selection/Range
+ *  落在编辑器内。若编辑器失焦（采集按钮点过没回点输入框）则只 focus 不落 caret。
+ *  是 domOffsetToTextOffset 的严格反向。 */
+function restoreCaret(targetOffset: number): void {
+  const el = editorRef.value
+  if (!el) return
+  // 失焦 → 仅 focus，caret 落文末由浏览器 defaultRangeStart 决定
+  if (document.activeElement !== el) {
+    el.focus()
+    return
+  }
+  const pos = textOffsetToDom(el, targetOffset)
+  if (!pos) {
+    el.focus()
+    return
+  }
+  const sel = window.getSelection()
+  if (!sel) return
+  const range = document.createRange()
+  try {
+    range.setStart(pos.node, pos.offset)
+    range.collapse(true)
+    sel.removeAllRanges()
+    sel.addRange(range)
+  } catch {
+    // 节点可能尚未挂载（竞态）——放弃
+  }
+}
+
+/** 模型文本偏移 → DOM 位置 {node, offset}。扫描 editor 子节点累计
+ *  文本/BR/token 长度，命中目标偏移后返回节点 + 节点内偏移。
+ *  与 domOffsetToTextOffset 互为反向——同算法正反两遍，保证 roundtrip。 */
+function textOffsetToDom(root: HTMLElement, target: number): { node: Node; offset: number } | null {
+  let acc = 0
+  const walk = (n: Node): { node: Node; offset: number } | null => {
+    if (n.nodeType === Node.TEXT_NODE) {
+      const len = (n.textContent ?? '').length
+      if (target <= acc + len) {
+        return { node: n, offset: target - acc }
+      }
+      acc += len
+      return null
+    }
+    if (n.nodeType !== Node.ELEMENT_NODE) return null
+    const el = n as HTMLElement
+    if (el.tagName === 'BR') {
+      if (target <= acc + 1) {
+        // <br> 之前：返回父节点 + br 的位置
+        const parent = el.parentNode
+        if (!parent) return null
+        return { node: parent, offset: Array.from(parent.childNodes).indexOf(el) }
+      }
+      acc += 1
+      return null
+    }
+    if (el.dataset.tokenN) {
+      const len = selectionTokenText(Number(el.dataset.tokenN)).length
+      if (target <= acc + len) {
+        // 目标落在 chip 内（chip 是原子）→ 落到 chip 之后
+        const parent = el.parentNode
+        if (!parent) return null
+        return { node: parent, offset: Array.from(parent.childNodes).indexOf(el) + 1 }
+      }
+      acc += len
+      return null
+    }
+    for (const child of Array.from(el.childNodes)) {
+      const found = walk(child)
+      if (found) return found
+    }
+    return null
+  }
+  return walk(root)
+}
+
+// input 变化 → 检测是否结构变化 → 渲染 + caret 归位。
+// 关键纪律：纯文本字符级输入不能触发 segVersion++（否则 Vue 整段重建
+// 会破坏 IME 流和浏览器原生 caret 维持）。结构变化（chip 增删 / 回填 /
+// 清空）→ 递增 segVersion → v-for key 重挂 → Vue 整段重建（patch 失配
+// 风险归零）。仅文本变化 → segVersion 不变 → v-for 沿用原节点 → Vue 改
+// textContent → 浏览器原生 caret 稳定。
+//
+// 判定口径 = token 序列签名（n@start 的有序列表）；签名变 → 结构变。
+// prevTokenSignature 跟踪上次 input 状态——任何 mutation（DOM→input via
+// syncTextFromDom / 程序化 model 改写）都会触发 watch，重新比对签名。
+let prevTokenSignature = ''
+
+/** 提取 input 当前 token 签名——只看 n 序列（按出现顺序）。
+ *  关键：忽略 start 偏移。理由：用户在前/中/后任意位置打字符都会让现存
+ *  token 的 start 偏移漂移——若用 `${n}@${start}` 当签名，逐字符输入
+ *  都会触发 segVersion++ → Vue 整段重建 → 破坏 IME 流和浏览器原生
+ *  caret 维持。仅 n 序列变了才算"结构变化"（chip 增删）。 */
+function tokenSignature(text: string): string {
+  return scanSelectionTokens(text)
+    .map((t) => t.n)
+    .join('|')
+}
+
+watch(
+  input,
+  (next) => {
+    const sig = tokenSignature(next)
+    if (sig !== prevTokenSignature) {
+      prevTokenSignature = sig
+      segVersion.value += 1
+      const target = pendingCaretOffset.value
+      pendingCaretOffset.value = null
+      if (target != null) {
+        void nextTick(() => restoreCaret(target))
+      }
+    } else {
+      // 纯文本字符级变化：segVersion 不递增 → Vue patch 路径
+      // textContent 不动节点身份 → caret 由浏览器维持。
+      pendingCaretOffset.value = null
+    }
+  },
+  { immediate: true }
+)
+
 // ── contenteditable DOM 同步面 ──────────────────────────────────────────────
 //
 // DOM↔text 桥的纯字符串扫描层。syncTextFromDom 不读 selection，只走 DOM
@@ -260,8 +403,8 @@ function handleInput() {
 }
 
 function handlePaste(event: ClipboardEvent) {
-  // 拦截 paste → 只插纯文本（与上一版纪律一致）。beforeinput 也拦了一遍，
-  // 这里再兜一道（某些浏览器 paste 路径不触发 beforeinput）。
+  // 拦截 paste → 只插纯文本（与上一版纪律一致）。统一改模型 → Vue 重渲 →
+  // restoreCaret，不直接动 DOM。
   if (isComposing.value) return
   const text = event.clipboardData?.getData('text/plain')
   if (text == null) return
@@ -269,20 +412,21 @@ function handlePaste(event: ClipboardEvent) {
   insertTextAtSelection(text)
 }
 
-/** 在当前 selection 处插入文本（保留 selection 位置；用户在 chip 间移动
- *  光标后粘贴 → 落到光标位置）。 */
+/** 在当前 selection 处插入纯文本。caret 偏移 = domOffsetToTextOffset（DOM
+ *  master 路径——粘贴时编辑器已有焦点，selection 在编辑器内）。插入后 caret
+ * 落在插入文本尾部。完全模型层操作，不直接动 DOM children。 */
 function insertTextAtSelection(text: string): void {
+  const el = editorRef.value
   const sel = window.getSelection()
-  if (!sel || sel.rangeCount === 0) {
-    input.value = input.value + text
-    return
+  let offset: number
+  const anchorNode = sel?.anchorNode ?? null
+  if (!el || !sel || sel.rangeCount === 0 || !anchorNode || !el.contains(anchorNode)) {
+    offset = input.value.length // 失焦/选区外 → 追加文末
+  } else {
+    offset = domOffsetToTextOffset(el, anchorNode, sel!.anchorOffset)
   }
-  const range = sel.getRangeAt(0)
-  if (!editorRef.value || !editorRef.value.contains(range.commonAncestorContainer)) {
-    input.value = input.value + text
-    return
-  }
-  const offset = domOffsetToTextOffset(editorRef.value, range.startContainer, range.startOffset)
+  const caretAfter = offset + text.length
+  pendingCaretOffset.value = caretAfter
   input.value = input.value.slice(0, offset) + text + input.value.slice(offset)
 }
 
@@ -324,7 +468,7 @@ function isCaretAtEditorStart(range: Range): boolean {
 
 /** 原子 chip 删除兜底：在浏览器未自动删的边缘情形（IME 合成期 / 光标
  *  紧贴 chip 但 selection 在 chip 边界外），我们用模型侧 removeSelectionToken
- *  显式删占位串。 */
+ *  显式删占位串。caret 落到删除段起点。 */
 function handleAtomicChipDeletion(event: KeyboardEvent): boolean {
   const el = editorRef.value
   if (!el) return false
@@ -338,11 +482,13 @@ function handleAtomicChipDeletion(event: KeyboardEvent): boolean {
   for (const token of tokens) {
     if (dir === 'backward' && token.end === offset) {
       event.preventDefault()
+      pendingCaretOffset.value = token.start
       input.value = removeSelectionToken(input.value, token.n)
       return true
     }
     if (dir === 'forward' && token.start === offset) {
       event.preventDefault()
+      pendingCaretOffset.value = token.start
       input.value = removeSelectionToken(input.value, token.n)
       return true
     }
@@ -365,39 +511,36 @@ function handleCaptureSelection() {
   insertTokenAtSelection(selectionTokenText(entry.n))
 }
 
-/** 在当前 selection 处插入 token 字面（采集按钮默认插入路径） */
+/** 在当前 selection 处插入 token 字面（采集按钮默认插入路径）。
+ *  ux6 修复：完全模型层操作——caret 偏移 = domOffsetToTextOffset（DOM
+ *  master 路径），pendingCaretOffset = 偏移 + token 字面长度，watch 触发
+ *  restoreCaret。**不直接动 DOM children**——单一真相纪律。 */
 function insertTokenAtSelection(token: string) {
   const el = editorRef.value
-  const current = input.value
-  // 采集按钮 @mousedown.prevent 不抢焦点——仍聚焦编辑器时插光标处；
-  // 无焦点（尚未点过输入框）追加文末
-  if (!el || document.activeElement !== el) {
-    input.value = current + token
-    void nextTick(() => {
-      const node = editorRef.value
-      if (!node) return
-      node.focus()
-      // 光标落到文末
-      const sel = window.getSelection()
-      if (sel) {
-        const range = document.createRange()
-        range.selectNodeContents(node)
-        range.collapse(false)
-        sel.removeAllRanges()
-        sel.addRange(range)
-      }
-    })
-    return
+  const sel = window.getSelection()
+  let offset: number
+  const anchorNode = sel?.anchorNode ?? null
+  if (!el || !sel || sel.rangeCount === 0 || !anchorNode || !el.contains(anchorNode)) {
+    offset = input.value.length // 采集按钮无焦点/选区外 → 追加文末
+  } else {
+    offset = domOffsetToTextOffset(el, anchorNode, sel!.anchorOffset)
   }
-  insertTextAtSelection(token)
+  const caretAfter = offset + token.length
+  pendingCaretOffset.value = caretAfter
+  input.value = input.value.slice(0, offset) + token + input.value.slice(offset)
 }
 
-/** chip X 按钮：从文本流里删掉该 n 的全部占位串（视觉代理消失 = 文本同步） */
+/** chip X 按钮：从文本流里删掉该 n 的全部占位串（视觉代理消失 = 文本同步）——
+ *  完全模型层操作（结构变化 → segVersion++ → Vue 重建 children）。
+ *  caret 落到删除段起点（最左一个匹配位）——removeSelectionToken 把全部
+ *  占位串删掉，留下的 caret 偏移 = 第一次出现该 n 的位置。 */
 function handleRemoveToken(n: number) {
-  const next = removeSelectionToken(input.value, n)
-  if (next === input.value) return
-  input.value = next
-  void nextTick(() => editorRef.value?.focus())
+  const tokens = scanSelectionTokens(input.value)
+  const firstMatch = tokens.find((t) => t.n === n)
+  if (!firstMatch) return
+  const caretAt = firstMatch.start
+  pendingCaretOffset.value = caretAt
+  input.value = removeSelectionToken(input.value, n)
 }
 
 /** contenteditable 上的 mousedown 拦截——chip 自身的 mousedown 阻止默认光标
@@ -500,11 +643,14 @@ function handleSubmit(e: Event) {
 // T70：回填文本 = 提交文本剥掉尾部 [画布选区] 清单（占位串本体保留）；
 // token 登记表 + 序号从快照一并恢复（快照只消费一次，防旧快照串新稿）
 // T91p：提交文本开头的 /skill:<name> 命令拆回 chip 状态（extractLeadingSkillCommand）
+// ux6 修复：pendingCaretOffset 落文末 → watch → restoreCaret（结构变化路径）
 function restoreDraft(text: string) {
   if (input.value.trim() || pinnedSkill.value) return
   const command = extractLeadingSkillCommand(text)
   if (command) pinnedSkill.value = command.name
-  input.value = stripSelectionManifest(command ? command.rest : text)
+  const restored = stripSelectionManifest(command ? command.rest : text)
+  pendingCaretOffset.value = restored.length
+  input.value = restored
   if (lastDraftSnapshot) {
     restoreSelectionDraftState(draftTokens, lastDraftSnapshot)
     lastDraftSnapshot = null
@@ -670,9 +816,13 @@ defineExpose({ restoreDraft, clearDraft })
               <!-- IME 守卫：合成期 Vue 不重渲 children（v-if 把 segments 模板
                    整体隐藏，浏览器原生 IME 流接管；compositionend 后 v-if
                    复位 → Vue 用确定后的 segments 重渲）。 -->
-              <template v-if="!isComposing">
-                <!-- 空编辑器补一个 <br> 占位，否则首次输入光标无落点 -->
-                <br v-if="segments.length === 0" />
+              <!-- 结构版本 key：结构变化（chip 增删 / 回填 / 清空）→ segVersion++
+                   → Vue 整段重建（patch 失配风险归零）；纯文本字符级输入
+                   segVersion 不变 → 沿用原节点改 textContent → 浏览器原生
+                   caret 稳定。空编辑器不需要 <br> 占位：min-h-12 撑高，
+                   cursor 自然落到 contenteditable 内（首次输入也由浏览器
+                   自动塞 <br> 作为挂点——这是 contenteditable 标准行为）。 -->
+              <template v-if="!isComposing" :key="`seg-v${segVersion}`">
                 <template v-for="(seg, idx) in segments" :key="`seg-${idx}`">
                 <span
                   v-if="seg.kind === 'token'"

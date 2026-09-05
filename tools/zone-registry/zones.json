@@ -1077,6 +1077,7 @@
     "src/app/ai/models",
     "src/app/ai/providers",
     "src/app/ai/attachment",
+    "src/app/ai/chat/",
     "src/app/ai/chat/model.ts",
     "src/app/ai/chat/reasoning.ts",
     "src/app/ai/chat/connection-test.ts",

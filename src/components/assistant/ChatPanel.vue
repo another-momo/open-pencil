@@ -18,6 +18,7 @@ import { computed, markRaw, nextTick, ref, watch } from 'vue'
 import { isTextUIPart } from 'ai'
 
 import { copyChatLog } from '@/app/ai/fork/debug'
+import { isAbortShapedError } from '@/app/ai/fork/transports'
 import {
   getPiCurrentSessionId,
   hasPiDocId,
@@ -323,7 +324,13 @@ function handleStop() {
   // T94：先立旗标再 stop——stop 触发的 SSE 断开若被 SDK 判负（status='error'），
   // chatFailure watcher 凭旗标吞掉该假错误
   isUserStopped.value = true
-  chat.value?.stop()
+  try {
+    chat.value?.stop()
+  } catch (e) {
+    // SDK 的 stop() 内部 reader.cancel 会把「BodyStreamBuffer was aborted」
+    // 以 AbortError 同步回抛（用户主动停止的预期形态）——吞掉，不污染 console
+    if (!isAbortShapedError(e)) throw e
+  }
 }
 
 // T56：表单作答/跳过 → 文本信封（serializeAskAnswer）→ 复用既有提交路径；

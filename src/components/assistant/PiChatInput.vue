@@ -199,7 +199,8 @@ const pendingCaretOffset = ref<number | null>(null)
 /** 结构事件写 model：同步更新 shadowText + input.value + segVersion++。
  *  三者必须同步——shadowText 是序列化源/DOM 同步基线，input.value 触发
  *  响应式重渲，segVersion 触发 :key 重挂。
- *  重挂单位是 data-seg-root 包裹层（真实 div，display:contents）：Vue 卸载
+ *  重挂单位是 data-seg-root 包裹层（真实 div，必须正常 block 盒——
+ *  display:contents 在 Blink 下不能做 caret 宿主，见模板注释）：Vue 卸载
  *  旧树 = removeChild(包裹层) → 整个子树连同浏览器打字搬动过的脏节点一并
  *  移除；新树往编辑器里挂全新包裹层。Vue 从不对同一批 children 做原地
  *  patch（实测：逐 vnode 回收收不回被浏览器搬出 span 的文本节点 → 文本重复；
@@ -228,7 +229,14 @@ function restoreCaret(targetOffset: number): void {
   const el = editorRef.value
   if (!el) return
   if (document.activeElement !== el) el.focus()
-  const pos = textOffsetToDom(el, targetOffset)
+  // 空文档（seg-root 只有浏览器自动占位的 lone <br>）时 textOffsetToDom
+  // 扫不到任何节点 → 退化为显式落包裹层起点，保证 caret 一定在 seg-root 内
+  const pos =
+    textOffsetToDom(el, targetOffset) ??
+    (() => {
+      const rootEl = el.querySelector(':scope > [data-seg-root]')
+      return rootEl ? { node: rootEl as Node, offset: 0 } : null
+    })()
   if (!pos) return
   const sel = window.getSelection()
   if (!sel) return
@@ -242,6 +250,38 @@ function restoreCaret(targetOffset: number): void {
     // 节点可能尚未挂载（竞态）——放弃本次 caret 恢复
     console.warn('[chat-input] restoreCaret race, skipped', e)
   }
+}
+
+/** Chrome 给空 contenteditable 块自动补的占位 <br>（父节点唯一子节点）。
+ *  它不是用户换行——四个 DOM↔text 桥函数统一按 0 长处理，否则清空后的
+ *  编辑器会被序列化成 '\n'（幻影换行进 payload），caret 换算也会偏 1。 */
+function isLoneBr(el: HTMLElement): boolean {
+  const p = el.parentNode
+  return !!p && p.childNodes.length === 1
+}
+
+/** caret 归位：把落在 data-seg-root 之外的 caret 收进包裹层。
+ *  Blink 在这种 contenteditable 嵌套结构下会把 caret 放到编辑器根级
+ *  （空文档点击、清空后、chip mousedown.prevent 后 focus 残留），甚至
+ *  focus 在编辑器而 selection 还挂在别的元素上——此时键入要么在根级
+ *  产生游离文本节点（hoist 挪动后 caret 丢失，首字符被挤到文末，实测），
+ *  要么整字被吞（selection 在编辑器外时 insertText 静默失败，实测）。
+ *  点击（浏览器默认落 caret 之后）与 keydown（键入前）各调一次兜底。 */
+function ensureCaretInSegRoot(): void {
+  const el = editorRef.value
+  if (!el || document.activeElement !== el) return
+  const rootEl = el.querySelector(':scope > [data-seg-root]')
+  if (!rootEl) return
+  const sel = window.getSelection()
+  const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null
+  if (range && rootEl.contains(range.startContainer)) return // 正常 caret/选区不动
+  // anchor 在编辑器根级 → 按 DOM 位置换算文本偏移；anchor 不在编辑器内
+  // （或根本没有 range）→ 文末（空文档即 0，restoreCaret 有空文档兜底）
+  let target = shadowText.length
+  if (range && el.contains(range.startContainer)) {
+    target = domOffsetToTextOffset(el, range.startContainer, range.startOffset)
+  }
+  restoreCaret(target)
 }
 
 /** 模型文本偏移 → DOM 位置 {node, offset}。扫描 editor 子节点累计
@@ -263,6 +303,7 @@ function textOffsetToDom(root: HTMLElement, target: number): { node: Node; offse
     if (n.nodeType !== Node.ELEMENT_NODE) return null
     const el = n as HTMLElement
     if (el.tagName === 'BR') {
+      if (isLoneBr(el)) return null // 空块占位 br：0 长
       if (target <= acc + 1) {
         // <br> 之前：返回父节点 + br 的位置
         const parent = el.parentNode
@@ -347,7 +388,7 @@ function syncTextFromDom(): string {
       return
     }
     if (el.tagName === 'BR') {
-      text += '\n'
+      if (!isLoneBr(el)) text += '\n'
       return
     }
     for (const child of Array.from(el.childNodes)) walk(child)
@@ -379,7 +420,7 @@ function readTextFromDom(): string {
       return
     }
     if (el.tagName === 'BR') {
-      text += '\n'
+      if (!isLoneBr(el)) text += '\n'
       return
     }
     for (const child of Array.from(el.childNodes)) walk(child)
@@ -407,7 +448,7 @@ function domOffsetToTextOffset(root: HTMLElement, node: Node, offset: number): n
     if (n.nodeType !== Node.ELEMENT_NODE) return false
     const el = n as HTMLElement
     if (el.tagName === 'BR') {
-      acc += 1
+      if (!isLoneBr(el)) acc += 1
       return false
     }
     if (el.dataset.tokenN) {
@@ -482,6 +523,8 @@ function insertTextAtSelection(text: string): void {
 }
 
 function handleKeydown(event: KeyboardEvent) {
+  // 键入前兜底 caret 归位（IME 合成期不动——合成串的插入点由浏览器独占维护）
+  if (!event.isComposing) ensureCaretInSegRoot()
   // T91p：光标在 0 位且有钉头 chip 时 Backspace 移除 chip（chip 不进文本流，
   // 它是光标前唯一的「东西」；mention chip 行首 Backspace 删除的通行交互）
   if (event.code === 'Backspace' && pinnedSkill.value && !event.isComposing) {
@@ -865,6 +908,8 @@ defineExpose({ restoreDraft, clearDraft })
               @paste="handlePaste"
               @copy.stop
               @cut.stop
+              @click="ensureCaretInSegRoot"
+              @focus="ensureCaretInSegRoot"
               @mousedown.capture="handleChipMouseDown"
             >
               <!-- ux6 三修：编辑器内容**完全非受控**。
@@ -874,9 +919,19 @@ defineExpose({ restoreDraft, clearDraft })
                      上零路径 → 零重渲 → 编辑器 children 由浏览器独占维护。
                    - 无 v-if、无 isComposing 门控——v-if 的 unmount 语义会把 Vue
                      挂过的 chip span 整片 remove（实测三修前的精确机理）。
-                   - 初始 mount 渲染什么：segmentsFromText('') → []，所以挂一个
-                     空白 <br> 占位让浏览器有挂点（后续用户键入会自动塞文本）。 -->
-              <div :key="segVersion" v-memo="[segVersion]" data-seg-root style="display: contents">
+                   - 包裹层必须是**正常 block 盒**——display:contents 在 Blink 下
+                     不能作为 caret/插入点宿主（实测：空编辑器首字符被插到编辑器
+                     根部游离、清空重输完全打不进字）；block 盒内 inline 内容
+                     照常被包进 text flow，chip 仍与文字同行。
+                   - 空文档必须显式渲染占位 <br>：segments=[] 时 seg-root 里只剩
+                     Vue fragment 的空文本锚点，Blink 编辑引擎不认锚点为合法
+                     插入点——点击 caret 落进锚点空文本节点后 insertText（中文/
+                     IME 路径）插入成功但 caret 停在偏移 0（实测：后续字符插到
+                     首字符前面，首字符被挤到文末）。有 br 时 caret 规范化为
+                     (seg-root, 0)，insertText 正常消费 br、caret 跟随。
+                     lone <br> 在序列化侧由 isLoneBr 按 0 长处理，不进文本。 -->
+              <div :key="segVersion" v-memo="[segVersion]" data-seg-root>
+                <br v-if="segments.length === 0" />
                 <template v-for="(seg, idx) in segments" :key="`seg-${idx}`">
                   <span
                     v-if="seg.kind === 'token'"
@@ -990,6 +1045,11 @@ defineExpose({ restoreDraft, clearDraft })
   background: var(--color-panel-field);
   vertical-align: baseline;
   white-space: nowrap;
+  /* T91p 的 skillChipIndent 用 text-indent 让首行避开钉头 skill chip；
+     text-indent 可继承——chip-inner 是 flex item 被块级化后会把继承来的
+     indent 算进自己的内容宽（实测 label 8 字被撑到 254px → chip 302px）。
+     在 chip 上归零，子级继承 0。 */
+  text-indent: 0;
   user-select: none;
   -webkit-user-select: none;
   cursor: default;

@@ -75,7 +75,9 @@
     "tools/visual-oracles/src/render-fixture.ts",
     "tests/engine/tools/all-tools-execution.test.ts"
   ],
-  "stubs": ["src/app/collab/use.ts"],
+  "stubs": [
+    "src/app/collab/use.ts"
+  ],
   "pendingReclass": [],
   "patches": [
     {
@@ -974,6 +976,41 @@
       "reason": "Batch 2f（2026-09-05）：tool-state import 由 @/components/chat/tool-state 改指 @/components/assistant/tool-state——文件原在 T31 tarball.paths（byte 一致白名单），import 改指致 TARBALL_DRIFT，按 checker 提示出清转 patch",
       "disposition": "permanent",
       "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P192",
+      "file": "packages/vue/src/i18n/messages/dialogs.ts",
+      "reason": "ux3（2026-09-05）：删除 usage/diagnostics 面板 25 个 panel-only i18n 键致 TARBALL_DRIFT，按 checker 提示出清转 patch；T63 消费点迁移仍是合并期事项",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P193",
+      "file": "packages/vue/src/i18n/locales/zh-cn/dialogs.json",
+      "reason": "ux3（2026-09-05）：zh-cn 翻译同步删除 25 个 panel-only 键致 TARBALL_DRIFT，随 P192 一并出清转 patch",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P194",
+      "file": "tests/engine/app/diagnostics/recorder.test.ts",
+      "reason": "ux3（2026-09-05）：移除 isDiagnosticsEnabled 占位 import（面板删除后无人读 UI 路径）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P195",
+      "file": "src/app/diagnostics/index.ts",
+      "reason": "ux3（2026-09-05）：移除 summarizeDiagnosticEvent/DiagnosticEventSummary/useDiagnosticsSettings 三处 panel-only re-export（面板已删）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P196",
+      "file": "src/app/diagnostics/settings.ts",
+      "reason": "ux3（2026-09-05）：删 panel-only UI 绑定组（useDiagnosticsSettings/pruneDiagnostics/diagnosticsCount 等）；isUsageEnabled/isDiagnosticsEnabled/getDiagnosticsRetention 因 telemetry 消费保留",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
     }
   ],
   "deletedPaths": [
@@ -1106,7 +1143,12 @@
     "tests/engine/tools/cli.test.ts",
     "tests/helpers/cli.ts",
     "tests/helpers/mcp/",
-    "bunfig.toml"
+    "bunfig.toml",
+    "src/components/settings/usage/",
+    "src/components/settings/diagnostics/",
+    "src/app/usage/",
+    "src/app/diagnostics/summary.ts",
+    "tests/engine/app/usage/"
   ],
   "upstreamMergeTarball": [
     {
@@ -1181,10 +1223,7 @@
       "base": "88c1077071328b8df68f282543f16e20e97930b4",
       "task": "T63",
       "lastReviewed": "2026-09-01",
-      "paths": [
-        "packages/vue/src/i18n/locales/zh-cn/dialogs.json",
-        "packages/vue/src/i18n/messages/dialogs.ts"
-      ]
+      "paths": []
     }
   ]
 }

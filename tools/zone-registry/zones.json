@@ -75,9 +75,7 @@
     "tools/visual-oracles/src/render-fixture.ts",
     "tests/engine/tools/all-tools-execution.test.ts"
   ],
-  "stubs": [
-    "src/app/collab/use.ts"
-  ],
+  "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [],
   "patches": [
     {

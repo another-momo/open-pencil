@@ -530,11 +530,7 @@ defineExpose({ restoreDraft, clearDraft })
               :class="{ 'opacity-60': isStreaming }"
               :style="skillChipIndent > 0 ? { textIndent: `${skillChipIndent}px` } : undefined"
             >
-              <span
-                v-for="segment in backdropSegments"
-                :key="segment.key"
-                >{{ segment.text }}</span
-              >
+              <span v-for="segment in backdropSegments" :key="segment.key">{{ segment.text }}</span>
             </div>
             <!-- T91p：钉头 skill chip——覆盖层渲染（accent 色 icon + 名称，
                  整体不可编辑、不抢指针事件），textarea/backdrop 用同值

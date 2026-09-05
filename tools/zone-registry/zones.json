@@ -1,5 +1,5 @@
 {
-  "$comment": "Zone registry for rebuild/v2 (docs/rebuild/02-phase-0.md). Truth for path ownership; CI-enforced via tools/zone-registry/src/check.ts (check:zones). Rules: modified upstream files must be registered patches; new files only under ownedRoots (or upstreamMergeTarball.paths for byte-identical tarball merges); deletedPaths must not exist. upstreamMergeTarball (T32): structured whitelist for byte-identical tarball-merge copies, one entry per merge with base SHA; any local drift from base is a violation — see docs/rebuild/04-porting-discipline.md §5. Patch id gaps P62-P73/P75-P82: migrated to upstreamMergeTarball by T32; P83-P97: reserved by T32 plan but superseded by the tarball field, never issued. P8: removed by T36 — target src/app/ai/chat/storage.ts already deleted and in deletedPaths (double accounting). P60/P61: removed by T36 — both test files byte-identical to base 88c10770 (T32 migration miss; phantom patches). P98-P102: removed by T36 — the five objects are fork-new files already in ownedFiles (double accounting, no base to anchor); ownership truth stays in ownedFiles. pendingReclass is planning metadata (files stay follow-pure until the reclassification ritual; note: a file may carry a deletion-cut patch while still pending reclassification). P4/P5/P47: removed by T65 (2026-09-01) — src/components/chat/ promoted to ownedRoot and src/components/ChatPanel.vue to ownedFiles (ChatPanel 族改动幅度已远超 patch 语义，owner 拍板转 owned 区); patches retired as double accounting, their history stays in git. tool-state.ts removed from T32 tarball.paths (now covered by chat/ ownedRoot; byte-identical to base 88c10770 at promotion time). tests/engine/io/ promoted to ownedRoot by T91a (2026-09-03) — fig codec 测试集 T91a 起大量新增 round-trip 测试（shared-plugin-data round-trip 等），已远超 patch 语义，owner 拍板转 owned 区（与 T65 chat/ 同模式）。tests/engine/io/ demoted back to follow by Batch 2d (2026-09-05) — 实测上游 head 存在该目录且持续供血（方案 §4.5：owned 上游活跃目录是语义矛盾，新增静默落入零决策）；T91a 唯一新增测试 shared-plugin-data.test.ts 迁 tests/engine/rebuild/io/（ownedRoot 内），其余 85 文件均上游 base 原有留原位。Batch 3 全量落账（2026-09-05，方案 §6）：ownedRoots 换名 src/components/chat/→src/components/assistant/（Batch 2f 整目录搬家，方案 §4.5 深层错配根治——腾出上游仍在用的目录名进 deletedPaths 前缀），新增 src/app/ai/fork/（Batch 2a 路径分离产物）、src/app/automation/（Batch 2c 桥内核迁入+mcp 外壳裁撤后只剩内部桥，方案 §4.3 owner 拍板升 owned）、.github/workflows/（CI 纯 fork 治理设施，方案 §4.3）；ownedFiles 出清 .github/workflows/upstream-drift.yml 与 src/components/ChatPanel.vue（均已被新 ownedRoot 覆盖），新增 src/app/browser-bridge.ts（pendingReclass 出清，P41 退役——R-mutex）与 2e/2b 吸收产物 7 件；deletedPaths 增 packages/cli/、packages/mcp/、tests/engine/cli/、tests/engine/mcp/、src/app/automation/mcp/、tests/helpers/mcp/、src/components/chat/ 七条目录前缀 + bunfig.toml 等散件（Batch 2b cli 纯删 / 2c mcp 裁撤 / 2f chat 搬家收口），src/components/chat/ 旧 6 墓碑与 tests/helpers/mcp/acp-session.ts 因子前缀成立转冗余删除（Batch 0 ownedRoot 删除豁免已生效）；patches 退役 P6/P7/P52（目标已迁 ai/fork/，旧路径进 deletedPaths）、P39/P41/P104/P105/P135/P136/P141（automation 升 owned / browser-bridge 升 ownedFile / automation/mcp 删除——ownedRoot 下修改免登记，patch 失锚或冗余）、P56/P139/P140（packages/mcp 目标已删）、P142（锚定语义随 automation/mcp/runtime.ts 删除失效，由 P183 承接 mcp-runtime.test.ts 现状）；pendingReclass 7 项全部出清（chat/ 与 debug 已分离删除、automation/ 与 workflows/ 升 owned、browser-bridge 升 ownedFile、packages/mcp 与 packages/cli 已删）；T31 tarball.paths 出清 tests/engine/app/chat/tool-state.test.ts（Batch 2f import 改指致 drift，转 patch P191）。",
+  "$comment": "Zone registry for rebuild/v2 (docs/rebuild/02-phase-0.md). Truth for path ownership; CI-enforced via tools/zone-registry/src/check.ts (check:zones). Rules: modified upstream files must be registered patches; new files only under ownedRoots (or upstreamMergeTarball.paths for byte-identical tarball merges); deletedPaths must not exist. upstreamMergeTarball (T32): structured whitelist for byte-identical tarball-merge copies, one entry per merge with base SHA; any local drift from base is a violation — see docs/rebuild/04-porting-discipline.md §5. Patch id gaps P62-P73/P75-P82: migrated to upstreamMergeTarball by T32; P83-P97: reserved by T32 plan but superseded by the tarball field, never issued. P8: removed by T36 — target src/app/ai/chat/storage.ts already deleted and in deletedPaths (double accounting). P60/P61: removed by T36 — both test files byte-identical to base 88c10770 (T32 migration miss; phantom patches). P98-P102: removed by T36 — the five objects are fork-new files already in ownedFiles (double accounting, no base to anchor); ownership truth stays in ownedFiles. pendingReclass is planning metadata (files stay follow-pure until the reclassification ritual; note: a file may carry a deletion-cut patch while still pending reclassification). P4/P5/P47: removed by T65 (2026-09-01) — src/components/chat/ promoted to ownedRoot and src/components/ChatPanel.vue to ownedFiles (ChatPanel 族改动幅度已远超 patch 语义，owner 拍板转 owned 区); patches retired as double accounting, their history stays in git. tool-state.ts removed from T32 tarball.paths (now covered by chat/ ownedRoot; byte-identical to base 88c10770 at promotion time). tests/engine/io/ promoted to ownedRoot by T91a (2026-09-03) — fig codec 测试集 T91a 起大量新增 round-trip 测试（shared-plugin-data round-trip 等），已远超 patch 语义，owner 拍板转 owned 区（与 T65 chat/ 同模式）。tests/engine/io/ demoted back to follow by Batch 2d (2026-09-05) — 实测上游 head 存在该目录且持续供血（方案 §4.5：owned 上游活跃目录是语义矛盾，新增静默落入零决策）；T91a 唯一新增测试 shared-plugin-data.test.ts 迁 tests/engine/rebuild/io/（ownedRoot 内），其余 85 文件均上游 base 原有留原位。Batch 3 全量落账（2026-09-05，方案 §6）：ownedRoots 换名 src/components/chat/→src/components/assistant/（Batch 2f 整目录搬家，方案 §4.5 深层错配根治——腾出上游仍在用的目录名进 deletedPaths 前缀），新增 src/app/ai/fork/（Batch 2a 路径分离产物）、src/app/automation/（Batch 2c 桥内核迁入+mcp 外壳裁撤后只剩内部桥，方案 §4.3 owner 拍板升 owned）、.github/workflows/（CI 纯 fork 治理设施，方案 §4.3）；ownedFiles 出清 .github/workflows/upstream-drift.yml 与 src/components/ChatPanel.vue（均已被新 ownedRoot 覆盖），新增 src/app/browser-bridge.ts（pendingReclass 出清，P41 退役——R-mutex）与 2e/2b 吸收产物 7 件；deletedPaths 增 packages/cli/、packages/mcp/、tests/engine/cli/、tests/engine/mcp/、src/app/automation/mcp/、tests/helpers/mcp/、src/components/chat/ 七条目录前缀 + bunfig.toml 等散件（Batch 2b cli 纯删 / 2c mcp 裁撤 / 2f chat 搬家收口），src/components/chat/ 旧 6 墓碑与 tests/helpers/mcp/acp-session.ts 因子前缀成立转冗余删除（Batch 0 ownedRoot 删除豁免已生效）；patches 退役 P6/P7/P52（目标已迁 ai/fork/，旧路径进 deletedPaths）、P39/P41/P104/P105/P135/P136/P141（automation 升 owned / browser-bridge 升 ownedFile / automation/mcp 删除——ownedRoot 下修改免登记，patch 失锚或冗余）、P56/P139/P140（packages/mcp 目标已删）、P142（锚定语义随 automation/mcp/runtime.ts 删除失效，由 P183 承接 mcp-runtime.test.ts 现状）；pendingReclass 7 项全部出清（chat/ 与 debug 已分离删除、automation/ 与 workflows/ 升 owned、browser-bridge 升 ownedFile、packages/mcp 与 packages/cli 已删）；T31 tarball.paths 出清 tests/engine/app/chat/tool-state.test.ts（Batch 2f import 改指致 drift，转 patch P191）。relocations 搬移台账（2026-09-05，方案 §6，owner 拍板建立机制）：登记历史搬移事件——上游旧位置 → fork 新家园（空数组 = 纯裁撤无继承者），与 deletedPaths 互补（deletedPaths 管删除事实，relocations 管搬移意图与去向，便于上游对旧位置后续改动时机器化产出移植评估信号）。七条回填对应 Batch 2a/2b/2c/2f + T46：mcp 裁撤内核迁入（stdio/tool registration 外壳未迁——本表只登记有去向的产物，无外壳去向故无条目）、cli 裁撤（CanvasKit 初始化/字体预备吸收进 core/io、fixture 导出归 visual-oracles）、chat→fork 路径分离（整目录进 deletedPaths）、chat→assistant 整目录搬家（腾出上游仍在用的目录名）、mcp 外壳纯删、mcp 测试随迁、system-prompt 谱系转写（T46 副本退役、studio/ 唯一真源）。check.ts RELOCATION_WATCH 规则（advisory，永不 fail gate）遍历本表对 upstreamBase..upstream/master name-status diff 做命中——目录前缀用 startsWith，文件精确匹配，rename 的 from/to 都算；命中即打印移植评估摘要（不改退出码、不计入 violation 数），默认模式只打摘要行、--drift 追加每文件明细。",
   "ownedRoots": [
     "docs/",
     "tools/zone-registry/",
@@ -77,6 +77,50 @@
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [],
+  "relocations": [
+    {
+      "oldPath": "packages/mcp/",
+      "newPaths": ["src/app/automation/bridge/server/"],
+      "since": "Batch 2c (2026-09-05)",
+      "note": "mcp 裁撤内核迁入；stdio/tool registration 等外壳未迁"
+    },
+    {
+      "oldPath": "packages/cli/",
+      "newPaths": ["packages/core/src/io/", "tools/visual-oracles/src/render-fixture.ts"],
+      "since": "Batch 2b (2026-09-05)",
+      "note": "cli 裁撤；CanvasKit 初始化/字体预备吸收进 core/io，fixture 导出归 visual-oracles"
+    },
+    {
+      "oldPath": "src/app/ai/chat/",
+      "newPaths": ["src/app/ai/fork/"],
+      "since": "Batch 2a (2026-09-05)",
+      "note": "路径分离：use/failure/transports 迁 fork；2026-09-05 整目录进 deletedPaths"
+    },
+    {
+      "oldPath": "src/components/chat/",
+      "newPaths": ["src/components/assistant/"],
+      "since": "Batch 2f (2026-09-05)",
+      "note": "整目录搬家腾出上游仍在用的目录名"
+    },
+    {
+      "oldPath": "src/app/automation/mcp/",
+      "newPaths": [],
+      "since": "Batch 2c (2026-09-05)",
+      "note": "mcp 外壳裁撤（纯删除，无继承者）"
+    },
+    {
+      "oldPath": "tests/engine/mcp/",
+      "newPaths": ["tests/engine/tools/"],
+      "since": "Batch 2c (2026-09-05)",
+      "note": "mcp 测试随迁"
+    },
+    {
+      "oldPath": "src/app/ai/chat/system-prompt.md",
+      "newPaths": ["src/app/ai/pi-backend/studio/base.md"],
+      "since": "T46 (2026-08)",
+      "note": "提示词谱系：T46 转写副本 2026-09-05 退役，studio/ 唯一真源"
+    }
+  ],
   "patches": [
     {
       "id": "P1",

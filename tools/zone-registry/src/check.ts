@@ -32,6 +32,10 @@
  *          输入是外生的上游节奏，owner 2026-09-01 拍板降为雷达，不进 push 门禁；
  *          2026-09-05 方案 §5.1 去 cron 化——改由 ci.yml 非阻断 job 在 push rebuild/** 时跑；
  *          §5.2 补对称规则 PATCH_TARGET_DELETED_UPSTREAM：patch 锚定文件被上游删除即报）
+ *          RELOCATION_WATCH（2026-09-05，方案 §6）：搬移台账 advisory——
+ *          上游对 relocations[*].oldPath 的后续改动（name-status -M 命中）打移植评估摘要，
+ *          永不 fail gate（与 GHOST 同属上游活动窗口规则的轻量侧，不进 push 门禁；默认模式
+ *          只打摘要行、--drift 追加每文件明细）；不计 violation、不改退出码）
  *          T28（决策单 #5，轻量过堂机制）：报告模式——逐条补丁输出相对
  *          upstream merge-base 的当前 diff 行数摘要（numstat），供过堂审视
  *          补丁腐烂度；只读报告，恒 exit 0，不参与主检查判红。
@@ -67,6 +71,18 @@ interface Zones {
     deletedPaths: string[]
     task: string
     lastReviewed: string
+  }>
+  /** 搬移台账（2026-09-05，方案 §6，owner 拍板建立机制）：登记历史搬移事件——
+   *  上游旧位置 → fork 新家园（空数组 = 纯裁撤无继承者）。与 deletedPaths 互补
+   *  （deletedPaths 管删除事实，本表管搬移意图与去向）。check.ts RELOCATION_WATCH
+   *  规则据此对 upstreamBase..upstream/master name-status diff 做命中——
+   *  目录前缀用 startsWith，文件精确匹配，rename 的 from/to 都算。advisory：
+   *  只打摘要，不改退出码、不计入 violation 数。 */
+  relocations?: Array<{
+    oldPath: string
+    newPaths: string[]
+    since: string
+    note: string
   }>
 }
 
@@ -305,6 +321,73 @@ function checkPatchTargetDeletedUpstream(zones: Zones, base: string): string[] {
 }
 
 /**
+ * RELOCATION_WATCH（2026-09-05，方案 §6，owner 拍板建立机制）：
+ *  搬移台账 advisory——遍历 zones.relocations[*] 对 upstreamBase..upstream/master
+ *  的 name-status diff（-M 启用 rename detection）做命中：
+ *  - oldPath 以 / 结尾视为目录前缀——diff 行 path 用 startsWith 匹配；
+ *  - oldPath 不以 / 结尾视为文件精确匹配；
+ *  - rename 的 from/to 都算命中（status R + parts[1] 与 parts[2] 分别参与判定）。
+ *  命中即打印移植评估摘要：
+ *  - 默认模式只打一行摘要「[zones][watch] RELOCATION: <oldPath> 上游有改动（N 文件）→
+ *    移植评估 → <newPaths 逗号连接 | 已裁撤>：{note}」；
+ *  - --drift 模式追加每文件明细（status + path）；
+ *  - 永不改退出码、永不计入 violation 数（与 GHOST 同属上游活动窗口规则的轻量侧——
+ *    外生移动靶，owner 拍板不进 push 门禁；callers 不消费返回值仅消费 console.log）。
+ *  upstream/master 不可达（无 fetch / 无 remote 配置）静默跳过——本规则对环境
+ *  零依赖，CI 本地不一致不显红。
+ */
+function checkRelocationWatch(zones: Zones, base: string): void {
+  const relocations = zones.relocations ?? []
+  if (relocations.length === 0) return
+  let upstreamBase = base
+  try {
+    upstreamBase = git(['merge-base', 'HEAD', 'upstream/master'])
+    // oxlint-disable-next-line open-pencil/no-silent-catch
+  } catch {
+    // 没有 upstream/master 配置（CI 上游 fetch 后必有，本机可能没有）——降级用 base
+  }
+  let upstreamDiff = ''
+  try {
+    upstreamDiff = git(['diff', '--name-status', '-M', `${upstreamBase}..upstream/master`])
+    // oxlint-disable-next-line open-pencil/no-silent-catch
+  } catch {
+    // upstream/master 不可达——advisory 静默跳过，不打印、不报错
+    return
+  }
+  if (!upstreamDiff) return
+  const driftMode = process.argv.includes('--drift')
+  type Hit = { status: string; path: string }
+  for (const r of relocations) {
+    const hits: Hit[] = []
+    const isDir = r.oldPath.endsWith('/')
+    for (const line of upstreamDiff.split('\n')) {
+      if (!line) continue
+      const parts = line.split('\t')
+      const status = parts[0]
+      // rename 行 parts[1]=from, parts[2]=to；其他行 parts[1]=path
+      const candidates = status.startsWith('R') ? [parts[1], parts[2]] : [parts[1]]
+      const matched = candidates.some((p) => (isDir ? p.startsWith(r.oldPath) : p === r.oldPath))
+      if (!matched) continue
+      // rename 一行算两文件（from + to），明细模式各报一条便于搬运审计
+      if (status.startsWith('R')) {
+        hits.push({ status: `${status} (from)`, path: parts[1] })
+        hits.push({ status: `${status} (to)`, path: parts[2] })
+      } else {
+        hits.push({ status, path: parts[1] })
+      }
+    }
+    if (hits.length === 0) continue
+    const dest = r.newPaths.length === 0 ? '已裁撤' : r.newPaths.join(', ')
+    console.log(
+      `[zones][watch] RELOCATION: ${r.oldPath} 上游有改动（${hits.length} 文件）→ 移植评估 → ${dest}：${r.note}`
+    )
+    if (driftMode) {
+      for (const h of hits) console.log(`  - ${h.status}\t${h.path}`)
+    }
+  }
+}
+
+/**
  * T32 L4：tarball drift——本地文件 byte 与 tarball.paths 收录的版本不一致即违规。
  *  tarball 语义 = 与 base 字节一致（04-porting-discipline.md §5.2），任何本地改动
  *  都破坏该语义：小改应转 patch、大改应转 ownedFile（owner 拍板），改完前判红。
@@ -379,6 +462,37 @@ function checkPatchRealDiff(zones: Zones, base: string): string[] {
       (p) =>
         `PATCH has no diff vs base: ${p.id} ${p.file} (byte-identical to base — remove the phantom patch or make the change it claims)`
     )
+}
+
+/**
+ * RELOCATIONS_VALID（2026-09-05，方案 §6，owner 拍板建立机制）：
+ *  搬移台账 zones.json 自身质量硬规则（与 R-exist/R-diff/R-mutex 同口径——审
+ *  登记元数据本身，非上游活动窗口）：
+ *  - oldPath 非空——空串会让 RELOCATION_WATCH 误命中所有路径（startsWith('') 恒真）；
+ *  - oldPath 不重复——同 oldPath 两份登记，第二份永远被第一份的目录前缀/精确匹配
+ *    屏蔽，watch 不可观测；触发即登记意图冲突，需人工合并（决定哪份语义为准、
+ *    另一份删除或 newPaths 合并）。
+ *  不审 newPaths/since/note（note 自由文本、newPaths 可空 = 已裁撤、since 是批次
+ *  标签无机器语义）——它们不影响匹配正确性。
+ */
+function checkRelocationsValid(zones: Zones): string[] {
+  const relocations = zones.relocations ?? []
+  const seen = new Map<string, number>()
+  const violations: string[] = []
+  relocations.forEach((r, i) => {
+    if (!r.oldPath) {
+      violations.push(
+        `RELOCATION oldPath empty at index ${i} (register the upstream path being relocated from, or drop the entry)`
+      )
+    } else if (seen.has(r.oldPath)) {
+      violations.push(
+        `RELOCATION oldPath duplicated: ${r.oldPath} at index ${i} (already at index ${seen.get(r.oldPath)} — merge the two entries into one)`
+      )
+    } else {
+      seen.set(r.oldPath, i)
+    }
+  })
+  return violations
 }
 
 /**
@@ -520,6 +634,9 @@ function main() {
   const changes = collectChanges(base)
   // T32：rename 交叉一致性 + tarball drift（F1 收口评审：drift 判红，不 warn）
   const renames = collectRenames(base)
+  // RELOCATION_WATCH（2026-09-05，方案 §6）：搬移台账 advisory，先于 violations 装配——
+  // 自带 console.log、不返回值，永不进 violations；默认模式只打摘要，--drift 追加每文件明细
+  checkRelocationWatch(zones, base)
   // 装配顺序——violations 在前、Renames/Ghost/Drift 在中、Tarball 白名单在后兜底 ADDED；
   // T36 登记健康三规则（R-exist/R-diff/R-mutex）殿后——它们审的是 zones.json 自身质量。
   // T64：GHOST 窗口规则仅 --drift 雷达模式执行（owner 2026-09-01 拍板，函数头注在案）
@@ -536,7 +653,8 @@ function main() {
     ...checkAdded(zones, changes.added),
     ...checkPatchFilesExist(zones),
     ...checkPatchRealDiff(zones, base),
-    ...checkPatchMutex(zones)
+    ...checkPatchMutex(zones),
+    ...checkRelocationsValid(zones)
   ]
 
   if (violations.length > 0) {

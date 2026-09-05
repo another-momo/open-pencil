@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import type { UIMessage } from 'ai'
 
-import { safeFailureDetail, serializeChatLog } from '@/app/ai/debug'
+import { safeFailureDetail, serializeChatLog } from '@/app/ai/fork/debug'
 import { setActiveEditorStore } from '@/app/editor/active-store'
 import { createEditorStore } from '@/app/editor/session'
 

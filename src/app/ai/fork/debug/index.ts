@@ -1,8 +1,11 @@
+// Batch 2a 路径分离（2026-09-05）：本文件自 src/app/ai/debug/index.ts 迁入
+// owned 路径 src/app/ai/fork/debug/，原上游路径留给 deletedPaths 落账——T27
+// 起本模块已裁为纯 fork 派生面（无上游对应实现可跟随）。
 import type { UIMessage } from 'ai'
 
 import type { JSONObject } from '@open-pencil/scene-graph/primitives'
 
-import type { AIChatFailure } from '@/app/ai/chat/failure'
+import type { AIChatFailure } from '../failure'
 
 // T27：旧浏览器内 ToolLoop 的客户端工具日志/step 计数面已随 src/app/ai/tools/
 // 删除（pi 路径工具在后端进程执行，浏览器侧恒空）——TOKEN USAGE / DIAGNOSTICS /

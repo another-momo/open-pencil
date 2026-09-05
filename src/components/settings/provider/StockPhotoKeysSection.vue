@@ -2,11 +2,15 @@
 import { computed, ref } from 'vue'
 import { useI18n } from '@open-pencil/vue'
 
-import { useAIChat } from '@/app/ai/chat/use'
+import {
+  pexelsKeyStatus,
+  setPexelsKey,
+  setUnsplashKey,
+  unsplashKeyStatus
+} from '@/app/settings/credentials/stock-photo-keys'
 import ProviderSettingsKeyField from '@/components/settings/provider/ProviderSettingsKeyField.vue'
 
 const { dialogs } = useI18n()
-const { pexelsKeyStatus, setPexelsKey, unsplashKeyStatus, setUnsplashKey } = useAIChat()
 const pexelsKeyInput = ref('')
 const unsplashKeyInput = ref('')
 const hasExistingPexelsKey = computed(() => pexelsKeyStatus.value === 'configured')

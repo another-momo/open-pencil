@@ -1,3 +1,7 @@
+// 钉死说明（Batch 2a 路径分离，2026-09-05）：本文件此前与上游 base 字节一致，
+// 自此钉死为 fork 副本、不再跟随上游——上游 2026-09 新增 5 类 reason，而 ChatPanel
+// failureMessage switch 只认 3 类（insufficient-credit/output-limit/request-failed），
+// 跟随会静默漂移出未处理的 reason。
 export type AIChatFailureReason = 'insufficient-credit' | 'output-limit' | 'request-failed'
 
 export type AIChatFailure = {

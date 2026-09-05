@@ -10,6 +10,23 @@ import type { getActiveEditorStore } from '@/app/editor/active-store'
 
 import { classifyAIChatError, classifyAIChatFinish, type AIChatFailure } from './failure'
 
+// T94 兜底：ai SDK AbstractChat.makeRequest 的外层 catch 只认 `err.name ===
+// 'AbortError'`，对 Chrome 流中断时偶发的非标形状（TypeError "BodyStreamBuffer
+// was aborted"、code === 'ABORT_ERR'、自定义错误抛塞为 message 含 'aborted' 等）
+// 漏判会一路冒到 onError——这里前置过滤，stop 引起的 abort 不计为失败，不写
+// chatFailure、不刷诊断、不触发 ChatPanel toast。isUserStopped 旗标在 ChatPanel
+// 端仍保留作 status 收尾信号（T94 status watcher），两侧各管一段。
+// 与 pi-backend/transport.ts 的 isAbortLikeError 同语义，集中放这里便于
+// failure.ts 不被改的前提下分类层（onError）前置识别；tests/engine/app/ai/
+// fork-transport-abort.test.ts 验证。
+export function isAbortShapedError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  if (error.name === 'AbortError') return true
+  const code = (error as { code?: unknown }).code
+  if (code === 'ABORT_ERR' || code === 20) return true
+  return /abort(ed)?/i.test(error.message)
+}
+
 type EditorStore = ReturnType<typeof getActiveEditorStore>
 
 /**
@@ -102,6 +119,12 @@ export function createChatSessionManager({
         transport: createTransport(store),
         messages,
         onError: (error) => {
+          // T94 兜底：用户主动 stop 经 AbortController 触发的 abort 在 ai SDK
+          // AbstractChat.makeRequest 路径上绝大多数情况被 name === 'AbortError'
+          // 短路，但 Chrome 流中断偶发抛塞为非标形状（TypeError "BodyStreamBuffer
+          // was aborted" 等），漏到 onError——stop 不是错误，不写 chatFailure、
+          // 不刷诊断失败。状态收尾交给 ChatPanel 的 isUserStopped + status watcher。
+          if (isAbortShapedError(error)) return
           failure.value = classifyAIChatError(error)
           // T36：chat 级 diagnostics 接线（owner 拍板①）——对齐上游 88c10770 版语义
           recordChatFailed({ errorName: error instanceof Error ? error.name : 'unknown' })

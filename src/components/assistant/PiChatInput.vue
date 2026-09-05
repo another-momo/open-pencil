@@ -107,20 +107,32 @@ const emit = defineEmits<{
   error: [message: string]
 }>()
 
-/** 文本态模型——双轨结构（ux6 三修）：
+/** 文本态模型——三轨结构（ux6 后续修复）：
  *  - shadowText：plain `let` 变量。@input / @compositionend 唯一写入路径。
  *    **非响应式**：写它不会触发任何依赖图上的模板更新（Vue 看不到 plain
  *    var 的变化）。这是「打字期 Vue 渲染次数 = 0」的硬保证。
  *  - input：响应式 ref<string>。**仅由结构事件写入**（采集插入 / X 删除
  *    / 原子删除 / 粘贴 / clear / restore / submit 清空）。模板 segments
  *    依赖它，所以结构事件触发 v-for 重渲 + :key 重挂整段重建。
- *  - 两轨同步点 = 结构事件：先读 shadowText（DOM 真相），算新文本，
- *    同时写 shadowText 与 input.value + segVersion++。
- *  - 不变量：shadowText === syncTextFromDom(DOM) 恒成立。
+ *  - hasText：响应式 ref<boolean>。**打字期空判断信号**——所有写 shadowText
+ *    的地方同步维护：`commitStructuralChange`（结构事件）+ `syncTextFromDom`
+ *    （@input / @compositionend）。模板里发送按钮 disabled 和 placeholder
+ *    显隐读它，让鼠标用户在打字后能立即看到按钮亮起来 / 占位符收起——但
+ *    `input` 本身保持「结构事件独占写」纪律（打字期不重渲 segments，仍是
+ *    零重渲 → 零 patch → IME 天然安全）。
+ *  - 三轨同步点：
+ *      - 结构事件：先读 shadowText（DOM 真相），算新文本 → commitStructuralChange
+ *        同步写 shadowText + input.value + hasText.value + segVersion++。
+ *      - 打字 / IME：@input/@compositionend → syncTextFromDom 写 shadowText
+ *        + hasText.value（**不写** input.value / segVersion）。
+ *  - 不变量：shadowText === syncTextFromDom(DOM) 恒成立；input.value 在结
+ *    构事件瞬间与 shadowText 对齐；hasText.value === !!shadowText.trim()
+ *    恒成立。
  *  - 序列化源 = shadowText（提交瞬间 DOM 真相，与旧 textarea 路径字节等价）。
  */
 let shadowText = ''
 const input = ref('')
+const hasText = ref(false)
 
 const isStreaming = computed(() => disabled || status === 'streaming' || status === 'submitted')
 
@@ -209,6 +221,7 @@ function commitStructuralChange(nextText: string): void {
   shadowText = nextText
   segVersion.value += 1
   input.value = nextText
+  hasText.value = nextText.trim().length > 0
 }
 
 watch(input, () => {
@@ -365,9 +378,12 @@ function hoistStraysIntoSegRoot(el: HTMLElement): void {
   }
   for (const n of after) rootEl.appendChild(n)
 }
-// **关键（ux6 三修）**：本函数只写 shadowText（plain `let`），**不写
-// input.value**。shadowText 是 plain var 不是 ref → Vue 响应式系统
-// 看不到 → 零重渲。这是「打字路径 Vue 渲染次数 = 0」的硬保证。
+// **关键（ux6 三修）**：本函数只写 shadowText（plain `let`）+ hasText.value，
+// **不写 input.value / segVersion**。shadowText 是 plain var 不是 ref → Vue
+// 响应式系统看不到 → 零重渲。hasText 是唯一允许在打字路径被写的响应式
+// 状态——但模板里只有「placeholder 显隐」和「发送按钮 disabled」两处依赖
+// 它（DOM 局部更新，不重渲编辑器子树）。这是「打字路径 Vue 编辑器子
+// 树渲染次数 = 0」+「按钮 / 占位符实时跟随打字」的硬保证。
 // input.value 由 commitStructuralChange 独占（结构事件路径）。
 
 function syncTextFromDom(): string {
@@ -397,6 +413,7 @@ function syncTextFromDom(): string {
   // 归一：去掉 ZWSP 与 CRLF，与旧 textarea 路径字节等价
   const normalized = text.replace(/\u200B/g, '').replace(/\r\n?/g, '\n')
   shadowText = normalized
+  hasText.value = normalized.trim().length > 0
   return normalized
 }
 
@@ -886,7 +903,7 @@ defineExpose({ restoreDraft, clearDraft })
               <span class="font-medium">{{ pinnedSkill }}</span>
             </div>
             <div
-              v-if="input.length === 0 && !pinnedSkill"
+              v-if="!hasText && !pinnedSkill"
               class="pointer-events-none absolute top-2.5 left-3 text-xs leading-relaxed text-muted"
               :style="skillChipIndent > 0 ? { paddingLeft: `${skillChipIndent}px` } : undefined"
             >
@@ -1021,7 +1038,7 @@ defineExpose({ restoreDraft, clearDraft })
               type="submit"
               data-test-id="chat-send-button"
               class="bg-accent text-white hover:bg-accent/90 hover:text-white"
-              :disabled="!input.trim()"
+              :disabled="!hasText"
             >
               <icon-lucide-send class="size-3.5" />
             </IconButton>

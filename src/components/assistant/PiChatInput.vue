@@ -17,6 +17,8 @@ import {
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 import ChatModeChips from '@/components/assistant/ChatModeChips.vue'
+import ChatNodePreview from '@/components/assistant/ChatNodePreview.vue'
+import { resolveSelectionTokenChips } from '@/components/assistant/node-preview'
 import {
   atomicTokenDeletionRange,
   captureSelectionFromStore,
@@ -45,6 +47,8 @@ import {
 } from '@/app/ai/pi-backend/mode-selection'
 import { getActiveEditorStoreOrNull } from '@/app/editor/active-store'
 import { openSettingsDialog } from '@/app/settings/dialog'
+import type { SkiaRenderer } from '@open-pencil/core/canvas'
+import type { SceneGraph } from '@open-pencil/scene-graph'
 import { useI18n } from '@open-pencil/vue'
 
 import { useForkChips, useForkPi } from '@/app/i18n/fork'
@@ -116,6 +120,26 @@ const backdropSegments = computed(() => {
   segments.push({ key: segments.length, text: '\u200B', token: false })
   return segments
 })
+
+// Batch 2g：token chip 条（InputGroup attachment slot）——文本流实扫到的
+// 已采集 token 每个渲一条 chip（首节点缩略图 + 节点名）；手打无登记占位串
+// 不进 chip 条（纪律见 node-preview.ts 头部）。registry 刻意非响应式：其
+// 每次变动都伴随 input 变动（采集/手删/回填/清空），input 实扫即充分触发；
+// sceneVersion 触碰让采集后改名/删除在 chip 名上如实反映（与 serialize
+// 同口径）
+const tokenChips = computed(() => {
+  const store = getActiveEditorStoreOrNull()
+  if (store) void store.state.sceneVersion
+  return resolveSelectionTokenChips(input.value, draftTokens.registry, store?.graph ?? null)
+})
+
+// chip 缩略图渲染上下文：不用 computed——renderer 挂载是非响应式事件，模板
+// 重渲染（chip 出现/变化必伴随 input 变动）时直取现值即可；store 缺席
+// （storybook/测试面）→ null，ChatNodePreview 降级为 box 图标 + 名称
+function chipRenderContext(): { graph: SceneGraph | null; renderer: SkiaRenderer | null } {
+  const store = getActiveEditorStoreOrNull()
+  return { graph: store?.graph ?? null, renderer: store?.renderer ?? null }
+}
 
 function syncBackdropScroll() {
   const el = inputRef.value
@@ -441,6 +465,28 @@ defineExpose({ restoreDraft, clearDraft })
       </div>
       <form @submit="handleSubmit">
         <InputGroup :disabled="isStreaming">
+          <!-- Batch 2g：token chip 条——文本流实扫到的已采集引用 token 每个
+               一条 chip（首节点缩略图 + 节点名）；renderer 缺席/渲染失败时
+               缩略图位降级为 box 图标（ChatNodePreview 内部兜底），chip 退化
+               为图标 + 名称纯文本形态，token 文本模型/高亮/提交行为不变 -->
+          <template v-if="tokenChips.length > 0" #attachment>
+            <div class="flex flex-wrap gap-1 px-2 pt-2">
+              <div
+                v-for="chip in tokenChips"
+                :key="chip.n"
+                data-test-id="chat-token-chip"
+                class="flex min-w-0 max-w-full items-center gap-1 rounded-md border border-border bg-canvas px-1.5 py-0.5 text-[11px] text-surface"
+              >
+                <ChatNodePreview
+                  :node-id="chip.preview.nodeId"
+                  :page-id="chip.preview.pageId"
+                  :graph="chipRenderContext().graph"
+                  :renderer="chipRenderContext().renderer"
+                />
+                <span class="min-w-0 truncate">{{ chip.label }}</span>
+              </div>
+            </div>
+          </template>
           <!-- T70 路线 A：overlay 高亮 textarea——backdrop 在下层同步渲染文本流
                （全透明字形 + token 段背景块），textarea 承载输入/IME/光标；
                折行对齐靠同字号/行高/内边距 + whitespace-pre-wrap，滚动单向同步 -->

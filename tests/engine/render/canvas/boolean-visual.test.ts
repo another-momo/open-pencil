@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { existsSync } from 'node:fs'
 
-import { initCanvasKit } from '#cli/headless'
+import { initCanvasKit } from '@open-pencil/core/io'
 
 const MATRIX_PATH = '/tmp/open-pencil-boolean-matrix.png'
 const CELL_W = 180

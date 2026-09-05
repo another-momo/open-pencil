@@ -1,12 +1,11 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
 
+import { initCanvasKit } from '@open-pencil/core/io'
 import {
   preprocessForVectorize,
   resolveVectorFramePlacement,
   svgToVectorPaths
 } from '@open-pencil/core/vector'
-
-import { initCanvasKit } from '#cli/headless'
 
 import { expectDefined } from '#tests/helpers/assert'
 import { testPath } from '#tests/helpers/paths'

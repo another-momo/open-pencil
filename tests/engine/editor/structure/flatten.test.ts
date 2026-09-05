@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
-import { initCanvasKit } from '#cli/headless'
+import { initCanvasKit } from '@open-pencil/core/io'
+
 import { SkiaRenderer } from '#core/canvas'
 import { BLACK, TRANSPARENT } from '#core/constants'
 import { createEditor } from '#core/editor'

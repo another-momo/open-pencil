@@ -6,10 +6,10 @@ import {
   SceneGraph,
   SkiaRenderer as SkiaRendererClass
 } from '@open-pencil/core'
+import { initCanvasKit } from '@open-pencil/core/io'
 import type { SceneNode } from '@open-pencil/scene-graph'
 import { createDefaultSourceMetadata } from '@open-pencil/scene-graph/node-defaults'
 
-import { initCanvasKit } from '#cli/headless'
 import type { SkiaRenderer } from '#core/canvas/renderer'
 import { renderText, textVerticalOffset } from '#core/canvas/scene'
 import { buildParagraph, isNodeFontLoaded } from '#core/canvas/text'

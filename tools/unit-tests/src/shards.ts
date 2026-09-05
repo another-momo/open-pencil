@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 
 export const UNIT_TEST_GROUPS = {
-  app: ['tests/engine/app', 'tests/engine/cli', 'tests/engine/rebuild'],
+  app: ['tests/engine/app', 'tests/engine/rebuild'],
   dom: ['tests/engine/dom-css', 'tests/engine/color', 'tests/engine/icons', 'tests/engine/pen'],
   editor: [
     'tests/engine/clipboard',

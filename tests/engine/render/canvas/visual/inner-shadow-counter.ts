@@ -1,10 +1,10 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
+import { initCanvasKit } from '@open-pencil/core/io'
 import type { SceneNode } from '@open-pencil/scene-graph'
 import { SceneGraph } from '@open-pencil/scene-graph'
 
-import { initCanvasKit } from '#cli/headless'
 import { SkiaRenderer } from '#core/canvas'
 import { fontManager } from '#core/text'
 

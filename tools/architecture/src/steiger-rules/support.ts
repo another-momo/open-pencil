@@ -48,14 +48,12 @@ export const ROOT_MARKDOWN_ALLOWLIST = new Set([
 export const PACKAGE_ALIASES: Record<string, string> = {
   '#core/': 'packages/core/src/',
   '#vue/': 'packages/vue/src/',
-  '#cli/': 'packages/cli/src/',
   '#mcp/': 'packages/mcp/src/'
 }
 
 export const PACKAGE_ALIAS_OWNERS: Record<string, string> = {
   '#core/': 'packages/core/src/',
   '#vue/': 'packages/vue/src/',
-  '#cli/': 'packages/cli/src/',
   '#mcp/': 'packages/mcp/src/'
 }
 

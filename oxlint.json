@@ -196,9 +196,7 @@
     "open-pencil/no-core-parent-relative-imports": "error",
     "open-pencil/no-mcp-parent-relative-imports": "error",
     "open-pencil/no-vue-parent-relative-imports": "error",
-    "open-pencil/no-cli-parent-relative-imports": "error",
     "open-pencil/no-mcp-core-barrel-imports": "error",
-    "open-pencil/no-cli-core-barrel-imports": "error",
     "open-pencil/no-script-core-barrel-imports": "error",
     "open-pencil/no-core-self-package-imports": "error",
     "open-pencil/no-inline-prompt-constants": "error",
@@ -214,7 +212,6 @@
     "open-pencil/non-component-source-directories-kebab-case": "error",
     "open-pencil/no-component-root-sibling-folder": "error",
     "open-pencil/no-flat-kiwi-modules": "error",
-    "open-pencil/no-bun-globals-in-cli": "error",
     "open-pencil/no-top-level-prefixed-test-files": "error",
     "open-pencil/no-sibling-domain-prefixed-files": "error",
     "array-callback-return": "error",
@@ -447,19 +444,10 @@
     },
     {
       "files": [
-        "packages/cli/src/**",
         "packages/mcp/src/**"
       ],
       "rules": {
         "no-console": "off"
-      }
-    },
-    {
-      "files": [
-        "packages/cli/src/commands/**"
-      ],
-      "rules": {
-        "open-pencil/no-raw-console-format": "error"
       }
     },
     {

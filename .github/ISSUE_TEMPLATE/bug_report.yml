@@ -27,7 +27,6 @@ body:
         - macOS (Tauri)
         - Windows (Tauri)
         - Linux (Tauri)
-        - CLI
         - MCP server
         - Not sure
     validations:
@@ -55,7 +54,6 @@ body:
         - Canvas rendering
         - .fig import/export
         - SVG/PDF/raster export
-        - CLI
         - MCP / automation
         - Tauri desktop
         - Collaboration

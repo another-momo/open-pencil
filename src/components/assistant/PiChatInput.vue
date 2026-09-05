@@ -16,7 +16,7 @@ import {
 } from 'reka-ui'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
-import ChatModeChips from '@/components/chat/ChatModeChips.vue'
+import ChatModeChips from '@/components/assistant/ChatModeChips.vue'
 import {
   atomicTokenDeletionRange,
   captureSelectionFromStore,
@@ -29,8 +29,11 @@ import {
   snapshotSelectionDraftState,
   stripSelectionManifest,
   type SelectionDraftState
-} from '@/components/chat/selection-capture'
-import { composeSkillSubmission, extractLeadingSkillCommand } from '@/components/chat/skill-chip'
+} from '@/components/assistant/selection-capture'
+import {
+  composeSkillSubmission,
+  extractLeadingSkillCommand
+} from '@/components/assistant/skill-chip'
 import IconButton from '@/components/ui/IconButton.vue'
 import InputGroup from '@/components/ui/InputGroup.vue'
 import { piDesignAssignment } from '@/app/ai/pi-backend/assignment'

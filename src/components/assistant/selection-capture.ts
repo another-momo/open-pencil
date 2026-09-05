@@ -182,7 +182,7 @@ export function scanSelectionTokens(text: string): ScannedSelectionToken[] {
 // T89 的文本内 skill token（backdrop 高亮范式）在 T91p 被 chip 化取代：
 // owner 决议 skill 是命令不是引用——恒钉消息最前、单例、新选覆盖旧选，
 // 且文本态 token 可被光标进入逐字编辑观感怪异。新机制见
-// src/components/chat/skill-chip.ts（compose/extract 纯函数）+ ChatInput
+// src/components/assistant/skill-chip.ts（compose/extract 纯函数）+ ChatInput
 // pinnedSkill 覆盖层。本文件不再承载任何 skill token 逻辑。
 
 // ── 原子删除区间（路线 A keydown 拦截） ─────────────────────────────────────

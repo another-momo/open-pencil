@@ -5,7 +5,10 @@
 
 import { expect, test } from 'bun:test'
 
-import { composeSkillSubmission, extractLeadingSkillCommand } from '@/components/chat/skill-chip'
+import {
+  composeSkillSubmission,
+  extractLeadingSkillCommand
+} from '@/components/assistant/skill-chip'
 
 test('composeSkillSubmission：有 chip + 正文 → 命令形；无正文 → 纯命令；无 chip → 原文', () => {
   expect(composeSkillSubmission('demo', '生成一张小猫图片')).toBe('/skill:demo 生成一张小猫图片')

@@ -7,7 +7,7 @@ import { IS_BROWSER } from '@open-pencil/core/constants'
 import { createMarkdownHardenOptions, markdownExtensions } from '@/app/shell/markdown/config'
 import { markdownRenderKey, type MarkdownSurface } from '@/app/shell/markdown/state'
 import { resolvedAppTheme } from '@/app/shell/theme'
-import InlineCode from '@/components/chat/markdown/InlineCode.vue'
+import InlineCode from '@/components/assistant/markdown/InlineCode.vue'
 import { chatMarkdownTheme } from '@/theme/chat/markdown'
 
 const {

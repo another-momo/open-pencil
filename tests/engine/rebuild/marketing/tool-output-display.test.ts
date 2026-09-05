@@ -14,7 +14,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import { sanitizeMediaToolOutputForModel } from '@/app/ai/pi-backend/media-output'
-import { displayToolOutput } from '@/components/chat/tool-output'
+import { displayToolOutput } from '@/components/assistant/tool-output'
 
 const lookOutput = {
   base64: 'aGk=', // "hi" — 4 chars

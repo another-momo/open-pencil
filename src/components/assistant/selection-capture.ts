@@ -177,6 +177,21 @@ export function scanSelectionTokens(text: string): ScannedSelectionToken[] {
   return tokens
 }
 
+/**
+ * 按 n 删除文本中所有该序号对应的占位串（全部出现位置；不区分首末）。
+ *
+ * 用法：缩略图 chip 上的 X 按钮——视觉代理消失 = 文本里占位串同步删掉。
+ * 不主动清理占位串前后的空白：相邻内容若是用户有意留的标点/空格，原样保留，
+ * 仅去掉 token 字面。占位串之外的内容（含其他 token）完全不动。
+ *
+ * payload 语义不变：提交时 serializeSelectionManifest 还是按文本流实扫——少一个
+ * 占位串就少一条清单行，等价于用户手删了占位串（本来就走的这条路径）。
+ */
+export function removeSelectionToken(text: string, n: number): string {
+  const pattern = new RegExp(TOKEN_PATTERN_SOURCE, 'g')
+  return text.replace(pattern, (match, captured) => (Number(captured) === n ? '' : match))
+}
+
 // ── T89：Skill 内联 token（`「/skill:<name>」`）── 已退役（T91p）────────────
 //
 // T89 的文本内 skill token（backdrop 高亮范式）在 T91p 被 chip 化取代：

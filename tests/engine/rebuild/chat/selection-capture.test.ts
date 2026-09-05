@@ -25,6 +25,7 @@ import {
   captureSelection,
   captureSelectionFromStore,
   createSelectionDraftState,
+  removeSelectionToken,
   resetSelectionDraftState,
   restoreSelectionDraftState,
   scanSelectionTokens,
@@ -383,5 +384,58 @@ describe('stripSelectionManifest（T70 实现点 5，T27 回填）', () => {
     expect(stripSelectionManifest('普通消息')).toBe('普通消息')
     const handTyped = '[画布选区]\n@画布选区-1 = 节点 1:23「主标题」(TEXT)'
     expect(stripSelectionManifest(handTyped)).toBe(handTyped)
+  })
+})
+
+// ── chip 行 X 移除（Batch 2g+：缩略图 chip 显示层替换） ─────────────────────
+//
+// chip 是选区在输入框里的视觉代理；点 X = 视觉代理消失 = 文本流里该 n 的
+// 全部占位串同步删掉。payload 不变（serializeSelectionManifest 仍按文本
+// 流实扫——少一条占位串 = 清单少一行，与用户手删占位串同路径）。
+
+describe('removeSelectionToken（chip X 移除）', () => {
+  test('单出现 → 整段占位串删除，前文/后文保留', () => {
+    const text = `改一下${selectionTokenText(1)}的颜色`
+    expect(removeSelectionToken(text, 1)).toBe('改一下的颜色')
+  })
+
+  test('多出现：同 n 全部删除；其他 n 保留', () => {
+    const text = `把${selectionTokenText(1)}复刻到${selectionTokenText(1)}，再叠${selectionTokenText(2)}`
+    expect(removeSelectionToken(text, 1)).toBe('把复刻到，再叠「@画布选区-2」')
+  })
+
+  test('不存在的 n → 文本不动', () => {
+    const text = `改一下${selectionTokenText(1)}的颜色`
+    expect(removeSelectionToken(text, 9)).toBe(text)
+  })
+
+  test('前后空格/标点不动（最小侵入，只剥占位串字面）', () => {
+    const text = `  ${selectionTokenText(3)}  `
+    expect(removeSelectionToken(text, 3)).toBe('    ')
+  })
+
+  test('无 token 文本不动', () => {
+    expect(removeSelectionToken('普通消息', 1)).toBe('普通消息')
+  })
+
+  test('手打半删残串不识别（占位串契约的原子边界）', () => {
+    expect(removeSelectionToken('「@画布选区-1', 1)).toBe('「@画布选区-1')
+  })
+
+  test('payload 语义不变：删除后 serializeSelectionManifest 实扫少一行', () => {
+    const draft = `改一下${selectionTokenText(1)}和${selectionTokenText(2)}的颜色`
+    const trimmed = removeSelectionToken(draft, 1)
+    const registry = makeRegistry([
+      { n: 1, nodeIds: ['1:23'], names: ['主标题'], types: ['TEXT'] },
+      { n: 2, nodeIds: ['4:56'], names: ['主视觉'], types: ['FRAME'] }
+    ])
+    const reader = fakeReader({
+      '1:23': { name: '主标题', type: 'TEXT' },
+      '4:56': { name: '主视觉', type: 'FRAME' }
+    })
+    const out = serializeSelectionManifest(trimmed, registry, reader)
+    expect(out.referencedNs).toEqual([2])
+    expect(out.text).not.toContain('@画布选区-1')
+    expect(out.text).toContain('@画布选区-2')
   })
 })

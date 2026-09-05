@@ -63,7 +63,8 @@ function createMobileHudContext() {
 
   return {
     store,
-    dialogs,
+    common,
+    messages: collaboration,
     collabState,
     collabPeers,
     followingPeer,

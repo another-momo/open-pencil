@@ -86,6 +86,7 @@ onUnmounted(() => {
   <div data-test-id="editor-root" class="flex h-screen w-screen flex-col">
     <FontStatusBanner />
     <RenameSelectionDialog />
+    <CommandPalette />
     <TabBar />
     <HomeWorkspace v-show="activeTab?.kind === 'home'" @new-document="createDocumentInCurrentTab" />
     <EditorWorkspace v-if="activeTab?.kind !== 'home'" />

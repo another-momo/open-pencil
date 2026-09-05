@@ -225,8 +225,11 @@ export const confirmMessageDefaults = {
   awaitingIntentCancelledLine: 'New-design intent cancelled.',
   awaitingIntentFailedLine: params('Confirm failed: {msg}'),
   contextSwitchLine: params('—— Switched to {name} ——'),
-  // T93：reasoning part 折叠卡标题（ChatMessage.vue，预研 §5.2 方案 A）
+  // T93：reasoning part 折叠卡标题（PiChatMessage.vue，预研 §5.2 方案 A）
   reasoningTitle: 'Thinking process',
+  // T96：流式中 reasoning 折叠卡标题（PiChatMessage.vue）——区别于已结束的
+  //「Thinking process」；带呼吸点动画，纯 CSS，零 JS 定时器
+  reasoningStreamingTitle: 'Thinking…',
   // T94：用户主动停止回执（ChatPanel toast + ChatMessage 末条消息底部小字行）
   chatStopped: 'Stopped'
 } as const

@@ -270,19 +270,30 @@ function filePartFilename(part: FilePart): string {
             </CollapsibleRoot>
           </div>
 
-          <!-- T93：reasoning part 折叠渲染（预研 §5.2 方案 A）——流式展开，结束折叠；
-            视觉沿用 tool/file 卡骨架，标题走 fork i18n confirm 组（contextSwitchLine 先例） -->
+          <!-- T93：reasoning part 折叠渲染（预研 §5.2 方案 A）。
+            T96（owner 改）：默认折叠（不绑 :open）——流式中、结束后都靠用户手点；
+            标题走状态分叉：流式「思考中…」+ 呼吸点动画（纯 CSS keyframes，
+            零 JS 定时器）；结束「思考过程」。每条独立默认折叠，新消息不继承。 -->
           <details
             v-else-if="isReasoningUIPart(part)"
             data-test-id="chat-reasoning"
-            :open="streaming"
             class="rounded-lg border border-border bg-canvas px-2 py-1"
           >
             <summary
               class="flex cursor-pointer items-center gap-1 text-[11px] text-muted select-none"
             >
               <icon-lucide-brain class="size-3" />
-              {{ confirmText.reasoningTitle }}
+              <span v-if="streaming" data-test-id="chat-reasoning-streaming-title">
+                {{ confirmText.reasoningStreamingTitle }}
+                <span class="chat-reasoning-dots" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </span>
+              <span v-else data-test-id="chat-reasoning-title">
+                {{ confirmText.reasoningTitle }}
+              </span>
             </summary>
             <div
               class="mt-1 border-l-2 border-muted pl-2 text-[11px] whitespace-pre-wrap text-muted"
@@ -352,3 +363,43 @@ function filePartFilename(part: FilePart): string {
     </div>
   </div>
 </template>
+
+<!-- T96：reasoning 流式三圆点——纯 CSS @keyframes（避免 JS 定时器/repaint 开销），
+  三个圆点交错透明度，1.4s 周期模拟省略号动画，prefers-reduced-motion 静默 -->
+<style scoped>
+@keyframes chat-reasoning-pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+.chat-reasoning-dots {
+  display: inline-flex;
+  gap: 0.18em;
+  margin-left: 0.2em;
+  vertical-align: middle;
+}
+.chat-reasoning-dots > span {
+  width: 0.32em;
+  height: 0.32em;
+  border-radius: 9999px;
+  background-color: currentColor;
+  animation: chat-reasoning-pulse 1.4s ease-in-out infinite;
+}
+.chat-reasoning-dots > span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.chat-reasoning-dots > span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-reasoning-dots > span {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+</style>

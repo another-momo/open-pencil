@@ -139,8 +139,11 @@ const zhCN = {
     awaitingIntentConfirmedLine: '已确认新建意图——可以重发需求继续创建。',
     awaitingIntentCancelledLine: '已取消新建意图。',
     awaitingIntentFailedLine: '确认失败：{msg}',
-    // T93：reasoning part 折叠卡标题（ChatMessage.vue）
+    // T93：reasoning part 折叠卡标题（PiChatMessage.vue）
     reasoningTitle: '思考过程',
+    // T96：流式中 reasoning 折叠卡标题（PiChatMessage.vue）——区别于已结束的
+    //「思考过程」；带呼吸点动画，纯 CSS，零 JS 定时器
+    reasoningStreamingTitle: '思考中…',
     // T94：用户主动停止回执（ChatPanel toast + ChatMessage 末条消息底部小字行）
     chatStopped: '已停止'
   },

@@ -29,6 +29,8 @@ import {
   resetSelectionDraftState,
   restoreSelectionDraftState,
   scanSelectionTokens,
+  segmentsFromText,
+  segmentsToText,
   selectionTokenText,
   serializeSelectionManifest,
   snapshotSelectionDraftState,
@@ -437,5 +439,139 @@ describe('removeSelectionToken（chip X 移除）', () => {
     expect(out.referencedNs).toEqual([2])
     expect(out.text).not.toContain('@画布选区-1')
     expect(out.text).toContain('@画布选区-2')
+  })
+})
+
+// ── 分段模型（contenteditable 内嵌 chip 双向桥） ─────────────────────────────
+//
+// 内嵌 chip UI 把选区 token 渲成 contenteditable=false 的原子节点（不进可
+// 编辑文本流）。序列化时仍要产出与旧 textarea 路径**逐字节一致**的 payload：
+// 分段 → 字面 `「@画布选区-N」` → 既有 serializeSelectionManifest。
+// segmentsFromText / segmentsToText 是这条桥的纯函数面。钉扎：
+//   - 多 token 在文首/文中/文尾都正确切分
+//   - 普通文本不含 token → 单文本段
+//   - 连续两个 token 中间无文本 → 不产空文本段
+//   - 半删残串归到相邻文本段（不切）
+//   - 双向 roundtrip = 原文
+//   - 走 segmentsToText → serializeSelectionManifest 与旧路径字节等价
+
+describe('segmentsFromText / segmentsToText（contenteditable chip 双向桥）', () => {
+  test('普通文本不含 token → 单文本段', () => {
+    expect(segmentsFromText('普通消息')).toEqual([{ kind: 'text', text: '普通消息' }])
+    // 空串 → 空段数组（无 token 可切、无字符可承载；双向 roundtrip = 空串）
+    expect(segmentsFromText('')).toEqual([])
+  })
+
+  test('单 token 在文末 → 文本段 + token 段', () => {
+    const text = `改一下${selectionTokenText(1)}的颜色`
+    expect(segmentsFromText(text)).toEqual([
+      { kind: 'text', text: '改一下' },
+      { kind: 'token', n: 1 },
+      { kind: 'text', text: '的颜色' }
+    ])
+  })
+
+  test('单 token 在文首 → token 段 + 文本段', () => {
+    const text = `${selectionTokenText(1)}这里改一版`
+    expect(segmentsFromText(text)).toEqual([
+      { kind: 'token', n: 1 },
+      { kind: 'text', text: '这里改一版' }
+    ])
+  })
+
+  test('单 token 在文中 → 文本段 + token 段 + 文本段', () => {
+    const text = `前面${selectionTokenText(2)}后面`
+    expect(segmentsFromText(text)).toEqual([
+      { kind: 'text', text: '前面' },
+      { kind: 'token', n: 2 },
+      { kind: 'text', text: '后面' }
+    ])
+  })
+
+  test('多 token：每 token 独立 token 段，文本段按出现位置切分', () => {
+    const text = `将${selectionTokenText(1)}变成${selectionTokenText(2)}的风格`
+    expect(segmentsFromText(text)).toEqual([
+      { kind: 'text', text: '将' },
+      { kind: 'token', n: 1 },
+      { kind: 'text', text: '变成' },
+      { kind: 'token', n: 2 },
+      { kind: 'text', text: '的风格' }
+    ])
+  })
+
+  test('连续两个 token 中间无文本 → 不产空文本段', () => {
+    const text = `${selectionTokenText(1)}${selectionTokenText(2)}`
+    expect(segmentsFromText(text)).toEqual([
+      { kind: 'token', n: 1 },
+      { kind: 'token', n: 2 }
+    ])
+  })
+
+  test('半删残串不切，归到相邻文本段（与 scanSelectionTokens 同口径）', () => {
+    expect(segmentsFromText('「@画布选区-1')).toEqual([{ kind: 'text', text: '「@画布选区-1' }])
+    expect(segmentsFromText('@画布选区-1」')).toEqual([{ kind: 'text', text: '@画布选区-1」' }])
+    expect(segmentsFromText(`残${selectionTokenText(1)}串`)).toEqual([
+      { kind: 'text', text: '残' },
+      { kind: 'token', n: 1 },
+      { kind: 'text', text: '串' }
+    ])
+  })
+
+  test('segmentsToText：token 段 → 字面 `「@画布选区-N」`', () => {
+    expect(
+      segmentsToText([
+        { kind: 'text', text: '将' },
+        { kind: 'token', n: 1 },
+        { kind: 'text', text: '变成' },
+        { kind: 'token', n: 2 },
+        { kind: 'text', text: '的风格' }
+      ])
+    ).toBe(`将${selectionTokenText(1)}变成${selectionTokenText(2)}的风格`)
+  })
+
+  test('双向 roundtrip：从文本起经两个函数回到原文', () => {
+    const cases = [
+      '普通消息',
+      '',
+      `改一下${selectionTokenText(1)}的颜色`,
+      `${selectionTokenText(1)}这里改一版`,
+      `前面${selectionTokenText(2)}后面`,
+      `将${selectionTokenText(1)}变成${selectionTokenText(2)}的风格`,
+      `${selectionTokenText(1)}${selectionTokenText(2)}`,
+      `首${selectionTokenText(1)}中${selectionTokenText(2)}末`
+    ]
+    for (const original of cases) {
+      const segments = segmentsFromText(original)
+      const restored = segmentsToText(segments)
+      expect(restored).toBe(original)
+    }
+  })
+
+  test('payload 逐字节等价：segmentsToText → serialize 与旧路径产出一致', () => {
+    const draft = `将${selectionTokenText(1)}变成${selectionTokenText(2)}的风格`
+    const segments = segmentsFromText(draft)
+    // 段模型 → 字面串（与原 draft 字节等价）
+    expect(segmentsToText(segments)).toBe(draft)
+    // 序列化结果与旧路径完全一致
+    const registry = makeRegistry([
+      { n: 1, nodeIds: ['1:23'], names: ['主标题'], types: ['TEXT'] },
+      { n: 2, nodeIds: ['4:56'], names: ['主视觉'], types: ['FRAME'] }
+    ])
+    const reader = fakeReader({
+      '1:23': { name: '主标题', type: 'TEXT' },
+      '4:56': { name: '主视觉', type: 'FRAME' }
+    })
+    const expected = serializeSelectionManifest(draft, registry, reader).text
+    const actual = serializeSelectionManifest(segmentsToText(segments), registry, reader).text
+    expect(actual).toBe(expected)
+  })
+
+  test('段模型 + removeSelectionToken 等价：从段里删 n 后还原文本与原路径字节等价', () => {
+    const draft = `改一下${selectionTokenText(1)}和${selectionTokenText(2)}的颜色`
+    const segments = segmentsFromText(draft)
+    const filtered = segments.filter((s) => !(s.kind === 'token' && s.n === 1))
+    const restored = segmentsToText(filtered)
+    const expected = removeSelectionToken(draft, 1)
+    expect(restored).toBe(expected)
   })
 })

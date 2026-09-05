@@ -200,6 +200,59 @@ export function removeSelectionToken(text: string, n: number): string {
 // src/components/assistant/skill-chip.ts（compose/extract 纯函数）+ ChatInput
 // pinnedSkill 覆盖层。本文件不再承载任何 skill token 逻辑。
 
+// ── 分段模型（contenteditable 内嵌 chip 的双向桥） ───────────────────────────
+//
+// 路线 A（textarea + backdrop 对齐层）退役后，输入控件改为 contenteditable
+// div + 分段模型。模型 = 有序段数组：纯文本段 | 选区 token 段（含 n 序号）；
+// token 段在 contenteditable DOM 里渲染为 contenteditable="false" 的原子
+// chip 元素，**不进可编辑文本流**——chip 是 DOM 节点不是字符。但线上 payload
+// 必须与现状逐字节一致：序列化时 token 段 → 字面 `「@画布选区-N」`，再走
+// 既有 serializeSelectionManifest 路径。所以这里提供两条纯函数：
+//   1. segmentsFromText(text)：文本串 → 分段数组（用 scanSelectionTokens 切
+//      「@画布选区-N」字面，剩余为文本段；半删残串归到相邻文本段）。
+//   2. segmentsToText(segments)：分段数组 → 文本串（token 段 → 字面）。
+// 双向 roundtrip 是测试钉扎重点——保证内嵌 chip UI 与旧 textarea 路径产出
+// 完全一致的序列化结果。
+
+/** 分段模型：有序段，文本段或 token 段（二选一） */
+export type InputSegment =
+  | { kind: 'text'; text: string }
+  | { kind: 'token'; n: number }
+
+/** 文本串 → 分段数组。半删残串（非完整 `「@画布选区-N」`）不切，归并到
+ *  相邻文本段里；这与 scanSelectionTokens 的「只识别完整占位串」一致——
+ *  切 chip 时只切完整 token，残串一律当普通文本。 */
+export function segmentsFromText(text: string): InputSegment[] {
+  const segments: InputSegment[] = []
+  const tokens = scanSelectionTokens(text)
+  let cursor = 0
+  for (const token of tokens) {
+    if (token.start > cursor) {
+      segments.push({ kind: 'text', text: text.slice(cursor, token.start) })
+    }
+    segments.push({ kind: 'token', n: token.n })
+    cursor = token.end
+  }
+  if (cursor < text.length) {
+    segments.push({ kind: 'text', text: text.slice(cursor) })
+  }
+  return segments
+}
+
+/** 分段数组 → 文本串（token 段 → `「@画布选区-N」`）。空文本段不输出，
+ *  连续文本段自然合并——segmentsFromText 已经是这个形状，反向也无损。 */
+export function segmentsToText(segments: InputSegment[]): string {
+  let out = ''
+  for (const seg of segments) {
+    if (seg.kind === 'text') {
+      out += seg.text
+    } else {
+      out += selectionTokenText(seg.n)
+    }
+  }
+  return out
+}
+
 // ── 原子删除区间（路线 A keydown 拦截） ─────────────────────────────────────
 
 /**

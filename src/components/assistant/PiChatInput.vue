@@ -1,6 +1,25 @@
 <script setup lang="ts">
 // Batch 2a 命名分离（2026-09-05）：本组件自 ChatInput.vue 改名 PiChatInput.vue，
 // 原名留给 deletedPaths 落账——组件已实质重写，与上游 ChatInput 无合并语义。
+//
+// Batch ux/inline-selection-chips（2026-09-05）：
+//   选区 token 缩略图 chip 从独立 attachment slot 行**内嵌进文本流**——
+//   contenteditable div + 分段模型（纯文本段 | 选区 token 段）。token 段在
+//   DOM 里渲成 contenteditable="false" 的原子 chip（含 ChatNodePreview 缩略图
+//   + 「@画布选区-N」标签），与正文混排、跨行随文。序列化路径不变——
+//   模型 → 字面 `「@画布选区-N」` → 既有 serializeSelectionManifest，
+//   payload 与上一版（attachment slot 行）逐字节一致。分段的纯函数面
+//   （segmentsFromText / segmentsToText）钉扎在 selection-capture.ts 与
+//   tests/engine/rebuild/chat/selection-capture.test.ts。
+//
+// DOM↔模型同步纪律（contenteditable 最大坑点）：
+//   - **DOM 是编辑期 master**：用户打字/移动光标由浏览器维护；我们通过
+//     `input` / `compositionend` 事件单向读取 DOM → input.value。
+//   - **只在结构性变化时写 DOM**：挂载、采集插入 chip、X 删除 chip、原子
+//     删除、clearDraft、restoreDraft。重写时用结构 diff（chip 序号集合 + 文本
+//     段落边界），未变不动；并把光标按模型文本偏移归位（IME 合成期不重写）。
+//   - **IME 合成期禁止任何 DOM 写回**——compositionstart 锁门、compositionend
+//     解锁。这是中文/日文 IME 流不断流的核心保证。
 import { useTimeoutFn } from '@vueuse/core'
 import {
   ComboboxAnchor,
@@ -14,18 +33,21 @@ import {
   ComboboxViewport,
   TooltipProvider
 } from 'reka-ui'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import ChatModeChips from '@/components/assistant/ChatModeChips.vue'
 import ChatNodePreview from '@/components/assistant/ChatNodePreview.vue'
-import { resolveSelectionTokenChips } from '@/components/assistant/node-preview'
 import {
-  atomicTokenDeletionRange,
+  resolveSelectionTokenChips,
+  type SelectionTokenChip
+} from '@/components/assistant/node-preview'
+import {
   captureSelectionFromStore,
   createSelectionDraftState,
   removeSelectionToken,
   resetSelectionDraftState,
   restoreSelectionDraftState,
+  segmentsFromText,
   scanSelectionTokens,
   selectionTokenText,
   serializeSelectionManifest,
@@ -68,21 +90,31 @@ const emit = defineEmits<{
   error: [message: string]
 }>()
 
+/** 文本态模型（input 流；token = 字面 `「@画布选区-N」`）。
+ *  - 序列化源：text → serializeSelectionManifest → payload 逐字节等价旧路径
+ *  - 渲染源：segmentsFromText(text) → 分段模型 → contenteditable DOM
+ *  - 编辑期反向：DOM → syncTextFromDom → input.value（单向，原子）
+ *  两条路径在两端都用纯函数（scan/segments/snapshot），边界在
+ *  syncTextFromDom，纯函数测试钉扎。 */
 const input = ref('')
 
 const isStreaming = computed(() => disabled || status === 'streaming' || status === 'submitted')
 
-// ── T70：画布选区采集（内联 token「@画布选区-N」，路线 A = overlay 高亮
-//    textarea；契约与格式钉扎在 selection-capture.ts 头部注释） ──────────────
+// ── T70：画布选区采集（内联 token「@画布选区-N」；路线 B = contenteditable
+//    chip 内嵌） ────────────────────────────────────────────────────────────
 //
 // 草稿期 token 状态（登记表 + 序号）刻意不进响应式系统：模板渲染只依赖
-// input 文本实扫（backdropSegments），状态仅在采集/提交/回填时读写。
+// input 文本实扫（segmentsFromText 即从 input 派生），状态仅在采集/提交/
+// 回填时读写。
 const draftTokens = createSelectionDraftState()
 // T27 快照：提交即清空文本+登记表；失败回填时两者一并恢复（restoreDraft）
 let lastDraftSnapshot: SelectionDraftState | null = null
 
-const inputRef = ref<HTMLTextAreaElement | null>(null)
-const backdropRef = ref<HTMLElement | null>(null)
+/** 编辑器根（contenteditable） */
+const editorRef = ref<HTMLDivElement | null>(null)
+/** IME 合成期守卫——compositionstart/end 期间禁止把 DOM 重渲染回写模型
+ *  （contenteditable 最大坑点：合成中清空重渲会打断 IME 流）。 */
+const isComposing = ref(false)
 
 /** 空选区轻提示：actionToast 桌面端无渲染面（仅 MobileHud 消费），按计划
  *  退化为按钮短暂文案反馈（T70-plan §1.1「若无则按钮短暂文案反馈」） */
@@ -95,45 +127,29 @@ const { start: scheduleCaptureFlashEnd, stop: cancelCaptureFlashEnd } = useTimeo
   { immediate: false }
 )
 
-/** backdrop 文本流分段：纯字形对齐层——无 token 染底（视觉表达完全交给
- *  attachment chip 行；backdrop 仅承担 textarea 滚动度量 + 折行对齐的
- *  全透明字符镜像）。保留 token 段扫描是因 selection-capture 的 scan API
- *  单一出口（serialize 也用同扫描器）。 */
-const backdropSegments = computed(() => {
-  const text = input.value
-  const tokens = scanSelectionTokens(text).map((t) => ({
-    start: t.start,
-    end: t.end
-  }))
-  const segments: Array<{ key: number; text: string }> = []
-  let cursor = 0
-  for (const token of tokens) {
-    if (token.start > cursor) {
-      segments.push({ key: segments.length, text: text.slice(cursor, token.start) })
-    }
-    // token 段继续拆出（与 textarea 文本流逐字对齐），但不染底
-    segments.push({ key: segments.length, text: text.slice(token.start, token.end) })
-    cursor = token.end
-  }
-  if (cursor < text.length) {
-    segments.push({ key: segments.length, text: text.slice(cursor) })
-  }
-  // 尾部 ZWSP：末尾换行在 div 里塌缩不占高，补上以对齐 textarea 滚动度量
-  segments.push({ key: segments.length, text: '\u200B' })
-  return segments
-})
+/** 分段模型（响应式）——文本流实扫到 token 即切 token 段；半删残串归文本
+ *  段（与 scanSelectionTokens 一致）。序列化永远走 segmentsToText → 既有
+ *  serializeSelectionManifest。 */
+const segments = computed(() => segmentsFromText(input.value))
 
-// Batch 2g：token chip 条（InputGroup attachment slot）——文本流实扫到的
-// 已采集 token 每个渲一条 chip（首节点缩略图 + 节点名）；手打无登记占位串
-// 不进 chip 条（纪律见 node-preview.ts 头部）。registry 刻意非响应式：其
-// 每次变动都伴随 input 变动（采集/手删/回填/清空），input 实扫即充分触发；
-// sceneVersion 触碰让采集后改名/删除在 chip 名上如实反映（与 serialize
-// 同口径）
-const tokenChips = computed(() => {
+/** 内嵌 chip 数据：与上一版（attachment slot 行）同口径——首节点缩略图 +
+ *  节点名 label。chip key = n。 */
+const tokenChips = computed<SelectionTokenChip[]>(() => {
   const store = getActiveEditorStoreOrNull()
   if (store) void store.state.sceneVersion
   return resolveSelectionTokenChips(input.value, draftTokens.registry, store?.graph ?? null)
 })
+
+/** 按 n 查 token chip 数据（渲染时多对一映射：同 n 多次出现共用一张缩略图） */
+function chipForN(n: number): SelectionTokenChip | null {
+  return tokenChips.value.find((c) => c.n === n) ?? null
+}
+
+function chipLabelForN(n: number): string {
+  // 已采集 → 节点名；手打无登记占位串 → 原字面（与 serialize「未采集的引用」语义对齐）
+  const chip = chipForN(n)
+  return chip ? chip.label : selectionTokenText(n)
+}
 
 // chip 缩略图渲染上下文：不用 computed——renderer 挂载是非响应式事件，模板
 // 重渲染（chip 出现/变化必伴随 input 变动）时直取现值即可；store 缺席
@@ -143,35 +159,195 @@ function chipRenderContext(): { graph: SceneGraph | null; renderer: SkiaRenderer
   return { graph: store?.graph ?? null, renderer: store?.renderer ?? null }
 }
 
-function syncBackdropScroll() {
-  const el = inputRef.value
-  const backdrop = backdropRef.value
-  if (el && backdrop) backdrop.scrollTop = el.scrollTop
-  // T91p：chip 是绝对定位覆盖层，不随 textarea 内容滚动——垂直滚动时手动
-  // 同步位移，保持与首行正文对齐
-  const chip = skillChipRef.value
-  if (el && chip) chip.style.transform = el.scrollTop > 0 ? `translateY(-${el.scrollTop}px)` : ''
+// ── contenteditable DOM 同步面 ──────────────────────────────────────────────
+//
+// DOM↔text 桥的纯字符串扫描层。syncTextFromDom 不读 selection，只走 DOM
+// 子节点 → 文本：chip span（data-token-n）→ 字面 `「@画布选区-N」`；
+// <br> → \n；其余文本节点 textContent 拼接。结果与 segmentsToText(segmentsFromText(input))
+// 字节等价（半删残串情形除外——残串被切到文本段里，反向还原自然对齐）。
+
+function syncTextFromDom(): void {
+  const el = editorRef.value
+  if (!el) return
+  let text = ''
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      text += node.textContent ?? ''
+      return
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return
+    const el = node as HTMLElement
+    if (el.dataset.tokenN) {
+      const n = Number(el.dataset.tokenN)
+      if (Number.isFinite(n)) text += selectionTokenText(n)
+      return
+    }
+    if (el.tagName === 'BR') {
+      text += '\n'
+      return
+    }
+    for (const child of Array.from(el.childNodes)) walk(child)
+  }
+  walk(el)
+  // 归一：去掉 ZWSP 与 CRLF，与旧 textarea 路径字节等价
+  const normalized = text.replace(/\u200B/g, '').replace(/\r\n?/g, '\n')
+  if (normalized !== input.value) input.value = normalized
 }
 
-function insertTokenAtCursor(token: string) {
-  const el = inputRef.value
-  const current = input.value
-  // 采集按钮 @mousedown.prevent 不抢焦点——仍聚焦 textarea 时插光标处；
-  // 无焦点（尚未点过输入框）追加文末
-  if (!el || document.activeElement !== el) {
-    input.value = current + token
-    void nextTick(() => {
-      el?.focus()
-      el?.setSelectionRange(input.value.length, input.value.length)
-    })
+/** DOM 文本位置 → 模型文本偏移：扫描 DOM 子节点累计文本/BR/token 长度，
+ *  命中目标节点后返回累计 + offset。 */
+function domOffsetToTextOffset(root: HTMLElement, node: Node, offset: number): number {
+  let acc = 0
+  let found = false
+  const walk = (n: Node): boolean => {
+    if (found) return true
+    if (n === node) {
+      acc += offset
+      found = true
+      return true
+    }
+    if (n.nodeType === Node.TEXT_NODE) {
+      acc += (n.textContent ?? '').length
+      return false
+    }
+    if (n.nodeType !== Node.ELEMENT_NODE) return false
+    const el = n as HTMLElement
+    if (el.tagName === 'BR') {
+      acc += 1
+      return false
+    }
+    if (el.dataset.tokenN) {
+      acc += selectionTokenText(Number(el.dataset.tokenN)).length
+      return false
+    }
+    for (const child of Array.from(el.childNodes)) {
+      if (walk(child)) return true
+    }
+    return false
+  }
+  walk(root)
+  return acc
+}
+
+// 卸载前清理守卫态
+onBeforeUnmount(() => {
+  isComposing.value = false
+})
+
+// T24→T61：manifest 数据源不变；失败改显式暴露（错误条 + 重试，08 P0-2）
+onMounted(() => {
+  void ensurePiStudioManifest()
+})
+
+// ── 事件处理（IME / 粘贴 / 键入 / 原子删除） ───────────────────────────────
+
+function handleCompositionStart() {
+  isComposing.value = true
+}
+
+function handleCompositionEnd() {
+  isComposing.value = false
+  // 合成完毕 → 立即同步 DOM → 模型（合成期间的临时字符在 compositionend 后
+  // 已是确定文本）。合成期内 DOM 已被浏览器接管、我们没碰。
+  syncTextFromDom()
+}
+
+function handleInput() {
+  // 编辑期 DOM → 模型：每次 input/compositionend 都读一次。syncTextFromDom
+  // 内部判相等避免无谓赋值。
+  if (isComposing.value) return
+  syncTextFromDom()
+}
+
+function handlePaste(event: ClipboardEvent) {
+  // 拦截 paste → 只插纯文本（与上一版纪律一致）。beforeinput 也拦了一遍，
+  // 这里再兜一道（某些浏览器 paste 路径不触发 beforeinput）。
+  if (isComposing.value) return
+  const text = event.clipboardData?.getData('text/plain')
+  if (text == null) return
+  event.preventDefault()
+  insertTextAtSelection(text)
+}
+
+/** 在当前 selection 处插入文本（保留 selection 位置；用户在 chip 间移动
+ *  光标后粘贴 → 落到光标位置）。 */
+function insertTextAtSelection(text: string): void {
+  const sel = window.getSelection()
+  if (!sel || sel.rangeCount === 0) {
+    input.value = input.value + text
     return
   }
-  const start = el.selectionStart ?? current.length
-  const end = el.selectionEnd ?? current.length
-  input.value = current.slice(0, start) + token + current.slice(end)
-  void nextTick(() => {
-    el.setSelectionRange(start + token.length, start + token.length)
-  })
+  const range = sel.getRangeAt(0)
+  if (!editorRef.value || !editorRef.value.contains(range.commonAncestorContainer)) {
+    input.value = input.value + text
+    return
+  }
+  const offset = domOffsetToTextOffset(editorRef.value, range.startContainer, range.startOffset)
+  input.value = input.value.slice(0, offset) + text + input.value.slice(offset)
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  // T91p：光标在 0 位且有钉头 chip 时 Backspace 移除 chip（chip 不进文本流，
+  // 它是光标前唯一的「东西」；mention chip 行首 Backspace 删除的通行交互）
+  if (event.code === 'Backspace' && pinnedSkill.value && !event.isComposing) {
+    const sel = window.getSelection()
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0)
+      if (range.collapsed && isCaretAtEditorStart(range)) {
+        event.preventDefault()
+        pinnedSkill.value = null
+        return
+      }
+    }
+  }
+  // T70：Backspace/Delete 紧邻 chip 时原子删除——contenteditable=false 天然原子
+  // 浏览器会自动删除整个 chip span + 触发 input 事件；不需要 keydown 拦截。
+  // 唯一需要兜底：IME 合成期（浏览器不会删 chip）。
+  if ((event.code === 'Backspace' || event.code === 'Delete') && !event.isComposing) {
+    if (handleAtomicChipDeletion(event)) return
+  }
+  if (event.code !== 'Enter' || event.shiftKey || event.isComposing) return
+  event.preventDefault()
+  const target = event.currentTarget
+  if (target instanceof HTMLElement) target.closest('form')?.requestSubmit()
+}
+
+function isCaretAtEditorStart(range: Range): boolean {
+  const el = editorRef.value
+  if (!el) return false
+  if (range.startContainer !== el && !el.contains(range.startContainer)) return false
+  const r = document.createRange()
+  r.selectNodeContents(el)
+  r.setEnd(range.startContainer, range.startOffset)
+  return r.toString().replace(/\u200B/g, '').length === 0
+}
+
+/** 原子 chip 删除兜底：在浏览器未自动删的边缘情形（IME 合成期 / 光标
+ *  紧贴 chip 但 selection 在 chip 边界外），我们用模型侧 removeSelectionToken
+ *  显式删占位串。 */
+function handleAtomicChipDeletion(event: KeyboardEvent): boolean {
+  const el = editorRef.value
+  if (!el) return false
+  const sel = window.getSelection()
+  if (!sel || sel.rangeCount === 0) return false
+  const range = sel.getRangeAt(0)
+  if (!range.collapsed) return false
+  const dir = event.code === 'Backspace' ? 'backward' : 'forward'
+  const offset = domOffsetToTextOffset(el, range.startContainer, range.startOffset)
+  const tokens = scanSelectionTokens(input.value)
+  for (const token of tokens) {
+    if (dir === 'backward' && token.end === offset) {
+      event.preventDefault()
+      input.value = removeSelectionToken(input.value, token.n)
+      return true
+    }
+    if (dir === 'forward' && token.start === offset) {
+      event.preventDefault()
+      input.value = removeSelectionToken(input.value, token.n)
+      return true
+    }
+  }
+  return false
 }
 
 function handleCaptureSelection() {
@@ -186,101 +362,80 @@ function handleCaptureSelection() {
   }
   draftTokens.nextSeq += 1
   draftTokens.registry.set(entry.n, entry)
-  insertTokenAtCursor(selectionTokenText(entry.n))
+  insertTokenAtSelection(selectionTokenText(entry.n))
 }
 
-/** chip 行 X 按钮：从文本流里删掉该 n 的全部占位串（视觉代理消失 = 文本同步）——
- *  payload 不变（提交仍走 serializeSelectionManifest，少一条占位串 → 清单少一行） */
+/** 在当前 selection 处插入 token 字面（采集按钮默认插入路径） */
+function insertTokenAtSelection(token: string) {
+  const el = editorRef.value
+  const current = input.value
+  // 采集按钮 @mousedown.prevent 不抢焦点——仍聚焦编辑器时插光标处；
+  // 无焦点（尚未点过输入框）追加文末
+  if (!el || document.activeElement !== el) {
+    input.value = current + token
+    void nextTick(() => {
+      const node = editorRef.value
+      if (!node) return
+      node.focus()
+      // 光标落到文末
+      const sel = window.getSelection()
+      if (sel) {
+        const range = document.createRange()
+        range.selectNodeContents(node)
+        range.collapse(false)
+        sel.removeAllRanges()
+        sel.addRange(range)
+      }
+    })
+    return
+  }
+  insertTextAtSelection(token)
+}
+
+/** chip X 按钮：从文本流里删掉该 n 的全部占位串（视觉代理消失 = 文本同步） */
 function handleRemoveToken(n: number) {
   const next = removeSelectionToken(input.value, n)
   if (next === input.value) return
-  const el = inputRef.value
   input.value = next
-  void nextTick(() => {
-    el?.focus()
-    // 光标落到删除段起点（最左一个匹配位）即可——剩余光标位置由用户接管
-    const cursor = Math.min(input.value.length, el ? el.selectionStart : input.value.length)
-    el?.setSelectionRange(cursor, cursor)
-  })
+  void nextTick(() => editorRef.value?.focus())
 }
 
-/** 原子删除：光标紧邻完整占位串时 Backspace/Delete 整段删除（路线 A 的
- *  keydown 拦截面）；已拦截返回 true。
- *  T91p：skill chip 化后文本内只剩选区 token 一类 */
-function handleAtomicTokenDeletion(event: KeyboardEvent): boolean {
-  const el = event.currentTarget
-  if (!(el instanceof HTMLTextAreaElement)) return false
-  if (event.isComposing || el.selectionStart !== el.selectionEnd) return false
-  const dir = event.code === 'Backspace' ? 'backward' : 'forward'
-  const range = atomicTokenDeletionRange(input.value, el.selectionStart, dir)
-  if (!range) return false
-  event.preventDefault()
-  input.value = input.value.slice(0, range.start) + input.value.slice(range.end)
-  void nextTick(() => {
-    el.setSelectionRange(range.start, range.start)
-  })
-  return true
+/** contenteditable 上的 mousedown 拦截——chip 自身的 mousedown 阻止默认光标
+ *  移动（chip 是 contenteditable=false，浏览器默认会把 selection 放 chip 内） */
+function handleChipMouseDown(event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  if (!target) return
+  if (target.closest('.chat-inline-chip')) {
+    event.preventDefault()
+  }
 }
+
 // T21：模型由后端 catalog/指派决定，聊天输入只读展示当前指派
 // T25：pi 已是唯一路径（门退役），旧模型/资料切换臂与图片附件流已切除
-// （图片从不进 pi 后端——analyze 直通已随旧面删除，C4a 通道 B 落地时恢复）
 // T61：T24 ChatModeSelect/ChatStyleProfileSelect 退役——mode/profile 由 chips
 // （active_design 回显 + 新建意图暂存）承载
 // T65（决策 A/B）：输入条瘦身——只放随下次发送生效的内容（mode/profile chips +
 // 模型名 label 暂留）；设计/需求单/gallery 三面板按钮移出，状态查看归 header 的
 // 画布工作状态面板（ChatContextBar），gallery 组件删除
 
-// T24→T61：manifest 数据源不变；失败改显式暴露（错误条 + 重试，08 P0-2）
-onMounted(() => {
-  void ensurePiStudioManifest()
-})
 const piModelLabel = computed(
   // T38：useForkPi() 返回 Ref——script 内访问必须 .value（T35 曾丢 .value 致标签空白）
   () => piDesignAssignment.value?.modelId ?? piDialogs.value.designModelDefault
 )
 
-// T65（决策 B2/E）→ T66（决策①）：空槽引导从输入条删除——状态显示收敛为
-// header ChatContextBar 双段式 trigger 一处（trigger 文案本身即引导）
-
-function handleInputKeydown(event: KeyboardEvent) {
-  // T91p：光标在 0 位且有钉头 chip 时 Backspace 移除 chip（chip 不进文本流，
-  // 它是光标前唯一的「东西」；mention chip 行首 Backspace 删除的通行交互）
-  if (event.code === 'Backspace' && pinnedSkill.value && !event.isComposing) {
-    const el = event.currentTarget
-    if (el instanceof HTMLTextAreaElement && el.selectionStart === 0 && el.selectionEnd === 0) {
-      event.preventDefault()
-      pinnedSkill.value = null
-      return
-    }
-  }
-  // T70：Backspace/Delete 先过原子删除拦截（紧邻完整占位串 → 整段删除）；
-  // IME 合成中/有选区时不拦（isComposing/selectionStart≠selectionEnd 在
-  // handleAtomicTokenDeletion 内判）
-  if (event.code === 'Backspace' || event.code === 'Delete') {
-    if (handleAtomicTokenDeletion(event)) return
-  }
-  if (event.code !== 'Enter' || event.shiftKey || event.isComposing) return
-  event.preventDefault()
-  const target = event.currentTarget
-  if (target instanceof HTMLElement) target.closest('form')?.requestSubmit()
-}
-
 // T91p：skill chip（钉头单例内联芯片，替代 T89 文本内 token）——owner 决议：
 // skill 是命令不是引用，与选区 token（任意位置、多实例）本质不同；chip 恒钉
 // 消息最前、全消息最多一个、新选覆盖旧选。chip 是纯组件状态（pinnedSkill），
-// 不进 textarea 文本流（文本态可被光标进入逐字编辑，观感怪异）；视觉上以
-// 覆盖层 chip + textarea/backdrop text-indent 让出首行宽度实现「在输入框内、
-// 与正文同行同高」（owner 效果图）。提交时 composeSkillSubmission 把
-// `/skill:<name>` 拼到消息头（后端 T91o normalizeSkillCommandText 再兜底
-// 手输/粘贴的裸提及）；移除靠光标在 0 位时按 Backspace。
-// skills 数据面来源 = manifest.skills（脱敏投影，OFF 时恒 []；capabilities
-// 关则 listSkills 守门不在结果中暴露）。
+// 不进 contenteditable 文本流；视觉上以覆盖层 chip + 编辑器首行
+// text-indent 让出首行宽度实现「在输入框内、与正文同行同高」（owner 效果图）。
+// 提交时 composeSkillSubmission 把 `/skill:<name>` 拼到消息头；移除靠光标在
+// 0 位时按 Backspace。
 const skillSearch = ref('')
 const skillComboboxOpen = ref(false)
 /** 钉头 skill chip（null = 未选）；新选直接覆盖旧选 */
 const pinnedSkill = ref<string | null>(null)
 const skillChipRef = ref<HTMLElement | null>(null)
-/** chip 实测宽度 → textarea/backdrop 首行 text-indent（chip 与正文同行衔接） */
+/** chip 实测宽度 → 编辑器首行 text-indent（chip 与正文同行衔接） */
 const skillChipIndent = ref(0)
 
 watch(pinnedSkill, async () => {
@@ -303,26 +458,15 @@ const filteredSkills = computed(() => {
   )
 })
 
-// T91m：reka ComboboxItem 在 select 后会 `modelValue.value = props.value`
-// 并在 ComboboxInput 侧挂 `watch(modelValue, { immediate: true })` ——
-// 每次重新挂载（Presence 控制，开关 dropdown 即重挂）时，watcher 从
-// `rootContext.modelValue` 推回 input 的 searchTerm。若不清 modelValue，
-// 上次选中的 skill 名会随重挂一起回到输入框（owner 实测）。
-// 解决：在 select 事件里 `event.preventDefault()` 阻断 reka 的 onSelect 续作
-// （既不写 modelValue 也不自动关 dropdown），由我们手动 `skillComboboxOpen
-// = false` 关闭；modelValue 保持 undefined，下次挂载 watcher 读 undefined →
-// `resetSearchTerm()` 走 else 分支写 ''，输入框干净。同时去掉 Root 上无意义
-// 的 `v-model:search-term`（Root 没声明此 prop，是 dead binding，混入会让
-// reviewer 误以为双重写源）。
 function handleSkillSelect(event: Event, name: string): void {
   event.preventDefault()
   // 钉头单例：赋值即覆盖旧选
   pinnedSkill.value = name
   skillSearch.value = ''
   skillComboboxOpen.value = false
-  // 触发后 refocus textarea，让用户继续输入
+  // 触发后 refocus 编辑器
   void nextTick(() => {
-    inputRef.value?.focus()
+    editorRef.value?.focus()
   })
 }
 
@@ -334,7 +478,9 @@ function handleSubmit(e: Event) {
   if (!text && !pinnedSkill.value) return
   // T70：文本流实扫占位串 → 尾部追加 [画布选区] 清单（发送瞬间 graph 状态
   // 为准；无 token 时 serialize 原样返回）。store 缺席（storybook/测试面）
-  // 退化为原文提交。
+  // 退化为原文提交。**内嵌 chip 路径与旧 textarea 路径在序列化层完全一致**：
+  // input.value 是 `「@画布选区-N」` 字面流，serializeSelectionManifest
+  // 按既有实扫规则处理。
   const store = getActiveEditorStoreOrNull()
   const submission = store
     ? serializeSelectionManifest(text, draftTokens.registry, store.graph)
@@ -374,6 +520,12 @@ function clearDraft() {
   lastDraftSnapshot = null
 }
 defineExpose({ restoreDraft, clearDraft })
+
+// Vue 自动响应：segments computed 重算 → v-for diff。Vue v-for diff 只在
+// 节点增删（结构变化）时动 DOM，纯文本字符级变化不影响节点身份 → 光标不跳。
+// IME 合成期守卫见模板上的 v-if="!isComposing"——Vue 不重渲 children，
+// 浏览器原生 IME 流接管；compositionend 后 v-if 复位 → Vue 用确定后的
+// segments 重渲。
 </script>
 
 <template>
@@ -398,13 +550,10 @@ defineExpose({ restoreDraft, clearDraft })
           {{ chipsText.chipsRetry }}
         </button>
       </div>
-      <!-- T89：actions 行（采集画布选区 + skill dropdown），位于 textarea 上方
+      <!-- T89：actions 行（采集画布选区 + skill dropdown），位于输入控件上方
            一处承载两件事。采集按钮永远渲染；skill dropdown trigger 仅在
            capabilities.agentSkills && skills.length > 0 时渲染 -->
       <div class="mb-2 flex items-center gap-1" data-test-id="chat-actions-row">
-        <!-- T89（原 T70）：采集画布选区——从原 InputGroup attachment slot 挪出。
-             空选区 → 按钮短暂文案反馈、不产生 token；非空 → 光标处插入
-             「@画布选区-N」内联 token -->
         <button
           type="button"
           data-test-id="chat-capture-selection"
@@ -418,10 +567,6 @@ defineExpose({ restoreDraft, clearDraft })
             {{ captureEmptyFlash ? chipsText.chipsCaptureEmpty : chipsText.chipsCaptureSelection }}
           </span>
         </button>
-        <!-- T89 skill dropdown：reka-ui ComboboxRoot + chip 形态 trigger；
-             T91p：选项点击钉 pinnedSkill（不再插文本 token）。ignore-filter
-             关掉 SDK 默认过滤，用本地 filteredSkills（按 name + description
-             子串模糊匹配）。 -->
         <ComboboxRoot
           v-if="availableSkills.length > 0"
           v-model:open="skillComboboxOpen"
@@ -439,9 +584,6 @@ defineExpose({ restoreDraft, clearDraft })
             </ComboboxTrigger>
           </ComboboxAnchor>
           <ComboboxPortal>
-            <!-- T91m：max-w 盖帽 + 单行截断——长 description 曾把 popover
-                 撑到 2321px 横贯页面（owner 实测）；每项一行名称+一行描述；
-                 min-w 锚宽语义保留 -->
             <ComboboxContent
               position="popper"
               :side-offset="4"
@@ -482,60 +624,13 @@ defineExpose({ restoreDraft, clearDraft })
       </div>
       <form @submit="handleSubmit">
         <InputGroup :disabled="isStreaming">
-          <!-- Batch 2g：token chip 条——文本流实扫到的已采集引用 token 每个
-               一条 chip（首节点缩略图 + 节点名 + 移除 X）；视觉代理完全承担
-               选区的输入框呈现（backdrop 不再染底，只做对齐层）。X 按钮从
-               文本流里删掉该 n 的全部占位串（payload 序列化实扫，删占位串
-               = 清单少一行，提交语义不变）。renderer 缺席/渲染失败时缩略图
-               位降级为 box 图标（ChatNodePreview 内部兜底） -->
-          <template v-if="tokenChips.length > 0" #attachment>
-            <div class="flex flex-wrap gap-1 px-2 pt-2">
-              <div
-                v-for="chip in tokenChips"
-                :key="chip.n"
-                data-test-id="chat-token-chip"
-                :data-token-n="chip.n"
-                class="flex min-w-0 max-w-full items-center gap-1 rounded-md border border-border bg-canvas py-0.5 pr-0.5 pl-1.5 text-[11px] text-surface"
-              >
-                <ChatNodePreview
-                  :node-id="chip.preview.nodeId"
-                  :page-id="chip.preview.pageId"
-                  :graph="chipRenderContext().graph"
-                  :renderer="chipRenderContext().renderer"
-                />
-                <span class="min-w-0 truncate">{{ chip.label }}</span>
-                <button
-                  type="button"
-                  :data-test-id="`chat-token-chip-remove`"
-                  :data-token-n="chip.n"
-                  :aria-label="`移除引用 ${chip.label}`"
-                  class="flex size-4 shrink-0 items-center justify-center rounded text-muted hover:bg-hover hover:text-surface focus:outline-none focus-visible:ring-1 focus-visible:ring-accent"
-                  @mousedown.prevent
-                  @click="handleRemoveToken(chip.n)"
-                >
-                  <icon-lucide-x class="size-3" />
-                </button>
-              </div>
-            </div>
-          </template>
-          <!-- T70 路线 A → Batch 2g：overlay 对齐层——backdrop 在下层渲染全透明
-               字形（无 token 染底；视觉表达完全交给 attachment chip），
-               textarea 承载输入/IME/光标；折行对齐靠同字号/行高/内边距 +
-               whitespace-pre-wrap，滚动单向同步 -->
+          <!-- ux/inline-selection-chips：内嵌 chip——contenteditable div 承载
+               输入/IME/光标；选区 token 段在 DOM 里渲成 contenteditable=false
+               原子 chip（含 ChatNodePreview 缩略图 + 「@画布选区-N」标签 + X 按钮）。
+               序列化走既有 serializeSelectionManifest（input 文本流是字面
+               `「@画布选区-N」`，与上一版逐字节一致）。backdrop/attachment
+               slot 全部退役——chip 与正文同行同高、跨行随文。 -->
           <div class="relative">
-            <div
-              ref="backdropRef"
-              aria-hidden="true"
-              class="pointer-events-none absolute inset-0 overflow-hidden px-3 pt-2.5 pb-1 text-xs leading-relaxed break-words whitespace-pre-wrap text-transparent select-none"
-              :class="{ 'opacity-60': isStreaming }"
-              :style="skillChipIndent > 0 ? { textIndent: `${skillChipIndent}px` } : undefined"
-            >
-              <span v-for="segment in backdropSegments" :key="segment.key">{{ segment.text }}</span>
-            </div>
-            <!-- T91p：钉头 skill chip——覆盖层渲染（accent 色 icon + 名称，
-                 整体不可编辑、不抢指针事件），textarea/backdrop 用同值
-                 text-indent 让出首行宽度；宽度实测见 watch(pinnedSkill)；
-                 垂直滚动位移同步见 syncBackdropScroll -->
             <div
               v-if="pinnedSkill"
               ref="skillChipRef"
@@ -547,21 +642,82 @@ defineExpose({ restoreDraft, clearDraft })
               <icon-lucide-sparkles class="size-3.5 shrink-0" />
               <span class="font-medium">{{ pinnedSkill }}</span>
             </div>
-            <textarea
-              ref="inputRef"
-              v-model="input"
+            <div
+              v-if="input.length === 0 && !pinnedSkill"
+              class="pointer-events-none absolute top-2.5 left-3 text-xs leading-relaxed text-muted"
+              :style="skillChipIndent > 0 ? { paddingLeft: `${skillChipIndent}px` } : undefined"
+            >
+              {{ dialogs.describeChange }}
+            </div>
+            <div
+              ref="editorRef"
               data-test-id="chat-input"
-              :placeholder="pinnedSkill ? '' : dialogs.describeChange"
-              :disabled="isStreaming"
-              rows="2"
+              spellcheck="false"
+              role="textbox"
               aria-label="Describe a change"
-              class="relative block min-h-12 w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-xs leading-relaxed text-surface outline-none placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60"
+              :contenteditable="isStreaming ? 'false' : 'true'"
+              class="chat-inline-editor block min-h-12 w-full resize-none overflow-y-auto whitespace-pre-wrap break-words bg-transparent px-3 pt-2.5 pb-1 text-xs leading-relaxed text-surface outline-none disabled:cursor-not-allowed disabled:opacity-60"
               :style="skillChipIndent > 0 ? { textIndent: `${skillChipIndent}px` } : undefined"
-              @keydown="handleInputKeydown"
-              @scroll="syncBackdropScroll"
+              @keydown="handleKeydown"
+              @input="handleInput"
+              @compositionstart="handleCompositionStart"
+              @compositionend="handleCompositionEnd"
+              @paste="handlePaste"
               @copy.stop
               @cut.stop
-            />
+              @mousedown.capture="handleChipMouseDown"
+            >
+              <!-- IME 守卫：合成期 Vue 不重渲 children（v-if 把 segments 模板
+                   整体隐藏，浏览器原生 IME 流接管；compositionend 后 v-if
+                   复位 → Vue 用确定后的 segments 重渲）。 -->
+              <template v-if="!isComposing">
+                <!-- 空编辑器补一个 <br> 占位，否则首次输入光标无落点 -->
+                <br v-if="segments.length === 0" />
+                <template v-for="(seg, idx) in segments" :key="`seg-${idx}`">
+                <span
+                  v-if="seg.kind === 'token'"
+                  contenteditable="false"
+                  :data-token-n="seg.n"
+                  class="chat-inline-chip"
+                  data-test-id="chat-token-chip"
+                >
+                  <ChatNodePreview
+                    v-if="chipForN(seg.n)"
+                    :node-id="chipForN(seg.n)!.preview.nodeId"
+                    :page-id="chipForN(seg.n)!.preview.pageId"
+                    :graph="chipRenderContext().graph"
+                    :renderer="chipRenderContext().renderer"
+                  />
+                  <span v-else class="chat-inline-chip-placeholder" aria-hidden="true"></span>
+                  <span class="chat-inline-chip-inner">{{ chipLabelForN(seg.n) }}</span>
+                  <button
+                    type="button"
+                    class="chat-inline-chip-x"
+                    aria-label="移除引用"
+                    :data-token-n="seg.n"
+                    @mousedown.prevent
+                    @click.stop="handleRemoveToken(seg.n)"
+                  >
+                    <svg
+                      class="size-3"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+                <template v-else>
+                  <template v-for="(line, lineIdx) in seg.text.split('\n')" :key="`line-${idx}-${lineIdx}`">
+                    <br v-if="lineIdx > 0" />
+                    <span>{{ line }}</span>
+                  </template>
+                </template>
+                </template>
+              </template>
+            </div>
           </div>
 
           <template #model>
@@ -572,8 +728,6 @@ defineExpose({ restoreDraft, clearDraft })
               >
                 <icon-lucide-bot class="size-3 shrink-0" />
                 <span class="truncate">{{ piModelLabel }}</span>
-                <!-- T61：chips（active_design 回显 + 新建意图暂存）——输入条终态
-                     = mode chip + profile chip + 模型名（T65 决策 B4 暂留） -->
                 <ChatModeChips :disabled="isStreaming" />
               </div>
             </div>
@@ -615,3 +769,48 @@ defineExpose({ restoreDraft, clearDraft })
     </div>
   </TooltipProvider>
 </template>
+
+<style scoped>
+/* contenteditable 内嵌 chip 样式——与正文同行同高、原子边界 */
+.chat-inline-editor :deep(.chat-inline-chip) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0 1px;
+  padding: 1px 2px 1px 4px;
+  border-radius: 6px;
+  border: 1px solid var(--op-border, rgb(64 64 72));
+  background: var(--op-canvas, rgb(28 28 32));
+  vertical-align: baseline;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+.chat-inline-editor :deep(.chat-inline-chip-inner) {
+  font-size: 11px;
+  color: var(--op-surface, rgb(245 245 250));
+  line-height: 1.2;
+}
+
+.chat-inline-editor :deep(.chat-inline-chip-x) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  color: var(--op-muted, rgb(150 150 160));
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.chat-inline-editor :deep(.chat-inline-chip-x:hover) {
+  background: var(--op-hover, rgb(50 50 56));
+  color: var(--op-surface, rgb(245 245 250));
+}
+</style>

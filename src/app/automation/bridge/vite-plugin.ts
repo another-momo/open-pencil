@@ -35,6 +35,33 @@ export function createAutomationEnvironment(
 }
 
 const CHILD_EXIT_TIMEOUT_MS = 2_000
+const CHILD_HEALTH_ATTEMPTS = 40
+const CHILD_HEALTH_DELAY_MS = 50
+
+// 移植自上游 5951f45d6（fix(automation): wait for Portless MCP readiness）：
+// configureServer 不能在 spawn 系统调用返回时就 resolve——子进程尚未监听时
+// 浏览器的 /health 请求会打在未绑定 socket 上（Portless 下代理 URL 差异
+// 更明显）。startChild 末尾轮询 /health 直至就绪再返回。
+export async function waitForAutomationHealth(
+  browserURL: string,
+  fetcher: typeof fetch = fetch
+): Promise<void> {
+  const healthURL = `${browserURL.replace(/^ws/, 'http')}/health`
+  for (let attempt = 0; attempt < CHILD_HEALTH_ATTEMPTS; attempt++) {
+    try {
+      const response = await fetcher(healthURL)
+      if (response.ok) return
+    } catch (error) {
+      if (attempt === CHILD_HEALTH_ATTEMPTS - 1) {
+        console.warn(`[automation] Health check failed at ${healthURL}`, error)
+      }
+    }
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, CHILD_HEALTH_DELAY_MS)
+    })
+  }
+  throw new Error(`Automation bridge did not become healthy at ${healthURL}`)
+}
 
 interface AutomationPluginOptions {
   browserURL: string
@@ -127,6 +154,8 @@ export function automationPlugin(
       if (code && code !== 0) console.error(`[automation] Bridge exited with code ${code}`)
       if (child === spawned) child = null
     })
+
+    await waitForAutomationHealth(options.browserURL)
   }
 
   return {

@@ -5,7 +5,9 @@
  *  1. Every upstream file modified vs merge-base is a registered patch
  *     (revoked patches do NOT whitelist).
  *  2. Every deleted upstream file is registered in deletedPaths
- *     (exact match or under a deleted directory prefix).
+ *     (exact match or under a deleted directory prefix); files under
+ *     ownedRoots are exempt — they are ours, deleting them needs no
+ *     registration (2026-09-05 分区优化方案 §5.3, owner 决策 #7).
  *  3. deletedPaths do not exist on disk.
  *  4. New files (added vs merge-base) live under ownedRoots.
  *  5. Renames are decomposed (old path = deletion, new path = addition);
@@ -27,7 +29,9 @@
  * Usage: bun tools/zone-registry/src/check.ts [--base <ref>]  (default base: merge-base with upstream/master)
  *        bun tools/zone-registry/src/check.ts --patches-report [--base <ref>]
  *        bun tools/zone-registry/src/check.ts --drift  （T64：追加 GHOST 等上游活动窗口规则——
- *          输入是外生的上游节奏，owner 2026-09-01 拍板降为雷达，不进 push 门禁）
+ *          输入是外生的上游节奏，owner 2026-09-01 拍板降为雷达，不进 push 门禁；
+ *          2026-09-05 方案 §5.1 去 cron 化——改由 ci.yml 非阻断 job 在 push rebuild/** 时跑；
+ *          §5.2 补对称规则 PATCH_TARGET_DELETED_UPSTREAM：patch 锚定文件被上游删除即报）
  *          T28（决策单 #5，轻量过堂机制）：报告模式——逐条补丁输出相对
  *          upstream merge-base 的当前 diff 行数摘要（numstat），供过堂审视
  *          补丁腐烂度；只读报告，恒 exit 0，不参与主检查判红。
@@ -258,6 +262,49 @@ function checkGhostDeleted(zones: Zones, base: string): string[] {
 }
 
 /**
+ * PATCH_TARGET_DELETED_UPSTREAM（2026-09-05 分区优化方案 §5.2，Batch 0）：
+ *  对称补盲——checkGhostDeleted 的豁免面把 patch 目标排除在外（patch 文件本地
+ *  仍存在，不归 ghost 管），导致 patch 锚定文件被上游删除时零信号（实证：P49
+ *  tests/e2e/chat/panel.spec.ts 被上游拆成 7 个 spec、P74 src/app/editor/
+ *  clipboard/system.ts 被拆成目录，均已删数日无人知）。
+ *  规则：每条 active patch（revoked 除外）的 file 若落在 upstreamBase..
+ *  upstream/master 的 D 集（git diff --name-status --diff-filter=D），即报——
+ *  锚点已没了，patch 需重锚后继文件或退役。upstream ref/base 推导与
+ *  checkGhostDeleted 同口径；与 GHOST 同属上游活动窗口规则，仅 --drift 模式执行。
+ */
+function checkPatchTargetDeletedUpstream(zones: Zones, base: string): string[] {
+  let upstreamBase = base
+  try {
+    upstreamBase = git(['merge-base', 'HEAD', 'upstream/master'])
+    // oxlint-disable-next-line open-pencil/no-silent-catch
+  } catch {
+    // 没有 upstream/master 配置（CI 上游 fetch 后必有，本机可能没有）——降级用 base
+  }
+  let deletedByUpstream = ''
+  try {
+    deletedByUpstream = git([
+      'diff',
+      '--name-only',
+      '--diff-filter=D',
+      `${upstreamBase}..upstream/master`
+    ])
+    // oxlint-disable-next-line open-pencil/no-silent-catch
+  } catch {
+    // upstream/master 不可达——跳过本次核查
+    return []
+  }
+  const deletedSet = new Set(deletedByUpstream ? deletedByUpstream.split('\n').filter(Boolean) : [])
+  if (deletedSet.size === 0) return []
+  return zones.patches
+    .filter((p) => p.disposition !== 'revoked')
+    .filter((p) => deletedSet.has(p.file))
+    .map(
+      (p) =>
+        `PATCH_TARGET_DELETED_UPSTREAM: ${p.id} ${p.file} deleted upstream since merge-base ${upstreamBase.slice(0, 8)} (patch anchor gone — re-anchor onto the successor file or retire the patch)`
+    )
+}
+
+/**
  * T32 L4：tarball drift——本地文件 byte 与 tarball.paths 收录的版本不一致即违规。
  *  tarball 语义 = 与 base 字节一致（04-porting-discipline.md §5.2），任何本地改动
  *  都破坏该语义：小改应转 patch、大改应转 ownedFile（owner 拍板），改完前判红。
@@ -384,6 +431,12 @@ function checkDeletedRegistered(zones: Zones, deleted: string[]): string[] {
   return deleted
     .filter(
       (file) =>
+        // ownedRoot 删除豁免（2026-09-05 分区优化方案 §5.3，owner 决策 #7，规则口径
+        // 变化）：ownedRoot 下的文件是我们的自有文件（从不来自上游），删除无需登记
+        // deletedPaths——口径从「删了必须登记」放宽为「ownedRoot 内删除免登记」。
+        // 已登记的条目不受影响（本规则只审未登记方向），前缀口径与 checkModified/
+        // checkAdded 的 ownedRoots 判定一致。
+        !zones.ownedRoots.some((r) => file.startsWith(r)) &&
         !zones.deletedPaths.some(
           (d) => file === d || file.startsWith(d.endsWith('/') ? d : `${d}/`)
         )
@@ -477,6 +530,7 @@ function main() {
     ...checkDeletedRegistered(zones, changes.deleted),
     ...checkDeletedAbsent(zones),
     ...(process.argv.includes('--drift') ? checkGhostDeleted(zones, base) : []),
+    ...(process.argv.includes('--drift') ? checkPatchTargetDeletedUpstream(zones, base) : []),
     ...checkDriftTarball(zones),
     ...checkUpstreamMergeTarball(zones),
     ...checkAdded(zones, changes.added),

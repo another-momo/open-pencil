@@ -75,7 +75,6 @@ function parseSSEChunkStream(body: ReadableStream<Uint8Array>): ReadableStream<U
   const reader = body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
-
   return new ReadableStream<UIMessageChunk>({
     async pull(controller) {
       for (;;) {
@@ -99,9 +98,24 @@ function parseSSEChunkStream(body: ReadableStream<Uint8Array>): ReadableStream<U
           }
           continue
         }
-        const { done, value } = await reader.read()
-        if (done) {
-          controller.close()
+        let value: Uint8Array | undefined
+        try {
+          const read = await reader.read()
+          if (read.done) {
+            controller.close()
+            return
+          }
+          value = read.value
+        } catch (error) {
+          // T94 兜底：用户 stop 触发 AbortController.abort() 会让 reader.read()
+          // 抛 DOMException（name='AbortError'，Chrome 偶发 TypeError
+          // 'BodyStreamBuffer was aborted'）——不区分形状一律视为取消，静默 close
+          // 流、止于源头截断此通道，杜绝 abort 形状再冒泡成上游 stream error。
+          if (isAbortLikeError(error)) {
+            controller.close()
+            return
+          }
+          controller.error(error)
           return
         }
         buffer += decoder.decode(value, { stream: true })
@@ -111,4 +125,21 @@ function parseSSEChunkStream(body: ReadableStream<Uint8Array>): ReadableStream<U
       void reader.cancel(reason)
     }
   })
+}
+
+/**
+ * T94：识别 AbortController 触发的流中断错误（多形状兼容）。
+ *
+ * 浏览器/Node 在 abort 时可能抛出任意下列等价形状——fetch 层：DOMException
+ * name='AbortError'；Node 原生 fetch：Error code='ABORT_ERR' 或 code=20；
+ * Chrome 偶发 TypeError message='BodyStreamBuffer was aborted'。任一形状命中
+ * 即视为用户取消，不冒为真实失败。tests/engine/app/ai/transport-abort.test.ts
+ * 验证各形状。
+ */
+export function isAbortLikeError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  if (error.name === 'AbortError') return true
+  const code = (error as { code?: unknown }).code
+  if (code === 'ABORT_ERR' || code === 20) return true
+  return /abort(ed)?/i.test(error.message)
 }

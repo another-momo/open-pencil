@@ -1,5 +1,5 @@
 {
-  "$comment": "Zone registry for rebuild/v2 (docs/rebuild/02-phase-0.md). Truth for path ownership; CI-enforced via tools/zone-registry/src/check.ts (check:zones). Rules: modified upstream files must be registered patches; new files only under ownedRoots (or upstreamMergeTarball.paths for byte-identical tarball merges); deletedPaths must not exist. upstreamMergeTarball (T32): structured whitelist for byte-identical tarball-merge copies, one entry per merge with base SHA; any local drift from base is a violation — see docs/rebuild/04-porting-discipline.md §5. Patch id gaps P62-P73/P75-P82: migrated to upstreamMergeTarball by T32; P83-P97: reserved by T32 plan but superseded by the tarball field, never issued. P8: removed by T36 — target src/app/ai/chat/storage.ts already deleted and in deletedPaths (double accounting). P60/P61: removed by T36 — both test files byte-identical to base 88c10770 (T32 migration miss; phantom patches). P98-P102: removed by T36 — the five objects are fork-new files already in ownedFiles (double accounting, no base to anchor); ownership truth stays in ownedFiles. pendingReclass is planning metadata (files stay follow-pure until the reclassification ritual; note: a file may carry a deletion-cut patch while still pending reclassification). P4/P5/P47: removed by T65 (2026-09-01) — src/components/chat/ promoted to ownedRoot and src/components/ChatPanel.vue to ownedFiles (ChatPanel 族改动幅度已远超 patch 语义，owner 拍板转 owned 区); patches retired as double accounting, their history stays in git. tool-state.ts removed from T32 tarball.paths (now covered by chat/ ownedRoot; byte-identical to base 88c10770 at promotion time). tests/engine/io/ promoted to ownedRoot by T91a (2026-09-03) — fig codec 测试集 T91a 起大量新增 round-trip 测试（shared-plugin-data round-trip 等），已远超 patch 语义，owner 拍板转 owned 区（与 T65 chat/ 同模式）。",
+  "$comment": "Zone registry for rebuild/v2 (docs/rebuild/02-phase-0.md). Truth for path ownership; CI-enforced via tools/zone-registry/src/check.ts (check:zones). Rules: modified upstream files must be registered patches; new files only under ownedRoots (or upstreamMergeTarball.paths for byte-identical tarball merges); deletedPaths must not exist. upstreamMergeTarball (T32): structured whitelist for byte-identical tarball-merge copies, one entry per merge with base SHA; any local drift from base is a violation — see docs/rebuild/04-porting-discipline.md §5. Patch id gaps P62-P73/P75-P82: migrated to upstreamMergeTarball by T32; P83-P97: reserved by T32 plan but superseded by the tarball field, never issued. P8: removed by T36 — target src/app/ai/chat/storage.ts already deleted and in deletedPaths (double accounting). P60/P61: removed by T36 — both test files byte-identical to base 88c10770 (T32 migration miss; phantom patches). P98-P102: removed by T36 — the five objects are fork-new files already in ownedFiles (double accounting, no base to anchor); ownership truth stays in ownedFiles. pendingReclass is planning metadata (files stay follow-pure until the reclassification ritual; note: a file may carry a deletion-cut patch while still pending reclassification). P4/P5/P47: removed by T65 (2026-09-01) — src/components/chat/ promoted to ownedRoot and src/components/ChatPanel.vue to ownedFiles (ChatPanel 族改动幅度已远超 patch 语义，owner 拍板转 owned 区); patches retired as double accounting, their history stays in git. tool-state.ts removed from T32 tarball.paths (now covered by chat/ ownedRoot; byte-identical to base 88c10770 at promotion time). tests/engine/io/ promoted to ownedRoot by T91a (2026-09-03) — fig codec 测试集 T91a 起大量新增 round-trip 测试（shared-plugin-data round-trip 等），已远超 patch 语义，owner 拍板转 owned 区（与 T65 chat/ 同模式）。tests/engine/io/ demoted back to follow by Batch 2d (2026-09-05) — 实测上游 head 存在该目录且持续供血（方案 §4.5：owned 上游活跃目录是语义矛盾，新增静默落入零决策）；T91a 唯一新增测试 shared-plugin-data.test.ts 迁 tests/engine/rebuild/io/（ownedRoot 内），其余 85 文件均上游 base 原有留原位。Batch 3 全量落账（2026-09-05，方案 §6）：ownedRoots 换名 src/components/chat/→src/components/assistant/（Batch 2f 整目录搬家，方案 §4.5 深层错配根治——腾出上游仍在用的目录名进 deletedPaths 前缀），新增 src/app/ai/fork/（Batch 2a 路径分离产物）、src/app/automation/（Batch 2c 桥内核迁入+mcp 外壳裁撤后只剩内部桥，方案 §4.3 owner 拍板升 owned）、.github/workflows/（CI 纯 fork 治理设施，方案 §4.3）；ownedFiles 出清 .github/workflows/upstream-drift.yml 与 src/components/ChatPanel.vue（均已被新 ownedRoot 覆盖），新增 src/app/browser-bridge.ts（pendingReclass 出清，P41 退役——R-mutex）与 2e/2b 吸收产物 7 件；deletedPaths 增 packages/cli/、packages/mcp/、tests/engine/cli/、tests/engine/mcp/、src/app/automation/mcp/、tests/helpers/mcp/、src/components/chat/ 七条目录前缀 + bunfig.toml 等散件（Batch 2b cli 纯删 / 2c mcp 裁撤 / 2f chat 搬家收口），src/components/chat/ 旧 6 墓碑与 tests/helpers/mcp/acp-session.ts 因子前缀成立转冗余删除（Batch 0 ownedRoot 删除豁免已生效）；patches 退役 P6/P7/P52（目标已迁 ai/fork/，旧路径进 deletedPaths）、P39/P41/P104/P105/P135/P136/P141（automation 升 owned / browser-bridge 升 ownedFile / automation/mcp 删除——ownedRoot 下修改免登记，patch 失锚或冗余）、P56/P139/P140（packages/mcp 目标已删）、P142（锚定语义随 automation/mcp/runtime.ts 删除失效，由 P183 承接 mcp-runtime.test.ts 现状）；pendingReclass 7 项全部出清（chat/ 与 debug 已分离删除、automation/ 与 workflows/ 升 owned、browser-bridge 升 ownedFile、packages/mcp 与 packages/cli 已删）；T31 tarball.paths 出清 tests/engine/app/chat/tool-state.test.ts（Batch 2f import 改指致 drift，转 patch P191）。",
   "ownedRoots": [
     "docs/",
     "tools/zone-registry/",
@@ -7,13 +7,15 @@
     "src/app/i18n/fork/",
     "packages/core/src/tools/fork/",
     "tests/engine/rebuild/",
-    "tests/engine/io/",
     "spikes/",
     "attic/",
     "tools/rebuild/",
     "src/app/ai/pi-backend/",
     "tools/cn-font-catalog/",
-    "src/components/chat/"
+    "src/components/assistant/",
+    "src/app/ai/fork/",
+    "src/app/automation/",
+    ".github/workflows/"
   ],
   "ownedFiles": [
     "src/components/settings/models/PiModelsPanel.vue",
@@ -63,20 +65,18 @@
     "tests/engine/text/fonts/cjk-fallback.test.ts",
     "packages/core/src/bytes/image-mime.ts",
     "src/components/settings/provider/ImageGenKeysSection.vue",
-    ".github/workflows/upstream-drift.yml",
-    "src/components/ChatPanel.vue",
-    "tests/engine/render/canvas/font-lifecycle.test.ts"
+    "tests/engine/render/canvas/font-lifecycle.test.ts",
+    "src/app/browser-bridge.ts",
+    "src/app/shell/markdown/config.ts",
+    "src/app/shell/markdown/state.ts",
+    "src/theme/chat/markdown.ts",
+    "src/theme/chat/markdown.css",
+    "tests/engine/app/ai/markdown.test.ts",
+    "tools/visual-oracles/src/render-fixture.ts",
+    "tests/engine/tools/all-tools-execution.test.ts"
   ],
   "stubs": ["src/app/collab/use.ts"],
-  "pendingReclass": [
-    "src/app/ai/chat/",
-    "src/app/ai/debug/index.ts",
-    "src/app/automation/",
-    "packages/mcp/",
-    "src/app/browser-bridge.ts",
-    "packages/cli/",
-    ".github/workflows/"
-  ],
+  "pendingReclass": [],
   "patches": [
     {
       "id": "P1",
@@ -96,20 +96,6 @@
       "id": "P3",
       "file": "src/constants.ts",
       "reason": "remove ACP_DESIGN_CONTEXT import/export and ACP_PERMISSION_TIMEOUT_MS",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
-      "id": "P6",
-      "file": "src/app/ai/chat/transports.ts",
-      "reason": "remove ACP transport path (createACPTransport and session wiring) T10 重涂：上游本轮把 ACP transport 重构进 createChatSessionManager 并新增 harness(pi) 路径——维持裁 ACP（createACPTransport/createActiveACPTransport/isACPProvider），保 harness T25: 收敛单 pi——createToolLoopTransport/createActiveHarnessTransport 切除，无 override 即报错 T27(2026-08-25): ensureChat 加调用序号防跨 tab await 竞态（过期结果丢弃）；onSessionReset 可返回 Promise、resetChat await 它 T36(2026-08-28): chat 级 diagnostics 接线——handleChatFinish 非 abort/error 分支接 recordChatCompleted、onError 接 recordChatFailed（owner 拍板①，对 T31「不采纳」裁定的追认反转；语义对齐上游 88c10770 版 L150/L255；token 级 recordModelStepCompleted 经 pi 后端采数另案排期）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-28"
-    },
-    {
-      "id": "P7",
-      "file": "src/app/ai/chat/use.ts",
-      "reason": "remove ACP session options plumbing T25: 旧凭证面切除，stock-photo/remember 转由 stock-photo-keys.ts 供给；VITE_PI_BACKEND 门退役恒挂会话钩子 T27(2026-08-25): onSessionReset 改返回 mintPiSessionId Promise（配 P6 resetChat await）",
       "disposition": "permanent",
       "lastReviewed": "2026-08-25"
     },
@@ -325,26 +311,11 @@
       "lastReviewed": "2026-08-27"
     },
     {
-      "id": "P39",
-      "file": "src/app/automation/bridge/tool-handlers.ts",
-      "reason": "T21: withAIUndo 环绕——桥 mutates 工具（render + ALL_TOOLS mutates 路径）产生 `AI: <name>` 撤销条目，对齐旧 ToolLoop src/app/ai/tools/index.ts:107-130 先例；T59（2026-09-01）：组感知 withAIUndo——undo_group begin/end 边界内 AI 条目携带 ai-burst:<doc>:<turn>:<zone> coalesceKey 合并撤销单元（一回合=一单元，按设计区独立，S3 §9）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-01",
-      "task": "T59"
-    },
-    {
       "id": "P40",
       "file": "packages/vue/src/i18n/locales/zh-cn/dialogs.json",
       "reason": "T21: PiModelsPanel 的 zh 翻译（pi* 键组，随 P38 en 源） T25: 随 P38 同步删键 T27: 随 P38 同步改名 piThinking* T35: **撤销**——pi 段迁回 fork seam；zh-cn/dialogs.json 还原到上游 88c10770 截止状态（仅保留通用段：models / connected / modelNeedsCredential 等）",
       "disposition": "revoked",
       "lastReviewed": "2026-08-27"
-    },
-    {
-      "id": "P41",
-      "file": "src/app/browser-bridge.ts",
-      "reason": "T22: setChatTransport 工厂签名加 store 参（pi 后端按 EditorStore 解析文档会话；无参工厂向后兼容）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
     },
     {
       "id": "P42",
@@ -404,14 +375,6 @@
       "task": "T27"
     },
     {
-      "id": "P52",
-      "file": "src/app/ai/debug/index.ts",
-      "reason": "T27(2026-08-25): 裁死数据面——TOKEN USAGE/DIAGNOSTICS/TOOL EXECUTION LOG 三节依赖 src/app/ai/tools/（已删，pi 路径工具在后端执行，浏览器侧恒空）；保留 ERRORS/MESSAGE STATS/CONVERSATION 活内容",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25",
-      "task": "T27"
-    },
-    {
       "id": "P53",
       "file": "tools/secret-scan/src/index.ts",
       "reason": "T27(2026-08-25): 缺 gitleaks/go 二进制时打印 SKIPPED 并 exit 0（环境受限机不再误报红；CI runner 自带 go 经 go run 兜底仍真扫；二进制在而扫描失败仍 exit 1 严格）",
@@ -433,14 +396,6 @@
       "reason": "T27(2026-08-25): 修复两条未注册规则的启用即崩 bug——no-kitchen-sink-engine-basic-tests 缺 collectFiles/readFileSync 导入；no-hardcoded-macos-shortcut-glyphs 的 matchAll 正则缺 g flag",
       "disposition": "permanent",
       "lastReviewed": "2026-08-25",
-      "task": "T27"
-    },
-    {
-      "id": "P56",
-      "file": "packages/mcp/src/browser-rpc.ts",
-      "reason": "T27(2026-08-25): RPC_TIMEOUT 20s 硬编码改 OPENPENCIL_RPC_TIMEOUT_MS 环境变量可覆盖（默认不变；长回合场景放宽用）；T54（2026-09-01）：缺省 20s→300s（≥240s+余量，SP-b 生图长调用实证），加载期常量改调用时 rpcTimeoutMs() 读取",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-01",
       "task": "T27"
     },
     {
@@ -478,22 +433,6 @@
       "id": "P103",
       "file": "package.json",
       "reason": "T33(2026-08-26): scripts += serve（生产编排器入口，bun run build && bun run serve 一条链起全栈——localhost 分发骨架 T33）。编号复用说明：前一个 P103（AppTextButton patch 方案）当日撤销、从未入 commit",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-26",
-      "task": "T33"
-    },
-    {
-      "id": "P104",
-      "file": "src/app/automation/mcp/spawn.ts",
-      "reason": "T33(2026-08-26): 桥 token 解析加运行时注入 hook（window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__ 优先于 dev 编译期 define）——非 Tauri 的 localhost 生产形态没有上游「Tauri 读 discovery」通道，host.ts 托管 index.html 时前置注入；运行时值缺省时 dev/Tauri 行为不变。pendingReclass 文件的最小加法 hook，重分类仪式到时一并处置",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-26",
-      "task": "T33"
-    },
-    {
-      "id": "P105",
-      "file": "src/app/automation/mcp/runtime.ts",
-      "reason": "T33(2026-08-26): canConnect 放行 host 托管形态（window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__ 存在即允许 connect）——生产 web 形态原判定 DEV||isTauri 恒 false，编辑器永不 attach 到桥；dev/Tauri 语义不变",
       "disposition": "permanent",
       "lastReviewed": "2026-08-26",
       "task": "T33"
@@ -666,22 +605,6 @@
       "task": "T52"
     },
     {
-      "id": "P135",
-      "file": "src/app/automation/bridge/figma-factory.ts",
-      "reason": "T55 集成（2026-09-01）：exportImage 桥转发透传 quality/renderInContext/clip 三参（look 上下文渲染链路闭合）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-01",
-      "task": "T55"
-    },
-    {
-      "id": "P136",
-      "file": "src/app/automation/bridge/handlers.ts",
-      "reason": "T59（2026-09-01）：undo_group 指令注册——AI 回合撤销组 begin/end 边界信号分派（S3 §9 undo burst）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-01",
-      "task": "T59"
-    },
-    {
       "id": "P137",
       "file": "src/app/document/export/files.ts",
       "reason": "T55（2026-09-01）：renderExportImage 增可选 quality/extras{renderInContext,clip} 透传（对齐移植源同文件；既有调用方零破坏）",
@@ -696,38 +619,6 @@
       "disposition": "permanent",
       "lastReviewed": "2026-09-01",
       "task": "T72"
-    },
-    {
-      "id": "P139",
-      "file": "packages/mcp/src/tool/registration.ts",
-      "reason": "T72（2026-09-01）：MCP 注册循环跳过 internal 工具——内部流水线段不向 MCP 客户端注册",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-01",
-      "task": "T72"
-    },
-    {
-      "id": "P140",
-      "file": "packages/mcp/src/tool/manifest.ts",
-      "reason": "T72 续（2026-09-01，CI 33516750532 红后补）：createToolDescriptors 同源过滤 internal——注册面与清单面口径一致（原只滤注册循环，manifest 仍列出致 tests/engine/mcp/server/index.test.ts「lists all registered tools」挂）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-01",
-      "task": "T72"
-    },
-    {
-      "id": "P141",
-      "file": "src/app/automation/mcp/runtime.ts",
-      "reason": "T74（2026-09-02）：dev 启动时序 race 修复——vite configureServer 异步 spawn 桥子进程，WorkspaceView.onMounted 起跑 startMCPRuntime 时桥可能还没 listen，单次尝试失败即弃连 → 桥永远 no_app（Playwright 实证，见 T74-plan §1）。startOperation 改为退避重试（MCP_STARTUP_RETRY_DELAYS_MS，总窗口 ≤7.7s），sleep 注入点供 tests/engine/rebuild/mcp/runtime-startup-race.test.ts 零延迟钉扎",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-02",
-      "task": "T74"
-    },
-    {
-      "id": "P142",
-      "file": "tests/engine/app/automation/mcp-runtime.test.ts",
-      "reason": "T74 伴随（2026-09-02）：startOperation 增退避重试后，「reports startup failure and cleans up the spawned server」用例注入零延迟 sleep 保持瞬时（否则真等 7.7s 超 bun 5s 超时）；收口语义断言不变",
-      "disposition": "permanent",
-      "lastReviewed": "2026-09-02",
-      "task": "T74"
     },
     {
       "id": "P143",
@@ -820,15 +711,267 @@
     {
       "id": "P154",
       "file": ".github/workflows/ci.yml",
-      "reason": "T91j（2026-09-04）：engine tests 步骤把 tests/engine/app/document/recovery/store.test.ts 拆独立 bun test 进程——fake-indexeddb 在多文件同进程下偶发事件投递 stall（run 33840822799/33844404386 实证：循环空闲挂满 20s watchdog；bun 版本/测试规模/耗时时长三不变排除规模诱因），单进程从未复现（本地 600ms 绿），确定性消除 flake；bash 循环对全部 shard 通用（仅 app 组命中该文件）",
+      "reason": "T91j（2026-09-04）：engine tests 步骤把 tests/engine/app/document/recovery/store.test.ts 拆独立 bun test 进程——fake-indexeddb 在多文件同进程下偶发事件投递 stall（run 33840822799/33844404386 实证：循环空闲挂满 20s watchdog；bun 版本/测试规模/耗时时长三不变排除规模诱因），单进程从未复现（本地 600ms 绿），确定性消除 flake；bash 循环对全部 shard 通用（仅 app 组命中该文件）。Batch 3 核实（2026-09-05）：合并期钩子曾报 phantom——系 resolveBase 在 in-progress merge 时取 MERGE_HEAD 为基、冲突解决后 ci.yml 与合并头字节一致所致；当前相对 merge-base 88c10770 有真实 diff（+136/-28），登记有效保留",
       "disposition": "permanent",
-      "lastReviewed": "2026-09-04",
+      "lastReviewed": "2026-09-05",
       "task": "T91j"
     },
     {
       "id": "P155",
       "file": "vite/aliases.ts",
       "reason": "Batch 1 收口（2026-09-05）：mermaid/beautiful-mermaid 两条 stub 别名由 src/app/shell/markdown/index.ts（已删 ghost，export default undefined）改指 vite/empty-node-module.ts——同为空模块汇，语义不变；上游 v2（vue-stream-markdown 2.0.0-beta.2 无 mermaid 依赖）本无此二别名，本地 1.0.4 链 @stream-markdown/mermaid 的动态 import(\"mermaid\") 仍需汇流",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P156",
+      "file": "tests/helpers/paths.ts",
+      "reason": "Batch 2b（2026-09-05，cli 纯删连带）：删 cliSourcePath 与 requireBuiltWorkspacePackages 两 helper——packages/cli 裁撤后无消费点",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P157",
+      "file": "tests/engine/editor/structure/flatten.test.ts",
+      "reason": "Batch 2b 前置（2026-09-05）：initCanvasKit 由 #cli/headless 改指 @open-pencil/core/io（14 个引擎测试改指 core/io 之一——cli 裁撤前去耦）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P158",
+      "file": "tests/engine/figma/api/flatten-renderer.test.ts",
+      "reason": "Batch 2b 前置（2026-09-05）：initCanvasKit #cli/headless → @open-pencil/core/io（14 测试改指之一）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P159",
+      "file": "tests/engine/render/canvas/boolean-visual.test.ts",
+      "reason": "Batch 2b 前置（2026-09-05）：initCanvasKit #cli/headless → @open-pencil/core/io（14 测试改指之一）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P160",
+      "file": "tests/engine/render/canvas/boolean.test.ts",
+      "reason": "Batch 2b 前置（2026-09-05）：initCanvasKit #cli/headless → @open-pencil/core/io（14 测试改指之一）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P161",
+      "file": "tests/engine/render/canvas/cache.test.ts",
+      "reason": "Batch 2b 前置（2026-09-05）：initCanvasKit #cli/headless → @open-pencil/core/io（14 测试改指之一）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P162",
+      "file": "tests/engine/render/canvas/derived-text.test.ts",
+      "reason": "Batch 2b 前置（2026-09-05）：initCanvasKit #cli/headless → @open-pencil/core/io（14 测试改指之一）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P163",
+      "file": "tests/engine/render/canvas/line.test.ts",
+      "reason": "Batch 2b 前置（2026-09-05）：initCanvasKit #cli/headless → @open-pencil/core/io（14 测试改指之一）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P164",
+      "file": "tests/engine/render/canvas/raster-export.test.ts",
+      "reason": "Batch 2b 前置（2026-09-05）：initCanvasKit #cli/headless → @open-pencil/core/io（14 测试改指之一）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P165",
+      "file": "tests/engine/render/canvas/visual/boolean-matrix.ts",
+      "reason": "Batch 2b 前置（2026-09-05）：initCanvasKit #cli/headless → @open-pencil/core/io（14 测试改指之一）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P166",
+      "file": "tests/engine/render/canvas/visual/inner-shadow-counter.ts",
+      "reason": "Batch 2b 前置（2026-09-05）：initCanvasKit #cli/headless → @open-pencil/core/io（14 测试改指之一）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P167",
+      "file": "tests/engine/render/canvas/visual/sdf-test-matrix.ts",
+      "reason": "Batch 2b 前置（2026-09-05）：initCanvasKit #cli/headless → @open-pencil/core/io（14 测试改指之一）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P168",
+      "file": "tests/engine/render/canvas/visual/verify-text-inner-shadow.ts",
+      "reason": "Batch 2b 前置（2026-09-05）：initCanvasKit #cli/headless → @open-pencil/core/io（14 测试改指之一）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P169",
+      "file": "tests/engine/vector/vectorize.test.ts",
+      "reason": "Batch 2b 前置（2026-09-05）：initCanvasKit #cli/headless → @open-pencil/core/io（14 测试改指之一）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P170",
+      "file": "tools/visual-oracles/src/export-fixtures.ts",
+      "reason": "Batch 2b 前置（2026-09-05）：fixture 导出由 bun 调 open-pencil CLI 改调本地 render-fixture.ts（cli 裁撤后 visual-oracles 不依赖 packages/cli；30 行导出脚本登记为 ownedFile render-fixture.ts）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P171",
+      "file": ".devcontainer/Dockerfile",
+      "reason": "Batch 2b/2c（2026-09-05）：devcontainer 卷挂载点去 packages/cli、packages/mcp（两包裁撤连带）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P172",
+      "file": ".devcontainer/devcontainer.json",
+      "reason": "Batch 2b/2c（2026-09-05）：devcontainer mounts 去 cli/mcp 两条 node_modules 卷（两包裁撤连带）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P173",
+      "file": ".github/ISSUE_TEMPLATE/bug_report.yml",
+      "reason": "Batch 2b（2026-09-05）：issue 模板平台/分区选项去 CLI（packages/cli 裁撤连带）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P174",
+      "file": ".github/ISSUE_TEMPLATE/feature_request.yml",
+      "reason": "Batch 2b（2026-09-05）：issue 模板分区选项去 CLI（packages/cli 裁撤连带）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P175",
+      "file": ".github/ISSUE_TEMPLATE/question.yml",
+      "reason": "Batch 2b（2026-09-05）：issue 模板分区选项去 CLI（packages/cli 裁撤连带）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P176",
+      "file": ".oxfmtrc.json",
+      "reason": "Batch 2b/2c（2026-09-05）：sortImports internalPattern 与 customGroups 去 #cli/、#mcp/ 别名（两包裁撤连带）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P177",
+      "file": "CONTRIBUTING.md",
+      "reason": "Batch 2b/2c（2026-09-05）：Project structure 节去 packages/cli、packages/mcp 两行（两包裁撤连带）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P178",
+      "file": "lint/plugin.js",
+      "reason": "Batch 2b/2c（2026-09-05）：mcp/cli 专属规则族退役（no-mcp/no-cli-parent-relative-imports、no-mcp/no-cli-core-barrel-imports、no-bun-globals-in-cli + nonComponentSourceDirectoriesKebabCase 根清单去两包）+ preferVueUseIntervals 豁免 src/app/automation/bridge/server/（bun 拉起的 Node 子进程无 Vue 运行时，WebSocket 心跳手写 setInterval）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P179",
+      "file": "tools/package-quality/src/smoke.ts",
+      "reason": "Batch 2b/2c（2026-09-05）：pack 冒烟去 @open-pencil/mcp/stdio eval 跳过项与 openpencil/openpencil-mcp/openpencil-mcp-http 三条 bin --help 校验（两包裁撤连带）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P180",
+      "file": "tools/type-shapes/tests/files.test.ts",
+      "reason": "Batch 2c（2026-09-05）：isTypeShapeSourcePath 断言由 packages/mcp/dist 改 packages/vue/dist（mcp 裁撤后换参照包）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P181",
+      "file": "SECURITY.md",
+      "reason": "Batch 2c（2026-09-05）：「MCP server」章节改写为「Automation bridge」（MCP 协议外壳裁撤，安全面收敛到内部桥）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P182",
+      "file": "tests/engine/app/automation/mcp-vite-plugin.test.ts",
+      "reason": "Batch 2c（2026-09-05）：随 bridge/vite-plugin.ts 裁 dev-control 配置面重写——parseDevMCPConfiguration/readDevMCPConfiguration 三用例删除，createAutomationEnvironment 断言对齐新签名（token 直传、无 root/disabledTools）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P183",
+      "file": "tests/engine/app/automation/mcp-runtime.test.ts",
+      "reason": "Batch 2c（2026-09-05）：桥内核迁移后改指 @/app/automation/bridge/runtime（createMCPRuntimeService 同源迁址）；承接 P142 的 T74 零延迟 sleep 注入语义——P142 锚定的 src/app/automation/mcp/runtime.ts 已删，patch 随目标删除退役，本登记覆盖测试文件现状",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P184",
+      "file": "src/app/shell/keyboard/use.ts",
+      "reason": "Batch 2a（2026-09-05，chat/ai 依赖点解耦）：useAIChat import 由 @/app/ai/chat/use 改指 @/app/ai/fork/use（路径分离产物）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P185",
+      "file": "src/components/settings/provider/StockPhotoKeysSection.vue",
+      "reason": "Batch 2a（2026-09-05，chat/ai 依赖点解耦）：pexels/unsplash 凭证读写由 useAIChat() 间接面改直引 @/app/settings/credentials/stock-photo-keys（2a 三处解耦点之一）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P186",
+      "file": "tests/engine/app/ai/debug-log.test.ts",
+      "reason": "Batch 2a（2026-09-05）：@/app/ai/debug 改指 @/app/ai/fork/debug（路径分离产物）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P187",
+      "file": "tests/engine/app/ai/failure.test.ts",
+      "reason": "Batch 2a（2026-09-05）：@/app/ai/chat/failure 改指 @/app/ai/fork/failure（路径分离产物）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P188",
+      "file": "src/app.css",
+      "reason": "Batch 2e（2026-09-05，Markdown v2 升级）：引入 vue-stream-markdown/index.css（layer components）与 fork 侧 ./theme/chat/markdown.css 覆盖层",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P189",
+      "file": "src/components/MobileDrawer.vue",
+      "reason": "Batch 2f（2026-09-05，chat→assistant 整目录搬家）：ChatPanel import 改指 ./assistant/ChatPanel.vue",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P190",
+      "file": "src/components/PropertiesPanel.vue",
+      "reason": "Batch 2a/2f（2026-09-05）：useAIChat import 改指 @/app/ai/fork/use（2a 路径分离）+ ChatPanel import 改指 ./assistant/ChatPanel.vue（2f 整目录搬家）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
+    },
+    {
+      "id": "P191",
+      "file": "tests/engine/app/chat/tool-state.test.ts",
+      "reason": "Batch 2f（2026-09-05）：tool-state import 由 @/components/chat/tool-state 改指 @/components/assistant/tool-state——文件原在 T31 tarball.paths（byte 一致白名单），import 改指致 TARBALL_DRIFT，按 checker 提示出清转 patch",
       "disposition": "permanent",
       "lastReviewed": "2026-09-05"
     }
@@ -851,7 +994,6 @@
     "src/components/SafariBanner.vue",
     "src/components/CollabPanel",
     "src/app/ai/acp",
-    "src/components/chat/ACPPermissionDialog.vue",
     "src/app/collab/awareness.ts",
     "src/app/collab/local-awareness.ts",
     "src/app/collab/node-codec.ts",
@@ -900,7 +1042,6 @@
     "src/app/ai/models",
     "src/app/ai/providers",
     "src/app/ai/attachment",
-    "src/components/chat/attachment",
     "src/app/ai/chat/model.ts",
     "src/app/ai/chat/reasoning.ts",
     "src/app/ai/chat/connection-test.ts",
@@ -908,10 +1049,6 @@
     "src/app/ai/vision-runtime.ts",
     "src/app/ai/tools/vision.ts",
     "src/app/settings/credentials/migration.ts",
-    "src/components/chat/ProviderSetup.vue",
-    "src/components/chat/ProviderModelSelect.vue",
-    "src/components/chat/ProviderConnectionTestButton.vue",
-    "src/components/chat/ChatProfileSelect.vue",
     "src/components/settings/models/ProfileEditor.vue",
     "src/components/settings/models/RoleAssignments.vue",
     "tests/engine/app/ai/attachment",
@@ -922,7 +1059,6 @@
     "tests/engine/app/integrations/mcp-connections.test.ts",
     "tests/engine/app/integrations/pi-mcp.test.ts",
     "tests/engine/app/settings/credential-migration.test.ts",
-    "tests/helpers/mcp/acp-session.ts",
     "src/app/ai/tools",
     "src/components/settings/provider-select",
     "packages/vue/src/canvas/node-edit/bend.ts",
@@ -954,7 +1090,23 @@
     "scripts/export-fixture-visuals.ts",
     "scripts/visual-bisect.ts",
     "scripts/visual-compare.ts",
-    "tests/engine/render/canvas/silhouette-autopsy.test.ts"
+    "tests/engine/render/canvas/silhouette-autopsy.test.ts",
+    "src/app/ai/chat/use.ts",
+    "src/app/ai/chat/transports.ts",
+    "src/app/ai/chat/failure.ts",
+    "src/app/ai/debug/index.ts",
+    "src/components/ChatPanel.vue",
+    "src/components/chat/",
+    "packages/cli/",
+    "tests/engine/cli/",
+    "packages/mcp/",
+    "tests/engine/mcp/",
+    "src/app/automation/mcp/",
+    "src/app/automation/bridge/server.ts",
+    "tests/engine/tools/cli.test.ts",
+    "tests/helpers/cli.ts",
+    "tests/helpers/mcp/",
+    "bunfig.toml"
   ],
   "upstreamMergeTarball": [
     {
@@ -1015,7 +1167,6 @@
         "src/components/ui/AppButton.stories.ts",
         "src/components/ui/AppButton.vue",
         "src/theme/button.ts",
-        "tests/engine/app/chat/tool-state.test.ts",
         "tests/engine/app/clipboard/keyboard.test.ts",
         "tests/engine/app/clipboard/memory.test.ts",
         "tests/engine/app/document/recovery/controller.test.ts"

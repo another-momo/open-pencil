@@ -31,9 +31,6 @@
       "#core/*": [
         "./packages/core/src/*"
       ],
-      "#mcp/*": [
-        "./packages/mcp/src/*"
-      ],
       "#dom-css/*": [
         "./packages/dom-css/src/*"
       ],

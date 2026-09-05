@@ -1,25 +1,16 @@
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
-import type { IncomingMessage } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import type { Plugin } from 'vite'
 
-import { serializeDisabledTools } from '@open-pencil/mcp/tools'
-import { platformHasUnixSockets } from '@open-pencil/mcp/transport'
-
-import {
-  DEV_MCP_RESTART_PATH,
-  parseDevMCPConfiguration,
-  type DevMCPConfiguration
-} from '../mcp/dev-control'
+import { platformHasUnixSockets } from './server/paths'
 
 interface AutomationEnvironmentOptions {
   authToken: string | null
   baseEnv: NodeJS.ProcessEnv
-  configuration: DevMCPConfiguration
   corsOrigin: string
   discoveryPath: string | null
   httpPort: number
@@ -29,73 +20,21 @@ interface AutomationEnvironmentOptions {
 export function createAutomationEnvironment(
   options: AutomationEnvironmentOptions
 ): NodeJS.ProcessEnv {
-  const { authToken, baseEnv, configuration, corsOrigin, discoveryPath, httpPort, socketPath } =
-    options
+  const { authToken, baseEnv, corsOrigin, discoveryPath, httpPort, socketPath } = options
   const childEnv = { ...baseEnv }
   delete childEnv.OPENPENCIL_MCP_SOCKET
   delete childEnv.OPENPENCIL_MCP_AUTH_TOKEN
   return {
     ...childEnv,
     PORT: String(httpPort),
-    OPENPENCIL_MCP_TCP: '1',
     ...(socketPath ? { OPENPENCIL_MCP_SOCKET: socketPath } : {}),
     ...(discoveryPath ? { OPENPENCIL_MCP_DISCOVERY_PATH: discoveryPath } : {}),
-    OPENPENCIL_MCP_AUTH_TOKEN: configuration.authenticationEnabled ? (authToken ?? '') : '',
-    OPENPENCIL_MCP_CORS_ORIGIN: corsOrigin,
-    OPENPENCIL_MCP_ROOT: configuration.rootDirectory.trim() || process.cwd(),
-    OPENPENCIL_MCP_DISABLED_TOOLS: serializeDisabledTools(configuration.disabledTools)
+    OPENPENCIL_MCP_AUTH_TOKEN: authToken ?? '',
+    OPENPENCIL_MCP_CORS_ORIGIN: corsOrigin
   }
 }
 
-const MAX_CONFIGURATION_BYTES = 70_000
 const CHILD_EXIT_TIMEOUT_MS = 2_000
-
-type DevMCPConfigurationErrorStatus = 400 | 413
-
-class DevMCPConfigurationRequestError extends Error {
-  constructor(
-    message: string,
-    readonly statusCode: DevMCPConfigurationErrorStatus,
-    options?: ErrorOptions
-  ) {
-    super(message, options)
-    this.name = 'DevMCPConfigurationRequestError'
-  }
-}
-
-export class DevMCPConfigurationTooLargeError extends DevMCPConfigurationRequestError {
-  constructor() {
-    super('Request body is too large', 413)
-    this.name = 'DevMCPConfigurationTooLargeError'
-  }
-}
-
-export class DevMCPConfigurationSyntaxError extends DevMCPConfigurationRequestError {
-  constructor(cause: unknown) {
-    super('Malformed JSON configuration', 400, { cause })
-    this.name = 'DevMCPConfigurationSyntaxError'
-  }
-}
-
-export function devMCPConfigurationErrorStatus(error: unknown): 400 | 413 | 500 {
-  return error instanceof DevMCPConfigurationRequestError ? error.statusCode : 500
-}
-
-export async function readDevMCPConfiguration(request: IncomingMessage): Promise<unknown> {
-  const chunks: Buffer[] = []
-  let byteLength = 0
-  for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
-    byteLength += buffer.byteLength
-    if (byteLength > MAX_CONFIGURATION_BYTES) throw new DevMCPConfigurationTooLargeError()
-    chunks.push(buffer)
-  }
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'))
-  } catch (error) {
-    throw new DevMCPConfigurationSyntaxError(error)
-  }
-}
 
 interface AutomationPluginOptions {
   browserURL: string
@@ -109,18 +48,13 @@ function safeRuntimeId(value: string): string {
   return createHash('sha256').update(value).digest('hex').slice(0, 16)
 }
 
-// TODO: production — bundle MCP server as Tauri sidecar or spawn via shell plugin
+// TODO: production — bundle the bridge as Tauri sidecar or spawn via shell plugin
 export function automationPlugin(
   authToken: string | null,
   options: AutomationPluginOptions
 ): Plugin {
   let child: ReturnType<typeof spawn> | null = null
   let lifecycle = Promise.resolve()
-  let configuration: DevMCPConfiguration = {
-    authenticationEnabled: true,
-    rootDirectory: '',
-    disabledTools: []
-  }
 
   function enqueue(operation: () => Promise<void>): Promise<void> {
     const next = lifecycle.then(operation, operation)
@@ -153,7 +87,7 @@ export function automationPlugin(
     await mkdir(runtimeDir, { recursive: true, mode: 0o700 })
     const socketPath = platformHasUnixSockets() ? join(runtimeDir, 'mcp.sock') : null
     const discoveryPath = join(runtimeDir, 'mcp.json')
-    const command = ['bun', 'run', 'packages/mcp/src/index.ts']
+    const command = ['bun', 'run', 'src/app/automation/bridge/server/index.ts']
     const spawnCommand = options.portlessServiceName ? 'portless' : command[0]
     const spawnArgs = options.portlessServiceName
       ? ['run', '--name', options.portlessServiceName, ...command]
@@ -163,7 +97,6 @@ export function automationPlugin(
       env: createAutomationEnvironment({
         authToken,
         baseEnv: process.env,
-        configuration,
         corsOrigin: options.corsOrigin,
         discoveryPath,
         httpPort: options.httpPort,
@@ -173,7 +106,7 @@ export function automationPlugin(
     child = spawned
 
     spawned.on('error', (err) => {
-      console.error(`[MCP] Failed to spawn automation server: ${err.message}`)
+      console.error(`[automation] Failed to spawn bridge: ${err.message}`)
       if (child === spawned) child = null
     })
 
@@ -181,7 +114,7 @@ export function automationPlugin(
       const text = data.toString()
       if (text.includes('EADDRINUSE')) {
         console.error(
-          `\x1b[31m[MCP] MCP bind failed (${options.browserURL}${socketPath ? ` or socket ${socketPath}` : ''}). Is another OpenPencil instance running?\x1b[0m`
+          `\x1b[31m[automation] Bridge bind failed (${options.browserURL}${socketPath ? ` or socket ${socketPath}` : ''}). Is another OpenPencil instance running?\x1b[0m`
         )
         spawned.kill()
         if (child === spawned) child = null
@@ -191,48 +124,14 @@ export function automationPlugin(
     })
 
     spawned.on('exit', (code) => {
-      if (code && code !== 0) console.error(`[MCP] Server exited with code ${code}`)
+      if (code && code !== 0) console.error(`[automation] Bridge exited with code ${code}`)
       if (child === spawned) child = null
     })
   }
 
-  async function restartChild(nextConfiguration: DevMCPConfiguration): Promise<void> {
-    configuration = nextConfiguration
-    await stopChild()
-    await startChild()
-  }
-
   return {
     name: 'open-pencil-automation',
-    async configureServer(server) {
-      server.middlewares.use(DEV_MCP_RESTART_PATH, (request, response, next) => {
-        if (request.method !== 'POST') {
-          next()
-          return
-        }
-        if (!authToken || request.headers.authorization !== `Bearer ${authToken}`) {
-          response.statusCode = 401
-          response.end('Unauthorized')
-          return
-        }
-        void (async () => {
-          try {
-            const rawConfiguration = await readDevMCPConfiguration(request)
-            const nextConfiguration = parseDevMCPConfiguration(rawConfiguration)
-            if (!nextConfiguration) {
-              response.statusCode = 400
-              response.end('Invalid MCP configuration')
-              return
-            }
-            await enqueue(() => restartChild(nextConfiguration))
-            response.statusCode = 204
-            response.end()
-          } catch (error) {
-            response.statusCode = devMCPConfigurationErrorStatus(error)
-            response.end(error instanceof Error ? error.message : String(error))
-          }
-        })()
-      })
+    async configureServer() {
       await enqueue(startChild)
     },
     async buildEnd() {

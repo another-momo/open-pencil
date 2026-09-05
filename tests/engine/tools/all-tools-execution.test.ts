@@ -16,7 +16,7 @@ interface PageTreeNode {
   children?: PageTreeNode[]
 }
 
-describe('MCP tool execution', () => {
+describe('ALL_TOOLS execution', () => {
   function setup() {
     const graph = new SceneGraph()
     const api = new FigmaAPI(graph)

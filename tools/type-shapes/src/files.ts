@@ -4,7 +4,6 @@ export const TYPE_SHAPE_ROOTS = [
   'src',
   'packages/core/src',
   'packages/vue/src',
-  'packages/mcp/src',
   'tests',
   'scripts',
   'tools'

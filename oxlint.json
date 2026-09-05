@@ -194,9 +194,7 @@
       }
     ],
     "open-pencil/no-core-parent-relative-imports": "error",
-    "open-pencil/no-mcp-parent-relative-imports": "error",
     "open-pencil/no-vue-parent-relative-imports": "error",
-    "open-pencil/no-mcp-core-barrel-imports": "error",
     "open-pencil/no-script-core-barrel-imports": "error",
     "open-pencil/no-core-self-package-imports": "error",
     "open-pencil/no-inline-prompt-constants": "error",
@@ -440,14 +438,6 @@
         "prefer-const": "off",
         "eqeqeq": "off",
         "radix": "off"
-      }
-    },
-    {
-      "files": [
-        "packages/mcp/src/**"
-      ],
-      "rules": {
-        "no-console": "off"
       }
     },
     {

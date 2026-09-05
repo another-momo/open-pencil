@@ -1,25 +1,16 @@
 import { randomBytes } from 'node:crypto'
 import type { Server as HttpServer } from 'node:http'
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { resolveCommand } from 'package-manager-detector/commands'
-import { detect, getUserAgent } from 'package-manager-detector/detect'
 import { WebSocketServer, type WebSocket } from 'ws'
 
-import { bearerToken, isAuthorized, mcpRequestToken } from '#mcp/auth'
-import { createBrowserRPCBridge } from '#mcp/browser-rpc'
-import { MCP_CORS_HEADERS, MCP_CORS_METHODS, MCP_EXPOSED_HEADERS } from '#mcp/http-options'
-import type { RPCJSONObject } from '#mcp/json'
-import { preprocessRPC } from '#mcp/jsx-preprocess'
-import { createMCPSessionManager } from '#mcp/server/sessions'
-import { createToolDescriptors } from '#mcp/tool/manifest'
-import type { ToolDescriptor, ToolPolicy } from '#mcp/tool/metadata'
-import { applyToolPolicy } from '#mcp/tool/policy'
-import { registerTools } from '#mcp/tool/registration'
-
-import packageJSON from '../package.json' with { type: 'json' }
+import packageJSON from '../../../../../package.json' with { type: 'json' }
+import { bearerToken, isAuthorized } from './auth'
+import { createBrowserRPCBridge } from './browser-rpc'
+import { MCP_CORS_HEADERS, MCP_CORS_METHODS, MCP_EXPOSED_HEADERS } from './http-options'
+import type { RPCJSONObject } from './json'
+import { preprocessRPC } from './jsx-preprocess'
 import {
   type ListenerState,
   cleanupDiscovery,
@@ -28,51 +19,22 @@ import {
   startSocketListener,
   teardownListeners,
   tryStartTcp,
-  tryWriteDiscovery
-} from './server/lifecycle'
+  tryWriteDiscovery,
+  unrefTimer
+} from './lifecycle'
 
-export const MCP_VERSION: string = packageJSON.version
+export const BRIDGE_VERSION: string = packageJSON.version
 
 const HEARTBEAT_INTERVAL_MS = 5_000
-
-let installCommandPromise: Promise<string> | null = null
-
-async function resolveMCPInstallCommand(): Promise<string> {
-  const agent =
-    getUserAgent() ??
-    (
-      await detect({
-        strategies: ['install-metadata', 'lockfile', 'packageManager-field', 'devEngines-field']
-      })
-    )?.agent ??
-    'npm'
-  const resolved = resolveCommand(agent, 'global', [`@open-pencil/mcp@${MCP_VERSION}`])
-  if (!resolved) return `npm install -g @open-pencil/mcp@${MCP_VERSION}`
-  return [resolved.command, ...resolved.args].join(' ')
-}
-
-function mcpInstallCommand(): Promise<string> {
-  installCommandPromise ??= resolveMCPInstallCommand()
-  return installCommandPromise
-}
-
-export { fail, ok, type MCPContent, type MCPResult } from '#mcp/result'
-
-export { registerTools, type RegisterToolsOptions, type RPCSender } from '#mcp/tool/registration'
-export { paramToZod } from '#mcp/tool/schema'
 
 export interface ServerOptions {
   /** TCP port for the HTTP + WebSocket server. Ignored when `withTcp` is false. When set to 0 with `withTcp: true`, binds to an ephemeral port. Defaults to 7600. */
   httpPort?: number
   /** Path to the Unix domain socket. Auto-resolved if omitted. */
   socketPath?: string | null
-  /** Whether to also listen on TCP (in addition to the socket). API default is `false`; the CLI passes `true` by default (derived from PORT, default 7600). */
+  /** Whether to also listen on TCP (in addition to the socket). API default is `false`; the subprocess entry passes `true` by default (derived from PORT, default 7600). */
   withTcp?: boolean
-  enableEval?: boolean
-  /** Tool names omitted from every MCP session. */
-  disabledTools?: Iterable<string>
-  mcpRoot?: string | null
-  /** Auth token for /mcp and /rpc endpoints. Auto-generated (32-hex) when omitted. Pass null explicitly to disable auth. */
+  /** Auth token for /rpc and /health endpoints. Auto-generated (32-hex) when omitted. Pass null explicitly to disable auth. */
   authToken?: string | null
   corsOrigin?: string | null
   /**
@@ -81,9 +43,9 @@ export interface ServerOptions {
    * registers before it expires. A later app disconnect starts a new grace
    * period, which lets app-spawned servers survive brief reloads while still
    * cleaning up after renderer or process crashes. Undefined/0 disables the
-   * watchdog — the default, since a bare CLI invocation for manual testing
-   * should not self-terminate just because nobody connected yet. The desktop
-   * app opts in when it spawns the server.
+   * watchdog — the default, since a bare invocation for manual testing should
+   * not self-terminate just because nobody connected yet. The app host opts
+   * in when it spawns the bridge.
    */
   appAttachTimeoutMs?: number
 }
@@ -101,16 +63,14 @@ export interface ServerHandle {
   close: () => Promise<void>
 }
 
-/** Set up Hono routes: /health, /rpc, /mcp */
+/** Set up Hono routes: /health, /rpc */
 function createHonoApp(options: {
   authToken: string | null
   corsOrigin: string | null
   browserRPC: ReturnType<typeof createBrowserRPCBridge>
-  mcpSessions: ReturnType<typeof createMCPSessionManager>
   sendToBrowser: (msg: RPCJSONObject) => Promise<unknown>
-  toolDescriptors: ToolDescriptor[]
 }): Hono {
-  const { authToken, corsOrigin, browserRPC, mcpSessions, sendToBrowser, toolDescriptors } = options
+  const { authToken, corsOrigin, browserRPC, sendToBrowser } = options
 
   const app = new Hono()
 
@@ -127,14 +87,10 @@ function createHonoApp(options: {
   }
 
   app.get('/health', async (c) => {
-    const provided = bearerToken(c.req.header('authorization'))
-    const canInspectConfiguration = authToken === null || isAuthorized(provided, authToken)
     return c.json({
       status: browserRPC.isConnected() ? 'ok' : 'no_app',
-      version: MCP_VERSION,
-      installCommand: await mcpInstallCommand(),
-      authRequired: authToken !== null,
-      ...(canInspectConfiguration ? { tools: toolDescriptors } : {})
+      version: BRIDGE_VERSION,
+      authRequired: authToken !== null
     })
   })
 
@@ -167,63 +123,6 @@ function createHonoApp(options: {
       const msg = e instanceof Error ? e.message : String(e)
       return c.json({ ok: false, error: msg }, 502)
     }
-  })
-
-  app.all('/mcp', async (c) => {
-    if (authToken !== null) {
-      const token = mcpRequestToken(c.req.header('authorization'), c.req.header('x-mcp-token'))
-      if (!isAuthorized(token, authToken)) {
-        return c.json({ error: 'Unauthorized' }, 401)
-      }
-    }
-    const sessionId = c.req.header('mcp-session-id') ?? undefined
-    // Reject anonymous DELETE requests before they allocate a session.
-    // Without this guard, a DELETE without a session ID would call
-    // resolveTransport(undefined), which creates a fresh session just
-    // to no-op on deleteSession(undefined) — burning a session slot.
-    if (c.req.method === 'DELETE' && !sessionId) {
-      return c.json({ error: 'Missing MCP session id' }, 400)
-    }
-    // For DELETE, look up the existing session without creating a new one.
-    // resolveTransport() would allocate a fresh session for an unknown ID,
-    // only to immediately delete it — wasting a session slot.
-    if (c.req.method === 'DELETE' && sessionId) {
-      const existing = mcpSessions.getExistingTransport(sessionId)
-      if ('error' in existing) {
-        if (existing.error === 'closed') {
-          return c.json({ error: 'MCP server is shutting down' }, 503)
-        }
-        return c.json({ error: 'MCP session not found' }, 404)
-      }
-      try {
-        return await existing.handleRequest(c.req.raw)
-      } finally {
-        mcpSessions.deleteSession(sessionId)
-      }
-    }
-    if (sessionId) {
-      const existing = mcpSessions.getExistingTransport(sessionId)
-      if ('error' in existing) {
-        if (existing.error === 'closed') {
-          return c.json({ error: 'MCP server is shutting down' }, 503)
-        }
-        return c.json({ error: 'MCP session not found' }, 404)
-      }
-      mcpSessions.touch(sessionId, existing)
-      return existing.handleRequest(c.req.raw)
-    }
-    const transport = await mcpSessions.resolveTransport(undefined)
-    if ('error' in transport) {
-      if (transport.error === 'closed') {
-        return c.json({ error: 'MCP server is shutting down' }, 503)
-      }
-      return c.json(
-        { error: 'Too many active MCP sessions' },
-        { status: 503, headers: { 'Retry-After': '5' } }
-      )
-    }
-    mcpSessions.touch(undefined, transport)
-    return transport.handleRequest(c.req.raw)
   })
 
   return app
@@ -260,35 +159,31 @@ function wireConnectionHandling(
     })
   })
 
-  const heartbeat = setInterval(() => {
-    for (const ws of wss.clients) {
-      if (alive.get(ws) === false) {
+  const heartbeat = unrefTimer(
+    setInterval(() => {
+      for (const ws of wss.clients) {
+        if (alive.get(ws) === false) {
+          try {
+            ws.terminate()
+          } catch {
+            continue
+          }
+          continue
+        }
+        alive.set(ws, false)
         try {
-          ws.terminate()
+          ws.ping()
         } catch {
           continue
         }
-        continue
       }
-      alive.set(ws, false)
-      try {
-        ws.ping()
-      } catch {
-        continue
-      }
-    }
-  }, HEARTBEAT_INTERVAL_MS)
-  heartbeat.unref()
+    }, HEARTBEAT_INTERVAL_MS)
+  )
   wss.on('close', () => clearInterval(heartbeat))
 }
 
 function buildServerContext(options: ServerOptions) {
   const httpPort = options.httpPort ?? 7600
-  const toolPolicy: ToolPolicy = {
-    allowEval: options.enableEval ?? false,
-    disabledTools: [...new Set(options.disabledTools)]
-  }
-  const mcpRoot = options.mcpRoot ?? null
   // Auto-generated so all transports require auth by default. Override via OPENPENCIL_MCP_AUTH_TOKEN or authToken option.
   // Pass authToken: null explicitly to disable auth entirely.
   const authToken =
@@ -302,68 +197,48 @@ function buildServerContext(options: ServerOptions) {
   // same OS user.
   if (authToken === null && withTcp) {
     process.stderr.write(
-      `WARNING: MCP server is running without authentication on TCP port ${httpPort}. ` +
+      `WARNING: automation bridge is running without authentication on TCP port ${httpPort}. ` +
         'Any local process can interact with the server. ' +
         'Set OPENPENCIL_MCP_AUTH_TOKEN to enable auth, or use PORT=0 for socket-only transport.\n'
     )
   }
 
-  const mcpSessions = createMCPSessionManager({
-    serverVersion: MCP_VERSION,
-    registerTools: (mcpServer: McpServer) =>
-      registerTools(mcpServer, { policy: toolPolicy, mcpRoot, sendRPC: sendToBrowser })
-  })
-  const browserRPC = createBrowserRPCBridge({
-    authToken,
-    onConnectionChange: mcpSessions.notifyToolsChanged
-  })
+  const browserRPC = createBrowserRPCBridge({ authToken })
   const sendToBrowser = browserRPC.sendRPC
-  const toolDescriptors = applyToolPolicy(createToolDescriptors(mcpRoot !== null), toolPolicy)
 
   const app = createHonoApp({
     authToken,
     corsOrigin,
     browserRPC,
-    mcpSessions,
-    sendToBrowser,
-    toolDescriptors
+    sendToBrowser
   })
   const wss = new WebSocketServer({ noServer: true })
 
   return {
     httpPort,
     withTcp,
-    mcpSessions,
     browserRPC,
     sendToBrowser,
     app,
     wss,
-    authToken,
-    disabledTools: toolPolicy.disabledTools
+    authToken
   }
 }
 
 /**
- * Unified runtime shutdown: closes browserRPC, clears MCP sessions,
- * terminates WebSocket clients, closes the WSS, and tears down HTTP
- * listeners. Used by both the startup catch block and ServerHandle.close()
- * to ensure no runtime resources (WebSocket, browserRPC, mcpSessions) are
- * left alive.
+ * Unified runtime shutdown: closes browserRPC, terminates WebSocket clients,
+ * closes the WSS, and tears down HTTP listeners. Used by both the startup
+ * catch block and ServerHandle.close() to ensure no runtime resources
+ * (WebSocket, browserRPC) are left alive.
  */
 async function shutdownRuntime(
   browserRPC: ReturnType<typeof createBrowserRPCBridge>,
-  mcpSessions: ReturnType<typeof createMCPSessionManager>,
   wss: WebSocketServer,
   state: ListenerState
 ): Promise<void> {
   const errors: unknown[] = []
   try {
     browserRPC.close()
-  } catch (e) {
-    errors.push(e)
-  }
-  try {
-    await mcpSessions.clear()
   } catch (e) {
     errors.push(e)
   }
@@ -385,7 +260,6 @@ function buildHandle(
   app: Hono,
   wss: WebSocketServer,
   browserRPC: ReturnType<typeof createBrowserRPCBridge>,
-  mcpSessions: ReturnType<typeof createMCPSessionManager>,
   state: ListenerState,
   resolvedSocketPath: string | null,
   actualHttpPort: number,
@@ -411,7 +285,7 @@ function buildHandle(
         errors.push(error)
       }
       try {
-        await shutdownRuntime(browserRPC, mcpSessions, wss, state)
+        await shutdownRuntime(browserRPC, wss, state)
       } catch (error) {
         errors.push(error)
       }
@@ -449,7 +323,7 @@ export async function startServer(options: ServerOptions = {}): Promise<ServerHa
 
     if (!resolvedSocketPath && !actualHttpPort) {
       throw new Error(
-        'MCP server has no active listeners (both socket and TCP are unavailable). ' +
+        'Automation bridge has no active listeners (both socket and TCP are unavailable). ' +
           'Ensure Unix domain sockets are supported on this platform or enable TCP with withTcp: true.'
       )
     }
@@ -458,14 +332,13 @@ export async function startServer(options: ServerOptions = {}): Promise<ServerHa
       resolvedSocketPath,
       actualHttpPort,
       ctx.authToken,
-      MCP_VERSION,
-      ctx.disabledTools,
+      BRIDGE_VERSION,
       state
     )
   } catch (err) {
     // Tear down any listeners that started before the failure, then close
     // all resources so nothing leaks when startServer rejects.
-    await shutdownRuntime(ctx.browserRPC, ctx.mcpSessions, ctx.wss, state).catch(() => undefined)
+    await shutdownRuntime(ctx.browserRPC, ctx.wss, state).catch(() => undefined)
     throw err
   }
 
@@ -476,7 +349,6 @@ export async function startServer(options: ServerOptions = {}): Promise<ServerHa
     ctx.app,
     ctx.wss,
     ctx.browserRPC,
-    ctx.mcpSessions,
     state,
     resolvedSocketPath,
     actualHttpPort,
@@ -523,16 +395,17 @@ function armAppAttachWatchdog(
   }
   const armTimer = () => {
     clearTimer()
-    timer = setTimeout(() => {
-      timer = null
-      if (browserRPC.isConnected() || closing) return
-      closing = true
-      unsubscribe()
-      void handle.close().catch((e) => {
-        console.error('[MCP] Watchdog: failed to close orphaned (no_app) server:', e)
-      })
-    }, timeoutMs)
-    timer.unref()
+    timer = unrefTimer(
+      setTimeout(() => {
+        timer = null
+        if (browserRPC.isConnected() || closing) return
+        closing = true
+        unsubscribe()
+        void handle.close().catch((e) => {
+          console.error('[bridge] Watchdog: failed to close orphaned (no_app) server:', e)
+        })
+      }, timeoutMs)
+    )
   }
   const unsubscribe = browserRPC.subscribeConnectionChange((connected) => {
     if (connected) clearTimer()

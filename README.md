@@ -22,7 +22,6 @@ Or download from the [releases page](https://github.com/open-pencil/open-pencil/
 
 - **Opens `.fig` and `.pen` files** — read and write native Figma files, open supported Pencil documents from the app or OS file browser, copy & paste nodes between apps
 - **AI builds designs** — describe what you want in chat, 90+ tools create and modify nodes. Connect OpenRouter, Anthropic, OpenAI, Google AI, Z.ai, MiniMax, or compatible endpoints
-- **Fully programmable** — MCP server for AI agents, and desktop agent integrations for Claude Code, Codex, and Gemini CLI
 - **Lint, convert, and extract tokens** — inspect documents, lint naming/layout/accessibility, convert between supported formats, analyze colors/typography/spacing/clusters, and extract design tokens
 - **Components and variants** — create reusable components, group variants into component sets, insert local assets as instances, and switch variants from the inspector
 - **Image vectorization** — convert image layers into editable vector layers with Recraft or fal.ai
@@ -32,65 +31,13 @@ Or download from the [releases page](https://github.com/open-pencil/open-pencil/
 - **Auto layout & CSS Grid** — flex and grid layout via Yoga WASM, with gap, padding, alignment, track sizing
 - **~7 MB desktop app** — Tauri v2 for macOS, Windows, Linux. Also runs in the browser as a PWA
 
-## AI & MCP
+## AI
 
 ### Built-in chat
 
 Press <kbd>⌘</kbd><kbd>J</kbd> to open the AI assistant. It has 100+ tools that can create shapes, set fills and strokes, manage auto-layout, work with components and variables, run boolean operations, analyze design tokens, and export assets. Bring your own API key for OpenRouter, Anthropic, OpenAI, Google AI, Z.ai, MiniMax, or compatible endpoints. No backend, no account.
 
 Not every provider works in the browser, and not every model streams tool calls correctly. See [BYOK provider & model compatibility](packages/docs/programmable/byok-provider-compatibility.md) for measured results — contributions welcome.
-
-### Coding agents (desktop)
-
-Use Claude Code, Codex, or Gemini CLI directly in the chat panel. The agent connects to the editor's MCP server and uses all 100+ design tools. Requires the desktop app and the agent CLI installed locally.
-
-Pi is also available as an optional AI SDK Harness provider. Install its companion CLI with `npm install -g @open-pencil/harness`, then add a **Pi** model profile in **Settings → AI & agents**. The companion is installed separately so OpenPencil does not bundle a JavaScript runtime for users who do not enable Harness providers.
-
-**Setup (Claude Code):**
-
-1. Install the ACP adapter: `npm install -g @agentclientprotocol/claude-agent-acp`
-2. Add MCP permission to `~/.claude/settings.json`:
-   ```json
-   {
-     "permissions": {
-       "allow": ["mcp__open-pencil__*"]
-     }
-   }
-   ```
-3. Open the desktop app → <kbd>Ctrl</kbd><kbd>J</kbd> → select **Claude Code** from the provider dropdown
-
-### MCP server
-
-Connect Claude Code, Cursor, Windsurf, or any MCP client to inspect, modify, and export design documents headlessly. 100+ tools. [Full docs →](https://openpencil.dev/reference/mcp-tools)
-
-**Stdio** (Claude Code, Cursor, Windsurf):
-
-```sh
-npm install -g @open-pencil/mcp
-claude mcp add --scope user open-pencil -- openpencil-mcp
-```
-
-For other MCP clients:
-
-```json
-{
-  "mcpServers": {
-    "open-pencil": {
-      "command": "openpencil-mcp"
-    }
-  }
-}
-```
-
-**HTTP** (scripts, CI):
-
-```sh
-openpencil-mcp-http   # Unix socket on macOS/Linux + http://127.0.0.1:7600/mcp
-```
-
-Local clients discover the private Unix socket automatically and fall back to localhost TCP. Set `PORT=0` to disable TCP on macOS/Linux.
-
-**File access:** Set `OPENPENCIL_MCP_ROOT` to scope file operations (`open_file`, `new_document`, export `path` param) to a directory. Defaults to the current working directory.
 
 ### AI agent skill
 
@@ -162,7 +109,6 @@ packages/
   core/           @open-pencil/core — editor engine, renderer, layout, tools, RPC, document I/O
   dom-css/        @open-pencil/dom-css — HTML/CSS/Tailwind to editable design documents
   vue/            @open-pencil/vue — headless Vue SDK
-  mcp/            @open-pencil/mcp — MCP server (stdio + HTTP)
   docs/           Documentation site (openpencil.dev)
 src/              Vue app (editor shell, AI, collaboration, document I/O)
 desktop/          Tauri v2 desktop app (Rust + config)
@@ -179,7 +125,7 @@ tests/            E2E, visual, engine, and integration tests
 | File format   | Kiwi binary + Zstd + ZIP                                                          |
 | Collaboration | Trystero (WebRTC P2P) + Yjs (CRDT)                                                |
 | Desktop       | Tauri v2                                                                          |
-| AI/MCP        | Multi-provider (Anthropic, OpenAI, Google AI, OpenRouter), MCP SDK, Hono          |
+| AI            | Multi-provider (Anthropic, OpenAI, Google AI, OpenRouter), Hono                 |
 
 ### Desktop builds
 

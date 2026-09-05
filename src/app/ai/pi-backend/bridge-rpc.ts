@@ -6,7 +6,7 @@
  * （语义不同：tools.ts 会抛错重试，undo-group.ts 吞掉不阻断）。
  */
 
-import type { DiscoveryInfo } from '@open-pencil/mcp/discovery'
+import type { DiscoveryInfo } from '@/app/automation/bridge/server/discovery'
 
 export function postBridgeRPC(
   discovery: DiscoveryInfo,

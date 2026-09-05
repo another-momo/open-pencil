@@ -1,18 +1,19 @@
 import { expect, test } from 'bun:test'
 
 import {
+  type AutomationHealth,
+  type AutomationServerHandle,
   createMCPRuntimeService,
   MCP_STARTUP_RETRY_DELAYS_MS,
   type MCPRuntimeDependencies
-} from '@/app/automation/mcp/runtime'
-import type { AutomationHealth, AutomationServerHandle } from '@/app/automation/mcp/spawn'
+} from '@/app/automation/bridge/runtime'
 
 // T74：钉扎 dev 启动时序 race 的退避重试——vite configureServer 的 startChild
 // 异步 spawn 桥子进程，WorkspaceView.onMounted 起跑 startMCPRuntime 时桥可能还没
 // listen；无重试时编辑器永不 connectAutomation，桥永远 no_app（实证见
 // docs/rebuild/tasks/T74-plan.md §1）。本测试用注入的 sleep 让退避零延迟。
 
-const HEALTH_OK: AutomationHealth = { status: 'ok', version: 'test', tools: [] }
+const HEALTH_OK: AutomationHealth = { status: 'ok', version: 'test' }
 
 const noop = () => undefined
 
@@ -52,7 +53,6 @@ function createHarness(failHealthTimes: number): RuntimeHarness {
       harness.connectCalls++
       return noop
     },
-    setToolDescriptors: noop,
     sleep: async (ms) => {
       harness.sleeps.push(ms)
     }
@@ -87,7 +87,7 @@ test('startup race: bridge never healthy → error after exhausting retries', as
 
   expect(result.ok).toBe(false)
   expect(service.state.status).toBe('error')
-  expect(service.state.error).toBe('MCP server did not become healthy')
+  expect(service.state.error).toBe('Automation bridge did not become healthy')
   // 总尝试次数 = 1 + 重试间隔数
   expect(harness.spawnCalls).toBe(1 + MCP_STARTUP_RETRY_DELAYS_MS.length)
   expect(harness.connectCalls).toBe(0)

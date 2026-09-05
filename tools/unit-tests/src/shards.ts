@@ -21,13 +21,7 @@ export const UNIT_TEST_GROUPS = {
     'tests/engine/scene-graph',
     'tests/engine/text'
   ],
-  vue: [
-    'tests/engine/mcp',
-    'tests/engine/profiler',
-    'tests/engine/tools',
-    'tests/engine/vector',
-    'tests/engine/vue'
-  ]
+  vue: ['tests/engine/profiler', 'tests/engine/tools', 'tests/engine/vector', 'tests/engine/vue']
 } as const
 
 export type UnitTestGroup = keyof typeof UNIT_TEST_GROUPS | 'all'

@@ -8,17 +8,21 @@ import { getRequestListener } from '@hono/node-server'
 import type { Hono } from 'hono'
 import type { WebSocketServer } from 'ws'
 
-import {
-  removeDiscoveryFile,
-  removeStaleSocket,
-  writeDiscoveryFile
-} from '#mcp/transport/discovery'
-import {
-  getDiscoveryPath,
-  getSocketDir,
-  getSocketPath,
-  platformHasUnixSockets
-} from '#mcp/transport/paths'
+import { removeDiscoveryFile, removeStaleSocket, writeDiscoveryFile } from './discovery'
+import { getDiscoveryPath, getSocketDir, getSocketPath, platformHasUnixSockets } from './paths'
+
+/**
+ * setTimeout/setInterval 在 src/ 的 DOM lib 类型下返回 number；桥是 bun 拉起的
+ * Node 子进程，运行时定时器必有 unref()。用 in 窄化替代双重断言（lint 禁
+ * as unknown as），让类型与运行时两側都成立。
+ */
+export function unrefTimer<T>(timer: T): T {
+  if (typeof timer === 'object' && timer !== null && 'unref' in timer) {
+    const { unref } = timer
+    if (typeof unref === 'function') unref.call(timer)
+  }
+  return timer
+}
 
 const trackedConnections = Symbol('open-pencil-mcp-connections')
 
@@ -166,8 +170,7 @@ export async function writeDiscovery(
   resolvedSocketPath: string | null,
   actualHttpPort: number,
   authToken: string | null,
-  version: string,
-  disabledTools: string[]
+  version: string
 ): Promise<string> {
   const startedAt = new Date().toISOString()
   await writeDiscoveryFile({
@@ -177,8 +180,7 @@ export async function writeDiscovery(
     authRequired: authToken !== null,
     authToken,
     version,
-    startedAt,
-    disabledTools
+    startedAt
   })
   return startedAt
 }
@@ -195,11 +197,13 @@ export async function closeServer(srv: HttpServer | null): Promise<void> {
 
   // Keep a final bound in case a platform-specific connection escapes the
   // tracked set or arrives during shutdown.
-  const forceClose = setTimeout(() => {
-    for (const socket of connections ?? []) socket.destroy()
-    srv.closeAllConnections()
-    srv.close()
-  }, 5_000).unref()
+  const forceClose = unrefTimer(
+    setTimeout(() => {
+      for (const socket of connections ?? []) socket.destroy()
+      srv.closeAllConnections()
+      srv.close()
+    }, 5_000)
+  )
   try {
     await new Promise<void>((resolve) => {
       srv.close(() => resolve())
@@ -328,19 +332,21 @@ export async function closeWssGracefully(wss: WebSocketServer): Promise<void> {
         console.warn('[MCP] Failed to close WebSocket client:', e)
       }
     }
-    const graceTimer = setTimeout(() => {
-      // Snapshot clients before iterating — terminate() triggers handleClose
-      // which modifies wss.clients mid-iteration via clients.delete(ws).
-      const snapshot = [...wss.clients]
-      for (const ws of snapshot) {
-        try {
-          ws.terminate()
-        } catch (e) {
-          console.warn('[MCP] Failed to terminate WebSocket client:', e)
+    const graceTimer = unrefTimer(
+      setTimeout(() => {
+        // Snapshot clients before iterating — terminate() triggers handleClose
+        // which modifies wss.clients mid-iteration via clients.delete(ws).
+        const snapshot = [...wss.clients]
+        for (const ws of snapshot) {
+          try {
+            ws.terminate()
+          } catch (e) {
+            console.warn('[MCP] Failed to terminate WebSocket client:', e)
+          }
         }
-      }
-      done()
-    }, 2_000).unref()
+        done()
+      }, 2_000)
+    )
     wss.close(() => {
       clearTimeout(graceTimer)
       done()
@@ -369,17 +375,10 @@ export async function tryWriteDiscovery(
   actualHttpPort: number,
   authToken: string | null,
   version: string,
-  disabledTools: string[],
   state: ListenerState
 ): Promise<string> {
   try {
-    return await writeDiscovery(
-      resolvedSocketPath,
-      actualHttpPort,
-      authToken,
-      version,
-      disabledTools
-    )
+    return await writeDiscovery(resolvedSocketPath, actualHttpPort, authToken, version)
   } catch (err) {
     // If discovery file write fails after both listeners are up, tear down
     // both listeners so we never advertise a running server that clients

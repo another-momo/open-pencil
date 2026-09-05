@@ -15,7 +15,7 @@ describe('type shape source discovery', () => {
     expect(isTypeShapeSourcePath('src/global.d.ts')).toBe(false)
     expect(isTypeShapeSourcePath('tools/docs/node_modules/zod/src/types.ts')).toBe(false)
     expect(isTypeShapeSourcePath('tools\\docs\\node_modules\\zod\\src\\types.ts')).toBe(false)
-    expect(isTypeShapeSourcePath('packages/mcp/dist/generated.ts')).toBe(false)
+    expect(isTypeShapeSourcePath('packages/vue/dist/generated.ts')).toBe(false)
     expect(isTypeShapeSourcePath('coverage/report.ts')).toBe(false)
     expect(isTypeShapeSourcePath('.worktrees/review/src/types.ts')).toBe(false)
   })

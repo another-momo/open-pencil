@@ -3,7 +3,7 @@ import { homedir, platform } from 'node:os'
 import { dirname, join } from 'node:path'
 
 /**
- * Platform-specific paths for the MCP server's Unix domain socket
+ * Platform-specific paths for the automation bridge's Unix domain socket
  * and the discovery JSON file.
  *
  * Socket directory layout (overridable via OPENPENCIL_MCP_SOCKET):
@@ -126,11 +126,8 @@ export async function getSocketPath(): Promise<string> {
  * way around.
  *
  * Set OPENPENCIL_MCP_DISCOVERY_PATH to relocate the discovery file (e.g. to a
- * temp directory for test isolation). The desktop app reads the platform
- * default via its own path computation (src/app/automation/mcp/spawn.ts) and
- * does not honor this override, so it is primarily useful for tests and
- * standalone server invocations. The parent directory is created (0o700) so
- * writeDiscoveryFile's atomic temp-then-rename succeeds.
+ * temp directory for test isolation). The parent directory is created (0o700)
+ * so writeDiscoveryFile's atomic temp-then-rename succeeds.
  */
 export async function getDiscoveryPath(): Promise<string> {
   const override = process.env.OPENPENCIL_MCP_DISCOVERY_PATH?.trim()

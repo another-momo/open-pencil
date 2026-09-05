@@ -10,7 +10,6 @@ function ignoreMarkdownOutsideSource(path: string): boolean {
 
 export const WATCH_IGNORED = [
   '**/desktop/**',
-  '**/packages/mcp/**',
   '**/packages/docs/**',
   '**/tests/**',
   '**/.worktrees/**',

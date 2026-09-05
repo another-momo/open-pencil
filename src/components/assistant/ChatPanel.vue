@@ -78,7 +78,7 @@ import type { AskFormSubmission } from '@open-pencil/core/tools/fork/marketing/a
 const IS_DEV = import.meta.env.DEV
 
 const { ensureChat, resetChat, chatFailure, clearChatFailure } = useAIChat()
-const { dialogs } = useI18n()
+const { ai } = useI18n()
 const notifications = useNotificationMessages()
 const confirmText = useForkConfirm()
 
@@ -131,11 +131,11 @@ const answeredFormIds = computed(() => {
 const failureMessage = computed(() => {
   switch (chatFailure.value?.reason) {
     case 'insufficient-credit':
-      return dialogs.value.chatInsufficientCredit
+      return ai.value.chatInsufficientCredit
     case 'output-limit':
-      return dialogs.value.chatOutputLimit
+      return ai.value.chatOutputLimit
     case 'request-failed':
-      return dialogs.value.chatRequestFailed
+      return ai.value.chatRequestFailed
     default:
       return null
   }
@@ -182,7 +182,7 @@ watch(
       clearChatFailure()
       return
     }
-    toast.error(failureMessage.value ?? dialogs.value.chatRequestFailed)
+    toast.error(failureMessage.value ?? ai.value.chatRequestFailed)
   }
 )
 // T94：停止收尾——ready = 正常停止（toast + 末条消息瞬时「已停止」行）；
@@ -275,7 +275,7 @@ async function handleSwitchSession(sessionId: string) {
   if (sessionId === currentSessionId.value) return
   const switched = await switchPiSession(getActiveEditorStore(), sessionId)
   if (!switched) {
-    toast.error(dialogs.value.chatRequestFailed)
+    toast.error(ai.value.chatRequestFailed)
     return
   }
   const currentChat = chat.value ?? (await ensureChat())
@@ -303,7 +303,7 @@ async function handleSubmit(text: string) {
     // 避免持有旧 transport 的 stale Chat
     const currentChat = await ensureChat()
     if (!currentChat) {
-      toast.error(dialogs.value.chatRequestFailed)
+      toast.error(ai.value.chatRequestFailed)
       chatInputRef.value?.restoreDraft(text)
       return
     }
@@ -315,7 +315,7 @@ async function handleSubmit(text: string) {
     refreshSessionMeta()
   } catch (e) {
     console.error('Chat error:', e)
-    toast.error(dialogs.value.chatRequestFailed)
+    toast.error(ai.value.chatRequestFailed)
     chatInputRef.value?.restoreDraft(text)
   }
 }
@@ -382,7 +382,7 @@ async function interceptNewIntent(
   }
   const message = await appendHostMessage([{ type: NEW_INTENT_PART_TYPE, data }])
   if (!message) {
-    toast.error(dialogs.value.chatRequestFailed)
+    toast.error(ai.value.chatRequestFailed)
     chatInputRef.value?.restoreDraft(text)
     return false
   }
@@ -711,7 +711,7 @@ function handleClearChat() {
         <AppPlaceholder
           v-if="messages.length === 0"
           data-test-id="chat-empty-state"
-          :label="dialogs.describeCreateOrChange"
+          :label="ai.describeCreateOrChange"
           :ui="{ root: 'h-full' }"
         >
           <template #icon>

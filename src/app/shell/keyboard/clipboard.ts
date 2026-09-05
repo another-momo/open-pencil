@@ -4,10 +4,7 @@ import { extractImageFilesFromClipboard } from '@open-pencil/vue'
 
 import type { EditorStore } from '@/app/editor/active-store'
 import { getInMemoryClipboardHTML } from '@/app/editor/clipboard/memory'
-import {
-  copySelectionToTauriClipboard,
-  pasteFromTauriClipboard
-} from '@/app/editor/clipboard/system'
+import { tauriSystemClipboard } from '@/app/editor/clipboard/system/tauri'
 import { hasDocumentTextSelection, isEditing } from '@/app/shell/keyboard/focus'
 import { isTauri } from '@/app/tauri/env'
 
@@ -30,12 +27,19 @@ export async function copyAndDeleteSelection(
   }
 }
 
+function selectionMatches(store: EditorStore, selectedIds: Set<string>): boolean {
+  return (
+    selectedIds.size === store.state.selectedIds.size &&
+    [...selectedIds].every((id) => store.state.selectedIds.has(id))
+  )
+}
+
 export function bindEditorClipboard(store: EditorStore) {
   useEventListener(window, 'copy', (e: ClipboardEvent) => {
     if (isEditing(e) || hasDocumentTextSelection()) return
     e.preventDefault()
     if (isTauri()) {
-      void copySelectionToTauriClipboard(store)
+      void tauriSystemClipboard.copy(store)
       return
     }
     if (e.clipboardData) void store.writeCopyData(e.clipboardData)
@@ -45,8 +49,9 @@ export function bindEditorClipboard(store: EditorStore) {
     if (isEditing(e)) return
     e.preventDefault()
     if (isTauri()) {
-      void copySelectionToTauriClipboard(store).then((copied) => {
-        if (copied) store.deleteSelected()
+      const selectedIds = new Set(store.state.selectedIds)
+      void tauriSystemClipboard.copy(store).then((copied) => {
+        if (copied && selectionMatches(store, selectedIds)) store.deleteSelected()
         return undefined
       })
       return
@@ -75,7 +80,7 @@ export function bindEditorClipboard(store: EditorStore) {
     }
 
     if (isTauri()) {
-      void pasteFromTauriClipboard(store, cursorPos)
+      void tauriSystemClipboard.paste(store, cursorPos)
       return
     }
 

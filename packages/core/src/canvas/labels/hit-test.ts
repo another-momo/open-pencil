@@ -1,8 +1,8 @@
+import type { Font } from 'canvaskit-wasm'
+
 import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 import type { Vector } from '@open-pencil/scene-graph/primitives'
 
-import type { SkiaRenderer } from '#core/canvas/renderer'
-import { measureTextByScript } from '#core/canvas/renderer/fonts'
 import {
   COMPONENT_LABEL_FONT_SIZE,
   COMPONENT_LABEL_GAP,
@@ -16,6 +16,14 @@ import {
 } from '#core/constants'
 
 import type { CachedComponent, CachedSection, LabelCache } from './cache'
+
+function measureGlyphWidth(font: Font, text: string): number {
+  const glyphIds = font.getGlyphIDs(text)
+  const widths = font.getGlyphWidths(glyphIds)
+  let total = 0
+  for (const w of widths) total += w
+  return total
+}
 
 function rotatePoint(x: number, y: number, rotation: number): Vector {
   if (rotation === 0) return { x, y }
@@ -75,18 +83,16 @@ interface LabelHitContext {
   canvasX: number
   canvasY: number
   zoom: number
-  r: SkiaRenderer
-  kind: 'sectionTitle' | 'componentLabel'
+  font: Font
 }
 
 function labelHitContext(
   canvasX: number,
   canvasY: number,
   zoom: number,
-  r: SkiaRenderer,
-  kind: 'sectionTitle' | 'componentLabel'
+  font: Font
 ): LabelHitContext {
-  return { canvasX, canvasY, zoom, r, kind }
+  return { canvasX, canvasY, zoom, font }
 }
 
 function hitCachedLabel<T extends { nodeId: string; absX: number; absY: number }>(
@@ -121,10 +127,9 @@ function hitSectionTitle(
   canvasX: number,
   canvasY: number,
   zoom: number,
-  r: SkiaRenderer,
-  kind: 'sectionTitle' | 'componentLabel'
+  font: Font
 ): SceneNode | null {
-  const textW = measureTextByScript(r, child.name, kind).width
+  const textW = measureGlyphWidth(font, child.name)
   const pillW = Math.min(textW + SECTION_TITLE_PADDING_X * 2, child.width * zoom) / zoom
   const pillH = SECTION_TITLE_HEIGHT / zoom
   const gap = SECTION_TITLE_GAP / zoom
@@ -147,8 +152,7 @@ function hitCachedSectionTitle(
     context.canvasX,
     context.canvasY,
     context.zoom,
-    context.r,
-    context.kind
+    context.font
   )
 }
 
@@ -158,23 +162,23 @@ export function hitTestSectionTitle(
   canvasY: number,
   zoom: number,
   pageId: string,
-  r: SkiaRenderer | null,
+  font: Font | null,
   labelCache?: LabelCache
 ): SceneNode | null {
-  if (!r) return null
+  if (!font) return null
 
   if (labelCache) {
     return hitCachedLabelWithContext(
       graph,
       labelCache.getAllSections(),
-      labelHitContext(canvasX, canvasY, zoom, r, 'sectionTitle'),
+      labelHitContext(canvasX, canvasY, zoom, font),
       hitCachedSectionTitle
     )
   }
 
   return walkLabelTree(graph, pageId, (child, _parent, ax, ay, insideSection) => {
     if (child.type !== 'SECTION') return undefined
-    return hitSectionTitle(child, ax, ay, insideSection, canvasX, canvasY, zoom, r, 'sectionTitle')
+    return hitSectionTitle(child, ax, ay, insideSection, canvasX, canvasY, zoom, font)
   })
 }
 
@@ -185,10 +189,9 @@ function hitComponentLabel(
   canvasX: number,
   canvasY: number,
   zoom: number,
-  r: SkiaRenderer,
-  kind: 'sectionTitle' | 'componentLabel'
+  font: Font
 ): SceneNode | null {
-  const textW = measureTextByScript(r, child.name, kind).width
+  const textW = measureGlyphWidth(font, child.name)
   const labelW = (COMPONENT_LABEL_ICON_SIZE + COMPONENT_LABEL_ICON_GAP + textW) / zoom
   const labelH = COMPONENT_LABEL_FONT_SIZE / zoom
   const gap = COMPONENT_LABEL_GAP / zoom
@@ -202,8 +205,8 @@ function hitCachedComponentLabel(
   component: CachedComponent,
   context: LabelHitContext
 ): SceneNode | null {
-  const { canvasX, canvasY, zoom, r, kind } = context
-  return hitComponentLabel(child, component.absX, component.absY, canvasX, canvasY, zoom, r, kind)
+  const { canvasX, canvasY, zoom, font } = context
+  return hitComponentLabel(child, component.absX, component.absY, canvasX, canvasY, zoom, font)
 }
 
 export function hitTestComponentLabel(
@@ -212,16 +215,16 @@ export function hitTestComponentLabel(
   canvasY: number,
   zoom: number,
   pageId: string,
-  r: SkiaRenderer | null,
+  font: Font | null,
   labelCache?: LabelCache
 ): SceneNode | null {
-  if (!r) return null
+  if (!font) return null
 
   const cachedHit = labelCache
     ? hitCachedLabelWithContext(
         graph,
         labelCache.getAllComponents(),
-        labelHitContext(canvasX, canvasY, zoom, r, 'componentLabel'),
+        labelHitContext(canvasX, canvasY, zoom, font),
         hitCachedComponentLabel
       )
     : null
@@ -231,7 +234,7 @@ export function hitTestComponentLabel(
 
   return walkLabelTree(graph, pageId, (child, _parent, ax, ay) => {
     if (!LABEL_TYPES.has(child.type)) return undefined
-    return hitComponentLabel(child, ax, ay, canvasX, canvasY, zoom, r, 'componentLabel')
+    return hitComponentLabel(child, ax, ay, canvasX, canvasY, zoom, font)
   })
 }
 
@@ -241,9 +244,9 @@ export function hitTestFrameTitle(
   canvasY: number,
   zoom: number,
   selectedIds: Set<string>,
-  r: SkiaRenderer | null
+  font: Font | null
 ): SceneNode | null {
-  if (!r || selectedIds.size !== 1) return null
+  if (!font || selectedIds.size !== 1) return null
 
   const id = [...selectedIds][0]
   const node = graph.getNode(id)
@@ -254,7 +257,7 @@ export function hitTestFrameTitle(
   if (!isTopLevel) return null
 
   const abs = graph.getAbsolutePosition(id)
-  const labelW = measureTextByScript(r, node.name, 'label').width / zoom
+  const labelW = measureGlyphWidth(font, node.name) / zoom
   const labelH = LABEL_FONT_SIZE / zoom
   const hit = rotatePoint(canvasX - abs.x, canvasY - abs.y, node.rotation)
   const labelY = -LABEL_OFFSET_Y / zoom - labelH

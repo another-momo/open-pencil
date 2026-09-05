@@ -1,3 +1,5 @@
+/* eslint-disable max-lines -- font loading and registration share FontManager lifecycle state */
+
 import type { CanvasKit, TypefaceFontProvider } from 'canvaskit-wasm'
 
 import type { SceneGraph } from '@open-pencil/scene-graph'
@@ -306,6 +308,15 @@ export class FontManager {
     return this.webFonts.enabledProviders()
   }
 
+  /**
+   * 上游 PR：重置在线 provider 的失败记录（family/style 维度）。用于用户在 UI
+   * 上「重试加载某字体」按钮或重新启用被自动熔断的 provider。
+   * 全清：family+style 都省略；按家族清：仅传 family；按键清：family+style 都传。
+   */
+  resetWebFontFailures(family?: string, style?: string): void {
+    this.webFonts.resetFailures(family, style)
+  }
+
   async loadCachedFont(
     family: string,
     style = 'Regular',
@@ -314,6 +325,12 @@ export class FontManager {
     if (!this.allowlist.isEnabled(family)) return null
     const cached = await this.readDownloadedFont(family, style, characters)
     if (!cached) return null
+    // 上游 PR：缓存命中后补登 coverage——保证后续增量按需按字符查表命中，
+    // 与 loadRemoteFont 终态一致（避免"已经下到磁盘但 remoteCoverage 缺失"裂痕）。
+    const key = `${family}|${style}`
+    const loadedCoverage = this.remoteCoverage.get(key) ?? new Set<string>()
+    for (const character of normalizedCoverageText(characters)) loadedCoverage.add(character)
+    this.remoteCoverage.set(key, loadedCoverage)
     return this.registerAndCache(family, style, cached, 'cache')
   }
 
@@ -357,7 +374,7 @@ export class FontManager {
     const includeDisabled = options?.includeDisabled ?? false
     // 不隐式触发本地字体权限请求：'prompt' 状态下 queryLocalFonts 会一直挂起
     // （自动化/无头环境无人响应权限弹窗），bundled/web 家族列表会被一并卡住。
-    // 本地字体由字体选择器的“允许访问”按钮显式调 requestLocalFontAccess 载入。
+    // 本地字体由字体选择器的"允许访问"按钮显式调 requestLocalFontAccess 载入。
     const fonts = this.localFonts ?? []
     const webFontFamilies = await Promise.all(
       this.enabledOnlineFontProviders().map(async (provider) => ({
@@ -491,8 +508,10 @@ export class FontManager {
   async loadRemoteFont(
     family: string,
     style = 'Regular',
-    characters = ''
+    characters = '',
+    signal?: AbortSignal
   ): Promise<ArrayBuffer | null> {
+    signal?.throwIfAborted()
     if (typeof fetch === 'undefined') return null
     if (!this.allowlist.isEnabled(family)) return null
     const coverage = this.remoteCoverage.get(`${family}|${style}`)
@@ -504,17 +523,18 @@ export class FontManager {
       return this.loadedData(family, style)
     }
     try {
+      signal?.throwIfAborted()
       const requestedCharacters = normalizedCoverageText(
         `${coverage ? Array.from(coverage).join('') : ''}${characters}`
       )
       const normalized = normalizeFontFamily(family)
 
       // T40 S4：注册表 CDN 家族走中文网字计划子集分片（D-g：失败回退 unifont 链）。
-      const cdnLoaded = await this.loadCnFontSubset(family, normalized, style, requestedCharacters)
+      const cdnLoaded = await this.loadCnFontSubset(family, normalized, style, requestedCharacters, signal)
       if (cdnLoaded) return cdnLoaded
 
       const families = normalized === family ? [family] : [family, normalized]
-      const resolved = await this.webFonts.fetchFont(families, style, requestedCharacters)
+      const resolved = await this.webFonts.fetchFont(families, style, requestedCharacters, signal)
       if (!resolved || resolved.buffers.length === 0) return null
       const primary = resolved.buffers[0]
       await this.writeDownloadedFont(family, style, primary, requestedCharacters)
@@ -527,12 +547,19 @@ export class FontManager {
       }
       return registered
     } catch (e) {
+      if (signal?.aborted) throw e
       console.warn(`Web font fetch failed for "${family}" ${style}:`, e)
       return null
     }
   }
 
-  async loadFont(family: string, style = 'Regular', characters = ''): Promise<ArrayBuffer | null> {
+  async loadFont(
+    family: string,
+    style = 'Regular',
+    characters = '',
+    signal?: AbortSignal
+  ): Promise<ArrayBuffer | null> {
+    signal?.throwIfAborted()
     if (!this.allowlist.isEnabled(family)) return null
     const loaded = this.loadedData(family, style)
     if (loaded) {
@@ -544,14 +571,14 @@ export class FontManager {
         Array.from(characters).some((character) => !remoteCoverage.has(character))
       )
       return missingRemoteCoverage
-        ? ((await this.loadRemoteFont(family, style, characters)) ?? loaded)
+        ? ((await this.loadRemoteFont(family, style, characters, signal)) ?? loaded)
         : loaded
     }
 
     return (
       (await this.loadLocalFont(family, style)) ??
       (await this.loadCachedFont(family, style, characters)) ??
-      (await this.loadRemoteFont(family, style, characters))
+      (await this.loadRemoteFont(family, style, characters, signal))
     )
   }
 
@@ -640,22 +667,32 @@ export class FontManager {
 
   async ensureFallbackPack(
     scripts: FontFallbackScript[] = ['cjk', 'arabic'],
-    characters = ''
+    characters = '',
+    signal?: AbortSignal
   ): Promise<Partial<Record<FontFallbackScript, string[]>>> {
+    signal?.throwIfAborted()
     const result: Partial<Record<FontFallbackScript, string[]>> = {}
     await Promise.all(
       scripts.map(async (script) => {
-        if (script === 'arabic' && !characters) result[script] = await this.ensureArabicFallback()
-        else if (script === 'cjk' && !characters) result[script] = await this.ensureCJKFallback()
-        else {
-          const target =
-            script === 'arabic' ? this.arabicFallbackFamilies : this.cjkFallbackFamilies
+        signal?.throwIfAborted()
+        const target = script === 'arabic' ? this.arabicFallbackFamilies : this.cjkFallbackFamilies
+        if (signal) {
+          // 上游 PR：有 signal 时跳过专用 cjk/arabic 快路径缓存——直走通用路径
+          // 让 signal 全程穿透（专用路径内部仍会调 ensureFallbackFamilies，
+          // 但无 signal 注入会丢取消语义）
+          result[script] = await this.ensureFallbackFamilies(script, target, characters, signal)
+        } else if (script === 'arabic' && !characters) {
+          result[script] = await this.ensureArabicFallback()
+        } else if (script === 'cjk' && !characters) {
+          result[script] = await this.ensureCJKFallback()
+        } else {
           // T84：cjk 带 characters 直调路径同走 bundled 前插（复用 prependBundledCJK）
           if (script === 'cjk') await this.prependBundledCJK(target)
           result[script] = await this.ensureFallbackFamilies(script, target, characters)
         }
       })
     )
+    signal?.throwIfAborted()
     return result
   }
 
@@ -686,11 +723,14 @@ export class FontManager {
   private async ensureFallbackFamilies(
     script: FontFallbackScript,
     targetFamilies: string[],
-    characters = ''
+    characters = '',
+    signal?: AbortSignal
   ): Promise<string[]> {
+    signal?.throwIfAborted()
     const manifest = fontFallbackEntry(script, this.fallbackUserAgent)
 
     for (const family of manifest.localFamilies) {
+      signal?.throwIfAborted()
       // T41 S4：白名单关停的家族连回退链也不可用（语义 = 视为未安装）
       if (!this.allowlist.isEnabled(family)) continue
       const buffer =
@@ -711,7 +751,9 @@ export class FontManager {
       )
       const results = await Promise.allSettled(
         remoteFamilies.map(async (family) => {
-          const data = await this.loadRemoteFont(family, 'Regular', characters)
+          signal?.throwIfAborted()
+          const data = await this.loadRemoteFont(family, 'Regular', characters, signal)
+          signal?.throwIfAborted()
           return data ? family : null
         })
       )
@@ -756,8 +798,10 @@ export class FontManager {
     family: string,
     normalized: string,
     style: string,
-    requestedCharacters: string
+    requestedCharacters: string,
+    signal?: AbortSignal
   ): Promise<ArrayBuffer | null> {
+    signal?.throwIfAborted()
     // T42：描述符解析 registry 优先（精选层），catalog 全量目录兜底；
     // 门禁改判独立开关 cnFontsEnabled（D-a，与在线 provider 解耦）。
     const descriptor =

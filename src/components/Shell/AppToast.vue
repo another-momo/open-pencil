@@ -11,7 +11,7 @@ import type { ToastVariant } from '@/components/ui/toast'
 import { useI18n } from '@open-pencil/vue'
 
 const { copy, copied } = useClipboard({ copiedDuring: 1500 })
-const { dialogs } = useI18n()
+const { common, settings } = useI18n()
 const defaultToastClass = useToastUI({ tone: 'default' }).base
 const warningToastClass = useToastUI({ tone: 'warning' }).base
 const errorToastClass = useToastUI({ tone: 'error' }).base
@@ -42,9 +42,17 @@ function toastClass(tone: ToastVariant) {
       <ToastDescription class="min-w-0 flex-1 select-text">
         {{ t.message }}<span v-if="t.count > 1" class="ml-1.5 opacity-70">×{{ t.count }}</span>
       </ToastDescription>
+      <button
+        v-if="t.action"
+        type="button"
+        class="shrink-0 cursor-pointer rounded px-1.5 py-0.5 text-[10px] font-medium underline-offset-2 hover:underline"
+        @click="t.action.run()"
+      >
+        {{ t.action.label }}
+      </button>
       <Tip
         v-if="t.variant !== 'default'"
-        :label="copied ? dialogs.copiedExclamation : dialogs.copyMessage"
+        :label="copied ? common.copiedExclamation : common.copyMessage"
       >
         <button
           data-test-id="toast-copy-message"
@@ -65,7 +73,7 @@ function toastClass(tone: ToastVariant) {
     </ToastRoot>
 
     <ToastViewport
-      :label="`${dialogs.notifications} (F8)`"
+      :label="`${settings.notifications} (F8)`"
       class="fixed top-2 left-1/2 z-[9999] flex -translate-x-1/2 flex-col items-center gap-1.5"
     />
   </ToastProvider>

@@ -13,8 +13,8 @@ import {
   type WebFontProviderId
 } from '@open-pencil/core/text'
 import type { SceneGraph } from '@open-pencil/scene-graph'
-import { dialogMessages } from '@open-pencil/vue'
 
+import { browserWebFontFetch } from '@/app/editor/fonts/browser-fetch'
 import {
   clearDownloadedFontCache as clearTauriDownloadedFontCache,
   createTauriDownloadedFontCache,
@@ -74,7 +74,7 @@ watch(
         ? Object.fromEntries(
             WEB_FONT_PROVIDER_IDS.map((provider) => [
               provider,
-              fontProviderSettings.value[provider]
+              fontProviderSettings.value[provider] && (isTauri() || provider !== 'google')
             ])
           )
         : {}
@@ -84,14 +84,6 @@ watch(
 )
 
 let tauriFontCacheConfigured = false
-let webFontUnavailableToastShown = false
-
-function showWebFontUnavailableToast(): void {
-  if (webFontUnavailableToastShown || isTauri() || !onlineFontsEnabled.value) return
-  if (!WEB_FONT_PROVIDER_IDS.some((provider) => fontProviderSettings.value[provider])) return
-  webFontUnavailableToastShown = true
-  toast.warning(dialogMessages.get().webFontProvidersRequireDesktopApp)
-}
 
 function configureTauriFontCache() {
   if (tauriFontCacheConfigured || !isTauri()) return
@@ -102,6 +94,7 @@ function configureTauriFontCache() {
 }
 
 configureTauriFontCache()
+if (!isTauri()) fontManager.setWebFontFetch(browserWebFontFetch)
 
 // T40 S5：cn-font piece 级磁盘缓存（IndexedDB，200MB LRU；idb 缺失自动降级内存）。
 // 与 Tauri 请求级缓存并存——前者服务 CDN 子集片（URL 键），后者服务 unifont 请求。
@@ -207,7 +200,6 @@ export async function listFamilies(): Promise<FontFamilyOption[]> {
   if (isTauri()) {
     return listTauriMergedFamilies(() => fontManager.listFamilyOptions())
   }
-  showWebFontUnavailableToast()
   return fontManager.listFamilyOptions()
 }
 
@@ -306,10 +298,9 @@ async function loadSystemFont(family: string, style = 'Regular'): Promise<ArrayB
 export async function loadFont(
   family: string,
   style = 'Regular',
-  characters = ''
+  characters = '',
+  signal?: AbortSignal
 ): Promise<ArrayBuffer | null> {
   configureTauriFontCache()
-  const loaded = await fontManager.loadFont(family, style, characters)
-  if (!loaded) showWebFontUnavailableToast()
-  return loaded
+  return fontManager.loadFont(family, style, characters, signal)
 }

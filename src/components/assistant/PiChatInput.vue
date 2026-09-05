@@ -92,7 +92,7 @@ import type { SceneGraph } from '@open-pencil/scene-graph'
 import { useI18n } from '@open-pencil/vue'
 
 import { useForkChips, useForkPi } from '@/app/i18n/fork'
-const { dialogs } = useI18n()
+const { ai } = useI18n()
 const piDialogs = useForkPi()
 const chipsText = useForkChips()
 
@@ -890,7 +890,7 @@ defineExpose({ restoreDraft, clearDraft })
               class="pointer-events-none absolute top-2.5 left-3 text-xs leading-relaxed text-muted"
               :style="skillChipIndent > 0 ? { paddingLeft: `${skillChipIndent}px` } : undefined"
             >
-              {{ dialogs.describeChange }}
+              {{ ai.describeChange }}
             </div>
             <div
               ref="editorRef"
@@ -997,7 +997,7 @@ defineExpose({ restoreDraft, clearDraft })
 
           <template #actions>
             <IconButton
-              :label="dialogs.providerSettings"
+              :label="ai.providerSettings"
               size="sm"
               data-test-id="provider-settings-trigger"
               @click="openSettingsDialog('ai')"
@@ -1006,7 +1006,7 @@ defineExpose({ restoreDraft, clearDraft })
             </IconButton>
             <IconButton
               v-if="isStreaming"
-              :label="dialogs.stopGenerating"
+              :label="ai.stopGenerating"
               size="sm"
               data-test-id="chat-stop-button"
               class="border border-border"
@@ -1016,7 +1016,7 @@ defineExpose({ restoreDraft, clearDraft })
             </IconButton>
             <IconButton
               v-else
-              :label="dialogs.sendMessage"
+              :label="ai.sendMessage"
               size="sm"
               type="submit"
               data-test-id="chat-send-button"

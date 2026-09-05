@@ -272,3 +272,8 @@
 
 - **验收列原文**：[T20-plan.md §3](T20-plan.md)
 - **状态列原文**：✅ 已完成（P1-P5 全过：API 冒烟 18/18 + 浏览器冒烟全绿含卡片 pending→完成 + nodeId↔画布对账 + T19 回归 15/15；willRetry 提前 finish 根因修复见 [T20-self-check §2.3](T20-self-check.md)；subagent 独立核验 V1-V8「可以收口」；远端 CI rebuild/pi run 32645061123 全绿）
+
+### T98 · 上游大合并（88c10770 → d82aaff9e）——06 §5 ritual 首次实战：预记账/起合并/机械ours/P0手术件/改锚/复活清除/门禁收口
+
+- **验收列原文**：[T98-plan.md §5](T98-plan.md)
+- **状态列原文**：🟡 进行中（规划落账完成：三方坐标实测 + 152 双边改动复算 99/9/7/38/0 + 复活 21 文件逐前缀拍板；Phase A 三代理后台执行中：A1 fonts.ts 融合+options 考古 / A2 draw.ts 采用+注册链闸门 / A3 台账七条吸收裁定；Phase B 落地与 Phase C 主 agent 收口待启动）

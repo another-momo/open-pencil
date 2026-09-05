@@ -43,7 +43,7 @@ import { useForkPi } from '@/app/i18n/fork'
 import Tip from '@/components/ui/Tip.vue'
 
 const dialogs = useForkPi()
-const { dialogs: uiDialogs } = useI18n()
+const { ai: uiAi, collaboration: uiCollab } = useI18n()
 
 const expandedProviderId = ref<string | null>(null)
 const keyDrafts = ref<Record<string, string>>({})
@@ -224,7 +224,7 @@ onMounted(() => void refreshPiCatalog())
     <section data-test-id="pi-providers-panel">
       <div class="mb-2 flex items-center justify-between">
         <div>
-          <h3 class="text-xs font-semibold text-surface">{{ uiDialogs.models }}</h3>
+          <h3 class="text-xs font-semibold text-surface">{{ uiAi.modelsTitle }}</h3>
           <p class="text-[10px] text-muted">{{ dialogs.modelsDescription }}</p>
         </div>
         <button
@@ -283,7 +283,7 @@ onMounted(() => void refreshPiCatalog())
                 class="size-1.5 rounded-full bg-muted data-[state=configured]:bg-[var(--color-success)]"
                 :data-state="provider.auth.configured ? 'configured' : 'missing'"
               />
-              {{ provider.auth.configured ? uiDialogs.connected : uiDialogs.modelNeedsCredential }}
+              {{ provider.auth.configured ? uiCollab.connected : uiAi.modelNeedsCredential }}
             </span>
             <icon-lucide-chevron-right
               class="size-3.5 shrink-0 text-muted transition-transform"
@@ -586,7 +586,7 @@ onMounted(() => void refreshPiCatalog())
             class="text-[10px] text-amber-400"
             data-test-id="pi-design-credential-missing"
           >
-            {{ uiDialogs.modelNeedsCredential }}
+            {{ uiAi.modelNeedsCredential }}
           </p>
         </template>
 

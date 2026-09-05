@@ -61,8 +61,6 @@
     "packages/core/src/text/font/cn-catalog.ts",
     "tests/engine/text/fonts/cn-catalog.test.ts",
     "tests/engine/text/fonts/cjk-fallback.test.ts",
-    "packages/kiwi/src/schema-runtime/interpreter.ts",
-    "packages/kiwi/NOTICE",
     "packages/core/src/bytes/image-mime.ts",
     "src/components/settings/provider/ImageGenKeysSection.vue",
     ".github/workflows/upstream-drift.yml",
@@ -391,13 +389,6 @@
       "lastReviewed": "2026-08-25"
     },
     {
-      "id": "P49",
-      "file": "tests/e2e/chat/panel.spec.ts",
-      "reason": "T25: 适配 pi 单通道——删 ProviderSetup 门/模型选择器/附件流用例，加无设置门断言；Meta+j 改 ControlOrMeta+j（$mod 跨平台）",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
       "id": "P50",
       "file": "tools/type-shapes/src/files.ts",
       "reason": "T25 顺修：Windows 上 Bun.Glob 产出反斜杠导致 discoverTypeShapeFiles 输出混入 \\——统一正斜杠（tools/test.ts 本地门禁修复）；T51（2026-08-31）：scripts/ 目录整体退役后 Bun.Glob.scan 对缺失根在 Windows 抛 ENOENT（Linux 返回空），补 existsSync 跳根——CI 步骤 check:arch && test:type-shapes 链中后者在本分支从未跑到，本地首跑暴露",
@@ -635,41 +626,6 @@
       "lastReviewed": "2026-08-31"
     },
     {
-      "id": "P125",
-      "file": "packages/kiwi/src/schema-runtime/index.ts",
-      "reason": "CI 修复（2026-08-31）：同步 upstream dd15190f——CSP-safe Kiwi interpreter 取代 eval 版 js.ts（export 改自 './interpreter' 的 compileSchemaRuntime as compileSchema；伴随新增 interpreter.ts 入 ownedFiles、js.ts 入 deletedPaths）。下个 base bump 越过 2026-08-29 后此 patch 自然消解",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-31"
-    },
-    {
-      "id": "P126",
-      "file": "packages/core/src/clipboard.ts",
-      "reason": "T50 CI 修复（2026-08-31）：同步 upstream dd15190f 调用点守卫——interpreter 版 compileSchema 的 decodeMessage 变为可选，上游同 commit 在此加 if (!compiled.decodeMessage) return null（TS2722 type-aware lint 红）。下个 base bump 越过 2026-08-29 后自然消解",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-31"
-    },
-    {
-      "id": "P127",
-      "file": "packages/kiwi/package.json",
-      "reason": "T50 CI 修复（2026-08-31）：同步 upstream dd15190f 发布元数据（files 收录 NOTICE、publishConfig、字段重排），与 interpreter 采纳同批；下个 base bump 后自然消解",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-31"
-    },
-    {
-      "id": "P128",
-      "file": "packages/kiwi/README.md",
-      "reason": "T50 CI 修复（2026-08-31）：同步 upstream dd15190f README（interpreter 说明与 Kiwi attribution），与 interpreter 采纳同批；下个 base bump 后自然消解",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-31"
-    },
-    {
-      "id": "P129",
-      "file": "packages/kiwi/tests/schema-runtime.test.ts",
-      "reason": "T50 CI 修复（2026-08-31）：同步 upstream dd15190f 解释器测试套件（124 行新版，本地 30/30 通过），与 interpreter 采纳同批；下个 base bump 后自然消解",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-31"
-    },
-    {
       "id": "P130",
       "file": "packages/core/src/bytes/index.ts",
       "reason": "T55（2026-09-01）：detectImageMime 自 image-mime 共享模块再导出（look 移植依赖；svg/defs 消克隆同步换引）",
@@ -868,6 +824,13 @@
       "disposition": "permanent",
       "lastReviewed": "2026-09-04",
       "task": "T91j"
+    },
+    {
+      "id": "P155",
+      "file": "vite/aliases.ts",
+      "reason": "Batch 1 收口（2026-09-05）：mermaid/beautiful-mermaid 两条 stub 别名由 src/app/shell/markdown/index.ts（已删 ghost，export default undefined）改指 vite/empty-node-module.ts——同为空模块汇，语义不变；上游 v2（vue-stream-markdown 2.0.0-beta.2 无 mermaid 依赖）本无此二别名，本地 1.0.4 链 @stream-markdown/mermaid 的动态 import(\"mermaid\") 仍需汇流",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-05"
     }
   ],
   "deletedPaths": [
@@ -884,6 +847,7 @@
     "public/_headers",
     "public/_redirects",
     "src/app/demo",
+    "src/app/shell/markdown/index.ts",
     "src/components/SafariBanner.vue",
     "src/components/CollabPanel",
     "src/app/ai/acp",
@@ -900,6 +864,7 @@
     "tests/engine/collab",
     "tests/engine/app/demo.test.ts",
     "tests/engine/app/external-link.test.ts",
+    "tests/e2e/chat/panel.spec.ts",
     "tests/e2e/clipboard/tauri-plugin-routing.spec.ts",
     "vite/pwa.ts",
     ".github/workflows/app.yml",
@@ -992,6 +957,21 @@
     "tests/engine/render/canvas/silhouette-autopsy.test.ts"
   ],
   "upstreamMergeTarball": [
+    {
+      "base": "3caf5c99d9d59dc89dcf2212118bede5ee141365",
+      "task": "T50 kiwi 族收口",
+      "lastReviewed": "2026-09-05",
+      "paths": [
+        "packages/core/src/clipboard.ts",
+        "packages/kiwi/NOTICE",
+        "packages/kiwi/README.md",
+        "packages/kiwi/package.json",
+        "packages/kiwi/src/schema-runtime/index.ts",
+        "packages/kiwi/src/schema-runtime/interpreter.ts",
+        "packages/kiwi/tests/schema-runtime.test.ts"
+      ],
+      "deletedPaths": []
+    },
     {
       "base": "88c1077071328b8df68f282543f16e20e97930b4",
       "task": "T31 retro-T32",

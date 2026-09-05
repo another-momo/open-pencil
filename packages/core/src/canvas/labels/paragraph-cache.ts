@@ -1,5 +1,7 @@
 import type { Canvas, CanvasKit, Paragraph, TypefaceFontProvider } from 'canvaskit-wasm'
 
+import { fontManager } from '#core/text/fonts'
+
 interface LabelParagraphEntry {
   paragraph: Paragraph
   width: number
@@ -67,10 +69,19 @@ export class LabelParagraphCache {
     const key = `${fontSize}\0${boundedWidth}\0${Array.from(color).join(',')}\0${text}`
     let entry = this.entries.get(key)
     if (!entry) {
+      // T98：TypefaceFontProvider 不支持按字符跨族回退（实测 fontFamilies 仅
+      // ['Inter'] 时 CJK 落 glyph 0 tofu）——回退族必须显式进链。族集合随
+      // fontManager 注册变化，而注册推进 generation → 本缓存 clear 重建，
+      // 故每次构建直读现值即一致；未注册的族名被 Skia 静默跳过，无害。
+      const fontFamilies = [
+        'Inter',
+        ...fontManager.getCJKFallbackFamilies(),
+        ...fontManager.getArabicFallbackFamilies()
+      ]
       const style = new ck.ParagraphStyle({
         maxLines: 1,
         ellipsis: '…',
-        textStyle: { color, fontFamilies: ['Inter'], fontSize }
+        textStyle: { color, fontFamilies, fontSize }
       })
       const builder = ck.ParagraphBuilder.MakeFromFontProvider(style, provider)
       builder.addText(text)

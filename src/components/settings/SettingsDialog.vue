@@ -22,7 +22,7 @@ import VectorizeSettingsSection from '@/components/settings/vectorize/VectorizeS
 import AppSwitch from '@/components/ui/AppSwitch.vue'
 import { AppDialogFooter, AppDialogHeader, AppDialogRoot } from '@/components/ui/dialog'
 
-const { dialogs } = useI18n()
+const { settings, common, credentials } = useI18n()
 const fontsMsgs = useForkFonts()
 function onOpenChange(open: boolean): void {
   settingsDialogOpen.value = open

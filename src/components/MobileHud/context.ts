@@ -21,7 +21,7 @@ function createMobileHudContext() {
   const router = useRouter()
   const collab = useCollabInjected()
   const store = useEditorStore()
-  const { dialogs } = useI18n()
+  const { common, collaboration } = useI18n()
   const { getCommand } = useEditorCommands()
 
   const collabState = computed(() => collab?.state.value ?? DEFAULT_COLLAB_STATE)

@@ -1142,6 +1142,20 @@
       "reason": "T98：域下线配套——剔除 ja 110 条 + zh-cn diagnostics 域 9 条死 baseline 条目",
       "disposition": "permanent",
       "lastReviewed": "2026-09-06"
+    },
+    {
+      "id": "P207",
+      "file": "packages/core/src/canvas/labels/paragraph-cache.ts",
+      "reason": "T98（2026-09-06，场景 1 tofu 根治之二）：上游硬编码 fontFamilies:['Inter']，而 TypefaceFontProvider 不做按字符跨族回退（实测 ['Inter'] 单链 CJK 落 glyph 0）——paragraph 构建改读 ['Inter', ...fontManager.getCJKFallbackFamilies(), ...fontManager.getArabicFallbackFamilies()] 现值链；族集合随注册推进 generation 触发本缓存 clear 重建，未注册族名被 Skia 静默跳过，无害。A2 NOTES §3 闸门 1 前提的缓存侧配套。",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-06"
+    },
+    {
+      "id": "P208",
+      "file": "packages/core/src/canvas/renderer/fonts.ts",
+      "reason": "T98（2026-09-06，场景 1 tofu 根治之一，P143  revoked 后的新分歧）：上游 loadFonts 只装 Inter，T88 启动期 CJK/Arabic 预加载随整文件回退丢失，且 label 无 trackFontDemand 需求入口（该链只挂 text 节点）——fontsLoaded/syncFontGeneration 终态前注入 fontManager.ensureFallbackPack()（bundled PuHuiTi + Noto Naskh Arabic 远端链），保证 paragraph-cache 见到的 generation 覆盖本次注册，CJK label 首渲染不豆腐。A2 NOTES §3 闸门 1 明示前提的落地。",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-06"
     }
   ],
   "deletedPaths": [

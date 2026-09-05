@@ -54,7 +54,7 @@ const emit = defineEmits<{
   intentAwaitingConfirm: [payload: { toolCallId: string; modeId: string; profileId: string }]
   intentAwaitingCancel: [payload: { toolCallId: string; modeId: string; profileId: string }]
 }>()
-const { dialogs } = useI18n()
+const { ai } = useI18n()
 const confirmText = useForkConfirm()
 const markdownMode = computed(() => (streaming ? 'streaming' : 'static'))
 
@@ -246,10 +246,10 @@ function filePartFilename(part: FilePart): string {
                 <span class="text-[10px] text-muted">
                   {{
                     toolState(part) === 'pending'
-                      ? dialogs.toolRunning
+                      ? ai.toolRunning
                       : toolState(part) === 'done'
-                        ? dialogs.toolFinished
-                        : dialogs.toolError
+                        ? ai.toolFinished
+                        : ai.toolError
                   }}
                 </span>
                 <icon-lucide-chevron-down

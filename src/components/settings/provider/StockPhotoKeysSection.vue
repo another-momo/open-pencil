@@ -10,7 +10,7 @@ import {
 } from '@/app/settings/credentials/stock-photo-keys'
 import ProviderSettingsKeyField from '@/components/settings/provider/ProviderSettingsKeyField.vue'
 
-const { dialogs } = useI18n()
+const { media, credentials } = useI18n()
 const pexelsKeyInput = ref('')
 const unsplashKeyInput = ref('')
 const hasExistingPexelsKey = computed(() => pexelsKeyStatus.value === 'configured')

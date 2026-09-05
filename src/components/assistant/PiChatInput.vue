@@ -167,9 +167,9 @@ function chipForN(n: number): SelectionTokenChip | null {
 }
 
 function chipLabelForN(n: number): string {
-  // 已采集 → 节点名；手打无登记占位串 → 原字面（与 serialize「未采集的引用」语义对齐）
-  const chip = chipForN(n)
-  return chip ? chip.label : selectionTokenText(n)
+  // owner 决议：chip 标签恒为 @画布选区-N（简短清晰），不用节点名（多节点
+  // 用 + 连接会过长）。缩略图已由 ChatNodePreview 承担识别职责。
+  return `@画布选区-${n}`
 }
 
 // chip 缩略图渲染上下文：不用 computed——renderer 挂载是非响应式事件，模板
@@ -221,21 +221,15 @@ watch(input, () => {
 })
 
 /** 结构事件后 caret 落位：把目标文本偏移转成 {node, offset}，用 Selection/Range
- *  落在编辑器内。若编辑器失焦（采集按钮点过没回点输入框）则只 focus 不落 caret。
+ *  落在编辑器内。失焦（采集按钮抢焦点）时先 focus 再落 caret——否则浏览器
+ *  默认 caret 停在编辑器起点（实测：采集后光标落在 chip 前，应在 chip 后）。
  *  是 domOffsetToTextOffset 的严格反向。 */
 function restoreCaret(targetOffset: number): void {
   const el = editorRef.value
   if (!el) return
-  // 失焦 → 仅 focus，caret 落文末由浏览器 defaultRangeStart 决定
-  if (document.activeElement !== el) {
-    el.focus()
-    return
-  }
+  if (document.activeElement !== el) el.focus()
   const pos = textOffsetToDom(el, targetOffset)
-  if (!pos) {
-    el.focus()
-    return
-  }
+  if (!pos) return
   const sel = window.getSelection()
   if (!sel) return
   const range = document.createRange()
@@ -244,8 +238,9 @@ function restoreCaret(targetOffset: number): void {
     range.collapse(true)
     sel.removeAllRanges()
     sel.addRange(range)
-  } catch {
-    // 节点可能尚未挂载（竞态）——放弃
+  } catch (e) {
+    // 节点可能尚未挂载（竞态）——放弃本次 caret 恢复
+    console.warn('[chat-input] restoreCaret race, skipped', e)
   }
 }
 
@@ -322,7 +317,11 @@ function hoistStraysIntoSegRoot(el: HTMLElement): void {
     if (child.nodeType === Node.COMMENT_NODE) continue
     ;(seenRoot ? after : before).push(child)
   }
-  for (const n of before.reverse()) rootEl.insertBefore(n, rootEl.firstChild)
+  for (const n of before.reverse()) {
+    const first = rootEl.firstChild
+    if (first) first.before(n)
+    else rootEl.appendChild(n)
+  }
   for (const n of after) rootEl.appendChild(n)
 }
 // **关键（ux6 三修）**：本函数只写 shadowText（plain `let`），**不写
@@ -474,7 +473,7 @@ function insertTextAtSelection(text: string): void {
   if (!el || !sel || sel.rangeCount === 0 || !anchorNode || !el.contains(anchorNode)) {
     offset = shadowText.length // 失焦/选区外 → 追加文末
   } else {
-    offset = domOffsetToTextOffset(el, anchorNode, sel!.anchorOffset)
+    offset = domOffsetToTextOffset(el, anchorNode, sel.anchorOffset)
   }
   const caretAfter = offset + text.length
   pendingCaretOffset.value = caretAfter
@@ -573,7 +572,7 @@ function insertTokenAtSelection(token: string) {
   if (!el || !sel || sel.rangeCount === 0 || !anchorNode || !el.contains(anchorNode)) {
     offset = shadowText.length // 采集按钮无焦点/选区外 → 追加文末
   } else {
-    offset = domOffsetToTextOffset(el, anchorNode, sel!.anchorOffset)
+    offset = domOffsetToTextOffset(el, anchorNode, sel.anchorOffset)
   }
   const caretAfter = offset + token.length
   pendingCaretOffset.value = caretAfter
@@ -877,7 +876,7 @@ defineExpose({ restoreDraft, clearDraft })
                      挂过的 chip span 整片 remove（实测三修前的精确机理）。
                    - 初始 mount 渲染什么：segmentsFromText('') → []，所以挂一个
                      空白 <br> 占位让浏览器有挂点（后续用户键入会自动塞文本）。 -->
-              <div :key="segVersion" data-seg-root style="display: contents">
+              <div :key="segVersion" v-memo="[segVersion]" data-seg-root style="display: contents">
                 <template v-for="(seg, idx) in segments" :key="`seg-${idx}`">
                   <span
                     v-if="seg.kind === 'token'"

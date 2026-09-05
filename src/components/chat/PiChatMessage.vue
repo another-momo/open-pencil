@@ -4,11 +4,7 @@
 import { computed } from 'vue'
 import { isFileUIPart, isReasoningUIPart, isTextUIPart, isToolUIPart, getToolName } from 'ai'
 import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from 'reka-ui'
-import { Markdown } from 'vue-stream-markdown'
 import { useI18n, vTestId } from '@open-pencil/vue'
-import 'vue-stream-markdown/index.css'
-
-import { resolvedAppTheme } from '@/app/shell/theme'
 
 import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from 'ai'
 import type { AskFormSubmission } from '@open-pencil/core/tools/fork/marketing/ask-user-question'
@@ -23,6 +19,7 @@ import {
   type NewIntentPartData
 } from './active-design'
 import ChatAwaitingIntentCard from './ChatAwaitingIntentCard.vue'
+import ChatMarkdown from './ChatMarkdown.vue'
 import ChatNewIntentCard from './ChatNewIntentCard.vue'
 import ChatSetActiveDesignCard from './ChatSetActiveDesignCard.vue'
 import { displayToolOutput } from './tool-output'
@@ -59,7 +56,6 @@ const emit = defineEmits<{
 }>()
 const { dialogs } = useI18n()
 const confirmText = useForkConfirm()
-const isDark = computed(() => resolvedAppTheme.value === 'dark')
 const markdownMode = computed(() => (streaming ? 'streaming' : 'static'))
 
 type ToolPart = Extract<UIMessagePart<UIDataTypes, UITools>, { toolCallId: string }>
@@ -301,15 +297,7 @@ function filePartFilename(part: FilePart): string {
             data-test-id="chat-text-bubble"
             class="rounded-xl rounded-tl-md bg-hover px-3 py-2 text-xs leading-relaxed text-surface"
           >
-            <Markdown
-              :key="markdownMode"
-              :content="part.text"
-              :is-dark="isDark"
-              :mermaid="false"
-              :mode="markdownMode"
-              :data-chat-markdown-mode="markdownMode"
-              class="chat-markdown [&_[data-stream-markdown=code]]:!bg-input"
-            />
+            <ChatMarkdown :content="part.text" :mode="markdownMode" />
           </div>
           <!-- T81 P-01：AI SDK `file` chunk（media-output.ts:48-70）补位渲染。
             图像直渲 data URL；非图像（视频/音频）回落文件名占位，不吞。 -->

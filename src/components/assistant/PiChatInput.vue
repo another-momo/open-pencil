@@ -198,7 +198,12 @@ const pendingCaretOffset = ref<number | null>(null)
 
 /** 结构事件写 model：同步更新 shadowText + input.value + segVersion++。
  *  三者必须同步——shadowText 是序列化源/DOM 同步基线，input.value 触发
- *  响应式重渲，segVersion 触发 :key 重挂。 */
+ *  响应式重渲，segVersion 触发 :key 重挂。
+ *  重挂单位是 data-seg-root 包裹层（真实 div，display:contents）：Vue 卸载
+ *  旧树 = removeChild(包裹层) → 整个子树连同浏览器打字搬动过的脏节点一并
+ *  移除；新树往编辑器里挂全新包裹层。Vue 从不对同一批 children 做原地
+ *  patch（实测：逐 vnode 回收收不回被浏览器搬出 span 的文本节点 → 文本重复；
+ *  同步 replaceChildren 又会让 Vue 的 insertBefore 锚点失配 → 崩溃）。 */
 function commitStructuralChange(nextText: string): void {
   shadowText = nextText
   segVersion.value += 1
@@ -299,6 +304,27 @@ function textOffsetToDom(root: HTMLElement, target: number): { node: Node; offse
 // <br> → \n；其余文本节点 textContent 拼接。结果与 segmentsToText(segmentsFromText(input))
 // 字节等价（半删残串情形除外——残串被切到文本段里，反向还原自然对齐）。
 //
+/** 打字期归一：浏览器会把新文本节点塞到编辑器根（data-seg-root 包裹层外，
+ *  例如空编辑器首字符、caret 在边界时）。游离节点不归 Vue 任何 vnode 管，
+ *  结构事件卸载包裹层时它们会幸存 → 与新挂载文本并存即重复（实测 X 删除
+ *  后文本翻倍）。每次 @input 扫描前把包裹层外节点按文档序挪回包裹层。 */
+function hoistStraysIntoSegRoot(el: HTMLElement): void {
+  const rootEl = el.querySelector(':scope > [data-seg-root]')
+  if (!rootEl) return
+  const before: Node[] = []
+  const after: Node[] = []
+  let seenRoot = false
+  for (const child of Array.from(el.childNodes)) {
+    if (child === rootEl) {
+      seenRoot = true
+      continue
+    }
+    if (child.nodeType === Node.COMMENT_NODE) continue
+    ;(seenRoot ? after : before).push(child)
+  }
+  for (const n of before.reverse()) rootEl.insertBefore(n, rootEl.firstChild)
+  for (const n of after) rootEl.appendChild(n)
+}
 // **关键（ux6 三修）**：本函数只写 shadowText（plain `let`），**不写
 // input.value**。shadowText 是 plain var 不是 ref → Vue 响应式系统
 // 看不到 → 零重渲。这是「打字路径 Vue 渲染次数 = 0」的硬保证。
@@ -307,6 +333,7 @@ function textOffsetToDom(root: HTMLElement, target: number): { node: Node; offse
 function syncTextFromDom(): string {
   const el = editorRef.value
   if (!el) return shadowText
+  hoistStraysIntoSegRoot(el)
   let text = ''
   const walk = (node: Node) => {
     if (node.nodeType === Node.TEXT_NODE) {
@@ -850,7 +877,7 @@ defineExpose({ restoreDraft, clearDraft })
                      挂过的 chip span 整片 remove（实测三修前的精确机理）。
                    - 初始 mount 渲染什么：segmentsFromText('') → []，所以挂一个
                      空白 <br> 占位让浏览器有挂点（后续用户键入会自动塞文本）。 -->
-              <template :key="`seg-v${segVersion}`">
+              <div :key="segVersion" data-seg-root style="display: contents">
                 <template v-for="(seg, idx) in segments" :key="`seg-${idx}`">
                   <span
                     v-if="seg.kind === 'token'"
@@ -897,7 +924,7 @@ defineExpose({ restoreDraft, clearDraft })
                     </template>
                   </template>
                 </template>
-              </template>
+              </div>
             </div>
           </div>
 

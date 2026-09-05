@@ -13,22 +13,26 @@
 //   tests/engine/rebuild/chat/selection-capture.test.ts。
 //
 // DOM↔模型同步纪律（contenteditable 最大坑点 + ux6 修复）：
-//   - **单一真相 = input.value（segments）**。任何插入/删除只改模型，由 Vue
-//     统一渲染。禁止任何路径直接动 editor 的 children（insertBefore/
-//     appendChild/innerHTML/selectNodeContents+addRange 落 caret 等）。
-//   - **DOM 是编辑期 master**：用户打字/移动光标由浏览器维护；`@input` /
-//     `@compositionend` 触发单向 DOM → input.value 同步（syncTextFromDom）。
-//   - **结构变化 key 重挂**：segments 容器挂 `:key="segVersion"`；结构变化
-//     （chip 增删、清空、回填）→ segVersion++ → Vue 整段重建（patch 失配
-//     风险归零）。纯文本字符级输入不递增 → Vue 沿用原节点改 textContent
-//     （光标稳定纪律）。
-//   - **caret 恢复**：所有结构变化（采集插入 / X 删除 / 原子删除 / 粘贴 /
-//     clearDraft / restoreDraft）都用 pendingCaretOffset 存目标文本偏移，
-//     nextTick 后用 textOffsetToDom → Selection/Range 落回。文本段插入时
-//     caret 落插入点尾；chip 插入时落 chip 后；删除时落删除段起点。
-//   - **IME 合成期禁止任何 DOM 写回**——compositionstart 锁门、compositionend
-//     解锁。这是中文/日文 IME 流不断流的核心保证；v-if="!isComposing" 锁
-//     segments 模板让 Vue 在合成期完全不碰 children。
+//   - **打字期 Vue 完全不回写 DOM**：用户键入/删除字符时 contenteditable
+//     由浏览器自主拆分/重组文本节点（caret 周边、chip 边界），vnode 引用
+//     的 el 早已失配——任何 patch 都会插新文本节点而旧节点留着，造成
+//     前缀累积复制（实测证据：每敲一字多一个"累计前缀"节点）。纪律：
+//     DOM 是打字期唯一真相，Vue 不动编辑器子树。
+//   - **renderLock 单一开关**：segments 模板挂 `v-if="!renderLock"`。
+//     打字期锁 true（模板隐藏 → 不挂不 patch）；结构事件路径先设 false
+//     再改 model → Vue 走 v-for 渲染 → nextTick 落 caret。
+//   - **input 写源判定**：syncTextFromDom（DOM→model 路径）设 renderLock=true；
+//     结构事件（采集插入/X 删除/原子删除/粘贴/clear/restore）显式设
+//     renderLock=false。watch(input) 不需要再做签名比对——只看 renderLock。
+//   - **IME 冻结保留**：v-if="!isComposing" 与 renderLock 是或逻辑——
+//     任一为 true 即隐藏 segments 模板。IME 合成期 / 打字期 DOM 双重
+//     真相 → Vue 不动；compositionend 后由 syncTextFromDom 设 renderLock
+//     继续保持不渲染，直到结构事件再次解锁。
+//   - **caret 恢复**：仅结构事件路径关心 caret——pendingCaretOffset →
+//     nextTick → restoreCaret (textOffsetToDom + Selection/Range)。打字期
+//     caret 由浏览器原生维持。
+//   - **不变量**：DOM 文本 == syncTextFromDom(DOM) == input.value（任何时刻），
+//     但 Vue 渲染只由结构事件触发——打字路径 patch 计数恒为 0。
 import { useTimeoutFn } from '@vueuse/core'
 import {
   ComboboxAnchor,
@@ -168,22 +172,41 @@ function chipRenderContext(): { graph: SceneGraph | null; renderer: SkiaRenderer
   return { graph: store?.graph ?? null, renderer: store?.renderer ?? null }
 }
 
-// ── 结构版本 + caret 恢复面（ux6 修复：单一真相） ───────────────────────────
+// ── 渲染锁 + caret 恢复面（ux6 修复：打字期 Vue 完全不回写 DOM） ──────────
 //
-// segVersion：每次 segments 结构变化（chip 增删 / 清空 / 回填）递增，作为
-// segments 容器 v-for 的 :key，触发 Vue 整段重建。这把"DOM/VNode 失配"
-// 问题彻底消掉——children 是新挂的 vnode 树，patch 路径走 mount 而非 patch。
+// renderLock：true = 隐藏 segments 模板（Vue 不挂不 patch，DOM 由浏览器
+// 维护）；false = Vue 正常 v-for 渲染。打字 / IME 合成期 → renderLock=true；
+// 结构事件（采集插入 / X 删除 / 原子删除 / 粘贴 / clear / restore）→
+// 设 renderLock=false → 改 model → watch 触发 → Vue 渲染 → nextTick 落 caret。
 //
-// pendingCaretOffset：结构变化路径在改 model 前先把"目标 caret 文本偏移"
-// 存这里，nextTick 后由 watch(input) 触发 restoreCaret 走 textOffsetToDom
-// 落回。纯文本字符级输入（segVersion 不变）不经过此路径——Vue 直接改
-// textContent，光标靠浏览器原生行为维持。
+// segVersion：结构事件触发时递增；segments 容器 :key 引用 → Vue 整段重建
+// （mount 路径而非 patch）。即使 renderLock=false 后 segments computed 已
+// 改变，整体重建消除 DOM 节点身份问题。
+//
+// pendingCaretOffset：结构事件改 model 前存"目标 caret 文本偏移"，watch
+// 触发 + nextTick 后由 restoreCaret 走 textOffsetToDom 落回。打字路径
+// 不经过此路径——caret 由浏览器原生维持。
 
+const renderLock = ref(true)
 const segVersion = ref(0)
 /** 下一次 segments 重渲后要把 caret 落到的文本偏移；null = 不动 caret */
 const pendingCaretOffset = ref<number | null>(null)
 
-/** 结构变化后 caret 落位：把目标文本偏移转成 {node, offset}，用 Selection/Range
+/** 结构事件守卫：调用此函数后 input 变更会被 watch 识别为「结构变化」并
+ *  触发 Vue 渲染 + caret 恢复。结构事件路径必须先调它再改 model。 */
+function unlockForStructuralChange(): void {
+  renderLock.value = false
+  segVersion.value += 1
+}
+
+/** DOM-source 守卫：syncTextFromDom 调用此函数后 input 变更会被 watch
+ *  识别为「DOM-source」并保持 renderLock=true → Vue 不渲染。打字路径
+ *  必须经过此函数。 */
+function lockForDomSource(): void {
+  renderLock.value = true
+}
+
+/** 结构事件后 caret 落位：把目标文本偏移转成 {node, offset}，用 Selection/Range
  *  落在编辑器内。若编辑器失焦（采集按钮点过没回点输入框）则只 focus 不落 caret。
  *  是 domOffsetToTextOffset 的严格反向。 */
 function restoreCaret(targetOffset: number): void {
@@ -258,56 +281,35 @@ function textOffsetToDom(root: HTMLElement, target: number): { node: Node; offse
   return walk(root)
 }
 
-// input 变化 → 检测是否结构变化 → 渲染 + caret 归位。
-// 关键纪律：纯文本字符级输入不能触发 segVersion++（否则 Vue 整段重建
-// 会破坏 IME 流和浏览器原生 caret 维持）。结构变化（chip 增删 / 回填 /
-// 清空）→ 递增 segVersion → v-for key 重挂 → Vue 整段重建（patch 失配
-// 风险归零）。仅文本变化 → segVersion 不变 → v-for 沿用原节点 → Vue 改
-// textContent → 浏览器原生 caret 稳定。
-//
-// 判定口径 = token 序列签名（n@start 的有序列表）；签名变 → 结构变。
-// prevTokenSignature 跟踪上次 input 状态——任何 mutation（DOM→input via
-// syncTextFromDom / 程序化 model 改写）都会触发 watch，重新比对签名。
-let prevTokenSignature = ''
+// input 变化 → 若 renderLock=true（DOM-source）→ 不动 Vue（DOM 是真相）；
+// 若 renderLock=false（结构事件）→ pendingCaretOffset 落 caret → 整段重建。
+// 关键：打字路径不再走任何"vnode/DOM 协调"——Vue 完全不知道 input 变了
+// （从响应式角度 input 确实变了，但因为 renderLock=true 模板不依赖
+// segments 的渲染输出，Vue 不 patch 编辑器子树）。
+watch(input, () => {
+  if (renderLock.value) {
+    // DOM-source（打字/IME 合成完毕）→ Vue 不动编辑器子树，DOM 已是真相
+    return
+  }
+  // 结构事件路径：segVersion 已在 unlockForStructuralChange 中递增；
+  // segments 容器 :key 变化 → Vue 整段重建（mount 路径）。caret 落位。
+  const target = pendingCaretOffset.value
+  pendingCaretOffset.value = null
+  if (target != null) {
+    void nextTick(() => restoreCaret(target))
+  }
+})
 
-/** 提取 input 当前 token 签名——只看 n 序列（按出现顺序）。
- *  关键：忽略 start 偏移。理由：用户在前/中/后任意位置打字符都会让现存
- *  token 的 start 偏移漂移——若用 `${n}@${start}` 当签名，逐字符输入
- *  都会触发 segVersion++ → Vue 整段重建 → 破坏 IME 流和浏览器原生
- *  caret 维持。仅 n 序列变了才算"结构变化"（chip 增删）。 */
-function tokenSignature(text: string): string {
-  return scanSelectionTokens(text)
-    .map((t) => t.n)
-    .join('|')
-}
-
-watch(
-  input,
-  (next) => {
-    const sig = tokenSignature(next)
-    if (sig !== prevTokenSignature) {
-      prevTokenSignature = sig
-      segVersion.value += 1
-      const target = pendingCaretOffset.value
-      pendingCaretOffset.value = null
-      if (target != null) {
-        void nextTick(() => restoreCaret(target))
-      }
-    } else {
-      // 纯文本字符级变化：segVersion 不递增 → Vue patch 路径
-      // textContent 不动节点身份 → caret 由浏览器维持。
-      pendingCaretOffset.value = null
-    }
-  },
-  { immediate: true }
-)
-
-// ── contenteditable DOM 同步面 ──────────────────────────────────────────────
+// ── contenteditable DOM 同步面（DOM-source 路径） ────────────────────────────
 //
 // DOM↔text 桥的纯字符串扫描层。syncTextFromDom 不读 selection，只走 DOM
 // 子节点 → 文本：chip span（data-token-n）→ 字面 `「@画布选区-N」`；
 // <br> → \n；其余文本节点 textContent 拼接。结果与 segmentsToText(segmentsFromText(input))
 // 字节等价（半删残串情形除外——残串被切到文本段里，反向还原自然对齐）。
+//
+// **打字期 DOM-source 标记**：写入 input.value 前先 lockForDomSource() →
+// renderLock=true → watch(input) 见 renderLock=true 直接 return → Vue 不挂
+// 不 patch 编辑器子树。这是「打字路径 patch 计数 = 0」的硬保证。
 
 function syncTextFromDom(): void {
   const el = editorRef.value
@@ -334,7 +336,10 @@ function syncTextFromDom(): void {
   walk(el)
   // 归一：去掉 ZWSP 与 CRLF，与旧 textarea 路径字节等价
   const normalized = text.replace(/\u200B/g, '').replace(/\r\n?/g, '\n')
-  if (normalized !== input.value) input.value = normalized
+  if (normalized !== input.value) {
+    lockForDomSource()
+    input.value = normalized
+  }
 }
 
 /** DOM 文本位置 → 模型文本偏移：扫描 DOM 子节点累计文本/BR/token 长度，
@@ -412,9 +417,11 @@ function handlePaste(event: ClipboardEvent) {
   insertTextAtSelection(text)
 }
 
-/** 在当前 selection 处插入纯文本。caret 偏移 = domOffsetToTextOffset（DOM
- *  master 路径——粘贴时编辑器已有焦点，selection 在编辑器内）。插入后 caret
- * 落在插入文本尾部。完全模型层操作，不直接动 DOM children。 */
+/** 在当前 selection 处插入纯文本。结构事件路径——
+ *  unlockForStructuralChange → segVersion++ → 改 model → watch 触发
+ *  Vue 整段重建 → nextTick restoreCaret。打字路径由 syncTextFromDom
+ *  通过 lockForDomSource 锁定（renderLock=true）——本函数**仅用于
+ *  粘贴**（用户触发，意图明确：往文本流里加字符）。 */
 function insertTextAtSelection(text: string): void {
   const el = editorRef.value
   const sel = window.getSelection()
@@ -427,6 +434,7 @@ function insertTextAtSelection(text: string): void {
   }
   const caretAfter = offset + text.length
   pendingCaretOffset.value = caretAfter
+  unlockForStructuralChange()
   input.value = input.value.slice(0, offset) + text + input.value.slice(offset)
 }
 
@@ -466,9 +474,8 @@ function isCaretAtEditorStart(range: Range): boolean {
   return r.toString().replace(/\u200B/g, '').length === 0
 }
 
-/** 原子 chip 删除兜底：在浏览器未自动删的边缘情形（IME 合成期 / 光标
- *  紧贴 chip 但 selection 在 chip 边界外），我们用模型侧 removeSelectionToken
- *  显式删占位串。caret 落到删除段起点。 */
+/** 原子 chip 删除兜底：结构事件路径。IME 合成期浏览器不删 chip；
+ *  兜底从模型侧删占位串，watch 触发 Vue 整段重建，restoreCaret 落点。 */
 function handleAtomicChipDeletion(event: KeyboardEvent): boolean {
   const el = editorRef.value
   if (!el) return false
@@ -483,12 +490,14 @@ function handleAtomicChipDeletion(event: KeyboardEvent): boolean {
     if (dir === 'backward' && token.end === offset) {
       event.preventDefault()
       pendingCaretOffset.value = token.start
+      unlockForStructuralChange()
       input.value = removeSelectionToken(input.value, token.n)
       return true
     }
     if (dir === 'forward' && token.start === offset) {
       event.preventDefault()
       pendingCaretOffset.value = token.start
+      unlockForStructuralChange()
       input.value = removeSelectionToken(input.value, token.n)
       return true
     }
@@ -527,19 +536,21 @@ function insertTokenAtSelection(token: string) {
   }
   const caretAfter = offset + token.length
   pendingCaretOffset.value = caretAfter
+  unlockForStructuralChange()
   input.value = input.value.slice(0, offset) + token + input.value.slice(offset)
 }
 
-/** chip X 按钮：从文本流里删掉该 n 的全部占位串（视觉代理消失 = 文本同步）——
- *  完全模型层操作（结构变化 → segVersion++ → Vue 重建 children）。
- *  caret 落到删除段起点（最左一个匹配位）——removeSelectionToken 把全部
- *  占位串删掉，留下的 caret 偏移 = 第一次出现该 n 的位置。 */
+/** chip X 按钮：结构事件路径——unlockForStructuralChange → segVersion++
+ *  → model 改 → Vue 整段重建 → restoreCaret 落点。打字期由
+ *  contenteditable=false 天然原子删除（不会走本函数）；本函数仅在
+ *  IME 期/手动删 chip 触发。 */
 function handleRemoveToken(n: number) {
   const tokens = scanSelectionTokens(input.value)
   const firstMatch = tokens.find((t) => t.n === n)
   if (!firstMatch) return
   const caretAt = firstMatch.start
   pendingCaretOffset.value = caretAt
+  unlockForStructuralChange()
   input.value = removeSelectionToken(input.value, n)
 }
 
@@ -633,6 +644,11 @@ function handleSubmit(e: Event) {
   // T91p：chip 拼到消息头（composeSkillSubmission；SDK 命令契约的宿主侧
   // 整形兜底在 backend normalizeSkillCommandText，双层幂等）
   emit('submit', composeSkillSubmission(pinnedSkill.value, submission.text))
+  // 提交后清空编辑器——结构事件路径（清空 = 结构从有到无）。先 unlock
+  // 让 Vue 重建挂空编辑器；之后用户若继续打字，syncTextFromDom 立刻
+  // lock 回 renderLock=true，DOM-master 模式继续生效。
+  pendingCaretOffset.value = null // 清空后无 caret 落点意义
+  unlockForStructuralChange()
   input.value = ''
   pinnedSkill.value = null
   resetSelectionDraftState(draftTokens)
@@ -643,13 +659,15 @@ function handleSubmit(e: Event) {
 // T70：回填文本 = 提交文本剥掉尾部 [画布选区] 清单（占位串本体保留）；
 // token 登记表 + 序号从快照一并恢复（快照只消费一次，防旧快照串新稿）
 // T91p：提交文本开头的 /skill:<name> 命令拆回 chip 状态（extractLeadingSkillCommand）
-// ux6 修复：pendingCaretOffset 落文末 → watch → restoreCaret（结构变化路径）
+// ux6 修复：结构事件路径——unlockForStructuralChange → segVersion++ →
+// model 改 → Vue 整段重建 → restoreCaret 落文末。
 function restoreDraft(text: string) {
   if (input.value.trim() || pinnedSkill.value) return
   const command = extractLeadingSkillCommand(text)
   if (command) pinnedSkill.value = command.name
   const restored = stripSelectionManifest(command ? command.rest : text)
   pendingCaretOffset.value = restored.length
+  unlockForStructuralChange()
   input.value = restored
   if (lastDraftSnapshot) {
     restoreSelectionDraftState(draftTokens, lastDraftSnapshot)
@@ -659,7 +677,10 @@ function restoreDraft(text: string) {
 // T61：新建意图确认卡「确认并发送」经父级清掉拦截时回填的草稿
 // T70：token 登记表/序号/快照随草稿一并清空（序号归 1）
 // T91p：chip 状态随草稿一并清空
+// ux6 修复：结构事件路径（清空 = 结构变化）
 function clearDraft() {
+  pendingCaretOffset.value = null
+  unlockForStructuralChange()
   input.value = ''
   pinnedSkill.value = null
   resetSelectionDraftState(draftTokens)
@@ -813,16 +834,16 @@ defineExpose({ restoreDraft, clearDraft })
               @cut.stop
               @mousedown.capture="handleChipMouseDown"
             >
-              <!-- IME 守卫：合成期 Vue 不重渲 children（v-if 把 segments 模板
-                   整体隐藏，浏览器原生 IME 流接管；compositionend 后 v-if
-                   复位 → Vue 用确定后的 segments 重渲）。 -->
-              <!-- 结构版本 key：结构变化（chip 增删 / 回填 / 清空）→ segVersion++
-                   → Vue 整段重建（patch 失配风险归零）；纯文本字符级输入
-                   segVersion 不变 → 沿用原节点改 textContent → 浏览器原生
-                   caret 稳定。空编辑器不需要 <br> 占位：min-h-12 撑高，
-                   cursor 自然落到 contenteditable 内（首次输入也由浏览器
-                   自动塞 <br> 作为挂点——这是 contenteditable 标准行为）。 -->
-              <template v-if="!isComposing" :key="`seg-v${segVersion}`">
+              <!-- 渲染锁 + IME 守卫：双门控——
+                   任一为 true 即隐藏 segments 模板，Vue 不挂不 patch 编辑器子树。
+                   - renderLock=true：打字/IME 期 DOM 是唯一真相，Vue 不能动
+                     （实测 bug：每敲一字 Vue 插新文本节点造成前缀累积复制）
+                   - isComposing=true：IME 合成期同理
+                   结构事件路径（采集插入 / X 删除 / 原子删除 / 粘贴 / clear /
+                   restore）显式 unlockForStructuralChange → renderLock=false +
+                   segVersion++ → v-for key 重挂 → Vue 整段 mount 新 children
+                   → nextTick restoreCaret 落 caret。 -->
+              <template v-if="!isComposing && !renderLock" :key="`seg-v${segVersion}`">
                 <template v-for="(seg, idx) in segments" :key="`seg-${idx}`">
                   <span
                     v-if="seg.kind === 'token'"

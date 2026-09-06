@@ -13,6 +13,7 @@ import type { Fill, SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 import type { Color } from '@open-pencil/scene-graph/primitives'
 
 import { detectImageMime, encodeBase64 } from '#core/bytes'
+import type { TileWorldBounds } from '#core/canvas/renderer/tiles/geometry'
 import type { FigmaAPI } from '#core/figma-api'
 import { computeContentBounds } from '#core/io/formats/raster/render'
 import { defineTool } from '#core/tools/schema'
@@ -36,12 +37,9 @@ interface ExportInfo {
   upscaled?: boolean
 }
 
-interface ClipRect {
-  minX: number
-  minY: number
-  maxX: number
-  maxY: number
-}
+// T98：与上游 TileWorldBounds（canvas/renderer/tiles/geometry.ts）同形——
+// no-duplicate-type-shapes 要求同构对象类型收敛，别名复用而非重复声明。
+type ClipRect = TileWorldBounds
 
 function fillLuminance(color: Color): number {
   return 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b

@@ -81,6 +81,8 @@ export type { PiSessionSummary }
 export type PiPromptOptions = {
   model?: ModelSpec
   documentId?: string
+  /** T98-路由：桥按发起窗口路由 RPC；缺省落最后注册窗 */
+  windowId?: string
 }
 
 export type PiChatService = {
@@ -104,12 +106,19 @@ export type PiChatService = {
   /** T87：写 capabilities（settings 面板 PUT 用；非法值抛错并被 server.ts 转 400）；
    *  T96：builtinTools 可选——给了就必须是三档字面量，缺省保留旧值 */
   setCapabilities(input: { agentSkills: unknown; builtinTools?: unknown }): Capabilities
-  /** T60：active_design 端点（②面板点选 / ③AI 声明+同意）——四条件校验 → 移槽 → 身份三元组 */
-  setActiveDesign(nodeId: string, documentId?: string): Promise<SetActiveDesignResult>
-  /** T91b：newIntent 确认端点——前端 ChatNewIntentCard 确认按钮触发，写 pluginData 三键 */
+  /** T60：active_design 端点（②面板点选 / ③AI 声明+同意）——四条件校验 → 移槽 → 身份三元组
+   *  T98-路由：windowId 透传（与 documentId 同缝）——多窗时按发起窗路由 */
+  setActiveDesign(
+    nodeId: string,
+    documentId?: string,
+    windowId?: string
+  ): Promise<SetActiveDesignResult>
+  /** T91b：newIntent 确认端点——前端 ChatNewIntentCard 确认按钮触发，写 pluginData 三键
+   *  T98-路由：windowId 透传 */
   confirmNewIntent(
     args: { modeId: string; profileId?: string },
-    documentId?: string
+    documentId?: string,
+    windowId?: string
   ): Promise<ConfirmNewIntentResult>
   /** T27：取消该 session 进行中的 run（SSE 断连锁停后端烧 token）；无活跃 run 时 no-op */
   abort(sessionId: string): Promise<void>
@@ -121,7 +130,7 @@ type SessionEntry = {
   /** T21 step budget：当前 prompt 已消耗的 turn 数（turn_start 事件递增） */
   budget: { current: number }
   /** T22 工具目标：当次请求的 documentId（桥 document_id 注入，T22-plan D4） */
-  target: { documentId?: string }
+  target: { documentId?: string; windowId?: string }
   /** T60：active_design 宿主会话态（旗标/formId 映射/每回合组装缓存袋） */
   host: ReturnType<typeof createActiveDesignHost>
   /**
@@ -229,7 +238,8 @@ export function createPiChatService({
     const budget = { current: 0 }
     // T22：documentId 以当次请求为准（session 复用、target 可变），
     // 工具经闭包读取注入桥 args.document_id
-    const target: { documentId?: string } = {}
+    // T98-路由：windowId 同缝——tools.ts 经 target.windowId 注入 postBridgeRPC 顶层
+    const target: { documentId?: string; windowId?: string } = {}
     // T60：active_design 宿主会话态（注册表每回合读单例；桥 IO 共享无状态单例）
     const host = createActiveDesignHost({
       registry: () => getStudioRegistry(rootDir),
@@ -248,7 +258,9 @@ export function createPiChatService({
         setupDesign,
         {
           // T60 事件①：setup_design 桥执行成功（结果含新 root id）→ 移槽
-          onDesignCreated: (rootId) => host.onDesignCreated(rootId, target.documentId)
+          // T98-路由：windowId 与 documentId 同缝穿线——桥按发起窗路由
+          onDesignCreated: (rootId) =>
+            host.onDesignCreated(rootId, target.documentId, target.windowId)
         },
         // T81 P-04：vision 前置拒绝闭包——pi Model.input('text' | 'image')
         // 的 'image' 在场即代表 vision；createSession 已 resolveModel，闭包
@@ -396,6 +408,7 @@ export function createPiChatService({
     // 数据）。不做 promise 缓存去重：引入的复杂度大于 dev 场景收益。
     const entry = sessions.get(sessionId) ?? (await createSession(sessionId, options.model))
     entry.target.documentId = options.documentId
+    entry.target.windowId = options.windowId
     // T91o：/skill: 命令归一化（skill-command.ts，原理见其头注）——把首个
     // /skill:<name> 提及整形成 SDK 原生可展开的「开头 + 空格收尾」命令形，
     // 展开动作留给 SDK _expandSkillCommand（块格式/transcript 与 pi CLI
@@ -440,10 +453,17 @@ export function createPiChatService({
     try {
       // T60：回合入口——剥新建意图信封（置一次性旗标）→ ④表单作答移槽 →
       // 槽位读穿（悬空清槽）→ 组装（host.turnAssembly 供 before_agent_start 读）
-      const prepared = await entry.host.prepareTurn(text, entry.target.documentId)
+      // T98-路由：windowId 与 documentId 同缝穿线（host 内部经桥探针/写槽
+      // 时也按发起窗路由——多窗时不会把 A 窗的回包串到 B 窗）
+      const prepared = await entry.host.prepareTurn(
+        text,
+        entry.target.documentId,
+        entry.target.windowId
+      )
       // T59：回合 = 一次 prompt run；begin 先行 await（本地 HTTP 一跳，失败已内生
       // 吞掉）保证桥侧撤销组先于本回合首个工具调用打开，end 在 finally 兜底发送
-      await sendUndoGroupSignal('begin', entry.target.documentId)
+      // T98-路由：windowId 透传——撤销组 begin/end 同样按发起窗路由
+      await sendUndoGroupSignal('begin', entry.target.documentId, entry.target.windowId)
       await entry.session.prompt(prepared.promptText)
     } catch (error) {
       emit({ type: 'error', errorText: error instanceof Error ? error.message : String(error) })
@@ -453,7 +473,7 @@ export function createPiChatService({
       unsubscribe()
       // T60 定谳 5：一次性旗标 run 结束强制复位（信封永不跨回合滞留）
       entry.host.finalizeTurn()
-      void sendUndoGroupSignal('end', entry.target.documentId)
+      void sendUndoGroupSignal('end', entry.target.documentId, entry.target.windowId)
       // prompt 完成后 session 文件必然已落盘，补记 index（create 时 file 可能尚未生成）
       const file = entry.session.sessionManager.getSessionFile()
       if (file && readIndex()[sessionId]?.file !== file) {
@@ -524,21 +544,23 @@ export function createPiChatService({
 
   async function setActiveDesign(
     nodeId: string,
-    documentId?: string
+    documentId?: string,
+    windowId?: string
   ): Promise<SetActiveDesignResult> {
-    return setActiveDesignViaBridge(nodeId, documentId, activeDesignBridge)
+    return setActiveDesignViaBridge(nodeId, documentId, activeDesignBridge, windowId)
   }
 
   /** T91b：POST /api/pi/intent-confirm——前端 ChatNewIntentCard 确认后触发，写 pluginData 三键 */
   async function confirmNewIntent(
     args: { modeId: string; profileId?: string },
-    documentId?: string
+    documentId?: string,
+    windowId?: string
   ): Promise<ConfirmNewIntentResult> {
     // T91b：能力面开关与 set_active_design 同语义——agent skills 未开 → 拒绝。
     if (!capabilitiesStore.get().agentSkills) {
       return { ok: false, error: 'invalid_args', message: 'agent skills 不可用' }
     }
-    return confirmNewIntentViaBridge(args, documentId)
+    return confirmNewIntentViaBridge(args, documentId, windowId)
   }
 
   async function abort(sessionId: string): Promise<void> {

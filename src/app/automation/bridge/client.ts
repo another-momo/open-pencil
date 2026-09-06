@@ -8,6 +8,7 @@ import { randomHex } from '@open-pencil/core/random'
 
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
 import { createAutomationCommandHandlers } from '@/app/automation/bridge/handlers'
+import { getWindowId } from '@/app/automation/window-id'
 import type { EditorStore } from '@/app/editor/active-store'
 
 export function connectAutomation(
@@ -43,7 +44,7 @@ export function connectAutomation(
 
     socket.onopen = () => {
       console.debug('[Automation] WebSocket connected to MCP server')
-      socket.send(JSON.stringify({ type: 'register', token }))
+      socket.send(JSON.stringify({ type: 'register', token, windowId: getWindowId() }))
     }
 
     socket.onmessage = async (event) => {

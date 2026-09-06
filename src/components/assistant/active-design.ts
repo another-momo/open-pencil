@@ -45,6 +45,7 @@ import type {
 import { findPlacementPosition } from '@open-pencil/core/tools/fork/placement'
 
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
+import { getWindowId } from '@/app/automation/window-id'
 import type { EditorStore } from '@/app/editor/active-store'
 import { ensureGraphFonts } from '@/app/editor/fonts'
 
@@ -212,10 +213,11 @@ export async function postIntentConfirm(args: {
   profileId?: string
 }): Promise<{ ok: true } | { ok: false; message: string }> {
   try {
+    // T98-路由：windowId 随确认直传——多窗时桥调用按发起窗路由
     const res = await fetch('/api/pi/intent-confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(args)
+      body: JSON.stringify({ ...args, windowId: getWindowId() })
     })
     const body = (await res.json().catch(() => null)) as { ok?: boolean; message?: string } | null
     if (res.ok && body?.ok === true) return { ok: true }
@@ -264,10 +266,11 @@ export interface ActiveDesignSwitchResult {
 /** POST /api/pi/active-design {nodeId}；校验/网络失败 → null（调用方显式报错） */
 export async function postActiveDesign(nodeId: string): Promise<ActiveDesignSwitchResult | null> {
   try {
+    // T98-路由：windowId 随点选直传——多窗时桥调用按发起窗路由
     const res = await fetch('/api/pi/active-design', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ nodeId })
+      body: JSON.stringify({ nodeId, windowId: getWindowId() })
     })
     if (!res.ok) return null
     return (await res.json()) as ActiveDesignSwitchResult

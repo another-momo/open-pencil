@@ -3,6 +3,8 @@
  * T21：请求体新增可选 model（PiModelSpec，来自 assignment.ts 的 design 指派）。
  * T22：sessionId 改为每次发送时经 getContext 动态解析（session↔file 绑定，
  * document-key.ts），请求体加 documentId（桥目标注入，T22-plan D4）。
+ * T98-路由：body 加 windowId（window-id.ts，模块级 UUID）——桥侧按发起
+ * 窗口路由 RPC，避免同 app 多窗共享单槽位时 agent 操作被顶窗偷走。
  *
  * 契约与 tests/e2e/chat/panel.spec.ts 的 mock transport 完全一致（对象实现
  * ChatTransport 接口，sendMessages 返回 UIMessageChunk 流），因此 Chat 类与
@@ -13,6 +15,7 @@ import type { ChatTransport, UIMessage, UIMessageChunk } from 'ai'
 
 import type { PiModelSpec } from '@/app/ai/pi-backend/client'
 import type { PiRequestContext } from '@/app/ai/pi-backend/document-key'
+import { getWindowId } from '@/app/automation/window-id'
 
 export class PiBackendChatTransport implements ChatTransport<UIMessage> {
   constructor(
@@ -50,9 +53,11 @@ export class PiBackendChatTransport implements ChatTransport<UIMessage> {
       sessionId: string
       messages: typeof messages
       documentId?: string
+      windowId?: string
       model?: PiModelSpec
     } = { sessionId: context.sessionId, messages }
     if (context.documentId) bodyPayload.documentId = context.documentId
+    bodyPayload.windowId = getWindowId()
     // T61：T24 四层装配载荷退役（PD-16 翻案）——chatMode/pickedProfileId 停发；
     // 模式身份改由 active_design 单槽宿主侧读穿（T60）
     if (model) bodyPayload.model = model

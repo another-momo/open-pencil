@@ -12,12 +12,13 @@
  *    ——无任何回读 key 的端点
  *
  * 请求体：{ sessionId: string, messages: UIMessage[], model?: ModelSpec,
- * documentId?: string }
+ * documentId?: string, windowId?: string }
  * （ai SDK Chat 默认全量 messages 上报；本 service 只取末条 user 文本，
  * 历史由后端 SessionManager 持有。model 为前端 design role 解析结果，T21。
- * documentId 为桥目标注入，T22。T60 起 chatMode/pickedProfileId 退役——
- * active_design 单槽取代请求级模式；请求面残留字段忽略不报错（兼容窗，
- * 前端生产侧删除归 T61）。）
+ * documentId 为桥目标注入，T22。T98-路由：windowId 经 transport 直传——
+ * 桥按发起窗路由 RPC（window-id.ts 设计取舍见其头注）。T60 起
+ * chatMode/pickedProfileId 退役——active_design 单槽取代请求级模式；
+ * 请求面残留字段忽略不报错（兼容窗，前端生产侧删除归 T61）。）
  *
  * T60：POST /api/pi/active-design {nodeId} → 四条件校验 → 移槽 → 身份三元组
  * {modeId, profileId, briefId}（②面板点选 / ③set_active_design 同意卡共用；
@@ -63,6 +64,8 @@ type PiChatRequestBody = {
   }>
   model?: ModelSpec
   documentId?: string
+  /** T98-路由：桥按发起窗口路由 RPC；缺省落最后注册窗（MCP 外部客户端语义兼容） */
+  windowId?: string
   /** T60 兼容窗：残留字段忽略不报错（前端停发归 T61） */
   chatMode?: string
   pickedProfileId?: string | null
@@ -154,7 +157,8 @@ async function handlePiChatRequest(
   try {
     await service.prompt(sessionId, text, emit, {
       model: body.model,
-      documentId: body.documentId
+      documentId: body.documentId,
+      windowId: body.windowId
     })
   } catch (error) {
     emit({
@@ -218,9 +222,14 @@ async function handleIntentConfirmRequest(
     res.writeHead(405).end('Method Not Allowed')
     return
   }
-  let body: { modeId?: unknown; profileId?: unknown }
+  let body: { modeId?: unknown; profileId?: unknown; documentId?: unknown; windowId?: unknown }
   try {
-    body = JSON.parse(await readBody(req)) as { modeId?: unknown; profileId?: unknown }
+    body = JSON.parse(await readBody(req)) as {
+      modeId?: unknown
+      profileId?: unknown
+      documentId?: unknown
+      windowId?: unknown
+    }
   } catch (error) {
     if (error instanceof PayloadTooLargeError) {
       res.writeHead(413).end('Payload Too Large')
@@ -233,10 +242,18 @@ async function handleIntentConfirmRequest(
     res.writeHead(400).end('Bad Request: modeId required')
     return
   }
-  const result = await service.confirmNewIntent({
-    modeId: body.modeId,
-    ...(typeof body.profileId === 'string' ? { profileId: body.profileId } : {})
-  })
+  // T98-路由：windowId/documentId 随确认请求直传——多窗时按发起窗路由桥调用
+  const windowId = typeof body.windowId === 'string' && body.windowId ? body.windowId : undefined
+  const documentId =
+    typeof body.documentId === 'string' && body.documentId ? body.documentId : undefined
+  const result = await service.confirmNewIntent(
+    {
+      modeId: body.modeId,
+      ...(typeof body.profileId === 'string' ? { profileId: body.profileId } : {})
+    },
+    documentId,
+    windowId
+  )
   if (result.ok) {
     sendJSON(res, 200, { ok: true, modeId: result.modeId, profileId: result.profileId })
     return
@@ -256,9 +273,13 @@ async function handleActiveDesignRequest(
     res.writeHead(405).end('Method Not Allowed')
     return
   }
-  let body: { nodeId?: unknown }
+  let body: { nodeId?: unknown; documentId?: unknown; windowId?: unknown }
   try {
-    body = JSON.parse(await readBody(req)) as { nodeId?: unknown }
+    body = JSON.parse(await readBody(req)) as {
+      nodeId?: unknown
+      documentId?: unknown
+      windowId?: unknown
+    }
   } catch (error) {
     if (error instanceof PayloadTooLargeError) {
       res.writeHead(413).end('Payload Too Large')
@@ -271,7 +292,11 @@ async function handleActiveDesignRequest(
     res.writeHead(400).end('Bad Request: nodeId required')
     return
   }
-  const result = await service.setActiveDesign(body.nodeId)
+  // T98-路由：windowId/documentId 随点选请求直传——多窗时按发起窗路由桥调用
+  const windowId = typeof body.windowId === 'string' && body.windowId ? body.windowId : undefined
+  const documentId =
+    typeof body.documentId === 'string' && body.documentId ? body.documentId : undefined
+  const result = await service.setActiveDesign(body.nodeId, documentId, windowId)
   if (result.ok) {
     sendJSON(res, 200, {
       modeId: result.modeId,

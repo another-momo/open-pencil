@@ -45,13 +45,16 @@ type BrowserMessage = {
   type: string
   id?: string
   token?: unknown
+  windowId?: unknown
   result?: unknown
   error?: string
   ok?: boolean
 }
 
 function stripEnvelope(msg: BrowserMessage): Record<string, unknown> {
-  const { type: _type, id: _id, ...body } = msg
+  // T98-路由：windowId 是请求体外层信封字段，与 type/id 同级；剥离后
+  // 不得残留在转发 body 中（桥侧会误把它当工具参数塞进去）
+  const { type: _type, id: _id, windowId: _windowId, ...body } = msg
   return body
 }
 
@@ -83,8 +86,23 @@ function createSettler<T>(resolve: (value: T) => void, reject: (error: Error) =>
   }
 }
 
+/**
+ * T98-路由：每窗口一个槽位 = { ws, pending }，pending 按槽位隔离，关窗
+ * 只 reject 本槽 in-flight；窗口 id 由客户端 register 时上送（window-id.ts
+ * 模块级 UUID），服务端兼容旧客户端（无 windowId 字段时随机分配一个 UUID）。
+ * lastRegisteredWindowId 用于「无 windowId 多窗」回退——MCP 外部客户端语义
+ * 兼容（MCP 协议从不带 windowId，请求落最后注册窗）。
+ */
+type WindowSlot = {
+  ws: WebSocket
+  pending: Map<string, PendingRequest>
+}
+
 export function createBrowserRPCBridge({ authToken, onConnectionChange }: BrowserRPCBridgeOptions) {
-  const pending = new Map<string, PendingRequest>()
+  // T98-路由：windowId → 槽位（含 ws + 该窗的 pending map）
+  const windows = new Map<string, WindowSlot>()
+  // ws → windowId 反向索引（handleBrowserResponse / handleClose O(1) 反查）
+  const windowByWs = new WeakMap<WebSocket, string>()
   const clients = new Set<WebSocket>()
   const connectionWaiters = new Set<PendingRequest>()
   // Track which WebSocket clients have authenticated via a valid
@@ -92,12 +110,11 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
   // all other message types (request, response) are rejected.
   const authenticatedClients = new Set<WebSocket>()
   const connectionListeners = new Set<ConnectionListener>()
-  let browserWs: WebSocket | null = null
-  let browserRegistered = false
+  let lastRegisteredWindowId: string | null = null
   let bridgeClosed = false
 
   function isConnected(): boolean {
-    return Boolean(browserWs && browserRegistered)
+    return windows.size > 0
   }
 
   function notifyConnectionChange() {
@@ -154,19 +171,19 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
       // cleared the set. Without this re-check, the waiter would stall for
       // APP_WAIT_TIMEOUT even though the browser is connected.
       connectionWaiters.add(waiter)
-      if (browserWs && browserWs.readyState === browserWs.OPEN && browserRegistered) {
+      if (windows.size > 0) {
         waiter.resolve(undefined)
         connectionWaiters.delete(waiter)
       }
     })
   }
 
-  function rejectAllPending(reason: string) {
-    for (const [, req] of pending) {
+  function rejectPendingInSlot(slot: WindowSlot, reason: string) {
+    for (const [, req] of slot.pending) {
       clearTimeout(req.timer)
       req.reject(new Error(reason))
     }
-    pending.clear()
+    slot.pending.clear()
   }
 
   function sendRegisterPrompt(ws: WebSocket) {
@@ -186,12 +203,47 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
     for (const client of clients) sendRegisterPrompt(client)
   }
 
-  function sendRPC(body: Record<string, unknown>): Promise<unknown> {
+  /**
+   * T98-路由：sendRPC 选槽规则——
+   *  1) opts.windowId 显式存在：命中该窗槽位则发；缺窗 → 立即 reject APP_NOT_CONNECTED_MESSAGE
+   *     （保 502/editor-unreachable 分类不变：调用方按编辑器不可达处理）；
+   *  2) opts.windowId 缺省 + 仅一窗：发到该唯一窗；
+   *  3) opts.windowId 缺省 + 多窗：发到 lastRegisteredWindowId（最后注册窗）；
+   *  4) 零窗：走 waitForConnection 等待逻辑（connect→register 后通知 waiters）。
+   * 选中槽位后：pending 入该槽 map；ws.send 失败处理逻辑与原版一致。
+   */
+  function sendRPC(
+    body: Record<string, unknown>,
+    opts: { windowId?: string } = {}
+  ): Promise<unknown> {
     if (bridgeClosed) return Promise.reject(new Error('Server shutting down'))
     return new Promise((resolve, reject) => {
       const doSend = () => {
-        const ws = browserWs
-        if (!ws || ws.readyState !== ws.OPEN || !browserRegistered) {
+        // 1) 显式 windowId 路由
+        const explicit = opts.windowId
+        let slot: WindowSlot | undefined
+        if (explicit !== undefined) {
+          slot = windows.get(explicit)
+          if (!slot || slot.ws.readyState !== slot.ws.OPEN) {
+            reject(new Error(APP_NOT_CONNECTED_MESSAGE))
+            return
+          }
+        } else if (windows.size === 1) {
+          // 2) 无 windowId + 单窗
+          slot = windows.values().next().value as WindowSlot | undefined
+          if (!slot || slot.ws.readyState !== slot.ws.OPEN) {
+            reject(new Error(APP_NOT_CONNECTED_MESSAGE))
+            return
+          }
+        } else if (windows.size > 1 && lastRegisteredWindowId) {
+          // 3) 无 windowId + 多窗 → 最后注册窗
+          slot = windows.get(lastRegisteredWindowId)
+          if (!slot || slot.ws.readyState !== slot.ws.OPEN) {
+            reject(new Error(APP_NOT_CONNECTED_MESSAGE))
+            return
+          }
+        } else {
+          // 4) 零窗（理论不应到达——waitForConnection 已 gate——但保险）
           reject(new Error(APP_NOT_CONNECTED_MESSAGE))
           return
         }
@@ -199,23 +251,31 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
         const settle = createSettler(resolve, reject)
         const timeoutMs = rpcTimeoutMs()
         const timer = setTimeout(() => {
-          pending.delete(id)
+          slot!.pending.delete(id)
           settle.reject(new Error(`RPC timeout (${Math.round(timeoutMs / 1000)}s)`))
         }, timeoutMs)
-        pending.set(id, { resolve: settle.resolve, reject: settle.reject, timer })
+        slot.pending.set(id, { resolve: settle.resolve, reject: settle.reject, timer })
         try {
-          ws.send(JSON.stringify({ ...body, type: 'request', id }))
+          slot.ws.send(JSON.stringify({ ...body, type: 'request', id }))
         } catch (e) {
           clearTimeout(timer)
-          pending.delete(id)
+          slot.pending.delete(id)
           if (!settle.isSettled()) {
             settle.reject(e instanceof Error ? e : new Error(String(e)))
           }
         }
       }
 
-      if (browserWs && browserWs.readyState === browserWs.OPEN && browserRegistered) {
+      if (opts.windowId !== undefined) {
+        // 显式 windowId：直接选槽，不走 wait——缺窗立即 reject
         doSend()
+      } else if (windows.size > 0 && lastRegisteredWindowId) {
+        const slot = windows.get(lastRegisteredWindowId)
+        if (slot && slot.ws.readyState === slot.ws.OPEN) {
+          doSend()
+        } else {
+          void waitForConnection().then(doSend).catch(reject)
+        }
       } else {
         void waitForConnection().then(doSend).catch(reject)
       }
@@ -225,7 +285,11 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
   async function handleClientRequest(ws: WebSocket, msg: BrowserMessage) {
     if (!msg.id) return
     try {
-      const result = await sendRPC(stripEnvelope(msg))
+      // T98-路由：从原始信封提取 windowId 供 sendRPC 选槽（必须在 stripEnvelope
+      // 之前读——strip 会把 windowId 剥掉）；其余字段进转发 body
+      const explicitWindowId =
+        typeof msg.windowId === 'string' && msg.windowId ? msg.windowId : undefined
+      const result = await sendRPC(stripEnvelope(msg), { windowId: explicitWindowId })
       sendJSON(ws, { ...responsePayload(result), type: 'response', id: msg.id, ok: true })
     } catch (e) {
       sendJSON(ws, {
@@ -237,7 +301,15 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
     }
   }
 
-  function registerBrowser(ws: WebSocket, token: string | null) {
+  /**
+   * T98-路由：registerBrowser——
+   *  - token 鉴权失败 → close ws；
+   *  - windowId 缺省时随机分配一个 UUID（旧客户端向后兼容）；
+   *  - 同 windowId 已有槽位且 ws 不同 → 旧槽 pending 全部 reject 'Browser reconnected'，
+   *    旧 ws close（latest-wins per window）；
+   *  - 写槽 + 更新 lastRegisteredWindowId + notifyConnectionWaiters/Change。
+   */
+  function registerBrowser(ws: WebSocket, token: string | null, windowId?: string) {
     if (bridgeClosed) return
     if (!isAuthorized(token, authToken)) {
       ws.close()
@@ -245,29 +317,41 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
     }
     // Mark this client as authenticated — it can now send requests.
     authenticatedClients.add(ws)
-    const previousBrowserWs = browserWs
-    browserWs = ws
-    browserRegistered = true
-    if (previousBrowserWs && previousBrowserWs !== ws) {
-      // Reject in-flight requests to the old browser. Without this, pending
-      // requests sit in the pending map until the RPC timeout fires, because
-      // handleClose for the old socket returns early (browserWs is already
-      // set to the new socket, so browserWs !== previousBrowserWs).
-      rejectAllPending('Browser reconnected')
-      if (previousBrowserWs.readyState === ws.OPEN) {
-        previousBrowserWs.close()
+
+    // T98-路由：windowId 缺省 → 服务端分配（向后兼容旧客户端）
+    const assignedWindowId = typeof windowId === 'string' && windowId ? windowId : randomUUID()
+
+    const existingSlot = windows.get(assignedWindowId)
+    if (existingSlot && existingSlot.ws !== ws) {
+      // 同 id 旧槽位的 in-flight 请求全部 reject（'Browser reconnected' 语义不变）
+      rejectPendingInSlot(existingSlot, 'Browser reconnected')
+      if (existingSlot.ws.readyState === ws.OPEN) {
+        existingSlot.ws.close()
       }
+      windowByWs.delete(existingSlot.ws)
     }
+
+    windows.set(assignedWindowId, { ws, pending: new Map() })
+    windowByWs.set(ws, assignedWindowId)
+    lastRegisteredWindowId = assignedWindowId
     notifyConnectionWaiters()
     notifyConnectionChange()
     broadcastRegisterPrompt()
   }
 
+  /**
+   * T98-路由：handleBrowserResponse——按 ws 反查所属槽位，仅匹配该槽 pending；
+   * 跨槽响应（不可能自然发生，但 ws 关闭时序竞争下可能）静默丢弃。
+   * msg.ok === false → ToolExecutionError 的 T98 语义保持不变。
+   */
   function handleBrowserResponse(msg: BrowserMessage, ws: WebSocket) {
-    if (!browserRegistered || browserWs !== ws || !msg.id) return
-    const req = pending.get(msg.id)
+    const windowId = windowByWs.get(ws)
+    if (windowId === undefined) return
+    const slot = windows.get(windowId)
+    if (!slot || slot.ws !== ws || !msg.id) return
+    const req = slot.pending.get(msg.id)
     if (!req) return
-    pending.delete(msg.id)
+    slot.pending.delete(msg.id)
     clearTimeout(req.timer)
     if (msg.ok === false) {
       // T98：app 显式应答失败 = 编辑器在线、工具自身抛错——以 ToolExecutionError
@@ -313,7 +397,9 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
 
     if (msg.type === 'register') {
       if (msg.token === null || typeof msg.token === 'string') {
-        registerBrowser(ws, msg.token)
+        // T98-路由：register 信封携带 windowId（旧客户端可缺省）
+        const windowId = typeof msg.windowId === 'string' && msg.windowId ? msg.windowId : undefined
+        registerBrowser(ws, msg.token, windowId)
       } else if (msg.token !== undefined) {
         ws.close()
       }
@@ -334,13 +420,28 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
     if (msg.type === 'response') handleBrowserResponse(msg, ws)
   }
 
+  /**
+   * T98-路由：handleClose——
+   *  - 反查 ws 所属 windowId 槽位，删除该槽；
+   *  - 只 reject 该槽 pending（'Browser disconnected'）——其他窗不受影响；
+   *  - lastRegisteredWindowId 若指向被删窗 → 回退为 Map 剩余最后一键或 null；
+   *  - connectionWaiters 保持不 reject（语义不变：等待新窗注册）；
+   *  - notifyConnectionChange 保留。
+   */
   function handleClose(ws: WebSocket) {
     clients.delete(ws)
     authenticatedClients.delete(ws)
-    if (browserWs !== ws) return
-    browserWs = null
-    browserRegistered = false
-    rejectAllPending('Browser disconnected')
+    const windowId = windowByWs.get(ws)
+    if (windowId === undefined) return
+    const slot = windows.get(windowId)
+    if (!slot || slot.ws !== ws) return
+    windows.delete(windowId)
+    windowByWs.delete(ws)
+    rejectPendingInSlot(slot, 'Browser disconnected')
+    // lastRegisteredWindowId 回退：指向被删窗时取 Map 剩余最后一键
+    if (lastRegisteredWindowId === windowId) {
+      lastRegisteredWindowId = windows.size > 0 ? (windows.keys().next().value ?? null) : null
+    }
     // Intentionally NOT rejecting connectionWaiters here. If a request
     // entered waitForConnection() before the close event (e.g. during a
     // CLOSING→CLOSED transition), the waiter should keep waiting the full
@@ -364,10 +465,11 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
 
   function close() {
     bridgeClosed = true
-    rejectAllPending('Server shutting down')
+    // T98-路由：reject 所有槽位 pending + connectionWaiters
+    for (const slot of windows.values()) rejectPendingInSlot(slot, 'Server shutting down')
     rejectConnectionWaiters('Server shutting down')
-    browserWs = null
-    browserRegistered = false
+    windows.clear()
+    lastRegisteredWindowId = null
     clients.clear()
     authenticatedClients.clear()
     connectionListeners.clear()

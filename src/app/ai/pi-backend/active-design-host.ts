@@ -218,21 +218,25 @@ export interface CandidateProbeData {
 
 export interface ActiveDesignBridgeIO {
   /** 桥不可达 → null（调用方按空槽降级 + warn） */
-  probeSlot(documentId?: string): Promise<SlotProbeData | null>
-  probeCandidate(nodeId: string, documentId?: string): Promise<CandidateProbeData | null>
+  probeSlot(documentId?: string, windowId?: string): Promise<SlotProbeData | null>
+  probeCandidate(
+    nodeId: string,
+    documentId?: string,
+    windowId?: string
+  ): Promise<CandidateProbeData | null>
   /** nodeId '' = 清槽；桥不可达/执行失败 → false */
-  writeSlot(nodeId: string, documentId?: string): Promise<boolean>
+  writeSlot(nodeId: string, documentId?: string, windowId?: string): Promise<boolean>
   /**
    * T91b：读 document root sharedPluginData 上的 newIntent 三键（modeId /
    * profileId / confirmed）。桥不可达 → null（调用方按未确认降级）。
    * 信源真源在浏览器端，宿主必须经桥 eval 探针拿——不通过 FigmaAPI 句柄。
    */
-  probeNewIntent(documentId?: string): Promise<NewIntentState | null>
+  probeNewIntent(documentId?: string, windowId?: string): Promise<NewIntentState | null>
   /**
    * T91b：setup_design 成功后清 document root pluginData 三键（避免下次
    * 装配误用旧 modeId）。桥不可达/执行失败 → false（不影响主流程——设计已落图）。
    */
-  clearNewIntent(documentId?: string): Promise<boolean>
+  clearNewIntent(documentId?: string, windowId?: string): Promise<boolean>
 }
 
 /** T91b：pluginData 三键快照形状复用 brief.ts NewIntentState（避免双写） */
@@ -314,11 +318,15 @@ figma.root.setSharedPluginData(NS, C, '');
 return { ok: true };`
 }
 
-async function callBridgeEval(code: string, documentId?: string): Promise<unknown> {
+async function callBridgeEval(
+  code: string,
+  documentId?: string,
+  windowId?: string
+): Promise<unknown> {
   const discovery = await readDiscoveryFile()
   if (!discovery) throw new Error('bridge discovery missing')
   const args = documentId ? { code, document_id: documentId } : { code }
-  const res = await postBridgeRPC(discovery, 'tool', { name: 'eval', args })
+  const res = await postBridgeRPC(discovery, 'tool', { name: 'eval', args }, windowId)
   const body = (await res.json().catch(() => null)) as { ok?: boolean; result?: unknown } | null
   if (!res.ok || body?.ok !== true) throw new Error(`bridge eval failed: HTTP ${res.status}`)
   return body.result ?? null
@@ -361,10 +369,14 @@ function parseBriefSnapshot(raw: unknown): BriefLinkSnapshot | null {
 
 /** 生产桥实现：eval 探针/写槽；一切桥故障 → null/false（调用方定降级语义） */
 export function createBridgeSlotIO(): ActiveDesignBridgeIO {
-  async function probe(nodeId?: string, documentId?: string): Promise<SlotProbeData | null> {
+  async function probe(
+    nodeId?: string,
+    documentId?: string,
+    windowId?: string
+  ): Promise<SlotProbeData | null> {
     let raw: unknown
     try {
-      raw = await callBridgeEval(buildProbeSource(nodeId), documentId)
+      raw = await callBridgeEval(buildProbeSource(nodeId), documentId, windowId)
     } catch {
       return null
     }
@@ -378,9 +390,9 @@ export function createBridgeSlotIO(): ActiveDesignBridgeIO {
     }
   }
   return {
-    probeSlot: (documentId) => probe(undefined, documentId),
-    probeCandidate: async (nodeId, documentId) => {
-      const data = await probe(nodeId, documentId)
+    probeSlot: (documentId, windowId) => probe(undefined, documentId, windowId),
+    probeCandidate: async (nodeId, documentId, windowId) => {
+      const data = await probe(nodeId, documentId, windowId)
       if (!data) return null
       return {
         currentPageId: data.currentPageId,
@@ -389,17 +401,17 @@ export function createBridgeSlotIO(): ActiveDesignBridgeIO {
         materialized: data.materialized
       }
     },
-    writeSlot: async (nodeId, documentId) => {
+    writeSlot: async (nodeId, documentId, windowId) => {
       try {
-        await callBridgeEval(buildWriteSlotSource(nodeId), documentId)
+        await callBridgeEval(buildWriteSlotSource(nodeId), documentId, windowId)
         return true
       } catch {
         return false
       }
     },
-    probeNewIntent: async (documentId) => {
+    probeNewIntent: async (documentId, windowId) => {
       try {
-        const raw = await callBridgeEval(buildProbeNewIntentSource(), documentId)
+        const raw = await callBridgeEval(buildProbeNewIntentSource(), documentId, windowId)
         if (!isRecord(raw)) return null
         return {
           modeId: asString(raw.modeId),
@@ -410,9 +422,9 @@ export function createBridgeSlotIO(): ActiveDesignBridgeIO {
         return null
       }
     },
-    clearNewIntent: async (documentId) => {
+    clearNewIntent: async (documentId, windowId) => {
       try {
-        await callBridgeEval(buildClearNewIntentSource(), documentId)
+        await callBridgeEval(buildClearNewIntentSource(), documentId, windowId)
         return true
       } catch {
         return false
@@ -441,9 +453,9 @@ export interface ActiveDesignHost {
   /** 工具结果观察：ask_user_question awaiting 信封 → 记录 formId→当时槽位 */
   observeToolExecution(toolName: string, isError: boolean, details: unknown): void
   /** 事件①：setup_design 成功（结果含新 root id）→ 移槽（失败只 warn，设计已建不回吐） */
-  onDesignCreated(rootId: string, documentId?: string): Promise<void>
+  onDesignCreated(rootId: string, documentId?: string, windowId?: string): Promise<void>
   /** 回合入口：剥信封 → 置旗标 + 确认参数系统提示行（T65）→ ④移槽 → 槽位读穿/清悬空 → 组装 */
-  prepareTurn(text: string, documentId?: string): Promise<{ promptText: string }>
+  prepareTurn(text: string, documentId?: string, windowId?: string): Promise<{ promptText: string }>
   /** before_agent_start 钩子读取的当回合组装结果（prepareTurn 后恒非空） */
   turnAssembly(): TurnAssembly | null
   /** run 结束 finally：旗标复位 + 回合态清零（信封永不跨回合滞留） */
@@ -456,8 +468,8 @@ export function createActiveDesignHost(deps: ActiveDesignHostDeps): ActiveDesign
   let currentSlotNodeId = ''
   const formDesignByFormId = new Map<string, string>()
 
-  async function moveSlot(nodeId: string, documentId?: string): Promise<void> {
-    const ok = await deps.bridge.writeSlot(nodeId, documentId)
+  async function moveSlot(nodeId: string, documentId?: string, windowId?: string): Promise<void> {
+    const ok = await deps.bridge.writeSlot(nodeId, documentId, windowId)
     if (ok) {
       currentSlotNodeId = nodeId
     } else {
@@ -465,21 +477,28 @@ export function createActiveDesignHost(deps: ActiveDesignHostDeps): ActiveDesign
     }
   }
 
-  async function resolveFormAnswer(text: string, documentId?: string): Promise<void> {
+  async function resolveFormAnswer(
+    text: string,
+    documentId?: string,
+    windowId?: string
+  ): Promise<void> {
     const answer = parseAskAnswer(text)
     // 仅 [表单作答] 移槽（共享契约字面）；[表单跳过] 不构成目标授权
     if (!answer || answer.aborted) return
     const mapped = formDesignByFormId.get(answer.formId)
     if (!mapped) return // 刷新丢映射 → 事件④静默不发生（已知边界，T60-plan 定谳 2）
-    const probe = await deps.bridge.probeCandidate(mapped, documentId)
-    if (probe && isFormTargetStillValid(probe)) await moveSlot(mapped, documentId)
+    const probe = await deps.bridge.probeCandidate(mapped, documentId, windowId)
+    if (probe && isFormTargetStillValid(probe)) await moveSlot(mapped, documentId, windowId)
   }
 
-  async function probeSlotState(documentId?: string): Promise<{
+  async function probeSlotState(
+    documentId?: string,
+    windowId?: string
+  ): Promise<{
     slot: ActiveDesignSlotState
     notices: string[]
   }> {
-    const probe = await deps.bridge.probeSlot(documentId)
+    const probe = await deps.bridge.probeSlot(documentId, windowId)
     if (!probe) {
       console.warn(
         '[pi-backend] active_design 桥探针不可用——本回合按空槽组装（桥不可达或无活动文档）'
@@ -489,13 +508,13 @@ export function createActiveDesignHost(deps: ActiveDesignHostDeps): ActiveDesign
     const slot = evaluateActiveDesignSlot(probe.slotNodeId, probe.design, probe.brief)
     if (slot.status !== 'dangling') return { slot, notices: [] }
     // 定谳 3：槽位节点删除/失格 → 清槽 + 一行系统提示
-    await moveSlot('', documentId)
+    await moveSlot('', documentId, windowId)
     return { slot: { status: 'empty' }, notices: [ACTIVE_DESIGN_TEXTS.slotCleared] }
   }
 
   /** T91b：探针读 pluginData，组装 intentConfirmed 旗标（OR 信封兼容路径） */
-  async function probeIntentFlag(documentId?: string): Promise<boolean> {
-    const snap = await deps.bridge.probeNewIntent(documentId)
+  async function probeIntentFlag(documentId?: string, windowId?: string): Promise<boolean> {
+    const snap = await deps.bridge.probeNewIntent(documentId, windowId)
     return snap?.confirmed === true
   }
 
@@ -506,13 +525,13 @@ export function createActiveDesignHost(deps: ActiveDesignHostDeps): ActiveDesign
       if (details.status !== 'awaiting_user' || typeof details.formId !== 'string') return
       formDesignByFormId.set(details.formId, currentSlotNodeId)
     },
-    async onDesignCreated(rootId, documentId) {
-      await moveSlot(rootId, documentId)
+    async onDesignCreated(rootId, documentId, windowId) {
+      await moveSlot(rootId, documentId, windowId)
       // T91b：设计落图后清 document root pluginData 三键——避免下次装配读到
       // 旧 modeId 误用。失败仅 warn（设计已建不需回吐；下回合探针自然读空）
-      await deps.bridge.clearNewIntent(documentId)
+      await deps.bridge.clearNewIntent(documentId, windowId)
     },
-    async prepareTurn(text, documentId) {
+    async prepareTurn(text, documentId, windowId) {
       // 回合开始强制清零（防御：finalizeTurn 遗漏也不跨回合滞留）
       intentConfirmed = false
       const { envelope, stripped } = stripNewIntentEnvelope(text)
@@ -526,11 +545,11 @@ export function createActiveDesignHost(deps: ActiveDesignHostDeps): ActiveDesign
       }
       // T91b：pluginData 探针确认（二级信源；前端 ChatNewIntentCard 确认后写入）。
       // OR 信封兼容路径——任一为真即放行。探针不可达按未确认降级（warn）。
-      if (!intentConfirmed && (await probeIntentFlag(documentId))) {
+      if (!intentConfirmed && (await probeIntentFlag(documentId, windowId))) {
         intentConfirmed = true
       }
-      await resolveFormAnswer(text, documentId)
-      const { slot, notices } = await probeSlotState(documentId)
+      await resolveFormAnswer(text, documentId, windowId)
+      const { slot, notices } = await probeSlotState(documentId, windowId)
       currentSlotNodeId = slot.status === 'ok' ? slot.design.nodeId : ''
       turn = assembleTurn(deps.registry(), slot, [...intentNotices, ...notices])
       return { promptText: stripped }
@@ -560,13 +579,15 @@ export type SetActiveDesignResult =
 /**
  * POST /api/pi/active-design 的处理本体：四条件校验 → 移槽 → 身份三元组。
  * documentId 缺省 = 桥当前活动 tab（同工具 document_id 缺省语义）。
+ * T98-路由：windowId 透传——多窗时按发起窗路由探针/写槽，避免 A 窗操作串到 B 窗。
  */
 export async function setActiveDesignViaBridge(
   nodeId: string,
   documentId?: string,
-  bridge: ActiveDesignBridgeIO = createBridgeSlotIO()
+  bridge: ActiveDesignBridgeIO = createBridgeSlotIO(),
+  windowId?: string
 ): Promise<SetActiveDesignResult> {
-  const probe = await bridge.probeCandidate(nodeId, documentId)
+  const probe = await bridge.probeCandidate(nodeId, documentId, windowId)
   if (!probe) {
     return {
       ok: false,
@@ -576,7 +597,7 @@ export async function setActiveDesignViaBridge(
   }
   const check = checkActiveDesignCandidate(nodeId, probe.design, probe.brief, probe.currentPageId)
   if (!check.ok) return { ok: false, error: check.reason, message: check.message }
-  const moved = await bridge.writeSlot(nodeId, documentId)
+  const moved = await bridge.writeSlot(nodeId, documentId, windowId)
   if (!moved) {
     return {
       ok: false,
@@ -616,10 +637,12 @@ return { ok: true };`
  * POST /api/pi/intent-confirm 的处理本体：写 pluginData 三键（modeId /
  * profileId / confirmed=true）。前端 ChatNewIntentCard 确认按钮触发。
  * documentId 缺省 = 桥当前活动 tab（同工具 document_id 缺省语义）。
+ * T98-路由：windowId 透传——按发起窗路由（多窗时只有目标窗的 pluginData 被写）。
  */
 export async function confirmNewIntentViaBridge(
   args: { modeId: string; profileId?: string },
-  documentId?: string
+  documentId?: string,
+  windowId?: string
 ): Promise<ConfirmNewIntentResult> {
   if (!args.modeId) {
     return { ok: false, error: 'invalid_args', message: 'modeId 不能为空' }
@@ -629,10 +652,15 @@ export async function confirmNewIntentViaBridge(
     const discovery = await readDiscoveryFile()
     if (!discovery) throw new Error('bridge discovery missing')
     const code = buildWriteNewIntentSource(args.modeId, profileId)
-    const res = await postBridgeRPC(discovery, 'tool', {
-      name: 'eval',
-      args: documentId ? { code, document_id: documentId } : { code }
-    })
+    const res = await postBridgeRPC(
+      discovery,
+      'tool',
+      {
+        name: 'eval',
+        args: documentId ? { code, document_id: documentId } : { code }
+      },
+      windowId
+    )
     const body = (await res.json().catch(() => null)) as { ok?: boolean } | null
     if (!res.ok || body?.ok !== true) throw new Error(`bridge eval failed: HTTP ${res.status}`)
     return { ok: true, modeId: args.modeId, profileId }

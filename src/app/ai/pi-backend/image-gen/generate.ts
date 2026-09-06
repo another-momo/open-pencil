@@ -44,7 +44,7 @@ import {
   type ImageGenResult
 } from '@open-pencil/core/tools/fork/image-gen/requests'
 
-import { createBridgeCaller, type BridgeCaller } from './bridge-call'
+import { createBridgeCaller, type BridgeCaller, type BridgeCallTarget } from './bridge-call'
 import type { ImageGenCredentials, ImageGenCredentialStore } from './credentials'
 import { createProviderFor } from './factory'
 
@@ -75,8 +75,8 @@ export interface ImageGenToolDeps {
   callBridge?: BridgeCaller
   /** provider 工厂（缺省 OpenAI 兼容 provider）；pi-ai generateImages 扩展槽/测试 mock */
   createProvider?: (credentials: ImageGenCredentials) => ImageGenProvider
-  /** 当次请求的桥目标文档（service 集成期注入，同 tools.ts ToolTargetSource 语义） */
-  target?: { documentId?: string }
+  /** 当次请求的桥目标袋（service 集成期注入，同 tools.ts ToolTargetSource 语义；T98-路由含 windowId） */
+  target?: BridgeCallTarget
 }
 
 interface BeginPayload {
@@ -133,7 +133,7 @@ function toErrorMessage(error: unknown): string {
 async function runBeginPhase(
   requests: ImageGenRequest[],
   callBridge: BridgeCaller,
-  target: { documentId?: string } | undefined
+  target: BridgeCallTarget | undefined
 ): Promise<PipelineItem[]> {
   const items: PipelineItem[] = []
   for (const req of requests) {
@@ -189,7 +189,7 @@ async function runCommitPhase(
   items: PipelineItem[],
   provider: ImageGenProvider,
   callBridge: BridgeCaller,
-  target: { documentId?: string } | undefined
+  target: BridgeCallTarget | undefined
 ): Promise<ItemResult[]> {
   const results: ItemResult[] = []
   for (const item of items) {

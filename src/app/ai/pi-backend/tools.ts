@@ -27,6 +27,10 @@
  * resolveAutomationTarget 原生支持（target.ts:81），桥代码零改动；不进
  * 工具 schema（不对模型暴露实现细节，与 MCP 侧 schema 显式带参不同）。
  *
+ * T98-路由：service 把当次请求的 windowId 经 ToolTargetSource 闭包传入，
+ * postBridgeRPC 顶层放 windowId（不进 args——windowId 是请求体外层信封，
+ * 与 documentId 同风格）。多窗时 agent 在 A 窗的调用不会串到 B 窗。
+ *
  * T81 P-04：vision 前置拒绝——MODEL.IMAGE 输入模态闭包（service 注入
  * admin.resolveModel 出来的 pi Model.input.includes('image')），
  * MEDIA_OUTPUT_TOOLS 工具执行前 fail-fast（不消耗桥 RPC / 工具凭据）。
@@ -85,6 +89,8 @@ export type StepBudgetSource = {
 /** T22：当次请求的桥目标文档（service 每 prompt 更新的可变袋，工具闭包读取） */
 export type ToolTargetSource = {
   documentId?: string
+  /** T98-路由：发起窗口 id（service 每 prompt 更新的可变袋） */
+  windowId?: string
 }
 
 type BridgeToolResult = Record<string, unknown>
@@ -107,10 +113,13 @@ async function callBridgeTool(
   // 原生消费；缺省则落当前活动 tab，维持旧语义）
   const documentId = target?.documentId
   const args = documentId ? { ...toolArgs, document_id: documentId } : toolArgs
+  // T98-路由：windowId 是请求体外层信封字段，与 documentId 同风格——不进 args，
+  // 桥侧按发起窗路由。多窗时不会把 A 窗的调用串到 B 窗。
+  const windowId = target?.windowId
 
   let res: Response
   try {
-    res = await postBridgeRPC(discovery, 'tool', { name: toolName, args })
+    res = await postBridgeRPC(discovery, 'tool', { name: toolName, args }, windowId)
   } catch (error) {
     // T27 复核：单次重试并非死重试——重试会重读 discovery 文件（每次调用开头），
     // 覆盖「独立 dev:backend 后端存活期间 vite/7600 桥重启、端口或 token 恰好

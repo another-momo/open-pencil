@@ -68,7 +68,7 @@ function createHonoApp(options: {
   authToken: string | null
   corsOrigin: string | null
   browserRPC: ReturnType<typeof createBrowserRPCBridge>
-  sendToBrowser: (msg: RPCJSONObject) => Promise<unknown>
+  sendToBrowser: (msg: RPCJSONObject, opts: { windowId?: string }) => Promise<unknown>
 }): Hono {
   const { authToken, corsOrigin, browserRPC, sendToBrowser } = options
 
@@ -116,14 +116,23 @@ function createHonoApp(options: {
   // 200 {ok:false, error}（RPC 传输本身成功）；502 严格保留给编辑器不可达
   // （app 未连接/RPC 超时/浏览器断连）。pi-backend 调用方据此分类模型可见
   // 错误文案（bridge-errors.ts classifyBridgeFailure）。
+  //
+  // T98-路由：body.windowId 是请求体外层信封字段——剥离后传给 sendToBrowser 选槽，
+  // 不得残留在转发体里（桥侧会误把它当工具参数塞进 args）。windowId 缺省时按
+  // sendRPC 内部规则回退（单窗/多窗最后注册窗/零窗 wait）。
   app.post('/rpc', async (c) => {
     let body = await c.req.json().catch(() => null)
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return c.json({ error: 'Invalid request body' }, 400)
     }
     try {
-      body = preprocessRPC(body as RPCJSONObject)
-      const result = await sendToBrowser(body as RPCJSONObject)
+      const rawBody = body as Record<string, unknown>
+      // 剥离 windowId 信封字段——不进转发体
+      const explicitWindowId =
+        typeof rawBody.windowId === 'string' && rawBody.windowId ? rawBody.windowId : undefined
+      const { windowId: _stripped, ...forwardBody } = rawBody
+      const processed = preprocessRPC(forwardBody as RPCJSONObject)
+      const result = await sendToBrowser(processed as RPCJSONObject, { windowId: explicitWindowId })
       return c.json(result)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)

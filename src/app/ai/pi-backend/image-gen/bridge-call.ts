@@ -31,10 +31,13 @@ export function bridgeCallTimeoutMs(): number {
 
 export type BridgeCallResult = Record<string, unknown>
 
+/** 当次请求的桥目标袋（同 tools.ts ToolTargetSource 语义，T98-路由起加 windowId） */
+export type BridgeCallTarget = { documentId?: string; windowId?: string }
+
 export type BridgeCaller = (
   toolName: string,
   toolArgs: Record<string, unknown>,
-  target?: { documentId?: string }
+  target?: BridgeCallTarget
 ) => Promise<BridgeCallResult>
 
 type BridgeAttempt =
@@ -44,7 +47,7 @@ type BridgeAttempt =
 async function attemptBridgeCall(
   toolName: string,
   toolArgs: Record<string, unknown>,
-  target?: { documentId?: string }
+  target?: BridgeCallTarget
 ): Promise<BridgeAttempt> {
   const discovery = await readDiscoveryFile()
   if (!discovery) {
@@ -62,7 +65,11 @@ async function attemptBridgeCall(
   const headers: Record<string, string> = { 'content-type': 'application/json' }
   if (discovery.authToken) headers.authorization = `Bearer ${discovery.authToken}`
   const endpoint = `http://127.0.0.1:${discovery.httpPort}/rpc`
-  const payload = { command: 'tool', args: { name: toolName, args } }
+  // T98-路由：windowId 放 body 顶层（与 tools.ts 同缝）——桥按发起窗路由，
+  // 多窗时生图落图不串窗（owner 实测错窗事故的现场路径即本助手）
+  const windowId = target?.windowId
+  const payload: Record<string, unknown> = { command: 'tool', args: { name: toolName, args } }
+  if (windowId) payload.windowId = windowId
 
   let response: Response
   try {

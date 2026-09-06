@@ -40,6 +40,36 @@ export function isAbortShapedError(error: unknown): boolean {
   return typeof error.message === 'string' && messageLooksAborted(error.message)
 }
 
+// T98：用户点停止 → ai SDK AbstractChat.stop() 的 abort() 会同步触发 SDK 内部
+// 一个无人 await 的流泵 promise 以 AbortError reject（Chrome 报文
+// 'BodyStreamBuffer was aborted'）。实证：该 rejection 不是 stop() 自身的
+// promise——调用点 await + try/catch 捕不到（前两轮修复只盖了能捕的面），
+// 唯一收口面是 unhandledrejection + preventDefault。三重收窄保证不误伤：
+// ① 仅用户主动停止后的 2s 窗口期；② 仅 abort 形状错误；③ 栈归因须含
+// AbstractChat.stop。自然断流/真实错误的 rejection 不在窗口内或栈不命中，
+// 照常进 console。
+let intentionalStopUntil = 0
+
+/** ChatPanel.handleStop 调 stop() 前调用——立「主动停止」窗口期旗标 */
+export function markIntentionalStop(): void {
+  intentionalStopUntil = Date.now() + 2000
+}
+
+let stopRejectionGuardInstalled = false
+
+/** 安装一次性全局守卫（createChatSessionManager 内调用；多 tab 重复调用幂等） */
+export function installStopRejectionGuard(): void {
+  if (stopRejectionGuardInstalled || typeof window === 'undefined') return
+  stopRejectionGuardInstalled = true
+  window.addEventListener('unhandledrejection', (event) => {
+    if (Date.now() > intentionalStopUntil) return
+    if (!isAbortShapedError(event.reason)) return
+    const stack = event.reason instanceof Error ? (event.reason.stack ?? '') : ''
+    if (!stack.includes('AbstractChat.stop')) return
+    event.preventDefault()
+  })
+}
+
 type EditorStore = ReturnType<typeof getActiveEditorStore>
 
 /**
@@ -62,6 +92,7 @@ export function createChatSessionManager({
   loadHistory,
   onSessionReset
 }: ChatSessionOptions) {
+  installStopRejectionGuard()
   const failure = ref<AIChatFailure | null>(null)
   let transportDirty = false
   let currentChatStore: EditorStore | null = null

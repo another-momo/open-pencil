@@ -14,11 +14,11 @@ import {
   ScrollAreaViewport
 } from 'reka-ui'
 import { refAutoReset } from '@vueuse/core'
-import { computed, markRaw, nextTick, ref, watch } from 'vue'
-import { isTextUIPart } from 'ai'
+import { computed, markRaw, nextTick, onErrorCaptured, ref, watch } from 'vue'
+import { isTextUIPart, isToolUIPart } from 'ai'
 
 import { copyChatLog } from '@/app/ai/fork/debug'
-import { isAbortShapedError } from '@/app/ai/fork/transports'
+import { isAbortShapedError, markIntentionalStop } from '@/app/ai/fork/transports'
 import {
   getPiCurrentSessionId,
   hasPiDocId,
@@ -103,6 +103,23 @@ void ensureChat()
     )
   })
 const messagesEnd = ref<HTMLDivElement>()
+// T98：PiChatInput patch 崩溃（insertBefore/__vnode null——contenteditable 非受控
+// 编辑器与 Vue  vnode 树偶发失配）后，旧 vnode 带 null el 留在树里，后续每次
+// 更新必再崩（级联，owner 实测 Enter/发送/停止全报同一错）。捕获该签名错误后
+// 整树强制重挂自愈——代价是丢失未提交草稿，远好于输入框永久坏到刷新页面。
+// nextTick 推迟到当前 flush 落定后再换 key，避免同 flush 内 unmount 半补丁树。
+const chatInputRemountKey = ref(0)
+onErrorCaptured((err, instance) => {
+  const file = ((instance as unknown as { type?: { __file?: string } } | null)?.type)?.__file ?? ''
+  const isChatInputSubtree = file.endsWith('PiChatInput.vue') || file.endsWith('InputGroup.vue')
+  const isPatchCorruption = err instanceof TypeError && /insertBefore|__vnode/.test(err.message)
+  if (!isChatInputSubtree || !isPatchCorruption) return true
+  console.warn('[chat] 输入框 patch 树损坏——强制重挂自愈（未提交草稿会丢失）', err)
+  void nextTick(() => {
+    chatInputRemountKey.value += 1
+  })
+  return false
+})
 const debugCopied = refAutoReset(false, 1500)
 // T94：用户主动停止标记——stop() 引发的 SSE 断开是预期行为，不是错误。
 // 旗标在下一次 status 落 ready / error 时消费复位（stop 按钮只在 streaming /
@@ -320,16 +337,50 @@ async function handleSubmit(text: string) {
   }
 }
 
-function handleStop() {
+async function handleStop() {
   // T94：先立旗标再 stop——stop 触发的 SSE 断开若被 SDK 判负（status='error'），
   // chatFailure watcher 凭旗标吞掉该假错误
   isUserStopped.value = true
+  // T98：stop() 会同步触发 SDK 内部无人 await 的流泵 rejection——await/catch
+  // 捕不到（实证），先立窗口期旗标，transports 的 unhandledrejection 守卫
+  // 按「窗口期 + abort 形状 + AbstractChat.stop 栈归因」三重收窄后吞掉
+  markIntentionalStop()
   try {
-    chat.value?.stop()
+    // ai SDK 的 stop 是 async 函数：abort 抛错走 rejected promise 而非同步
+    // throw——不 await 时 try/catch 形同虚设，rejection 逃逸成 unhandled
+    // （owner 实测 console 仍见 AbortError: BodyStreamBuffer was aborted）。
+    // await 后 catch 对同步/异步两轨同捕；Vue 对 async handler 的 rejection
+    // 仍会走 error handling，非 abort 形状的异常可见性不丢。
+    await chat.value?.stop()
   } catch (e) {
     // SDK 的 stop() 内部 reader.cancel 会把「BodyStreamBuffer was aborted」
-    // 以 AbortError 同步回抛（用户主动停止的预期形态）——吞掉，不污染 console
+    // 以 AbortError 回抛（用户主动停止的预期形态）——吞掉，不污染 console
     if (!isAbortShapedError(e)) throw e
+  }
+  finalizeInterruptedToolParts()
+}
+
+/** T98：用户停止把流掐断后，在途工具 part 永远停在 input-streaming/
+ *  input-available——卡片「正在运行…」不再收终态（owner 实测停止后卡死态）。
+ *  stop 完成后把末条 assistant 消息的未终结工具 part 落 SDK 终止态
+ *  output-error，卡片转「错误」收尾；SDK 若已自行终结（正常完成路径）
+ *  则 touched=false 零副作用。 */
+function finalizeInterruptedToolParts(): void {
+  const currentChat = chat.value
+  if (!currentChat) return
+  const messages = [...currentChat.messages]
+  const last = messages[messages.length - 1]
+  if (!last || last.role !== 'assistant') return
+  let touched = false
+  const parts = last.parts.map((part) => {
+    if (!isToolUIPart(part)) return part
+    if (part.state !== 'input-streaming' && part.state !== 'input-available') return part
+    touched = true
+    return { ...part, state: 'output-error', errorText: 'Stopped by user.' } as unknown as typeof part
+  })
+  if (touched) {
+    messages[messages.length - 1] = { ...last, parts }
+    currentChat.messages = messages
   }
 }
 
@@ -796,6 +847,7 @@ function handleClearChat() {
     </div>
 
     <PiChatInput
+      :key="chatInputRemountKey"
       ref="chatInputRef"
       :status="status"
       @submit="handleSubmit"

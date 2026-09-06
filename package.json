@@ -60,7 +60,8 @@
     "spike:sidecar:build": "tsdown --config desktop-electron/tsdown.config.ts",
     "spike:sidecar:smoke": "bun desktop-electron/smoke/sidecar-smoke.ts",
     "spike:electron:build": "tsdown --config desktop-electron/main/tsdown.config.ts",
-    "spike:electron:smoke": "bun desktop-electron/smoke/electron-smoke.ts"
+    "spike:electron:smoke": "bun desktop-electron/smoke/electron-smoke.ts",
+    "spike:electron:full-smoke": "bun desktop-electron/smoke/electron-full-smoke.ts"
   },
   "dependencies": {
     "@ai-sdk/valibot": "^3.0.27",

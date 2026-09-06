@@ -297,7 +297,11 @@ const preferVueUseIntervals = {
   },
   create(context) {
     const file = normalizedFilename(context)
-    const applies = file.includes('/src/app/') || file.includes('/packages/vue/src/')
+    // P178 移植（2026-09-06）：automation/bridge/server 是 bun 拉起的 Node 子进程
+    // （无 Vue 运行时），WebSocket 心跳只能手写 setInterval/clearInterval
+    const applies =
+      (file.includes('/src/app/') || file.includes('/packages/vue/src/')) &&
+      !file.includes('/src/app/automation/bridge/server/')
     if (!applies) return {}
 
     function intervalName(callee: TSESTree.Expression): string | null {

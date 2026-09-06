@@ -941,10 +941,10 @@
     },
     {
       "id": "P178",
-      "file": "lint/plugin.js",
-      "reason": "Batch 2b/2c（2026-09-05）：mcp/cli 专属规则族退役（no-mcp/no-cli-parent-relative-imports、no-mcp/no-cli-core-barrel-imports、no-bun-globals-in-cli + nonComponentSourceDirectoriesKebabCase 根清单去两包）+ preferVueUseIntervals 豁免 src/app/automation/bridge/server/（bun 拉起的 Node 子进程无 Vue 运行时，WebSocket 心跳手写 setInterval）",
+      "file": "tools/lint/src/plugin.ts",
+      "reason": "Batch 2b/2c（2026-09-05）：mcp/cli 专属规则族退役（no-mcp/no-cli-parent-relative-imports、no-mcp/no-cli-core-barrel-imports、no-bun-globals-in-cli + nonComponentSourceDirectoriesKebabCase 根清单去两包）。T98 收口（2026-09-06）：lint/plugin.js 回接上游一行 shim（re-export 本文件），退役语义从旧自包含快照移植到本文件注册表；preferVueUseIntervals 豁免移植见 P210。",
       "disposition": "permanent",
-      "lastReviewed": "2026-09-05"
+      "lastReviewed": "2026-09-06"
     },
     {
       "id": "P179",
@@ -1161,6 +1161,13 @@
       "id": "P209",
       "file": "tests/engine/app/ai/context.test.ts",
       "reason": "T98 收口修复（2026-09-06）：上游测试 import '@/app/ai/chat/context'，旧 chat 栈已 Batch 2a 路径分离入 fork/（Batch 0 已删 src/app/ai/chat/）；改指 '@/app/ai/fork/context'（appendReferencedNodeContext/MAX_REFERENCED_NODES/resolveReferencedNodes/stripReferencedNodeContext 等符号同表存在）。",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-06"
+    },
+    {
+      "id": "P210",
+      "file": "tools/lint/src/rules/runtime.ts",
+      "reason": "T98 收口（2026-09-06）：P178 豁免语义移植——preferVueUseIntervals 的 applies 增加 src/app/automation/bridge/server/ 排除（bun 拉起的 Node 子进程无 Vue 运行时，WebSocket 心跳只能手写 setInterval/clearInterval，见 server.ts:163）；随 lint/plugin.js 回接上游 shim 从旧自包含快照迁入。",
       "disposition": "permanent",
       "lastReviewed": "2026-09-06"
     }

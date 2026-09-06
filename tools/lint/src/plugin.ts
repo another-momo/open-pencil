@@ -369,11 +369,7 @@ import {
   noCrossPackageSourceImports,
   noDeepParentRelativeImports,
   noCoreParentRelativeImports,
-  noMcpParentRelativeImports,
   noVueParentRelativeImports,
-  noCliParentRelativeImports,
-  noMcpCoreBarrelImports,
-  noCliCoreBarrelImports,
   noScriptCoreBarrelImports,
   noCoreSelfPackageImports,
   noInlinePromptConstants,
@@ -405,7 +401,6 @@ import {
   noFunctionAliasImports,
   noDirectOpenPencilBrowserStore,
   noDirectOpenPencilWindowInternals,
-  noBunGlobalsInCli,
   noTopLevelPrefixedTestFiles,
   noSiblingDomainPrefixedFiles
 } from '#lint/rules/structure.ts'
@@ -447,11 +442,10 @@ const plugin = {
     'no-cross-package-source-imports': noCrossPackageSourceImports,
     'no-deep-parent-relative-imports': noDeepParentRelativeImports,
     'no-core-parent-relative-imports': noCoreParentRelativeImports,
-    'no-mcp-parent-relative-imports': noMcpParentRelativeImports,
+    // P178（Batch 2b/2c 退役，2026-09-06 移植到本文件）：mcp/cli 专属规则族
+    // （no-mcp/no-cli-parent-relative-imports、no-mcp/no-cli-core-barrel-imports）
+    // 与 no-bun-globals-in-cli 不注册——mcp/ cli/ 包已退役，规则空转且漂移。
     'no-vue-parent-relative-imports': noVueParentRelativeImports,
-    'no-cli-parent-relative-imports': noCliParentRelativeImports,
-    'no-mcp-core-barrel-imports': noMcpCoreBarrelImports,
-    'no-cli-core-barrel-imports': noCliCoreBarrelImports,
     'no-script-core-barrel-imports': noScriptCoreBarrelImports,
     'no-core-self-package-imports': noCoreSelfPackageImports,
     'no-inline-prompt-constants': noInlinePromptConstants,
@@ -484,7 +478,6 @@ const plugin = {
     'no-function-alias-imports': noFunctionAliasImports,
     'no-mixed-case-acronym-identifiers': noMixedCaseAcronymIdentifiers,
     'no-flat-kiwi-modules': noFlatKiwiModules,
-    'no-bun-globals-in-cli': noBunGlobalsInCli,
     'no-top-level-prefixed-test-files': noTopLevelPrefixedTestFiles,
     'no-conditional-object-spreads': noConditionalObjectSpreads,
     'no-sibling-domain-prefixed-files': noSiblingDomainPrefixedFiles

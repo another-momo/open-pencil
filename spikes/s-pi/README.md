@@ -32,5 +32,5 @@ pi 自家测试（`pi/packages/coding-agent/test/test-harness.ts`）用 `createF
 
 ## 证据与结论
 
-见 `docs/rebuild/tasks/T11-self-check.md`（本仓 docs/rebuild 下）。活模型面（DeepSeek 通道 B、
+见 `docs/archive/rebuild-campaign/tasks/T11-self-check.md`（本仓 docs/archive/rebuild-campaign/ 下，原 docs/rebuild/ 已于 2026-09-06 冻结归档）。活模型面（DeepSeek 通道 B、
 视觉通道 A 探测）需 owner 提供 API key，当前状态见该文档阻塞清单。

@@ -6,12 +6,12 @@
 #
 #   check:zones    — every commit (git-diff only, cheap); zone purity can be
 #                    broken by ANY upstream file change, not just docs.
-#   check:docs     — only when docs/rebuild/*.md staged
-#   check:bindings — only when docs/rebuild/*.md staged
-#   check:tasks    — when docs/rebuild/*.md staged, OR any big pure-code
-#                    change (>=10 files or >=200 lines staged; T27——大改动
-#                    任务登记纪律不只约束文档改动，与 check:tasks 自身
-#                    R1/R2 阈值同口径)
+#
+# docs/rebuild moved to docs/archive/rebuild-campaign (frozen 2026-09-06),
+# so check:docs / check:tasks are retired and no longer invoked here.
+# (check:bindings stayed wired only because it is still called from CI
+# rebuild-discipline; check:tasks invocations on >=10 files or >=200
+# lines are dropped along with the underlying script.)
 #
 # Setup (one time, per clone / worktree):
 #   bun run hooks:install
@@ -31,32 +31,8 @@ fi
 echo "pre-commit: 跑 check:zones..."
 bun run check:zones
 
-# doc 三检查在 docs/rebuild/*.md 改动时触发
-changed_docs=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^docs/rebuild/.*\.md$' || true)
-
-if [ -z "$changed_docs" ]; then
-  # T27：纯代码大改动也触发 check:tasks（阈值与 check:tasks 的 R1/R2 同口径）
-  file_count=$(git diff --cached --name-only --diff-filter=ACMR | grep -c . || true)
-  line_count=$(git diff --cached --numstat | awk '{a+=$1; d+=$2} END {print a+d+0}')
-  if [ "$file_count" -ge 10 ] || [ "$line_count" -ge 200 ]; then
-    echo "pre-commit: 无 docs/ 改动但属大改动（${file_count} 文件 / ${line_count} 行），跑 check:tasks..."
-    bun run check:tasks
-  else
-    echo "pre-commit: 无 docs/ 改动且非大改动，跳过 check-docs/bindings/tasks"
-  fi
-  exit 0
-fi
-
-echo "pre-commit: 改动文件:"
-echo "$changed_docs" | sed 's/^/  /'
-
-echo "pre-commit: 跑 check:docs..."
-bun run check:docs
-
-echo "pre-commit: 跑 check:bindings..."
-bun run check:bindings
-
-echo "pre-commit: 跑 check:tasks..."
-bun run check:tasks
+# docs/rebuild 整体退役 → docs/archive/rebuild-campaign（冻结 2026-09-06）；
+# check:docs / check:tasks 同步退役，本钩子不再触发。
+# （check:bindings 仍由 CI rebuild-discipline job 拉起，本钩不重复挂载。）
 
 echo "pre-commit: 全绿 ✅"

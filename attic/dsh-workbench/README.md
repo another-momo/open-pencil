@@ -1,12 +1,12 @@
 # openpencil-marketing（attic/dsh-workbench/，原 workbench/）
 
-> **⚠ 搁置声明（T47，2026-08-31）**：本目录是已搁置的 DSH plugin 形态产品路线的遗留物，2026-08-31 由 `workbench/` 正名迁移至此。产品主线已转向 fork 内 pi-backend 形态（docs/rebuild/），**勿在此新增文件**；保留仅为历史证据与 CI 的 X1 raw-JSX 回归守卫（`.github/workflows/ci.yml` workbench-build job）。下文中的 `workbench/` 路径均指本目录。
+> **⚠ 搁置声明（T47，2026-08-31）**：本目录是已搁置的 DSH plugin 形态产品路线的遗留物，2026-08-31 由 `workbench/` 正名迁移至此。产品主线已转向 fork 内 pi-backend 形态（docs/archive/rebuild-campaign/，原 docs/rebuild/ 于 2026-09-06 冻结归档），**勿在此新增文件**；保留仅为历史证据与 CI 的 X1 raw-JSX 回归守卫（`.github/workflows/ci.yml` workbench-build job）。下文中的 `workbench/` 路径均指本目录。
 
 OpenPencil 营销工作台的 dsh bundle：shell.overlay 孤岛（React 宿主 + Vue 3 应用）+ 7600 WS 桥工具 + `openpencil-design` agent preset。
 
 ## 环境要求
 
-- dsh 宿主钉在 `@deepseek-ai/dsh@0.1.1-rc.1`（精确版本，不用 ^/~——preview 发布节奏实测 11 天 10 个 rc，升级走双周窗口，见 `docs/rebuild/03-phase-1-runtime.md` §5.4）
+- dsh 宿主钉在 `@deepseek-ai/dsh@0.1.1-rc.1`（精确版本，不用 ^/~——preview 发布节奏实测 11 天 10 个 rc，升级走双周窗口，见 `docs/archive/rebuild-campaign/03-phase-1-runtime.md` §5.4）
 - Node ≥ 20（宿主同要求）
 
 ## 安装（开发形态）

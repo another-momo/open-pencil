@@ -4,11 +4,19 @@
  * Enforces the one-to-one binding between narrative documents and
  * their records/ counterparts. Per 05-process.md §4 and D11:
  *
- *   - Any change to `docs/rebuild/<file>.md` MUST be accompanied by a
- *     change to `docs/rebuild/records/narrative/<file>.md`
- *   - Spike files: `docs/rebuild/spikes/<file>.zh.md` ↔
- *     `docs/rebuild/records/narrative/spikes/<file>.zh.md`
+ *   - Any change to `docs/archive/rebuild-campaign/<file>.md` MUST be
+ *     accompanied by a change to the corresponding records/ counterpart
+ *     under the same archive tree.
+ *   - Spike files: `docs/archive/rebuild-campaign/spikes/<file>.zh.md` ↔
+ *     `docs/archive/rebuild-campaign/records/narrative/spikes/<file>.zh.md`
  *   - README.md / tracker.md: same basename in narrative/
+ *
+ * The narrative tree moved from docs/rebuild/ to
+ * docs/archive/rebuild-campaign/ on 2026-09-06 (frozen). Path strings in
+ * the matching regex below were updated mechanically to point at the
+ * archive root; since the tree is frozen, this check effectively
+ * becomes a no-op on fresh commits and stays live only to guard against
+ * accidental edits during the freeze window.
  *
  *   Exemptions:
  *   - records/* changes (no required counterpart)
@@ -21,7 +29,7 @@
  *   - 删除 narrative 文件必须同步删除对应 records 档案（此前被误判为
  *     「新增」而放行，产生孤儿 records——已修正为显式检查删除方向）。
  *
- * Usage: bun tools/zone-registry/src/check-bindings.ts [--base <ref>] (default: HEAD)
+ * Usage: bun tools/zone-registry/src/check/bindings.ts [--base <ref>] (default: HEAD)
  * Exit 0 = clean; exit 1 = violations listed on stderr.
  */
 import { execSync } from 'node:child_process'
@@ -81,20 +89,21 @@ function getCommitMessage(): string {
 
 function isNarrative(file: string): { counterpart: string | null; isNew: boolean } {
   // 排除 records/ 自身修改
-  if (file.startsWith('docs/rebuild/records/')) {
+  if (file.startsWith('docs/archive/rebuild-campaign/records/')) {
     return { counterpart: null, isNew: false }
   }
   // 排除 tasks/ 自身（task 维度独立，不与文件维度绑定）
-  if (file.startsWith('docs/rebuild/tasks/')) {
+  if (file.startsWith('docs/archive/rebuild-campaign/tasks/')) {
     return { counterpart: null, isNew: false }
   }
   // D36（2026-08-28 owner 拍板）：高频活文档豁免——tracker.md 不再强制
   // narrative 同 commit 追加；档案 records/narrative/tracker.md 保留停更不删。
-  // 规则文见 docs/rebuild/05-process.md §4.10 豁免条款
-  if (file === 'docs/rebuild/tracker.md') {
+  // 规则文见 docs/archive/rebuild-campaign/05-process.md §4.10 豁免条款
+  if (file === 'docs/archive/rebuild-campaign/tracker.md') {
     return { counterpart: null, isNew: false }
   }
-  // 排除 check-docs.ts / check-bindings.ts / check-tasks.ts / package.json 等基础设施
+  // 排除 check-bindings.ts / package.json 等基础设施（check:docs /
+  // check:tasks 已退役；原豁免字符串保留供 git 历史可读）
   if (
     file.startsWith('tools/zone-registry/') ||
     file === 'package.json' ||
@@ -103,15 +112,15 @@ function isNarrative(file: string): { counterpart: string | null; isNew: boolean
     return { counterpart: null, isNew: false }
   }
 
-  // 匹配 docs/rebuild/<file>.md 或 docs/rebuild/spikes/<file>.zh.md
-  const narrativeMatch = file.match(/^docs\/rebuild\/(.+\.md)$/)
+  // 匹配 docs/archive/rebuild-campaign/<file>.md 或 spikes/<file>.zh.md
+  const narrativeMatch = file.match(/^docs\/archive\/rebuild-campaign\/(.+\.md)$/)
   if (!narrativeMatch) {
     return { counterpart: null, isNew: false }
   }
 
   const inner = narrativeMatch[1]
   return {
-    counterpart: `docs/rebuild/records/narrative/${inner}`,
+    counterpart: `docs/archive/rebuild-campaign/records/narrative/${inner}`,
     isNew: false
   }
 }

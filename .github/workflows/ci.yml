@@ -121,17 +121,17 @@ jobs:
       - name: Zone registry purity
         run: bun run check:zones
 
-      - name: Rebuild docs format
-        run: bun run check:docs
-
-      - name: Narrative bindings and task three-piece
+      # docs/rebuild moved to docs/archive/rebuild-campaign (frozen 2026-09-06);
+      # check:docs and tasks.ts no longer exist. bindings.ts is kept here as the
+      # sole docs-related governance check — it walks the archived tree and
+      # remains relevant for the binding discipline until retired separately.
+      - name: Narrative bindings
         shell: bash
         run: |
           BASE="${{ github.event.before || github.event.pull_request.base.sha || 'HEAD~1' }}"
           if [ "$BASE" = "0000000000000000000000000000000000000000" ]; then BASE="HEAD~1"; fi
           echo "diff base: $BASE"
           bun tools/zone-registry/src/check/bindings.ts --base "$BASE"
-          bun tools/zone-registry/src/check/tasks.ts --base "$BASE"
 
   # 上游 drift 雷达（2026-09-05 分区优化方案 §5.1 去 cron 化）：nightly cron 从未
   # 运行过（cron 只在默认分支生效，fork 默认分支无该 workflow），改为借用日常

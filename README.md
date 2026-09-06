@@ -70,7 +70,7 @@ See the [roadmap](https://openpencil.dev/development/roadmap) for product direct
 
 ## OpenPencil Rebuild
 
-This fork carries an in-progress rebuild (re-fork + strangler-port of the AI workbench onto a pi SDK runtime, branch `rebuild/pi`). Planning, decisions, and process discipline live under `docs/rebuild/` — entry point: [docs/rebuild/README.md](docs/rebuild/README.md); live status: [docs/rebuild/tracker.md](docs/rebuild/tracker.md). These are internal working documents, not user documentation.
+This fork carries an in-progress rebuild (re-fork + strangler-port of the AI workbench onto a pi SDK runtime, branch `rebuild/pi`). The historical rebuild working documents are archived under `docs/archive/rebuild-campaign/` (frozen 2026-09-06) — entry point: [docs/archive/rebuild-campaign/README.md](docs/archive/rebuild-campaign/README.md); final tracker snapshot: [docs/archive/rebuild-campaign/tracker.md](docs/archive/rebuild-campaign/tracker.md). These are internal working documents, not user documentation.
 
 ## Contributing
 

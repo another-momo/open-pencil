@@ -16,7 +16,8 @@
     "src/app/ai/fork/",
     "src/app/automation/",
     ".github/workflows/",
-    "tools/unit-tests/"
+    "tools/unit-tests/",
+    "desktop-electron/"
   ],
   "ownedFiles": [
     "src/components/settings/models/PiModelsPanel.vue",

@@ -56,7 +56,9 @@
     "test:packages": "bun tools/package-quality/src/cli.ts verify",
     "build:packages": "bun --filter @open-pencil/scene-graph build && bun --filter @open-pencil/pen build && bun --filter @open-pencil/kiwi build && bun --filter @open-pencil/fig build && bun --filter @open-pencil/core build && bun --filter @open-pencil/dom-css build && bun --filter @open-pencil/vue build",
     "smoke:pi": "bun spikes/s-pi/backend-smoke/t22/target-smoke.mjs && bun spikes/s-pi/backend-smoke/t22/history-smoke.mjs && bun spikes/s-pi/backend-smoke/t23/sessions-smoke.mjs && bun spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs && bun spikes/s-pi/backend-smoke/t28/session-gc-smoke.mjs && bun spikes/s-pi/backend-smoke/t87/skill-toggle-smoke.mjs",
-    "smoke:pi:ui": "node spikes/s-pi/backend-smoke/t22/bind-smoke.mjs && node spikes/s-pi/backend-smoke/t23/sessions-bind-smoke.mjs && node spikes/s-pi/backend-smoke/t24/mode-overlay-bind-smoke.mjs"
+    "smoke:pi:ui": "node spikes/s-pi/backend-smoke/t22/bind-smoke.mjs && node spikes/s-pi/backend-smoke/t23/sessions-bind-smoke.mjs && node spikes/s-pi/backend-smoke/t24/mode-overlay-bind-smoke.mjs",
+    "spike:sidecar:build": "tsdown --config desktop-electron/tsdown.config.ts",
+    "spike:sidecar:smoke": "bun desktop-electron/smoke/sidecar-smoke.ts"
   },
   "dependencies": {
     "@ai-sdk/valibot": "^3.0.27",
@@ -156,6 +158,7 @@
     "citty": "^0.1.6",
     "cloudflare-redirect-parser": "^1.0.0",
     "esbuild": "^0.27.7",
+    "electron": "^44.2.0",
     "fake-indexeddb": "^6.2.5",
     "franc": "^6.2.0",
     "hono": "^4.13.2",

@@ -14,15 +14,29 @@
  *  - OPENROUTER_API_KEY：模型 key。T25 D3：缺失时自动读 .openpencil/key-env
  *    自助注入（shell 脚本 source 不再是前置条件）；仍缺则 service 在首个
  *    prompt 处如实报错。key 只注入 process.env，不打印不落日志。
+ *  - OPENPENCIL_ROOT_DIR：状态根目录（.openpencil/ 落盘点），缺省 process.cwd()。
+ *    Electron sidecar 形态下由 main 进程显式注入（sidecar cwd 不可依赖）。
  */
 
 import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { setBedrockProviderModule } from '@earendil-works/pi-ai/api/bedrock-converse-stream.lazy'
+import { bedrockProviderModule } from '@earendil-works/pi-ai/bedrock-provider'
+import { registerBunOAuthFlows } from '@earendil-works/pi-ai/bun-oauth'
+
 import { createPiBackendServer, PI_BACKEND_DEFAULT_PORT } from './server'
 
-const rootDir = process.cwd()
+// 单文件打包形态（tsdown/bun build）下 pi SDK 的变量型动态 import 解析不到
+// 包内模块：bedrock provider 与 OAuth flow 经 SDK 公开注册口静态预注册
+// （craft-agents-oss 同款做法）；源码直跑时等价于 SDK 默认懒加载，行为不变。
+setBedrockProviderModule(bedrockProviderModule)
+registerBunOAuthFlows()
+
+// Electron sidecar 形态下 cwd 不可依赖——状态根目录由宿主显式注入；
+// 不传时维持现状（dev/standalone 均为 cwd）。
+const rootDir = process.env.OPENPENCIL_ROOT_DIR || process.cwd()
 
 // T25 D3：key-env 自助注入（仅补缺失项，不覆盖已有 env）
 function injectKeyEnv(): void {

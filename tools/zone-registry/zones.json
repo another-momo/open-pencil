@@ -1179,6 +1179,20 @@
       "disposition": "permanent",
       "lastReviewed": "2026-09-06",
       "task": "T98"
+    },
+    {
+      "id": "P212",
+      "file": "packages/core/src/io/formats/fig/export.ts",
+      "reason": "T98 收口后修复（2026-09-06）：图片备份 page 标记丢失——CANVAS 节点经 buildCanvasEntries/makeCanvasNodeChange 绕过 sceneNodeToKiwi，pluginData 从未写入 .fig；buildCanvasEntries 内补 mergePluginData(page.pluginData)，空数组时不写字段（与场景节点同语义）。导入端配套见 P213，roundtrip 测试见 tests/engine/scene-graph/plugin-data.test.ts。",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-06"
+    },
+    {
+      "id": "P213",
+      "file": "packages/core/src/kiwi/fig/import.ts",
+      "reason": "T98 收口后修复（2026-09-06）：P212 导入端配套——applyImportedCanvasMetadata 此前只还原 raw Figma 字段不碰 pluginData，补 canvasNc.pluginData → page.pluginData 映射（pluginID→pluginId，与下方 docNc 处理同型）。",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-06"
     }
   ],
   "deletedPaths": [

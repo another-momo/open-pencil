@@ -7,6 +7,7 @@ import {
   buildComponentPropIndex,
   exportCanvasGuides,
   importCanvasGuides,
+  mergePluginData,
   stringToGuid
 } from '@open-pencil/fig/node-change'
 import { initCodec, getCompiledSchema, getSchemaBytes } from '@open-pencil/kiwi/fig/codec'
@@ -361,6 +362,8 @@ function buildCanvasEntries(
         backgroundEnabled: true
       }
     )
+    const canvasPluginData = mergePluginData(page.pluginData)
+    if (canvasPluginData.length > 0) canvasNc.pluginData = canvasPluginData
     applyImportedCanvasFields(page, canvasNc)
     if (page.internalOnly) canvasNc.internalOnly = true
     canvasEntries.push({ page, canvasGuid, canvasNc })

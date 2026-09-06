@@ -120,6 +120,16 @@ const emit = defineEmits<{
  *    显隐读它，让鼠标用户在打字后能立即看到按钮亮起来 / 占位符收起——但
  *    `input` 本身保持「结构事件独占写」纪律（打字期不重渲 segments，仍是
  *    零重渲 → 零 patch → IME 天然安全）。
+ *    **placeholder 用 v-show 而非 v-if**（详见模板注释）：v-if 在「提交
+ *    瞬间 hasText true→false」与 segVersion++ 重挂 seg-root 同一 patch
+ *    flush 里翻 true，contenteditable 还拿着焦点 + 活动 Selection 指在
+ *    即将卸载的旧 seg-root 子节点内；新 placeholder vnode 挂入 + 旧
+ *    seg-root 卸载 + 新 seg-root 挂入三件并发，Vue 内部 anchor 计算偶发
+ *    取到 null（实测 Enter 链触发：mountElement `insertBefore` of null /
+ *    patchElement `__vnode` of null）。v-show 永远不挂卸——仅切 display
+ *    style，零 mount 路径——彻底脱离这条雷区；打字期 live 反馈和 IME 零
+ *    重渲两条 ux6 不变量均保持（v-show 只更新 style 属性，不 patch
+ *    编辑器子树）。
  *  - 三轨同步点：
  *      - 结构事件：先读 shadowText（DOM 真相），算新文本 → commitStructuralChange
  *        同步写 shadowText + input.value + hasText.value + segVersion++。
@@ -903,7 +913,7 @@ defineExpose({ restoreDraft, clearDraft })
               <span class="font-medium">{{ pinnedSkill }}</span>
             </div>
             <div
-              v-if="!hasText && !pinnedSkill"
+              v-show="!hasText && !pinnedSkill"
               class="pointer-events-none absolute top-2.5 left-3 text-xs leading-relaxed text-muted"
               :style="skillChipIndent > 0 ? { paddingLeft: `${skillChipIndent}px` } : undefined"
             >

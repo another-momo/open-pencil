@@ -53,9 +53,8 @@
     "test:type-shapes": "bun tools/type-shapes/src/index.ts",
     "test:tools": "bun tools/test.ts",
     "test:dupes": "jscpd packages/scene-graph/src packages/pen/src packages/core/src packages/dom-css/src src --min-lines 5 --min-tokens 50 --format typescript --threshold 0",
-    "test:packages": "bun tools/package-quality/src/check/metadata.ts && bun tools/package-quality/src/check/publint.ts && bun tools/package-quality/src/check/attw.ts && bun tools/package-quality/src/smoke.ts",
+    "test:packages": "bun tools/package-quality/src/cli.ts verify",
     "build:packages": "bun --filter @open-pencil/scene-graph build && bun --filter @open-pencil/pen build && bun --filter @open-pencil/kiwi build && bun --filter @open-pencil/fig build && bun --filter @open-pencil/core build && bun --filter @open-pencil/dom-css build && bun --filter @open-pencil/vue build",
-    "visual-compare": "bun tools/visual-oracles/src/compare.ts",
     "smoke:pi": "bun spikes/s-pi/backend-smoke/t22/target-smoke.mjs && bun spikes/s-pi/backend-smoke/t22/history-smoke.mjs && bun spikes/s-pi/backend-smoke/t23/sessions-smoke.mjs && bun spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs && bun spikes/s-pi/backend-smoke/t28/session-gc-smoke.mjs && bun spikes/s-pi/backend-smoke/t87/skill-toggle-smoke.mjs",
     "smoke:pi:ui": "node spikes/s-pi/backend-smoke/t22/bind-smoke.mjs && node spikes/s-pi/backend-smoke/t23/sessions-bind-smoke.mjs && node spikes/s-pi/backend-smoke/t24/mode-overlay-bind-smoke.mjs"
   },

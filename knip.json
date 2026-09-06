@@ -10,14 +10,11 @@
     "~icons/*",
     "/src/app/editor/fonts/index.ts",
     "#core/*",
-    "/src/app/tabs/index.ts"
+    "/src/app/tabs/index.ts",
+    "/packages/core/src/text/index.ts"
   ],
   "ignoreBinaries": [
-    "figma-use",
-    "identify",
-    "magick",
     "open",
-    "osascript",
     "taskkill"
   ]
 }

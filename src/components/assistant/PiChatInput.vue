@@ -974,15 +974,7 @@ defineExpose({ restoreDraft, clearDraft })
                       @mousedown.prevent
                       @click.stop="handleRemoveToken(seg.n)"
                     >
-                      <svg
-                        class="size-3"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <path d="M18 6L6 18M6 6l12 12" />
-                      </svg>
+                      <icon-lucide-x class="size-3" />
                     </button>
                   </span>
                   <template v-else>

@@ -1,6 +1,6 @@
 import { shallowReactive } from 'vue'
 
-import { stripReferencedNodeContext } from '@/app/ai/chat/context'
+import { stripReferencedNodeContext } from '@/app/ai/fork/context'
 
 const visibleText = shallowReactive(new Map<string, string>())
 

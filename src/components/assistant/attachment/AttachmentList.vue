@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AttachmentPresentation } from '@/app/ai/attachment/presentation/types'
-import AttachmentCard from '@/components/chat/attachment/AttachmentCard.vue'
+import AttachmentCard from '@/components/assistant/attachment/AttachmentCard.vue'
 
 const { attachments } = defineProps<{ attachments: AttachmentPresentation[] }>()
 </script>

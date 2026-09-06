@@ -530,7 +530,13 @@ export class FontManager {
       const normalized = normalizeFontFamily(family)
 
       // T40 S4：注册表 CDN 家族走中文网字计划子集分片（D-g：失败回退 unifont 链）。
-      const cdnLoaded = await this.loadCnFontSubset(family, normalized, style, requestedCharacters, signal)
+      const cdnLoaded = await this.loadCnFontSubset(
+        family,
+        normalized,
+        style,
+        requestedCharacters,
+        signal
+      )
       if (cdnLoaded) return cdnLoaded
 
       const families = normalized === family ? [family] : [family, normalized]

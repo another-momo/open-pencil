@@ -64,11 +64,11 @@ const fileB = 'fx-b.jsonl'
 const tempRoot = mkdtempSync(join(tmpdir(), 't22-history-'))
 const sessionsDir = join(tempRoot, '.openpencil', 'pi-sessions')
 mkdirSync(sessionsDir, { recursive: true })
-// system-prompt.md：service 读盘需要（本冒烟不触发 prompt，仅为启动完整）
-mkdirSync(join(tempRoot, 'src/app/ai/chat'), { recursive: true })
+// pi-backend/studio/base.md：service 读盘需要（本冒烟不触发 prompt，仅为启动完整）
+mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/studio'), { recursive: true })
 copyFileSync(
-  join(repoRoot, 'src/app/ai/chat/system-prompt.md'),
-  join(tempRoot, 'src/app/ai/chat/system-prompt.md')
+  join(repoRoot, 'src/app/ai/pi-backend/studio/base.md'),
+  join(tempRoot, 'src/app/ai/pi-backend/studio/base.md')
 )
 
 writeFileSync(

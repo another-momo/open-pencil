@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import type { UIMessage } from 'ai'
 
-import ChatMessage from './ChatMessage.vue'
+import ChatMessage from './PiChatMessage.vue'
 
 const userMessage: UIMessage = {
   id: 'user-message',

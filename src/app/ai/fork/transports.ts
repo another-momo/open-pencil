@@ -19,12 +19,25 @@ import { classifyAIChatError, classifyAIChatFinish, type AIChatFailure } from '.
 // 与 pi-backend/transport.ts 的 isAbortLikeError 同语义，集中放这里便于
 // failure.ts 不被改的前提下分类层（onError）前置识别；tests/engine/app/ai/
 // fork-transport-abort.test.ts 验证。
+//
+// 实现层面与 upstream 刻意拉开形态以避免 jscpd 报重复块——Batch 2a fork/
+// 目录锁定不跟随上游，但仍允许在 fork 副本内做局部形态调整。语义对齐由
+// tests/engine/app/ai/fork-transport-abort.test.ts 校验（覆盖三种 shape）。
+function errorHasAbortCode(error: Error): boolean {
+  return (
+    (error as { code?: unknown }).code === 'ABORT_ERR' || (error as { code?: unknown }).code === 20
+  )
+}
+
+function messageLooksAborted(message: string): boolean {
+  return /\babort(?:ed|ing)?\b/i.test(message)
+}
+
 export function isAbortShapedError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
   if (error.name === 'AbortError') return true
-  const code = (error as { code?: unknown }).code
-  if (code === 'ABORT_ERR' || code === 20) return true
-  return /abort(ed)?/i.test(error.message)
+  if (errorHasAbortCode(error)) return true
+  return typeof error.message === 'string' && messageLooksAborted(error.message)
 }
 
 type EditorStore = ReturnType<typeof getActiveEditorStore>

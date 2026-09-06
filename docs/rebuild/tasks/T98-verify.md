@@ -40,7 +40,7 @@
 | --- | --- | --- |
 | 1 CJK Section Title | PASS（修复后） | scene1-fixed-full.png；glyph 探针 839/3418 真实字形 |
 | 2 混合 Latin+CJK Component | PASS | scene2-3-closeup.png（App 设计 / 在线 123 + 紫钻 icon） |
-| 3 Arabic 标签 | FAIL-预存边界 | scene3-zoomfit.png；远端无 characters 快路径只拉 latin/latin-ext 子集，web-fonts.ts 与 mode-arch 一致，非合并引入 |
+| 3 Arabic 标签 | FAIL-合并语义缺口（登记延期） | scene3-zoomfit.png；根因：bundled NotoNaskhArabic-Regular.ttf 在 `packages/core/src/text/fonts.ts` 的 BUNDLED_FONTS，但 ensureFallbackPack 经 ensureFallbackFamilies 通道从不去查 bundled——T88 时代 loadFonts 显式走通道 A 加载 bundled，CJK 侧已 mirror prependBundledCJK 到 ensureCJKFallback，Arabic 侧漏 mirror。修法：mirror prependBundledCJK 到 ensureArabicFallback（约 5 行）；owner 无阿语需求，登记延期 |
 | 4 超长 ellipsize | PASS | scene4-zoomfit.png（EN/CJK 双 pill 末尾 … 不溢出，Skia ICU 截断） |
 | 5 极窄容器 5px | PASS | scene5-narrow.png（pill 守卫触发无崩溃，console 零错误） |
 | 6 白名单禁用族 | PASS | scene6-fonts-panel.png / scene6-disabled-tab.png（已停用列表在列、计数 2103→2102、已注册 label 不受影响） |

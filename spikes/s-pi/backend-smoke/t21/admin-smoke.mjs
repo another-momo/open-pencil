@@ -69,12 +69,12 @@ if (KEY.length === 0) {
   process.exit(1)
 }
 
-// 临时 rootDir：只复制 system-prompt.md（service.ts 读盘需要），state 全新
+// 临时 rootDir：只复制 pi-backend/studio/base.md（service.ts 读盘需要），state 全新
 const tempRoot = mkdtempSync(join(tmpdir(), 't21-admin-'))
-mkdirSync(join(tempRoot, 'src/app/ai/chat'), { recursive: true })
+mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/studio'), { recursive: true })
 copyFileSync(
-  join(repoRoot, 'src/app/ai/chat/system-prompt.md'),
-  join(tempRoot, 'src/app/ai/chat/system-prompt.md')
+  join(repoRoot, 'src/app/ai/pi-backend/studio/base.md'),
+  join(tempRoot, 'src/app/ai/pi-backend/studio/base.md')
 )
 const agentDir = join(tempRoot, '.openpencil', 'pi-agent')
 const authPath = join(agentDir, 'auth.json')

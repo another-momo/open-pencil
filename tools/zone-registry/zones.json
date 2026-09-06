@@ -1156,6 +1156,13 @@
       "reason": "T98（2026-09-06，场景 1 tofu 根治之一，P143  revoked 后的新分歧）：上游 loadFonts 只装 Inter，T88 启动期 CJK/Arabic 预加载随整文件回退丢失，且 label 无 trackFontDemand 需求入口（该链只挂 text 节点）——fontsLoaded/syncFontGeneration 终态前注入 fontManager.ensureFallbackPack()（bundled PuHuiTi + Noto Naskh Arabic 远端链），保证 paragraph-cache 见到的 generation 覆盖本次注册，CJK label 首渲染不豆腐。A2 NOTES §3 闸门 1 明示前提的落地。",
       "disposition": "permanent",
       "lastReviewed": "2026-09-06"
+    },
+    {
+      "id": "P209",
+      "file": "tests/engine/app/ai/context.test.ts",
+      "reason": "T98 收口修复（2026-09-06）：上游测试 import '@/app/ai/chat/context'，旧 chat 栈已 Batch 2a 路径分离入 fork/（Batch 0 已删 src/app/ai/chat/）；改指 '@/app/ai/fork/context'（appendReferencedNodeContext/MAX_REFERENCED_NODES/resolveReferencedNodes/stripReferencedNodeContext 等符号同表存在）。",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-06"
     }
   ],
   "deletedPaths": [

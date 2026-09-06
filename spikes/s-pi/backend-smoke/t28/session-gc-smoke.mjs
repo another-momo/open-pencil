@@ -73,11 +73,11 @@ const tempRoot = mkdtempSync(join(tmpdir(), 't28-gc-'))
 const sessionsDir = join(tempRoot, '.openpencil', 'pi-sessions')
 const archiveDir = join(tempRoot, '.openpencil', 'pi-sessions-archive')
 mkdirSync(sessionsDir, { recursive: true })
-// system-prompt.md：service 读盘需要
-mkdirSync(join(tempRoot, 'src/app/ai/chat'), { recursive: true })
+// pi-backend/studio/base.md：service 读盘需要
+mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/studio'), { recursive: true })
 copyFileSync(
-  join(repoRoot, 'src/app/ai/chat/system-prompt.md'),
-  join(tempRoot, 'src/app/ai/chat/system-prompt.md')
+  join(repoRoot, 'src/app/ai/pi-backend/studio/base.md'),
+  join(tempRoot, 'src/app/ai/pi-backend/studio/base.md')
 )
 
 const USER_A3 = 'A3 会话的用户消息：保留我'

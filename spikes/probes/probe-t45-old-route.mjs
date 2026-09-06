@@ -27,13 +27,8 @@ copyFileSync(
   join(repoRoot, 'src/app/ai/pi-backend/studio/base.md'),
   join(tempRoot, 'src/app/ai/pi-backend/studio/base.md')
 )
-mkdirSync(join(tempRoot, 'src/app/ai/chat'), { recursive: true })
-mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/prompts'), { recursive: true })
-copyFileSync(
-  join(repoRoot, 'src/app/ai/chat/system-prompt.md'),
-  join(tempRoot, 'src/app/ai/chat/system-prompt.md')
-)
 // T67（2026-09-01）：system-prompt-marketing.md 孤儿化退役删除，复制清单只余 base
+mkdirSync(join(tempRoot, 'src/app/ai/pi-backend/prompts'), { recursive: true })
 for (const f of ['system-prompt-base.md']) {
   copyFileSync(
     join(repoRoot, 'src/app/ai/pi-backend/prompts', f),

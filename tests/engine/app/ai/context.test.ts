@@ -7,7 +7,7 @@ import {
   MAX_REFERENCED_NODES,
   resolveReferencedNodes,
   stripReferencedNodeContext
-} from '@/app/ai/chat/context'
+} from '@/app/ai/fork/context'
 
 describe('AI chat node context', () => {
   test('resolves current node metadata, deduplicates IDs, and omits deleted nodes', () => {

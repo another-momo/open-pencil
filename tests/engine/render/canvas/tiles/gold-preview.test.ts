@@ -2,8 +2,8 @@ import { beforeAll, expect, setDefaultTimeout, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 
 import { initCodec, parseFigFile } from '@open-pencil/core'
-
 import { initCanvasKit } from '@open-pencil/core/io'
+
 import { SkiaRenderer } from '#core/canvas'
 import { RenderChunkIndex, RenderChunkPictureCache } from '#core/canvas/renderer/chunks'
 import {

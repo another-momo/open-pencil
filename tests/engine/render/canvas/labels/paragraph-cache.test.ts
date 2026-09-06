@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 
 import { initCanvasKit } from '@open-pencil/core/io'
+
 import { LabelParagraphCache } from '#core/canvas/labels/paragraph-cache'
 
 import { repoPath } from '#tests/helpers/paths'

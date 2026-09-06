@@ -528,7 +528,6 @@ export class FontManager {
         `${coverage ? Array.from(coverage).join('') : ''}${characters}`
       )
       const normalized = normalizeFontFamily(family)
-
       // T40 S4：注册表 CDN 家族走中文网字计划子集分片（D-g：失败回退 unifont 链）。
       const cdnLoaded = await this.loadCnFontSubset(
         family,
@@ -538,25 +537,40 @@ export class FontManager {
         signal
       )
       if (cdnLoaded) return cdnLoaded
-
-      const families = normalized === family ? [family] : [family, normalized]
-      const resolved = await this.webFonts.fetchFont(families, style, requestedCharacters, signal)
-      if (!resolved || resolved.buffers.length === 0) return null
-      const primary = resolved.buffers[0]
-      await this.writeDownloadedFont(family, style, primary, requestedCharacters)
-      const registered = this.registerAndCache(family, style, primary, resolved.provider)
-      const loadedCoverage = this.remoteCoverage.get(`${family}|${style}`) ?? new Set<string>()
-      for (const character of requestedCharacters) loadedCoverage.add(character)
-      this.remoteCoverage.set(`${family}|${style}`, loadedCoverage)
-      for (const supplemental of resolved.buffers.slice(1)) {
-        this.registerSupplemental(family, style, supplemental)
-      }
-      return registered
+      return await this.fetchAndRegisterRemoteFont(
+        family,
+        normalized,
+        style,
+        requestedCharacters,
+        signal
+      )
     } catch (e) {
       if (signal?.aborted) throw e
       console.warn(`Web font fetch failed for "${family}" ${style}:`, e)
       return null
     }
+  }
+
+  private async fetchAndRegisterRemoteFont(
+    family: string,
+    normalized: string,
+    style: string,
+    requestedCharacters: string,
+    signal: AbortSignal | undefined
+  ): Promise<ArrayBuffer | null> {
+    const families = normalized === family ? [family] : [family, normalized]
+    const resolved = await this.webFonts.fetchFont(families, style, requestedCharacters, signal)
+    if (!resolved || resolved.buffers.length === 0) return null
+    const primary = resolved.buffers[0]
+    await this.writeDownloadedFont(family, style, primary, requestedCharacters)
+    const registered = this.registerAndCache(family, style, primary, resolved.provider)
+    const loadedCoverage = this.remoteCoverage.get(`${family}|${style}`) ?? new Set<string>()
+    for (const character of requestedCharacters) loadedCoverage.add(character)
+    this.remoteCoverage.set(`${family}|${style}`, loadedCoverage)
+    for (const supplemental of resolved.buffers.slice(1)) {
+      this.registerSupplemental(family, style, supplemental)
+    }
+    return registered
   }
 
   async loadFont(

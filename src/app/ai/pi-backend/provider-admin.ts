@@ -242,16 +242,36 @@ export function createProviderAdmin({ agentDir }: { agentDir: string }) {
     } catch {
       doc = { providers: {} }
     }
-    doc.providers[input.id] = {
-      ...(input.name ? { name: input.name } : {}),
+    const providerEntry: {
+      name?: string
+      baseUrl: string
+      api?: string
+      models: Array<{
+        id: string
+        name: string
+        api?: string
+        reasoning: boolean
+        input: string[]
+        cost: Record<string, number>
+        contextWindow: number
+        maxTokens: number
+      }>
+    } = {
       baseUrl: input.baseUrl.trim(),
-      ...(input.api ? { api: input.api } : {}),
       models: input.models.map((raw) => {
         const m = typeof raw === 'string' ? { id: raw } : raw
-        return {
+        const modelEntry: {
+          id: string
+          name: string
+          api?: string
+          reasoning: boolean
+          input: string[]
+          cost: Record<string, number>
+          contextWindow: number
+          maxTokens: number
+        } = {
           id: m.id,
           name: m.name ?? m.id,
-          ...((m.api ?? input.api) ? { api: m.api ?? input.api } : {}),
           reasoning: m.reasoning ?? false,
           input: m.input ?? ['text'],
           cost: {
@@ -264,8 +284,14 @@ export function createProviderAdmin({ agentDir }: { agentDir: string }) {
           contextWindow: m.contextWindow ?? 32768,
           maxTokens: m.maxTokens ?? 8192
         }
+        const apiValue = m.api ?? input.api
+        if (apiValue) modelEntry.api = apiValue
+        return modelEntry
       })
     }
+    if (input.name) providerEntry.name = input.name
+    if (input.api) providerEntry.api = input.api
+    doc.providers[input.id] = providerEntry
     writeFileSync(modelsPath, JSON.stringify(doc, null, 2))
     // provider 目录变更需重建 runtime（凭据变更不需要——login 内部同步快照）
     resetRuntime()

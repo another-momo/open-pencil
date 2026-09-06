@@ -138,17 +138,14 @@ async function runBeginPhase(
   const items: PipelineItem[] = []
   for (const req of requests) {
     try {
-      const begin = (await callBridge(
-        BEGIN_TOOL,
-        {
-          prompt: req.prompt,
-          ...(req.width !== undefined ? { width: req.width } : {}),
-          ...(req.height !== undefined ? { height: req.height } : {}),
-          ...(req.replaceId ? { replace_id: req.replaceId } : {}),
-          ...(req.references ? { references: JSON.stringify(req.references) } : {})
-        },
-        target
-      )) as Partial<BeginPayload> & { error?: string }
+      const beginArgs: Record<string, unknown> = { prompt: req.prompt }
+      if (req.width !== undefined) beginArgs.width = req.width
+      if (req.height !== undefined) beginArgs.height = req.height
+      if (req.replaceId) beginArgs.replace_id = req.replaceId
+      if (req.references) beginArgs.references = JSON.stringify(req.references)
+      const begin = (await callBridge(BEGIN_TOOL, beginArgs, target)) as Partial<BeginPayload> & {
+        error?: string
+      }
       if (begin.error || !begin.id) {
         items.push({ req, error: begin.error ?? 'image_gen_begin returned no target id' })
         continue
@@ -217,16 +214,27 @@ async function runCommitPhase(
         })
         continue
       }
-      results.push({
+      const commitResult: {
+        id: string
+        width?: number
+        height?: number
+        canvasWidth?: number
+        canvasHeight?: number
+        provider?: string
+        snapshot?: { id: string; name: string; version: number }
+        note?: string
+        error?: string
+      } = {
         id: commit.id,
         width: item.gen.width,
         height: item.gen.height,
         canvasWidth: commit.canvasWidth,
         canvasHeight: commit.canvasHeight,
-        provider: provider.name,
-        ...(commit.snapshot ? { snapshot: commit.snapshot } : {}),
-        ...(item.begin.note ? { note: item.begin.note } : {})
-      })
+        provider: provider.name
+      }
+      if (commit.snapshot) commitResult.snapshot = commit.snapshot
+      if (item.begin.note) commitResult.note = item.begin.note
+      results.push(commitResult)
     } catch (error) {
       results.push({ id: item.begin.id, error: toErrorMessage(error) })
     }
@@ -327,14 +335,22 @@ export function createImageGenTool(deps: ImageGenToolDeps) {
       const results = await runCommitPhase(items, provider, callBridge, deps.target)
 
       const ok = results.filter((result) => result.id && !result.error).length
-      return toToolResult({
+      const toolResult: {
+        generated: number
+        failed: number
+        provider: string
+        note?: string
+        warning?: string
+        results: typeof results
+      } = {
         generated: ok,
         failed: results.length - ok,
         provider: provider.name,
-        ...(parsed.sizeNote ? { note: parsed.sizeNote } : {}),
-        ...(parsed.warning ? { warning: parsed.warning } : {}),
         results
-      })
+      }
+      if (parsed.sizeNote) toolResult.note = parsed.sizeNote
+      if (parsed.warning) toolResult.warning = parsed.warning
+      return toToolResult(toolResult)
     }
   })
 }

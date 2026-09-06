@@ -46,17 +46,20 @@ export class PiBackendChatTransport implements ChatTransport<UIMessage> {
     } else {
       abortSignal?.addEventListener('abort', cancelSession, { once: true })
     }
+    const bodyPayload: {
+      sessionId: string
+      messages: typeof messages
+      documentId?: string
+      model?: PiModelSpec
+    } = { sessionId: context.sessionId, messages }
+    if (context.documentId) bodyPayload.documentId = context.documentId
+    // T61：T24 四层装配载荷退役（PD-16 翻案）——chatMode/pickedProfileId 停发；
+    // 模式身份改由 active_design 单槽宿主侧读穿（T60）
+    if (model) bodyPayload.model = model
     const response = await fetch(this.api, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: context.sessionId,
-        messages,
-        ...(context.documentId ? { documentId: context.documentId } : {}),
-        // T61：T24 四层装配载荷退役（PD-16 翻案）——chatMode/pickedProfileId 停发；
-        // 模式身份改由 active_design 单槽宿主侧读穿（T60）
-        ...(model ? { model } : {})
-      }),
+      body: JSON.stringify(bodyPayload),
       signal: abortSignal ?? null
     })
     if (!response.ok || !response.body) {

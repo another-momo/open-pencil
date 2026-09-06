@@ -152,13 +152,13 @@ function paramToTypeBox(param: ParamDef): TSchema {
           )
         : Type.String({ description })
       break
-    case 'number':
-      schema = Type.Number({
-        description,
-        ...(param.min !== undefined ? { minimum: param.min } : {}),
-        ...(param.max !== undefined ? { maximum: param.max } : {})
-      })
+    case 'number': {
+      const numOpts: { description: string; minimum?: number; maximum?: number } = { description }
+      if (param.min !== undefined) numOpts.minimum = param.min
+      if (param.max !== undefined) numOpts.maximum = param.max
+      schema = Type.Number(numOpts)
       break
+    }
     case 'boolean':
       schema = Type.Boolean({ description })
       break

@@ -982,14 +982,9 @@ export function renderText(r: SkiaRenderer, canvas: Canvas, node: SceneNode, fil
   if (fontReadiness === 'pending') {
     // P108 (T39 14 册 §2.1 现象 B): 字重切换时序竞争——pending 期间继续显示上次
     // 渲染过的 textPicture，避免字体 fetch 期间文字整段消失。
-    if (node.textPicture && r.isTextPictureCurrent(node)) {
-      const pic = r.ck.MakePicture(node.textPicture)
-      if (pic) {
-        canvas.drawPicture(pic)
-        pic.delete()
-        canvas.restore()
-        return
-      }
+    if (drawCachedTextPicture(r, canvas, node)) {
+      canvas.restore()
+      return
     }
     canvas.restore()
     return
@@ -999,14 +994,9 @@ export function renderText(r: SkiaRenderer, canvas: Canvas, node: SceneNode, fil
     return
   }
   if (fontReadiness === 'exhausted') {
-    if (node.textPicture && r.isTextPictureCurrent(node)) {
-      const pic = r.ck.MakePicture(node.textPicture)
-      if (pic) {
-        canvas.drawPicture(pic)
-        pic.delete()
-        canvas.restore()
-        return
-      }
+    if (drawCachedTextPicture(r, canvas, node)) {
+      canvas.restore()
+      return
     }
     if (drawDerivedText(r, canvas, node)) {
       canvas.restore()
@@ -1033,6 +1023,29 @@ export function renderText(r: SkiaRenderer, canvas: Canvas, node: SceneNode, fil
     canvas.restore()
     return
   }
+  drawTextWithAvailableFont(r, canvas, node, text)
+
+  canvas.restore()
+}
+
+/** T98 ci: 字重切换竞争/P108 复用——重新绘制节点最近一次的 textPicture。
+ * 命中条件：picture 存在且 generation 与当前一致。draw + delete 配对避免泄漏。 */
+function drawCachedTextPicture(r: SkiaRenderer, canvas: Canvas, node: SceneNode): boolean {
+  if (!node.textPicture || !r.isTextPictureCurrent(node)) return false
+  const pic = r.ck.MakePicture(node.textPicture)
+  if (!pic) return false
+  canvas.drawPicture(pic)
+  pic.delete()
+  return true
+}
+
+/** T98 ci: 字体未加载走 paragraph（CanvasKit 路径），或 fallback 单字体（textFont）直画。 */
+function drawTextWithAvailableFont(
+  r: SkiaRenderer,
+  canvas: Canvas,
+  node: SceneNode,
+  text: string
+): void {
   if (r.fontsLoaded && r.fontProvider) {
     const paragraph = r.buildParagraph(node, r.fillPaint.getColor(), {
       halfLeading: true
@@ -1051,6 +1064,4 @@ export function renderText(r: SkiaRenderer, canvas: Canvas, node: SceneNode, fil
       r.textFont
     )
   }
-
-  canvas.restore()
 }

@@ -255,12 +255,22 @@ async function renderNodeForInspection(
   }
   addTextLegibilityNote(figma.graph, targetId, scale, noteParts)
 
-  const data = await figma.exportImage([targetId], {
+  const exportOptions: {
+    scale: number
+    format: 'JPG'
+    quality: number
+    renderInContext?: boolean
+    clip?: ClipRect
+  } = {
     scale,
     format: 'JPG',
-    quality: JPEG_QUALITY,
-    ...(clip ? { renderInContext: true, clip } : {})
-  })
+    quality: JPEG_QUALITY
+  }
+  if (clip) {
+    exportOptions.renderInContext = true
+    exportOptions.clip = clip
+  }
+  const data = await figma.exportImage([targetId], exportOptions)
   if (!data || data.length === 0) return { error: 'Nothing visible to inspect' }
   return { image: { data, mimeType: 'image/jpeg' }, exportInfo }
 }

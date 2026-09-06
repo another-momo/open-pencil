@@ -242,19 +242,20 @@ function loadWorkflows(
       continue
     }
     const keptReferences = resolveReferences(references, candidate, 'workflow', resolved, failures)
-    workflows.set(candidate.id, {
+    const workflowEntry: StudioWorkflow = {
       kind: 'workflow',
       id: candidate.id,
       label: String(parsed.frontmatter.label),
-      ...(subtitle ? { subtitle } : {}),
-      ...(stepBudget !== undefined ? { stepBudget } : {}),
-      ...(sizes ? { sizes } : {}),
-      ...(keptReferences ? { references: keptReferences } : {}),
       body: parsed.body,
       sections: parsed.sections,
       origin: candidate.origin,
       path: candidate.path
-    })
+    }
+    if (subtitle) workflowEntry.subtitle = subtitle
+    if (stepBudget !== undefined) workflowEntry.stepBudget = stepBudget
+    if (sizes) workflowEntry.sizes = sizes
+    if (keptReferences) workflowEntry.references = keptReferences
+    workflows.set(candidate.id, workflowEntry)
   }
   return workflows
 }
@@ -280,20 +281,21 @@ function loadProfiles(
       continue
     }
     const keptReferences = resolveReferences(references, candidate, 'profile', resolved, failures)
-    profiles.set(candidate.id, {
+    const profileEntry: StudioProfile = {
       kind: 'profile',
       id: candidate.id,
       label: String(parsed.frontmatter.label),
       applicableTo,
-      ...(heroComposition ? { heroComposition } : {}),
-      ...(version !== undefined ? { version } : {}),
       deprecated,
-      ...(keptReferences ? { references: keptReferences } : {}),
       body: parsed.body,
       sections: parsed.sections,
       origin: candidate.origin,
       path: candidate.path
-    })
+    }
+    if (heroComposition) profileEntry.heroComposition = heroComposition
+    if (version !== undefined) profileEntry.version = version
+    if (keptReferences) profileEntry.references = keptReferences
+    profiles.set(candidate.id, profileEntry)
   }
   return profiles
 }
@@ -313,13 +315,16 @@ export function loadStudioFromDirs(builtinDir: string, userDir: string): StudioR
   // ── mode 投影（PD-16：文件存在 = mode 可用；general 恒在内置特例，S2 §2）──
   const modes: StudioMode[] = [
     { id: 'general', label: '通用设计', source: 'general' },
-    ...[...workflows.values()].map((w) => ({
-      id: w.id,
-      label: w.label,
-      ...(w.subtitle ? { subtitle: w.subtitle } : {}),
-      ...(w.sizes ? { sizes: w.sizes } : {}),
-      source: 'workflow' as const
-    }))
+    ...[...workflows.values()].map((w) => {
+      const mode: StudioMode = {
+        id: w.id,
+        label: w.label,
+        source: 'workflow' as const
+      }
+      if (w.subtitle) mode.subtitle = w.subtitle
+      if (w.sizes) mode.sizes = w.sizes
+      return mode
+    })
   ]
 
   // 默认集整体缺失/全坏（S2 §8）：零注册成功且有失败 → 记整体态供错误条消费

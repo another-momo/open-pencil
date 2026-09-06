@@ -63,13 +63,16 @@ export function toStudioManifest(
   registry: StudioRegistry,
   capabilities?: { get(): Capabilities; listSkills(): ManifestSkillEntry[] }
 ): PiStudioManifest {
-  const modes: PiStudioModeEntry[] = registry.modes.map((mode) => ({
-    id: mode.id,
-    label: mode.label,
-    ...(mode.subtitle ? { subtitle: mode.subtitle } : {}),
-    ...(mode.sizes ? { sizes: mode.sizes } : {}),
-    source: mode.source
-  }))
+  const modes: PiStudioModeEntry[] = registry.modes.map((mode) => {
+    const entry: PiStudioModeEntry = {
+      id: mode.id,
+      label: mode.label,
+      source: mode.source
+    }
+    if (mode.subtitle) entry.subtitle = mode.subtitle
+    if (mode.sizes) entry.sizes = mode.sizes
+    return entry
+  })
   const profiles: PiStudioProfileSummary[] = [...registry.profiles.values()]
     .filter((p) => !p.deprecated)
     .map((p) => ({ id: p.id, label: p.label, applicableTo: p.applicableTo }))

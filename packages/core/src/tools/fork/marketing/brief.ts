@@ -452,26 +452,27 @@ function createText(
 ): string {
   const graph = figma.graph
   const node = graph.createNode('TEXT', parentId, { name })
-  graph.updateNode(node.id, {
+  const textProps: Record<string, unknown> = {
     text: characters,
     fontFamily: BRIEF_FONT_FAMILY,
     fontSize: options.fontSize ?? 26,
     fontWeight: options.fontWeight ?? 400,
-    textAutoResize: options.wrap ? 'HEIGHT' : 'WIDTH_AND_HEIGHT',
-    ...(options.wrap ? { layoutAlignSelf: 'STRETCH' as const } : {}),
-    ...(options.lineHeight !== undefined ? { lineHeight: options.lineHeight } : {}),
-    ...(options.letterSpacing !== undefined ? { letterSpacing: options.letterSpacing } : {}),
-    ...(options.opacity !== undefined ? { opacity: options.opacity } : {}),
-    ...(options.align ? { textAlignHorizontal: options.align } : {}),
-    fills: [
-      {
-        type: 'SOLID',
-        color: { r: 0.29, g: 0.25, b: 0.13, a: 1, ...options.color },
-        opacity: 1,
-        visible: true
-      }
-    ]
-  })
+    textAutoResize: options.wrap ? 'HEIGHT' : 'WIDTH_AND_HEIGHT'
+  }
+  if (options.wrap) textProps.layoutAlignSelf = 'STRETCH'
+  if (options.lineHeight !== undefined) textProps.lineHeight = options.lineHeight
+  if (options.letterSpacing !== undefined) textProps.letterSpacing = options.letterSpacing
+  if (options.opacity !== undefined) textProps.opacity = options.opacity
+  if (options.align) textProps.textAlignHorizontal = options.align
+  textProps.fills = [
+    {
+      type: 'SOLID',
+      color: { r: 0.29, g: 0.25, b: 0.13, a: 1, ...options.color },
+      opacity: 1,
+      visible: true
+    }
+  ]
+  graph.updateNode(node.id, textProps)
   return node.id
 }
 
@@ -498,7 +499,7 @@ function createCard(
   const graph = figma.graph
   const card = graph.createNode('FRAME', parentId, { name })
   const padding = options.padding ?? 26
-  graph.updateNode(card.id, {
+  const cardProps: Record<string, unknown> = {
     layoutMode: 'VERTICAL',
     itemSpacing: options.gap ?? 13,
     paddingTop: padding,
@@ -507,29 +508,30 @@ function createCard(
     paddingRight: padding,
     cornerRadius: options.rounded ?? 22,
     primaryAxisSizing: options.primary ?? 'HUG',
-    counterAxisSizing: options.counter ?? 'FILL',
-    ...(options.width ? { width: options.width } : {}),
-    ...(options.justify ? { primaryAxisAlign: options.justify } : {}),
-    fills: [
-      {
-        type: 'SOLID',
-        color: { ...(options.bg ?? CARD_BG), a: 1 },
-        opacity: 1,
-        visible: true
-      }
-    ],
-    strokes: options.stroke
-      ? [
-          {
-            color: { ...options.stroke, a: 1 },
-            weight: 1,
-            opacity: 1,
-            visible: true,
-            align: 'INSIDE'
-          }
-        ]
-      : []
-  })
+    counterAxisSizing: options.counter ?? 'FILL'
+  }
+  if (options.width) cardProps.width = options.width
+  if (options.justify) cardProps.primaryAxisAlign = options.justify
+  cardProps.fills = [
+    {
+      type: 'SOLID',
+      color: { ...(options.bg ?? CARD_BG), a: 1 },
+      opacity: 1,
+      visible: true
+    }
+  ]
+  cardProps.strokes = options.stroke
+    ? [
+        {
+          color: { ...options.stroke, a: 1 },
+          weight: 1,
+          opacity: 1,
+          visible: true,
+          align: 'INSIDE'
+        }
+      ]
+    : []
+  graph.updateNode(card.id, cardProps)
   return card.id
 }
 

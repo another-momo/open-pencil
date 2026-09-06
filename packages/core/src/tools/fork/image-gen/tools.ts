@@ -14,7 +14,7 @@ import { decodeBase64, encodeBase64 } from '#core/bytes'
 import { defineTool } from '#core/tools/schema'
 
 import { beginImageGen, commitImageGen } from './apply'
-import { parseReferences } from './requests'
+import { parseReferences, type ImageGenReference } from './requests'
 
 export const imageGenBegin = defineTool({
   name: 'image_gen_begin',
@@ -45,13 +45,18 @@ export const imageGenBegin = defineTool({
     const refs = parseReferences(rawRefs)
     if ('error' in refs) return { error: refs.error }
     try {
-      const result = await beginImageGen(figma, {
-        prompt,
-        ...(width !== undefined ? { width } : {}),
-        ...(height !== undefined ? { height } : {}),
-        ...(replace_id ? { replaceId: replace_id } : {}),
-        ...(refs.length > 0 ? { references: refs } : {})
-      })
+      const beginOpts: {
+        prompt: string
+        width?: number
+        height?: number
+        replaceId?: string
+        references?: ImageGenReference[]
+      } = { prompt }
+      if (width !== undefined) beginOpts.width = width
+      if (height !== undefined) beginOpts.height = height
+      if (replace_id) beginOpts.replaceId = replace_id
+      if (refs.length > 0) beginOpts.references = refs
+      const result = await beginImageGen(figma, beginOpts)
       return {
         id: result.targetId,
         width: result.width,

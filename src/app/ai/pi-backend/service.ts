@@ -306,7 +306,17 @@ export function createPiChatService({
       })
     }
 
-    const { session } = await createAgentSession({
+    // T20：'all' 会连 custom 工具一起禁；'builtin' 只禁内建（read/bash/edit/write）
+    // 保留我们的设计工具（sdk.d.ts 语义实证，见 T20-self-check §2.1-1）
+    // T96：capabilities.builtinTools 三档位门控（与 agentSkills 解耦）——
+    // off 显式禁内建（与 T87 前基线一致）；readonly 用 tools 白名单限内建
+    // 只读四件（read/grep/find/ls，SDK createReadOnlyTools 同集，预研
+    // §2.1/§2.3）——**白名单必须带上全部 customTools 名**：SDK 语义是
+    // 「tools 给了就只激活名单内工具」（sdk.js allowedToolNames 过滤
+    // customTools，owner 实测 readonly 档设计工具全丢实证）；full 省略
+    // 字段 → SDK 默认允许全部内建工具（read/bash/edit/write）。
+    const builtinToolsMode = capabilitiesStore.get().builtinTools
+    const sessionOpts: Parameters<typeof createAgentSession>[0] = {
       cwd: rootDir,
       agentDir,
       model,
@@ -342,22 +352,14 @@ export function createPiChatService({
         await loader.reload()
         return loader
       })(),
-      // T20：'all' 会连 custom 工具一起禁；'builtin' 只禁内建（read/bash/edit/write）
-      // 保留我们的设计工具（sdk.d.ts 语义实证，见 T20-self-check §2.1-1）
-      // T96：capabilities.builtinTools 三档位门控（与 agentSkills 解耦）——
-      // off 显式禁内建（与 T87 前基线一致）；readonly 用 tools 白名单限内建
-      // 只读四件（read/grep/find/ls，SDK createReadOnlyTools 同集，预研
-      // §2.1/§2.3）——**白名单必须带上全部 customTools 名**：SDK 语义是
-      // 「tools 给了就只激活名单内工具」（sdk.js allowedToolNames 过滤
-      // customTools，owner 实测 readonly 档设计工具全丢实证）；full 省略
-      // 字段 → SDK 默认允许全部内建工具（read/bash/edit/write）。
-      ...(capabilitiesStore.get().builtinTools === 'off' ? { noTools: 'builtin' as const } : {}),
-      ...(capabilitiesStore.get().builtinTools === 'readonly'
-        ? { tools: ['read', 'grep', 'find', 'ls', ...customTools.map((tool) => tool.name)] }
-        : {}),
-      customTools,
-      ...(modelSpec?.thinkingLevel ? { thinkingLevel: modelSpec.thinkingLevel } : {})
-    })
+      customTools
+    }
+    if (builtinToolsMode === 'off') sessionOpts.noTools = 'builtin'
+    if (builtinToolsMode === 'readonly') {
+      sessionOpts.tools = ['read', 'grep', 'find', 'ls', ...customTools.map((tool) => tool.name)]
+    }
+    if (modelSpec?.thinkingLevel) sessionOpts.thinkingLevel = modelSpec.thinkingLevel
+    const { session } = await createAgentSession(sessionOpts)
 
     const file = sessionManager.getSessionFile()
     if (file) {

@@ -77,13 +77,13 @@ export function stripNewIntentEnvelope(text: string): {
   const match = NEW_INTENT_MARKER.exec(firstLine)
   if (!match) return { envelope: null, stripped: text }
   const [, modeId, profileId, canvas] = match
+  // 可选捕获组运行时可为 undefined（索引签名类型不含），truthy 守卫兼排两种
+  const envelope: { modeId?: string; profileId?: string; canvas?: string } = {}
+  if (modeId) envelope.modeId = modeId
+  if (profileId) envelope.profileId = profileId
+  if (canvas) envelope.canvas = canvas
   return {
-    envelope: {
-      // 可选捕获组运行时可为 undefined（索引签名类型不含），truthy 守卫兼排两种
-      ...(modeId ? { modeId } : {}),
-      ...(profileId ? { profileId } : {}),
-      ...(canvas ? { canvas } : {})
-    },
+    envelope,
     stripped: newline === -1 ? '' : text.slice(newline + 1)
   }
 }

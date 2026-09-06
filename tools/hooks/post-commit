@@ -5,4 +5,4 @@ git lfs post-commit "$@"
 # Mechanism review reminder (2026-09-06, rebuild/v2): advisory only,
 # never blocks. The `|| true` is belt-and-suspenders — mechanism-review.ts
 # already exits 0 on any error.
-bun tools/hooks/mechanism-review.ts check || true
+bun tools/hooks/src/mechanism-review.ts check || true

@@ -23,9 +23,9 @@
  *   - unconditionally write `<HEAD SHA>|<ISO date>` to marker, exit 0
  *
  * Usage:
- *   bun tools/hooks/mechanism-review.ts          # check (default)
- *   bun tools/hooks/mechanism-review.ts check    # same as above
- *   bun tools/hooks/mechanism-review.ts mark     # reset the marker
+ *   bun tools/hooks/src/mechanism-review.ts          # check (default)
+ *   bun tools/hooks/src/mechanism-review.ts check    # same as above
+ *   bun tools/hooks/src/mechanism-review.ts mark     # reset the marker
  *
  * Wired into tools/hooks/post-commit (added 2026-09-06).
  */
@@ -142,7 +142,7 @@ function runCheck(): void {
       '    仅在本工作台布局下适用，外部 clone 忽略本条。',
       '  - 是否有新的机制类需求应当纳入 review（如本文钩自身）？',
       '',
-      '复盘后运行：bun tools/hooks/mechanism-review.ts mark',
+      '复盘后运行：bun tools/hooks/src/mechanism-review.ts mark',
       '────────────────────────────────────────────────────────',
       ''
     ].join('\n')

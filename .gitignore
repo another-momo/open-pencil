@@ -4,6 +4,7 @@ node_modules/
 # Build outputs
 dist/
 desktop-electron/dist-sidecar/
+desktop-electron/dist-main/
 dist-ssr/
 coverage/
 *.tsbuildinfo

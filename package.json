@@ -58,7 +58,9 @@
     "smoke:pi": "bun spikes/s-pi/backend-smoke/t22/target-smoke.mjs && bun spikes/s-pi/backend-smoke/t22/history-smoke.mjs && bun spikes/s-pi/backend-smoke/t23/sessions-smoke.mjs && bun spikes/s-pi/backend-smoke/t24/prompt-assembly-smoke.mjs && bun spikes/s-pi/backend-smoke/t28/session-gc-smoke.mjs && bun spikes/s-pi/backend-smoke/t87/skill-toggle-smoke.mjs",
     "smoke:pi:ui": "node spikes/s-pi/backend-smoke/t22/bind-smoke.mjs && node spikes/s-pi/backend-smoke/t23/sessions-bind-smoke.mjs && node spikes/s-pi/backend-smoke/t24/mode-overlay-bind-smoke.mjs",
     "spike:sidecar:build": "tsdown --config desktop-electron/tsdown.config.ts",
-    "spike:sidecar:smoke": "bun desktop-electron/smoke/sidecar-smoke.ts"
+    "spike:sidecar:smoke": "bun desktop-electron/smoke/sidecar-smoke.ts",
+    "spike:electron:build": "tsdown --config desktop-electron/main/tsdown.config.ts",
+    "spike:electron:smoke": "bun desktop-electron/smoke/electron-smoke.ts"
   },
   "dependencies": {
     "@ai-sdk/valibot": "^3.0.27",

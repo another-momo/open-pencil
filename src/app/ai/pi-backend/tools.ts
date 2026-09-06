@@ -49,6 +49,7 @@ import {
 
 import { readDiscoveryFile } from '@/app/automation/bridge/server/discovery'
 
+import { classifyBridgeFailure, EDITOR_UNREACHABLE_MESSAGE } from './bridge-errors'
 import { postBridgeRPC } from './bridge-rpc'
 import {
   isMediaToolOutput,
@@ -96,9 +97,10 @@ async function callBridgeTool(
 ): Promise<BridgeToolResult> {
   const discovery = await readDiscoveryFile()
   if (!discovery) {
-    throw new Error(
-      '7600 桥 discovery 文件不存在或已过期——确认 dev server 已启动（MCP server 随 vite 拉起）'
-    )
+    // T98：连接级失败统一模型可见文案（EDITOR_UNREACHABLE_MESSAGE），
+    // 内部细节（discovery/端口/桥）只进后端日志，不外露给模型（T66/T81）
+    console.warn('[pi-backend] 桥 discovery 文件不存在或已过期（dev server 未启动？）')
+    throw new Error(EDITOR_UNREACHABLE_MESSAGE)
   }
 
   // T22 D4：documentId 注入桥 args 外层 document_id（桥 resolveAutomationTarget
@@ -114,9 +116,10 @@ async function callBridgeTool(
     // 覆盖「独立 dev:backend 后端存活期间 vite/7600 桥重启、端口或 token 恰好
     // 在首次 fetch 前漂移」的窗口；两次之间无其他状态变化，第二次失败即放弃
     if (allowRetry) return callBridgeTool(toolName, toolArgs, target, false)
-    throw new Error(
-      `7600 桥连接失败（${error instanceof Error ? error.message : String(error)}）——确认 dev server 已启动`
+    console.warn(
+      `[pi-backend] 桥连接失败：${error instanceof Error ? error.message : String(error)}`
     )
+    throw new Error(EDITOR_UNREACHABLE_MESSAGE)
   }
 
   const body = (await res.json().catch(() => null)) as {
@@ -128,14 +131,22 @@ async function callBridgeTool(
   if (res.status === 401) {
     // T27：同上——401 唯一可恢复场景是桥重启换了 token，重读 discovery 后再试一次
     if (allowRetry) return callBridgeTool(toolName, toolArgs, target, false)
-    throw new Error('7600 桥鉴权失败（401）——discovery token 与运行中实例不匹配，重启 dev server')
+    console.warn('[pi-backend] 桥鉴权 401：discovery token 与运行中实例不匹配（重启 dev server）')
+    throw new Error(EDITOR_UNREACHABLE_MESSAGE)
   }
   if (!res.ok || body?.ok !== true) {
-    const upstream = body?.error ?? `HTTP ${res.status}`
-    throw new Error(
-      `7600 桥执行失败：${upstream}` +
-        (res.status === 502 ? '——确认浏览器已打开 app（编辑器需在线才能执行工具）' : '')
-    )
+    // T98 判别缝：2xx + ok:false = 编辑器在线、工具自身抛错（桥 server.ts 对
+    // 浏览器显式应答的工具错误固定回 200；502 保留给编辑器不可达：未连接/
+    // RPC 超时/断连）→ 透传清洗后的工具 message；其余一律连接级统一文案。
+    // 旧实现把工具解析错也包成「桥执行失败——确认浏览器已打开 app」，误导
+    // agent 排查环境且泄露端口/桥措辞。
+    const failure = classifyBridgeFailure(res.status, body, toolName)
+    if (failure.kind === 'editor-unreachable') {
+      console.warn(
+        `[pi-backend] 桥调用连接级失败：HTTP ${res.status}（${body?.error ?? '无错误详情'}）`
+      )
+    }
+    throw new Error(failure.message)
   }
   return body.result ?? {}
 }

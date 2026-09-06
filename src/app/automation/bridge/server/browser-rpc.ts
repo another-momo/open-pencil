@@ -21,6 +21,19 @@ const APP_WAIT_TIMEOUT = 10_000
 const APP_NOT_CONNECTED_MESSAGE =
   'OpenPencil app is not connected. STOP and tell the user: "The OpenPencil desktop app is not running, no document is open, or the desktop app is connected to a different MCP server. Please start OpenPencil, open a document, and try again." Do NOT attempt to start the app yourself or retry automatically.'
 
+/**
+ * T98：工具执行失败标记——浏览器 app 显式应答 ok:false（编辑器在线，命令/
+ * 工具自身抛错：JSX 解析、参数校验、运行时错误）。与传输级失败（app 未连接、
+ * RPC 超时、浏览器断连——这些 reject 普通 Error）严格区分，HTTP /rpc 侧据此
+ * 回 200 而非 502（server.ts），调用方才能把两类失败正确分类给模型。
+ */
+export class ToolExecutionError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ToolExecutionError'
+  }
+}
+
 type BrowserRPCBridgeOptions = {
   authToken: string | null
   onConnectionChange?: () => void
@@ -257,7 +270,9 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
     pending.delete(msg.id)
     clearTimeout(req.timer)
     if (msg.ok === false) {
-      req.reject(new Error(msg.error ?? 'RPC failed'))
+      // T98：app 显式应答失败 = 编辑器在线、工具自身抛错——以 ToolExecutionError
+      // reject，与传输级 reject（未连接/超时/断连的普通 Error）可判别
+      req.reject(new ToolExecutionError(msg.error ?? 'RPC failed'))
     } else {
       req.resolve(stripEnvelope(msg))
     }

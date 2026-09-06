@@ -16,6 +16,8 @@
 
 import { readDiscoveryFile } from '@/app/automation/bridge/server/discovery'
 
+import { classifyBridgeFailure, EDITOR_UNREACHABLE_MESSAGE } from '../bridge-errors'
+
 /** 桥 RPC 缺省超时本地副本（与 automation/bridge/server/browser-rpc.ts DEFAULT_RPC_TIMEOUT_MS
  * 保持一致，tests/engine/rebuild/image-gen/rpc-timeout.test.ts 钉扎两者一致） */
 export const BRIDGE_RPC_DEFAULT_TIMEOUT_MS = 300_000
@@ -46,12 +48,10 @@ async function attemptBridgeCall(
 ): Promise<BridgeAttempt> {
   const discovery = await readDiscoveryFile()
   if (!discovery) {
-    return {
-      ok: false,
-      retryable: false,
-      message:
-        '7600 桥 discovery 文件不存在或已过期——确认 dev server 已启动（MCP server 随 vite 拉起）'
-    }
+    // T98：模型可见文案与 tools.ts 同缝（连接级统一英文文案）；内部细节
+    // （discovery/端口/桥措辞）只进后端日志，不外露（T66/T81）
+    console.warn('[image-gen] 桥 discovery 文件不存在或已过期（dev server 未启动？）')
+    return { ok: false, retryable: false, message: EDITOR_UNREACHABLE_MESSAGE }
   }
 
   // documentId 注入桥 args 外层 document_id（同 tools.ts T22 D4 语义；
@@ -74,11 +74,10 @@ async function attemptBridgeCall(
     })
   } catch (error) {
     // 单次重试覆盖「桥在两次调用间重启、端口/token 漂移」窗口（重读 discovery）
-    return {
-      ok: false,
-      retryable: true,
-      message: `7600 桥连接失败（${error instanceof Error ? error.message : String(error)}）——确认 dev server 已启动`
-    }
+    console.warn(
+      `[image-gen] 桥连接失败：${error instanceof Error ? error.message : String(error)}`
+    )
+    return { ok: false, retryable: true, message: EDITOR_UNREACHABLE_MESSAGE }
   }
 
   const body = (await response.json().catch(() => null)) as {
@@ -89,17 +88,20 @@ async function attemptBridgeCall(
 
   if (response.status === 401) {
     // 401 唯一可恢复场景 = 桥重启换 token（重读 discovery 后再试一次）
-    return {
-      ok: false,
-      retryable: true,
-      message: '7600 桥鉴权失败（401）——discovery token 与运行中实例不匹配，重启 dev server'
-    }
+    console.warn('[image-gen] 桥鉴权 401：discovery token 与运行中实例不匹配（重启 dev server）')
+    return { ok: false, retryable: true, message: EDITOR_UNREACHABLE_MESSAGE }
   }
   if (!response.ok || body?.ok !== true) {
-    const upstream = body?.error ?? `HTTP ${response.status}`
-    const offlineHint =
-      response.status === 502 ? '——确认浏览器已打开 app（编辑器需在线才能执行工具）' : ''
-    return { ok: false, retryable: false, message: `7600 桥执行失败：${upstream}${offlineHint}` }
+    // T98 判别缝（与 tools.ts 同缝）：2xx + ok:false = 编辑器在线、工具自身
+    // 抛错 → 透传清洗后的工具 message；502 等其余 = 编辑器不可达 → 连接级
+    // 统一文案。旧实现把工具错误也附上「确认浏览器已打开 app」，误导排查。
+    const failure = classifyBridgeFailure(response.status, body, toolName)
+    if (failure.kind === 'editor-unreachable') {
+      console.warn(
+        `[image-gen] 桥调用连接级失败：HTTP ${response.status}（${body?.error ?? '无错误详情'}）`
+      )
+    }
+    return { ok: false, retryable: false, message: failure.message }
   }
   return { ok: true, result: body.result ?? {} }
 }

@@ -81,7 +81,8 @@
     "src/app/shell/keyboard/clipboard.ts",
     "src/components/settings/general/GeneralSettingsPanel.vue",
     "tests/engine/app/clipboard/memory.test.ts",
-    "tests/engine/tools/bridge-server-cors.test.ts"
+    "tests/engine/tools/bridge-server-cors.test.ts",
+    "tests/engine/app/ai/bridge-errors.test.ts"
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [],
@@ -1170,6 +1171,14 @@
       "reason": "T98 收口（2026-09-06）：P178 豁免语义移植——preferVueUseIntervals 的 applies 增加 src/app/automation/bridge/server/ 排除（bun 拉起的 Node 子进程无 Vue 运行时，WebSocket 心跳只能手写 setInterval/clearInterval，见 server.ts:163）；随 lint/plugin.js 回接上游 shim 从旧自包含快照迁入。",
       "disposition": "permanent",
       "lastReviewed": "2026-09-06"
+    },
+    {
+      "id": "P211",
+      "file": "packages/core/src/design-jsx/render.ts",
+      "reason": "T98（2026-09-06）：buildComponent sucrase 解析错误文案——包装源码坐标（别名前缀 ~28 行，单行输入实证报 (29:103)）映射回 jsx 入参行列 + 附 base.md 对齐的可操作指引（valid JSX only，不带字面 </jsx>）；模型可见错误链（桥 200 ok:false 透传）配套",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-06",
+      "task": "T98"
     }
   ],
   "deletedPaths": [

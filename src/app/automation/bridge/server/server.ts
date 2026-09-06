@@ -7,7 +7,7 @@ import { WebSocketServer, type WebSocket } from 'ws'
 
 import packageJSON from '../../../../../package.json' with { type: 'json' }
 import { bearerToken, isAuthorized } from './auth'
-import { createBrowserRPCBridge } from './browser-rpc'
+import { createBrowserRPCBridge, ToolExecutionError } from './browser-rpc'
 import { MCP_CORS_HEADERS, MCP_CORS_METHODS, MCP_EXPOSED_HEADERS } from './http-options'
 import type { RPCJSONObject } from './json'
 import { preprocessRPC } from './jsx-preprocess'
@@ -107,9 +107,15 @@ function createHonoApp(options: {
   })
 
   // Historical note: before the isConnected() guard was removed, a disconnected
-  // app returned 503 here. Now errors from sendToBrowser surface as 502. This
-  // is a semantic shift from 503 → 502; callers that distinguished 503 may
+  // app returned 503 here. Now transport errors from sendToBrowser surface as 502.
+  // This is a semantic shift from 503 → 502; callers that distinguished 503 may
   // need to handle 502 equivalently.
+  //
+  // T98：工具执行失败与传输级失败分流——浏览器 app 显式应答 ok:false（编辑器
+  // 在线，工具自身抛错）时 sendToBrowser 以 ToolExecutionError reject，此处回
+  // 200 {ok:false, error}（RPC 传输本身成功）；502 严格保留给编辑器不可达
+  // （app 未连接/RPC 超时/浏览器断连）。pi-backend 调用方据此分类模型可见
+  // 错误文案（bridge-errors.ts classifyBridgeFailure）。
   app.post('/rpc', async (c) => {
     let body = await c.req.json().catch(() => null)
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
@@ -121,6 +127,9 @@ function createHonoApp(options: {
       return c.json(result)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
+      if (e instanceof ToolExecutionError) {
+        return c.json({ ok: false, error: msg }, 200)
+      }
       return c.json({ ok: false, error: msg }, 502)
     }
   })

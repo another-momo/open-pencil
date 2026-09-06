@@ -52,6 +52,32 @@ function collectUnsupportedPropWarnings(tree: TreeNode, warnings: string[]): voi
   }
 }
 
+/**
+ * T98：sucrase 语法错误 → 模型可操作的 JSX 报错。
+ * sucrase message 形如 "Unexpected token (29:103)"，坐标基于包装后源码
+ * （prelude = 别名块 + return 语句前缀）——映射回 jsx 入参的 1-based 行/列；
+ * 映射不上（非该格式或落进 prelude）时省略坐标、保留原文。指引文案对齐
+ * studio/base.md 的 render 规则（valid JSX only，不带字面 </jsx>）。
+ * 列是近似值：sucrase 报的是解析器止步位置，未必是肇事 token 本身。
+ */
+function jsxSyntaxErrorMessage(error: unknown, prelude: string, firstLineOffset: number): string {
+  const raw = error instanceof Error ? error.message : String(error)
+  const guidance =
+    'Output valid JSX only — pass JSX content directly, without markdown fences or a literal closing tag such as </jsx>.'
+  const match = /^(.*?)\s*\((\d+):(\d+)\)\s*$/.exec(raw)
+  if (!match) return `Invalid JSX: ${raw}. ${guidance}`
+  const [, what, lineText, columnText] = match
+  const preludeLineCount = prelude.split('\n').length // jsx 首行在包装源码中的 1-based 行号
+  const preludeLastLineLength = prelude.length - prelude.lastIndexOf('\n') - 1
+  const line = Number(lineText) - preludeLineCount + 1
+  if (line < 1) return `Invalid JSX: ${what}. ${guidance}`
+  const column =
+    line === 1
+      ? Math.max(1, Number(columnText) - preludeLastLineLength - firstLineOffset)
+      : Number(columnText)
+  return `Invalid JSX: ${what} at line ${line}, column ${column} of the jsx input. ${guidance}`
+}
+
 export function buildComponent(jsxString: string): React.ComponentType {
   const trimmed = stripHTMLComments(jsxString).trim()
 
@@ -90,11 +116,20 @@ export function buildComponent(jsxString: string): React.ComponentType {
     production: true
   }
 
+  const prelude = `${aliases}\nreturn function __render() { return `
   let code: string
   try {
-    code = transform(`${aliases}\nreturn function __render() { return ${trimmed} }`, opts).code
+    code = transform(`${prelude}${trimmed} }`, opts).code
   } catch {
-    code = transform(`${aliases}\nreturn function __render() { return <>${trimmed}</> }`, opts).code
+    try {
+      code = transform(`${prelude}<>${trimmed}</> }`, opts).code
+    } catch (error) {
+      // T98：sucrase 报错坐标基于包装后源码（别名前缀约 28 行 + return 前缀），
+      // 对用户输入误导性强（单行输入实证报 "(29:103)"）——映射回 jsx 入参
+      // 坐标并附可操作指引（对齐 studio/base.md「Output valid JSX only —
+      // never emit a literal </jsx> tag」规则）
+      throw new Error(jsxSyntaxErrorMessage(error, prelude, '<>'.length))
+    }
   }
 
   // eslint-disable-next-line typescript-eslint/no-implied-eval -- sucrase output must be evaluated at runtime

@@ -545,7 +545,7 @@ describe('media output registration (T55 channel A)', () => {
       type: 'tool_execution_end',
       toolCallId: 'tc-1',
       toolName: 'look',
-      result: { content: [{ type: 'text', text: '7600 桥执行失败' }] },
+      result: { content: [{ type: 'text', text: 'Editor is not reachable' }] },
       isError: true
     } as AgentSessionEvent
     const chunks = mapper(event)

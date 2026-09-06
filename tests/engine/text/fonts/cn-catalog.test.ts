@@ -59,13 +59,13 @@ describe('CN_FONT_CATALOG 结构契约（T42 S1 生成物）', () => {
     }
   })
 
-  test('unpkg 回退族带 base 钉扎（jsdelivr 不可达非 ASCII 目录，S1 探针实录）', () => {
+  test('全量目录零 base 回退（2026-09-06 复测 jsdelivr 已支持非 ASCII 路径）', () => {
+    // 2026-08-30 构建时 37 族因 jsdelivr 非 ASCII 目录全边缘 404 带 base=unpkg；
+    // 2026-09-06 复测 37/37 族全部子族目录在 jsdelivr 可达（含非 ASCII 目录名，
+    // 与运行时同款原样拼接 URL），回退全量移除。管线 unpkg 探针已删除，
+    // 再生成不会复活 base——钉 === 0 防僵尸漂移。
     const withBase = CN_FONT_CATALOG.filter((entry) => entry.base !== undefined)
-    // 2026-08-30 构建实录 37 族；只钉 >0 契约，不钉死数目（重跑管线允许漂移）
-    expect(withBase.length).toBeGreaterThan(0)
-    for (const entry of withBase) {
-      expect(entry.base?.startsWith('https://')).toBe(true)
-    }
+    expect(withBase).toEqual([])
   })
 
   test('收录族含 VF（小禾简化 VF 区间字重 250-900，xiaohe-simplify@2.0.0）', () => {

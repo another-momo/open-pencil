@@ -307,8 +307,10 @@ export class CnFontSubsetResolver {
   }
 
   private packageBase(descriptor: CnFontCdnDescriptor): string {
-    // T42：非 ASCII 子族目录名的包在 jsdelivr 全边缘 404，catalog 探针记录
-    // base=unpkg 回退（unpkg 支持非 ASCII 路径且 CORS *）；缺省 jsdelivr。
+    // T42：缺省 jsdelivr。base=unpkg 回退曾覆盖非 ASCII 子族目录名的包
+    // （2026-08-30 实测 jsdelivr 全边缘 404）；2026-09-06 复测 jsdelivr 已支持
+    // 非 ASCII 路径（37/37 族全绿），catalog 回退已全量移除。descriptor.baseURL
+    // 透传机制保留（registry 精选层/未来回退仍可用）。
     const base = descriptor.baseURL ?? this.baseURL
     return `${base}/${descriptor.package}@${descriptor.version ?? 'latest'}`
   }

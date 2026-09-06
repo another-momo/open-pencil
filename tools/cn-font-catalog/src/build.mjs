@@ -13,9 +13,7 @@
  *    家族名与注册表/前序条目冲突者；
  * 4. 产出 packages/core/src/text/font/cn-catalog.ts（generated）+ excluded.json。
  *
- * 已知边界：npm search 只覆盖搜索可见面的包（排名遗漏不进目录）；
- * 非 ASCII 目录名 jsdelivr 全边缘节点 404（2026-08-30 实测 cdn/fastly/gcore），
- * 该类包回退 unpkg 探针（unpkg 支持非 ASCII 路径且 CORS *，实测 200）。
+ * 已知边界：npm search 只覆盖搜索可见面的包（排名遗漏不进目录）。
  */
 
 import { writeFileSync } from 'node:fs'
@@ -47,7 +45,6 @@ const REGISTRY_FAMILIES = new Set([
 const NPM_SEARCH = 'https://registry.npmjs.org/-/v1/search'
 const NPM_PACKUMENT = 'https://registry.npmjs.org'
 const JSDELIVR = 'https://cdn.jsdelivr.net/npm'
-const UNPKG = 'https://unpkg.com'
 const CONCURRENCY = 8
 const FETCH_TIMEOUT_MS = 20000
 
@@ -128,24 +125,16 @@ function parseResultCSSFamilies(css) {
 }
 
 /**
- * 逐目录探针：jsdelivr 优先，404 回退 unpkg（非 ASCII 目录名场景）。
- * 每族记录其目录实际可用的 CDN base；同族目录跨 CDN 分裂由调用方排除
- * （运行时 resolveCSSURL 只选单目录，跨 base 拼不出一致片源）。
+ * 逐目录探针：仅 jsdelivr（2026-09-06 复测其已支持非 ASCII 路径，unpkg
+ * 回退探针移除；目录名按运行时同款原样拼接，不做 encodeURIComponent）。
+ * bases 记账保留给未来可能的回退场景；当前 base 恒 undefined。
  */
 async function probeFamilyDirs(name, version, dirs) {
   const families = new Map() // family → { weights:Set, variable, bases:Set }
   const dirFailures = []
   for (const dir of dirs) {
-    let css = await fetchText(
-      `${JSDELIVR}/${name}@${version}/dist/${encodeURIComponent(dir)}/result.css`
-    )
+    let css = await fetchText(`${JSDELIVR}/${name}@${version}/dist/${dir}/result.css`)
     let base = undefined // undefined = jsdelivr（catalog 缺省）
-    if (!css) {
-      css = await fetchText(
-        `${UNPKG}/${name}@${version}/dist/${encodeURIComponent(dir)}/result.css`
-      )
-      if (css) base = UNPKG
-    }
     if (!css) {
       dirFailures.push(dir)
       continue
@@ -185,7 +174,7 @@ async function probePackage(name) {
     return {
       excluded:
         dirFailures.length > 0
-          ? `全部子族目录 result.css 在 jsdelivr/unpkg 均不可达（${dirFailures.length}/${dirs.length} 目录 404）`
+          ? `全部子族目录 result.css 在 jsdelivr 均不可达（${dirFailures.length}/${dirs.length} 目录 404）`
           : 'result.css 未解析出 font-family'
     }
   }
@@ -230,7 +219,7 @@ for (const [name, result] of [...probed.entries()].sort()) {
       continue
     }
     if (info.bases.size > 1) {
-      excluded[`${name} → ${family}`] = '子族目录跨 jsdelivr/unpkg 分裂，运行时无法取一致片源'
+      excluded[`${name} → ${family}`] = '子族目录跨 CDN 分裂，运行时无法取一致片源'
       continue
     }
     seenFamilies.add(family)
@@ -271,7 +260,7 @@ export interface CnFontCatalogEntry {
   variable: boolean
   /** result.css 实见字重（静态档集合；VF 为区间端点） */
   weights: number[]
-  /** 非 ASCII 目录名包的回退 CDN base（缺省 = jsdelivr）；运行时透传 descriptor.baseURL */
+  /** CDN base 覆盖（缺省 = jsdelivr）；运行时透传 descriptor.baseURL。2026-09-06 复测 jsdelivr 已支持非 ASCII 路径（37/37 族全绿），全量目录零回退 */
   base?: string
 }
 

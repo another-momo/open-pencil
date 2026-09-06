@@ -26,8 +26,10 @@ export interface CnFontCdnDescriptor {
   /** 显式 result.css 路径（单字重包可直接指定） */
   cssPath?: string
   /**
-   * CDN base 覆盖（T42）：缺省 jsdelivr。非 ASCII 子族目录名的包在
-   * jsdelivr 全边缘 404（2026-08-30 实测），catalog 条目带 base=unpkg 回退。
+   * CDN base 覆盖（T42）：缺省 jsdelivr。非 ASCII 子族目录名的包曾在
+   * jsdelivr 全边缘 404（2026-08-30 实测），catalog 条目带过 base=unpkg
+   * 回退；2026-09-06 复测 jsdelivr 已支持非 ASCII 路径（37/37 族），
+   * 回退已全量移除，本字段保留给 registry 精选层/未来回退场景。
    */
   baseURL?: string
 }

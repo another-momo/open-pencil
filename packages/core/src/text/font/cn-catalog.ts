@@ -16,7 +16,7 @@ export interface CnFontCatalogEntry {
   variable: boolean
   /** result.css 实见字重（静态档集合；VF 为区间端点） */
   weights: number[]
-  /** 非 ASCII 目录名包的回退 CDN base（缺省 = jsdelivr）；运行时透传 descriptor.baseURL */
+  /** CDN base 覆盖（缺省 = jsdelivr）；运行时透传 descriptor.baseURL。2026-09-06 复测 jsdelivr 已支持非 ASCII 路径（37/37 族全绿），全量目录零回退 */
   base?: string
 }
 
@@ -27,8 +27,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '2.0.0',
     license: 'MIT',
     variable: false,
-    weights: [500],
-    base: 'https://unpkg.com'
+    weights: [500]
   },
   {
     family: '荆南俊俊体',
@@ -60,8 +59,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: '瑞美加张清平硬笔行书',
@@ -69,8 +67,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: '峄山碑篆体',
@@ -78,8 +75,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'bailubangbangshouxieti',
@@ -87,8 +83,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '2.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'BWCKKT',
@@ -96,8 +91,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [300, 400, 700],
-    base: 'https://unpkg.com'
+    weights: [300, 400, 700]
   },
   {
     family: 'CEF Fonts CJK',
@@ -121,8 +115,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '2.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'Child Fun Sans Demo',
@@ -154,8 +147,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'FlyFlowerSong',
@@ -163,8 +155,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'FontQu Smile 常规',
@@ -172,8 +163,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'GuanKiapTsingKhai',
@@ -269,8 +259,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'huangyinqi zhaopai',
@@ -278,8 +267,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'Huiwen-mincho',
@@ -287,8 +275,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'I.Ngaan',
@@ -304,8 +291,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'LogoSC LongZhuTi',
@@ -313,8 +299,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'Long Cang',
@@ -322,8 +307,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'LXGW Bright',
@@ -395,8 +379,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'Maple Mono CN',
@@ -548,8 +531,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'PING FANG GONG ZI TI',
@@ -557,8 +539,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'PING FANG MENG MNEG DA',
@@ -566,8 +547,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'qiantubifengshouxieti',
@@ -575,8 +555,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'QIJIFALLBACK',
@@ -600,8 +579,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'Slidefu',
@@ -625,8 +603,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'Source Han Serif CN for Display',
@@ -634,8 +611,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'STDongGuanTi',
@@ -643,8 +619,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '2.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'STDongGuanTi Bld',
@@ -652,8 +627,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '2.0.0',
     license: 'MIT',
     variable: false,
-    weights: [700],
-    base: 'https://unpkg.com'
+    weights: [700]
   },
   {
     family: 'STDongGuanTi Light',
@@ -661,8 +635,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '2.0.0',
     license: 'MIT',
     variable: false,
-    weights: [300],
-    base: 'https://unpkg.com'
+    weights: [300]
   },
   {
     family: 'SuCaiJiShi-SheHuiTi',
@@ -670,8 +643,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'The Peak Font 隨峰體 Beta',
@@ -679,8 +651,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'ToneOZ-Pinyin-Kai-Simplified',
@@ -768,8 +739,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'Xiaohe Simplify Sans VF',
@@ -793,8 +763,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'XuandongKaishu',
@@ -810,8 +779,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'YouSheBiaoTiHei',
@@ -819,8 +787,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'YouSheShaYuFeiTeJianKangTi',
@@ -828,8 +795,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'YuFanXinYu',
@@ -869,8 +835,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'Zhuque Fangsong (technical preview)',
@@ -886,8 +851,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   },
   {
     family: 'ZoomlaMengyas-A080',
@@ -895,8 +859,7 @@ export const CN_FONT_CATALOG: CnFontCatalogEntry[] = [
     version: '3.0.0',
     license: 'MIT',
     variable: false,
-    weights: [400],
-    base: 'https://unpkg.com'
+    weights: [400]
   }
 ]
 

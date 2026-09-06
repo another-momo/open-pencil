@@ -12,7 +12,7 @@
 ## 2. 协作摘要（最低限度规则）
 
 - 主 agent 唯一允许：git 写（commit / merge-back）、browser 实测、gh 操作。
-- worker（subagent）：限定范围实现 + 目标测试文件；**禁**全量 test / dev / build、push、browser、`gh run rerun`。
+- worker（subagent）：限定范围实现 + 目标测试文件；**禁**全量 test / dev / build、push、`gh run rerun`；browser 默认禁——Playwright MCP 与主 agent 共享浏览器单例，派单显式授权时方可自验证且须互斥。
 - push：主 agent 每次收口 commit 后顺势试推**一次**；失败即停（不原地重试），积压归 owner 后续处理。worker 禁 push。
 - gh 命令一律带 `-R another-momo/open-pencil`。
 

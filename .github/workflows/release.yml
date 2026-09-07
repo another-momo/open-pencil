@@ -1,0 +1,54 @@
+name: Release
+
+# tag 触发（v*）：打包重且慢（Electron ~100MB 下载 + 产物 114MB），日常 push
+# 不跑。产物只存 workflow artifact（owner 2026-09-07 拍板）——正式发版策略
+# （GitHub Release / 版本节奏）等 rebrand 后再定。
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-windows:
+    name: Windows NSIS installer
+    timeout-minutes: 30
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-bun
+
+      # tag 与 package.json version 必须一致——electron-builder 的产物名取
+      # 后者，不一致会让 artifact 名与 tag 脱钩
+      - name: Verify tag matches package.json version
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(bun -e 'console.log(JSON.parse(await Bun.file("package.json").text()).version)')
+          echo "tag=$TAG package=$PKG"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::tag v$TAG 与 package.json version $PKG 不一致"
+            exit 1
+          fi
+
+      # package:win = build:packages + vite build + stage:native-externals +
+      # electron-builder --win nsis。脚本内烤死 npmmirror 镜像 env（本机
+      # github 不通的纪律），CI 上 github 本可直连，但保持同一条链不 diverge
+      - name: Build NSIS installer
+        run: bun run package:win
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: OpenPencil-Setup-${{ github.ref_name }}
+          path: |
+            release/OpenPencil-Setup-*.exe
+            release/OpenPencil-Setup-*.exe.blockmap
+          retention-days: 30

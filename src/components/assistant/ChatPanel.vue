@@ -110,10 +110,9 @@ const messagesEnd = ref<HTMLDivElement>()
 // nextTick 推迟到当前 flush 落定后再换 key，避免同 flush 内 unmount 半补丁树。
 const chatInputRemountKey = ref(0)
 onErrorCaptured((err, instance) => {
-  // .type 在内部实例（instance.$）上；ComponentPublicInstance 公共类型不含，
-  // 走 unknown 收敛到最小形状只取 __file
-  const instType = (instance as unknown as { $?: { type?: { __file?: string } } } | null)?.$?.type
-  const file = instType?.__file ?? ''
+  // .type 在内部实例（instance.$）上；ComponentPublicInstance 公共类型不含该
+  // 属性——旧写法 vue-tsc 报错且运行时经公共代理取不到值，guard 恒不触发
+  const file = (instance?.$?.type as { __file?: string } | undefined)?.__file ?? ''
   const isChatInputSubtree = file.endsWith('PiChatInput.vue') || file.endsWith('InputGroup.vue')
   const isPatchCorruption = err instanceof TypeError && /insertBefore|__vnode/.test(err.message)
   if (!isChatInputSubtree || !isPatchCorruption) return true

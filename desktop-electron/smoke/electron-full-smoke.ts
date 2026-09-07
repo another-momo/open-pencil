@@ -7,11 +7,11 @@
  *  ② 桥 /health 显示**执行器已注册**（status='ok' 而非 'no_app'——证 token
  *     三方对齐：index.html 注入的 __OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__
  *     === bridge OPENPENCIL_MCP_AUTH_TOKEN === 任何客户端 WS 鉴权用的 token。
- *     注意：本步 dist 把桥 URL 烤进产物为 ws://127.0.0.1:7600（vite.config.ts
- *     devAutomationRoute 在无 PORTLESS_URL 时硬编码 7600），且 7600 当前被
- *     用户的 dev server 占用、禁碰；故由 smoke 本身用同一个 bridge token
- *     起 WS 注册——只要 token 一致 bridge 即接受，等价证明三方对齐。详见
- *     报告「遗留风险」。）
+ *     spike-electron-spike 起：桥 URL 改为运行时全局注入（main.ts 经
+ *     index.html 前置 <script> 注入 __OPENPENCIL_RUNTIME_BRIDGE_URL__=ws://
+ *     127.0.0.1:<bridgePort>），dist 不再烤死 ws://127.0.0.1:7600——本步
+ *     直接断 smoke 自起 WS 的等价证明，改为硬断言**页面自己注册为执行器**
+ *     （等 bridge /health.status 从 'no_app' 翻 'ok'，无 smoke 侧 WS 参与）。）
  *  ③ sidecar 崩溃复活实测：kill 掉 pi-backend 子进程，等退避复活后再
  *     /api/pi/catalog → 200（证 vite-plugin T27 退避语义移植生效）
  *     ——此步在 chat 前做，避免 chat 的 proxy-destroy-upstream 把 pi-backend
@@ -115,7 +115,12 @@ async function waitForHealth(url: string, timeoutMs: number): Promise<boolean> {
 }
 
 async function waitForBridgeExecutorOk(bridgeBase: string, authToken: string, timeoutMs: number): Promise<{ ok: boolean; raw: unknown }> {
-  // 等某个客户端 WS 连上桥后，/health.status 从 'no_app' 翻到 'ok'
+  // 等**页面自己**连上桥后，/health.status 从 'no_app' 翻到 'ok'。
+  // spike-electron-spike 起：smoke 不再自起 WS 注册；URL 解析靠运行时全局
+  // __OPENPENCIL_RUNTIME_BRIDGE_URL__（main.ts 注入），页面经
+  // src/app/automation/bridge/client.ts connectAutomation 自动 register。
+  // 翻 'ok' 即证：①运行时 URL 通道连通（页面拿到了 bridgePort）；②token
+  // 三方对齐（页面用注入的 token 鉴权成功）。
   const deadline = Date.now() + timeoutMs
   let lastRaw: unknown = null
   while (Date.now() < deadline) {
@@ -128,28 +133,6 @@ async function waitForBridgeExecutorOk(bridgeBase: string, authToken: string, ti
     await new Promise((r) => setTimeout(r, 250))
   }
   return { ok: false, raw: lastRaw }
-}
-
-function openBridgeWs(bridgePort: number, token: string, windowId: string): Promise<{ ws: WebSocket; close: () => void }> {
-  // 用 WebSocket 模拟页面侧连接——验证 token 三方对齐：
-  // token === electron 主进程 fork 桥子进程时的 OPENPENCIL_MCP_AUTH_TOKEN
-  //      === index.html 注入的 __OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__（可从
-  //        页面探针的 FULL_SMOKE_RESULT.checks[].detail 字段读回，二者必须一致）
-  // bridge 收到 register 消息即把 /health.status 从 'no_app' 翻到 'ok'
-  const url = `ws://127.0.0.1:${bridgePort}`
-  const ws = new WebSocket(url)
-  return new Promise((resolveOpen, rejectOpen) => {
-    const timer = setTimeout(() => rejectOpen(new Error(`WebSocket open 超时（${url}）`)), 5_000)
-    ws.onopen = () => {
-      clearTimeout(timer)
-      ws.send(JSON.stringify({ type: 'register', token, windowId }))
-      resolveOpen({ ws, close: () => ws.close() })
-    }
-    ws.onerror = (event) => {
-      clearTimeout(timer)
-      rejectOpen(new Error(`WebSocket 错误：${(event as ErrorEvent).message ?? 'unknown'}`))
-    }
-  })
 }
 
 // ── 主流程 ──
@@ -268,7 +251,9 @@ async function main(): Promise<void> {
     }
   })
 
-  let bridgeWsHandle: { ws: WebSocket; close: () => void } | null = null
+  // spike-electron-spike 起：smoke 不再自起 WS——执行器注册必须来自页面
+  // connectAutomation（见 src/app/automation/bridge/{url,client}.ts 运行时
+  // 通道）；本页 finally 直接走 pageProbe 关闭路径。
 
   try {
     const loopbackBase = `http://127.0.0.1:${loopbackPort}`
@@ -291,7 +276,7 @@ async function main(): Promise<void> {
     if (!bridgeReady || !backendReady) throw new Error('sidecar 未就绪，提前中止')
 
     // 4. 等页面探针（FULL_SMOKE_RESULT）——证明隐藏窗加载 + 编辑器根节点存在 +
-    //    token 注入；从该结果读出 bridge token（注入的 32-hex）
+    //    token + URL 运行时注入；从该结果读出 bridge token（注入的 32-hex）
     const probeDeadline = Date.now() + 30_000
     while (!pageProbe && Date.now() < probeDeadline) {
       await new Promise((r) => setTimeout(r, 200))
@@ -304,29 +289,30 @@ async function main(): Promise<void> {
         JSON.stringify((pageProbe.result as { checks?: unknown }).checks).slice(0, 200)
       )
       check(
-        '页面注入的 bridge token 是 32-hex（可拿来做三方对齐 WS 鉴权）',
+        '页面注入的 bridge token 是 32-hex（运行时鉴权基线）',
         pageProbe.bridgeToken !== null,
         pageProbe.bridgeToken ?? 'null'
       )
+      // spike-electron-spike：URL 注入断言——dist 不再烤 ws://127.0.0.1:7600，
+      // 桥 URL 来自运行时全局，与注入的 token 配套；二者必同时命中才能保证
+      // 页面 connectAutomation 找到本进程 spawn 的桥。
+      const runtimeUrlCheck = (pageProbe.result as { checks?: Array<{ name: string; ok: boolean; detail: string | null }> }).checks?.find((c) => c.name === 'runtime bridge url injected')
+      check(
+        '页面注入的运行时桥 URL 是 ws://127.0.0.1:<port>（运行时通道命中）',
+        runtimeUrlCheck?.ok === true,
+        runtimeUrlCheck?.detail ?? 'null'
+      )
     }
 
-    // 5. token 三方对齐证明：用页面注入的同一个 token 起 WS 连接 bridge，
-    //    收到 register 后 /health.status 应翻为 'ok'。
-    // 局限：本步 dist 把桥 URL 烤进产物为 ws://127.0.0.1:7600（vite.config.ts
-    //   devAutomationRoute 无 PORTLESS_URL 时硬编码），7600 当前被 dev server
-    //   占用且禁碰，故页面自身不会主动连。smoke 用同一个 token 起 WS 注册
-    //   ——bridge 不区分连接方是谁（仅看 register.token），等价证明 token
-    //   在三方（主进程 env / 页面注入 / 客户端 WS）取同一个值时能完成鉴权。
+    // 5. 真链路：等**页面自己**经运行时 URL 通道连上 bridge，把 /health.status
+    // 从 'no_app' 翻为 'ok'。本步 smoke 不再起 WS——任何执行器注册都必须是
+    // 页面侧 connectAutomation 自动 register 的结果，否则视为 smoke 自欺。
+    // 翻 'ok' 同时证：①运行时 URL 通道打通（页面拿到了 bridgePort）；②token
+    // 三方对齐（页面用注入的 token 鉴权成功）。
     if (pageProbe?.bridgeToken) {
-      try {
-        bridgeWsHandle = await openBridgeWs(bridgePort, pageProbe.bridgeToken, 'electron-full-smoke')
-        check('WS 连接 bridge 成功（用页面注入的同 token 鉴权）', true)
-      } catch (error) {
-        check('WS 连接 bridge 成功（用页面注入的同 token 鉴权）', false, error instanceof Error ? error.message : String(error))
-      }
-      const executorOk = await waitForBridgeExecutorOk(bridgeBase, pageProbe.bridgeToken, 5_000)
+      const executorOk = await waitForBridgeExecutorOk(bridgeBase, pageProbe.bridgeToken, 8_000)
       check(
-        "bridge /health.status === 'ok'（执行器已注册，证 token 三方对齐）",
+        "bridge /health.status === 'ok'（页面自注册为执行器——真链路）",
         executorOk.ok,
         JSON.stringify(executorOk.raw)
       )
@@ -502,7 +488,8 @@ async function main(): Promise<void> {
     }
   } finally {
     clearTimeout(totalTimer)
-    if (bridgeWsHandle) bridgeWsHandle.close()
+    // spike-electron-spike：smoke 不再持有 WS handle——执行器注册走页面，
+    // electron 进程关停时窗口 webContents 自然 close，无需 smoke 显式关
     // 给 electron 一点时间写 stopSidecar（before-quit handler），再 SIGKILL
     setTimeout(() => killChild(), 1500)
     // 等子进程退出再清理 scratch

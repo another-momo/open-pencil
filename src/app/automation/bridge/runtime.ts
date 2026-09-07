@@ -7,6 +7,7 @@ import type { EditorStore } from '@/app/editor/active-store'
 import { isTauri } from '@/app/tauri/env'
 
 import { connectAutomation } from './client'
+import { resolveAutomationHTTPURL } from './url'
 
 export type MCPRuntimeStatus = 'idle' | 'starting' | 'running' | 'stopped' | 'error'
 
@@ -217,9 +218,14 @@ const RUNTIME_AUTOMATION_AUTH_TOKEN =
     ? window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__
     : null
 
+// spike-electron-spike：HTTP URL 解析——dev 形态走 vite define 烘焙值；
+// 非 dev 形态（vite build 产物 + Electron / host 托管）走运行时全局通道
+// resolveAutomationHTTPURL（与 __OPENPENCIL_RUNTIME_BRIDGE_URL__ 同源）。
+// 旧 fallback `http://127.0.0.1:${AUTOMATION_HTTP_PORT}`（=7600）会被主战场
+// dev server 占用、token 也不符，本步彻底放弃。
 const DEV_AUTOMATION_HTTP_URL = import.meta.env.DEV
   ? __OPENPENCIL_LOCAL_AUTOMATION_HTTP_URL__
-  : `http://127.0.0.1:${AUTOMATION_HTTP_PORT}`
+  : resolveAutomationHTTPURL()
 const DEV_AUTOMATION_AUTH_TOKEN =
   RUNTIME_AUTOMATION_AUTH_TOKEN ??
   (import.meta.env.DEV && typeof __OPENPENCIL_LOCAL_AUTOMATION_TOKEN__ === 'string'

@@ -49,6 +49,25 @@ function randomPort(): number {
   return 27900
 }
 
+// spike-electron-spike：挑一个真空闲端口（先 probe-bind 再 close），让回环
+// 服务能确定性地 listen 在已知端口（给 sidecar CORS origin 用）。pin 模式
+// （OPENPENCIL_LOOPBACK_PORT > 0）跳过 probe。
+async function pickFreePort(): Promise<number> {
+  const { createServer } = await import('node:net')
+  for (let attempt = 0; attempt < 32; attempt++) {
+    const candidate = randomPort()
+    const ok = await new Promise<boolean>((resolveProbe) => {
+      const probe = createServer()
+      probe.once('error', () => resolveProbe(false))
+      probe.listen(candidate, '127.0.0.1', () => {
+        probe.close(() => resolveProbe(true))
+      })
+    })
+    if (ok) return candidate
+  }
+  throw new Error('无可用空闲端口（20000-49000 段已耗尽）')
+}
+
 // OPENPENCIL_PI_BACKEND_PORT / OPENPENCIL_MCP_PORT 是 sidecar 自身 env 名（见
 // pi-backend/main.ts:92 + bridge/server/index.ts:28）。与 vite plugin 命名错开
 // 是有意的——electron 主进程设的是「自己 fork 子进程时的 env」，不是 vite
@@ -342,7 +361,12 @@ export function createLoopbackServer(options: LoopbackServerOptions): Promise<{ 
     if (candidate === indexPath && extname(urlPath) !== '' && urlPath !== '/' && !existsAsFile(filePath)) { res.writeHead(404).end('Not Found'); return }
     if (candidate === indexPath) {
       const html = readFileSync(indexPath, 'utf8')
-      const script = `<script>window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__=${JSON.stringify(token)}</script>`
+      // spike-electron-spike：双注入——桥 token + 桥 WS URL（运行时全局名见
+      // src/app/automation/bridge/{url,runtime}.ts）。electron 形态下桥在
+      // 随机端口（bridgePort），页面必须拿这个 URL 去连；只有 token 没有 URL
+      // 会让页面去撞 build-time 烘焙的 ws://127.0.0.1:7600，撞主战场 + token
+      // 不符。dev 形态不注入，页面 fallback 到 vite define 烘焙值。
+      const script = `<script>window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__=${JSON.stringify(token)};window.__OPENPENCIL_RUNTIME_BRIDGE_URL__=${JSON.stringify(`ws://127.0.0.1:${bridgePort}`)}</script>`
       res.writeHead(200, { 'content-type': MIME_TYPES['.html'] }); res.end(html.replace('<head>', `<head>${script}`)); return
     }
     sendFile(res, candidate)
@@ -392,6 +416,17 @@ const PROBE_SCRIPT = `(async () => {
   record('idb write+read', out.idb.ok, JSON.stringify(out.idb))
   out.token = typeof window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__ === 'string' && window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__.length > 0
   record('runtime automation token injected', out.token, window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__ ?? '')
+  // spike-electron-spike：桥 URL 运行时全局注入断言（electron 形态必命中；
+  // dev 形态——OPENPENCIL_DEV_URL 路径下 main 不注入——本条天然不命中，smoke
+  // 跳过本条以免误伤）
+  out.runtimeBridgeUrl = typeof window.__OPENPENCIL_RUNTIME_BRIDGE_URL__ === 'string' && window.__OPENPENCIL_RUNTIME_BRIDGE_URL__.startsWith('ws://')
+  record('runtime bridge url injected', out.runtimeBridgeUrl, window.__OPENPENCIL_RUNTIME_BRIDGE_URL__ ?? '')
+  // spike-electron-spike：Vue mount + mcpRuntime 状态探针——证 WorkspaceView
+  // onMounted 跑了 startMCPRuntime，进而 connectAutomation 才会经运行时 URL
+  // 通道 WS 连桥。
+  await new Promise((r) => setTimeout(r, 500))
+  out.vueMounted = !!document.querySelector('[data-shell]') || !!document.querySelector('#app .app-root, #app > div')
+  record('vue mounted (workspace shell rendered)', out.vueMounted, 'data-shell or #app child element')
   window.__SMOKE_RESULT__ = out
 })().catch((e) => { window.__SMOKE_RESULT__ = { fatal: String(e) } })`
 
@@ -407,14 +442,16 @@ async function runSmoke(window: BrowserWindow, skipTokenCheck: boolean): Promise
   const raw = await window.webContents.executeJavaScript('window.__SMOKE_RESULT__', true)
   const result = (raw ?? {}) as { fatal?: string; checks?: Array<{ name: string; ok: boolean; detail: string | null }> }
   if (result.fatal) return { ok: false, result: { ...result, consoleErrors, pageErrors } }
-  const checks = (result.checks ?? []).filter((c) => !(skipTokenCheck && c.name === 'runtime automation token injected'))
+  const checks = (result.checks ?? []).filter((c) =>
+    !(skipTokenCheck && (c.name === 'runtime automation token injected' || c.name === 'runtime bridge url injected'))
+  )
   const allOk = checks.length > 0 && checks.every((c) => c.ok)
   return { ok: allOk, result: { checks, consoleErrors, pageErrors } }
 }
 
 // ── sidecar + 回环启动（编排入口，被 main / full-smoke 共用）──
 
-function buildSidecars(distDir: string): { bridge: SidecarHandle; backend: SidecarHandle } {
+function buildSidecars(distDir: string, loopbackOrigin: string): { bridge: SidecarHandle; backend: SidecarHandle } {
   // OPENPENCIL_ROOT_DIR：sidecar cwd 不可依赖——宿主显式注入。允许通过 env
   // 覆盖（full-smoke 用），默认 spawn 时所在目录的 .openpencil/
   const rootDir = process.env.OPENPENCIL_ROOT_DIR || distDir
@@ -433,9 +470,12 @@ function buildSidecars(distDir: string): { bridge: SidecarHandle; backend: Sidec
       PORT: String(bridgePort),
       // bridge token 经 env 进 sidecar——与 index.html 注入的 token 同源
       OPENPENCIL_MCP_AUTH_TOKEN: bridgeToken,
-      // 跨源兜底：token 已鉴权；同源代理下页面是 http://127.0.0.1:<port>
-      // 发起的 fetch，origin 校验已通过；显式空字符串禁用 CORS origin 校验
-      OPENPENCIL_MCP_CORS_ORIGIN: ''
+      // spike-electron-spike：跨源兜底——页面在 loopback 端口（http://127.0.0.1:
+      // <loopback>）发 fetch 到 bridge 端口（http://127.0.0.1:<bridge>），跨
+      // 源；显式给 bridge CORS origin = 页面 origin，让预检通过。旧「空字符
+      // 串禁用 cors middleware」在跨源 fetch 时会让浏览器预检 401，readAutomationHealth
+      // 失败 → connectAutomation 永不 register → bridge /health 永 no_app。
+      OPENPENCIL_MCP_CORS_ORIGIN: loopbackOrigin
     },
     healthUrl: `http://127.0.0.1:${bridgePort}/health`,
     current: null,
@@ -464,8 +504,17 @@ function buildSidecars(distDir: string): { bridge: SidecarHandle; backend: Sidec
 }
 
 async function startLoopbackWithSidecars(distDir: string): Promise<{ server: ReturnType<typeof createServer>; port: number }> {
+  // spike-electron-spike：先钉 loopback 端口（full-smoke 已用 OPENPENCIL_
+  // LOOPBACK_PORT 注入；默认 0 = 选个空闲端口），再编排 sidecar——桥 CORS
+  // origin 必须等于页面 origin（即 loopbackOrigin），跨源 fetch 才会放行。
+  // 旧顺序「先 spawn bridge 再 listen loopback」会让 CORS origin 拿不到，
+  // 跨源 fetch 预检 401，page-side readAutomationHealth 永远失败，桥 /health
+  // 永 no_app。
+  const reservedLoopbackPort = pinnedLoopbackPort > 0 ? pinnedLoopbackPort : await pickFreePort()
+  const loopbackOrigin = `http://127.0.0.1:${reservedLoopbackPort}`
+
   // 1. 编排 sidecar——env 语义对齐 host.ts（端口 / token / discovery path 注入）
-  const { bridge, backend } = buildSidecars(distDir)
+  const { bridge, backend } = buildSidecars(distDir, loopbackOrigin)
   bridgeHandle = bridge
   backendHandle = backend
   spawnAndWatch(bridge)
@@ -486,7 +535,7 @@ async function startLoopbackWithSidecars(distDir: string): Promise<{ server: Ret
     automationToken: bridgeToken,
     backendPort,
     piToken,
-    port: pinnedLoopbackPort
+    port: reservedLoopbackPort
   })
   portFromState = port
   serverFromState = server
@@ -545,8 +594,13 @@ async function main(): Promise<void> {
     return
   }
 
+  // spike-electron-spike：OPENPENCIL_SHOW=1 让窗口可见——给主 agent L3
+  // 「真窗口+真编辑器+真侧链」手工探活用。spike 冒烟仍走隐藏窗路径（L3
+  // 不是我的工作面，本任务不开 OPENPENCIL_SHOW，只加口）。
+  const showWindow = process.env.OPENPENCIL_SHOW === '1'
+
   if (devUrl) {
-    const window = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, sandbox: true } })
+    const window = new BrowserWindow({ show: showWindow, webPreferences: { contextIsolation: true, sandbox: true } })
     await window.loadURL(devUrl)
     if (smokeMode) {
       const verdict = await runSmoke(window, true)
@@ -559,7 +613,7 @@ async function main(): Promise<void> {
   // 默认形态：sidecar + 回环 + 隐藏窗加载。关窗不杀 sidecar（与下一步
   // 「多窗口共享 sidecar」对齐），app quit 才杀
   const { server, port } = await startLoopbackWithSidecars(join(__dirname, '..', '..', 'dist'))
-  const window = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, sandbox: true } })
+  const window = new BrowserWindow({ show: showWindow, webPreferences: { contextIsolation: true, sandbox: true } })
   window.once('closed', () => server.close())
   await window.loadURL(`http://127.0.0.1:${port}`)
   if (smokeMode) {

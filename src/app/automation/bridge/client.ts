@@ -8,13 +8,14 @@ import { randomHex } from '@open-pencil/core/random'
 
 import { makeFigmaFromStore } from '@/app/automation/bridge/figma-factory'
 import { createAutomationCommandHandlers } from '@/app/automation/bridge/handlers'
+import { resolveAutomationWSURL } from '@/app/automation/bridge/url'
 import { getWindowId } from '@/app/automation/window-id'
 import type { EditorStore } from '@/app/editor/active-store'
 
 export function connectAutomation(
   getStore: () => EditorStore,
   authToken: string | null = null,
-  automationURL = __OPENPENCIL_LOCAL_AUTOMATION_URL__
+  automationURL = resolveAutomationWSURL()
 ) {
   const token = authToken ?? randomHex(32)
   let ws: WebSocket | null = null

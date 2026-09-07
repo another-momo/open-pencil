@@ -400,6 +400,32 @@ export function createLoopbackServer(options: LoopbackServerOptions): Promise<{ 
   })
 }
 
+// ── BrowserWindow 共享 options ──
+
+// P0 外壳打磨——去掉原生标题栏：
+//   titleBarStyle: 'hidden' → 隐藏标题栏但保留窗口阴影/拖拽/贴边分屏等系统行为
+//   titleBarOverlay → Windows 上在页面顶部叠加原生最小化/最大化/关闭按钮（macOS
+//   无按钮显示，但 overlay 字段不影响）。色值必须匹配应用顶栏实际背景——
+//   src/theme/tab-bar.ts 的 root 槽位 'bg-canvas'，深色主题 token
+//   --color-canvas: #1e1e1e（src/app.css L41）。height 36 = h-9 匹配顶栏高度。
+//   symbolColor：Windows 不读但 Electron 类型要求，写合理前景色保持语义完整。
+// 默认尺寸 1440x900：旧缺省 800x600 太小，肉眼可见「迷你窗」。抽取 helper
+// 收敛三处 BrowserWindow 调用，防漂移。
+const BASE_WINDOW_OPTIONS: Electron.BrowserWindowConstructorOptions = {
+  width: 1440,
+  height: 900,
+  titleBarStyle: 'hidden',
+  titleBarOverlay: {
+    color: '#1e1e1e',
+    symbolColor: '#ffffff',
+    height: 36
+  }
+}
+
+function baseWindowOptions(extra: Electron.BrowserWindowConstructorOptions = {}): Electron.BrowserWindowConstructorOptions {
+  return { ...BASE_WINDOW_OPTIONS, ...extra }
+}
+
 // ── 隐藏窗探针（与 electron-smoke 同款，full-smoke 用）──
 
 const PROBE_SCRIPT = `(async () => {
@@ -602,7 +628,7 @@ async function main(): Promise<void> {
   // 探针（外部脚本读 FULL_SMOKE_RESULT 后自行 kill 本进程）
   if (fullSmokeMode) {
     const { server, port } = await startLoopbackWithSidecars(join(__dirname, '..', '..', 'dist'))
-    const window = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, sandbox: true } })
+    const window = new BrowserWindow(baseWindowOptions({ show: false, webPreferences: { contextIsolation: true, sandbox: true } }))
     window.once('closed', () => { server.close() })
     await window.loadURL(`http://127.0.0.1:${port}`)
     const verdict = await runSmoke(window, false)
@@ -617,7 +643,7 @@ async function main(): Promise<void> {
   const showWindow = process.env.OPENPENCIL_SHOW === '1'
 
   if (devUrl) {
-    const window = new BrowserWindow({ show: showWindow, webPreferences: { contextIsolation: true, sandbox: true } })
+    const window = new BrowserWindow(baseWindowOptions({ show: showWindow, webPreferences: { contextIsolation: true, sandbox: true } }))
     await window.loadURL(devUrl)
     if (smokeMode) {
       const verdict = await runSmoke(window, true)
@@ -630,7 +656,7 @@ async function main(): Promise<void> {
   // 默认形态：sidecar + 回环 + 隐藏窗加载。关窗不杀 sidecar（与下一步
   // 「多窗口共享 sidecar」对齐），app quit 才杀
   const { server, port } = await startLoopbackWithSidecars(join(__dirname, '..', '..', 'dist'))
-  const window = new BrowserWindow({ show: showWindow, webPreferences: { contextIsolation: true, sandbox: true } })
+  const window = new BrowserWindow(baseWindowOptions({ show: showWindow, webPreferences: { contextIsolation: true, sandbox: true } }))
   window.once('closed', () => server.close())
   await window.loadURL(`http://127.0.0.1:${port}`)
   if (smokeMode) {

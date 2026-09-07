@@ -1180,6 +1180,13 @@
       "reason": "T98 收口后修复（2026-09-06）：P212 导入端配套——applyImportedCanvasMetadata 此前只还原 raw Figma 字段不碰 pluginData，补 canvasNc.pluginData → page.pluginData 映射（pluginID→pluginId，与下方 docNc 处理同型）。",
       "disposition": "permanent",
       "lastReviewed": "2026-09-06"
+    },
+    {
+      "id": "P214",
+      "file": "src/theme/tab-bar.ts",
+      "reason": "electron-desktop P0（2026-09-07）：hidden titlebar 配套——页签栏 root 加 app-region drag（窗口拖拽），trigger/close/newAction 加 no-drag（点击不被吞）。",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-07"
     }
   ],
   "deletedPaths": [

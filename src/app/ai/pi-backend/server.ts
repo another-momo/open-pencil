@@ -117,18 +117,9 @@ async function handlePiChatRequest(
     return
   }
 
-  let body: PiChatRequestBody
-  try {
-    body = JSON.parse(await readBody(req)) as PiChatRequestBody
-  } catch (error) {
-    // T27：超限单独 413；其余（坏 JSON / 连接中断）按 400
-    if (error instanceof PayloadTooLargeError) {
-      res.writeHead(413).end('Payload Too Large')
-      return
-    }
-    res.writeHead(400).end('Bad Request: invalid JSON')
-    return
-  }
+  const parsed = await parseJSONBody(req, res)
+  if (!parsed.ok) return
+  const body = parsed.body as PiChatRequestBody
 
   const sessionId = body.sessionId
   const text = lastUserText(body)
@@ -181,12 +172,12 @@ function sendJSON(res: ServerResponse, status: number, payload: unknown): void {
  * 调用方拿到 ok=false 时直接 return 即可——避免各 handler 重复 try/catch + writeHead。
  * 超限按 413（readBody 拦截抛 PayloadTooLargeError），其余坏 JSON 一律 400。
  */
-async function parseJSONBody<T>(
+async function parseJSONBody(
   req: IncomingMessage,
   res: ServerResponse
-): Promise<{ ok: true; body: T } | { ok: false }> {
+): Promise<{ ok: true; body: unknown } | { ok: false }> {
   try {
-    const body = JSON.parse(await readBody(req)) as T
+    const body: unknown = JSON.parse(await readBody(req))
     return { ok: true, body }
   } catch (error) {
     if (error instanceof PayloadTooLargeError) {
@@ -252,14 +243,14 @@ async function handleIntentConfirmRequest(
     return
   }
   // intent 确认端点：modeId + profileId/documentId/windowId 可选。
-  const parsed = await parseJSONBody<{
+  const parsed = await parseJSONBody(req, res)
+  if (!parsed.ok) return
+  const body = parsed.body as {
     modeId?: unknown
     profileId?: unknown
     documentId?: unknown
     windowId?: unknown
-  }>(req, res)
-  if (!parsed.ok) return
-  const body = parsed.body
+  }
   if (typeof body.modeId !== 'string' || body.modeId.trim() === '') {
     res.writeHead(400).end('Bad Request: modeId required')
     return
@@ -295,13 +286,13 @@ async function handleActiveDesignRequest(
     return
   }
   // 点选端点：nodeId 必填，documentId/windowId 透传 T98 路由。
-  const parsed = await parseJSONBody<{
+  const parsed = await parseJSONBody(req, res)
+  if (!parsed.ok) return
+  const body = parsed.body as {
     nodeId?: unknown
     documentId?: unknown
     windowId?: unknown
-  }>(req, res)
-  if (!parsed.ok) return
-  const body = parsed.body
+  }
   if (typeof body.nodeId !== 'string' || body.nodeId.trim() === '') {
     res.writeHead(400).end('Bad Request: nodeId required')
     return

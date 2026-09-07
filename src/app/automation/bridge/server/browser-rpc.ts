@@ -216,7 +216,7 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
   /** 依据显式 windowId 与全局 lastRegisteredWindowId 解析发送目标槽；未命中返回 undefined。 */
   function pickRouteSlot(explicit: string | undefined): WindowSlot | undefined {
     if (explicit !== undefined) return windows.get(explicit)
-    if (windows.size === 1) return windows.values().next().value as WindowSlot | undefined
+    if (windows.size === 1) return windows.values().next().value
     if (windows.size > 1 && lastRegisteredWindowId) return windows.get(lastRegisteredWindowId)
     return undefined
   }

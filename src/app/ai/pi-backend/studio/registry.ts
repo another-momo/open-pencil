@@ -348,7 +348,10 @@ let currentKey: string | null = null
 
 function defaultDirs(rootDir: string): { builtinDir: string; userDir: string } {
   return {
-    builtinDir: join(rootDir, BUILTIN_STUDIO_SUBPATH),
+    // 内置资产目录可被宿主经 env 显式改写：Electron 打包形态下内置资产随
+    // extraResources 平铺到 resources/app/studio，rootDir（=userData）+ 源
+    // 码树子路径的缺省解析找不到，由宿主注入真实位置；未注入时维持缺省。
+    builtinDir: process.env.OPENPENCIL_STUDIO_BUILTIN_DIR || join(rootDir, BUILTIN_STUDIO_SUBPATH),
     userDir: join(homedir(), USER_STUDIO_SUBPATH)
   }
 }

@@ -41,6 +41,16 @@ extraResources:
       - "!**/*.map"
   - from: desktop-electron/native-externals
     to: app/native-externals
+  # studio 内置资产（modes/profiles/workflows 的 markdown 源）——registry.ts
+  # 运行时按文件系统读，不随 sidecar bundle 打包；打包形态 rootDir=userData
+  # 下无源码树，缺这条则内置层全空、只剩硬编码 general 兜底（实测症状：
+  # 打包版 mode 选择器只剩「通用设计」）。平铺后由 main.ts 经
+  # OPENPENCIL_STUDIO_BUILTIN_DIR 注入解析基准。
+  - from: src/app/ai/pi-backend/studio
+    to: app/studio
+    # 只分发 markdown 资产——.ts 源码已被 sidecar bundle 收编，平铺无意义
+    filter:
+      - "**/*.md"
   - from: dist
     to: app/dist
     # 双保险：输出目录已显式迁到 release/（见顶部 directories），win-unpacked/

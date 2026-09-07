@@ -516,3 +516,20 @@ test('C6: reloadStudio(rootDir) 与 getStudioRegistry(rootDir) 走约定目录',
     rmSync(rootDir, { recursive: true, force: true })
   }
 })
+
+test('C6: OPENPENCIL_STUDIO_BUILTIN_DIR 覆盖内置目录解析（Electron 打包形态宿主注入）', () => {
+  const rootDir = mkdtempSync(join(tmpdir(), 'studio-root-'))
+  const envDir = mkdtempSync(join(tmpdir(), 'studio-env-builtin-'))
+  try {
+    // rootDir 约定目录留空、env 目录放 base——注册成功即证明 env 覆盖生效
+    put(envDir, 'base.md', BASE_MD)
+    process.env.OPENPENCIL_STUDIO_BUILTIN_DIR = envDir
+    const r = reloadStudio(rootDir)
+    expect(r.base?.id).toBe('base')
+    expect(getStudioRegistry(rootDir).base?.body).toContain('事实零虚构。')
+  } finally {
+    delete process.env.OPENPENCIL_STUDIO_BUILTIN_DIR
+    rmSync(rootDir, { recursive: true, force: true })
+    rmSync(envDir, { recursive: true, force: true })
+  }
+})

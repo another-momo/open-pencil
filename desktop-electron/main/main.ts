@@ -651,12 +651,21 @@ function buildSidecars(distDir: string, loopbackOrigin: string): { bridge: Sidec
   // 不再依赖「spawn 时所在目录」（既有缺省 distDir 在打包形态下随产物目录
   // 走——既不可读也不跨平台稳定）
   const rootDir = process.env.OPENPENCIL_ROOT_DIR || app.getPath('userData')
+  // OPENPENCIL_STUDIO_BUILTIN_DIR：studio 内置资产目录的显式解析基准。
+  // registry 缺省按 rootDir + 源码树子路径（src/app/ai/pi-backend/studio）
+  // 解析——打包形态 rootDir=userData 下没有源码树，必须指向 extraResources
+  // 平铺位 resources/app/studio；dev 形态显式钉 worktree 源码树，与 vite
+  // dev（cwd=worktree 根）的缺省解析结果一致，行为不变。
+  const studioBuiltinDir = app.isPackaged
+    ? join(process.resourcesPath, 'app', 'studio')
+    : join(__dirname, '..', '..', 'src', 'app', 'ai', 'pi-backend', 'studio')
   // OPENPENCIL_MCP_SOCKET / OPENPENCIL_MCP_DISCOVERY_PATH：host.ts 不隔离（单
   // 实例 + 平台默认路径）；Electron 同款——不注入则 sidecar 落平台默认路径。
   // full-smoke 通过 env 覆盖到 tmp 子目录即可隔离多 smoke 实例。
   const baseEnv: NodeJS.ProcessEnv = {
     ...process.env,
-    OPENPENCIL_ROOT_DIR: rootDir
+    OPENPENCIL_ROOT_DIR: rootDir,
+    OPENPENCIL_STUDIO_BUILTIN_DIR: studioBuiltinDir
   }
   // P2 sidecar 解析基准——dev / spike 形态：相对 dist-main/ 的 dist-sidecar/
   // （__dirname 解析 main.mjs 所在目录）；打包形态：app.isPackaged=true 且

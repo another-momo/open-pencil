@@ -22,6 +22,18 @@
  *     8.2 单实例锁（smoke 路径 OPENPENCIL_DISABLE_SINGLE_INSTANCE=1 绕过）
  *     8.3 did-fail-load 重试 3 次（1s 间隔）+ 失败日志
  *     8.4 setWindowOpenHandler + will-navigate 双重拦截（url-safety 分类）
+ *  9. P1 状态根 userData 化 + 窗口状态持久化 + 关窗语义：
+ *     9.1 app.setName('open-pencil') 在 main() 入口尽快调——让 userData 目录
+ *         在 Windows 下落到 %APPDATA%/open-pencil（macOS ~/Library/Application
+ *         Support/open-pencil），可读且与产品名一致
+ *     9.2 rootDir 缺省从 distDir 改为 app.getPath('userData')；env 仍优先——
+ *         smoke/full-smoke 显式传 OPENPENCIL_ROOT_DIR 隔离多实例，dev 启动器
+ *         spike-electron-dev.ts 钉 worktree 根的便利也不受影响
+ *     9.3 窗口 bounds（width/height/x/y/maximized）持久化到 userData/
+ *         window-state.json（见 ./window-state.ts）；恢复时校验与当前显示器
+ *         集合有交集——拔了外接屏窗口出屏是经典坑；无交集回退 1440x900 居中
+ *     9.4 macOS 关窗不退出（dock 图标保留，activate 重建窗口）；其余平台全关
+ *         即 quit；quit 时杀 sidecar 的既有逻辑（before-quit）保持不动
  *
  * token 三方对齐（不变量，spike 阶段由本文件单点维护）：
  *   pageToken === bridgeEnvToken（页面经 WS 连桥用的 token = 注入 index.html
@@ -40,6 +52,7 @@ import { dirname, extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, shell, utilityProcess, type UtilityProcess } from 'electron'
 import { classifyExternalUrl, isHttpOrHttps, isLoopbackHttpUrl } from './url-safety.js'
+import { loadWindowState, saveWindowState, type WindowState } from './window-state.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -437,6 +450,27 @@ function baseWindowOptions(extra: Electron.BrowserWindowConstructorOptions = {})
   return { ...BASE_WINDOW_OPTIONS, ...extra }
 }
 
+// P1.9.3 窗口状态持久化——把 loadWindowState 解出的 { width, height, x, y }
+// 折进 BrowserWindow constructorOptions；maximized 在 ready-to-show 后单独
+// 恢复（构造时 maximize 会与「show:false 起步 + ready-to-show show」叠加
+// 时序混乱——用户首启会看到一闪的「未最大化正常尺寸」）。把恢复职责收敛到
+// restoreBounds(window, state) 一处，三个构造分支（dev / default / full-smoke）
+// 共用同一份语义，full-smoke 不调（隐藏探针不参与用户可见窗口状态）。
+// x/y 可省（首启 / 坐标失效回退后无坐标）——Electron.setBounds 拒绝含
+// undefined 的对象，必须按存在性分支构造
+function restoreBounds(window: BrowserWindow, state: WindowState): void {
+  if (state.x !== undefined && state.y !== undefined) {
+    window.setBounds({ x: state.x, y: state.y, width: state.width, height: state.height })
+  } else {
+    window.setBounds({ width: state.width, height: state.height })
+  }
+  if (state.maximized) {
+    window.once('ready-to-show', () => {
+      if (!window.isDestroyed()) window.maximize()
+    })
+  }
+}
+
 // ── 窗体安全/重试/可见时序（attachWindowSafety，applySafeShow）──
 //
 // 把四项加固收敛到一处给 BrowserWindow 挂，避免在每个分支里重复挂载。调用
@@ -524,6 +558,23 @@ function applySafeShow(window: BrowserWindow): void {
   })
 }
 
+// P1.9.3 关窗前写盘——挂 'close'（不是 'closed'）：'closed' 时已 destroyed，
+// getBounds() 行为平台相关；'close' 是 Electron 关闭流程的第一个事件，
+// e.preventDefault() 可拦住——本路径只读不拦，故不存 preventDefault
+function persistBoundsOnClose(window: BrowserWindow): void {
+  window.on('close', () => {
+    if (window.isDestroyed()) return
+    const bounds = window.getBounds()
+    saveWindowState({
+      width: bounds.width,
+      height: bounds.height,
+      x: bounds.x,
+      y: bounds.y,
+      maximized: window.isMaximized()
+    })
+  })
+}
+
 // ── 隐藏窗探针（与 electron-smoke 同款，full-smoke 用）──
 
 const PROBE_SCRIPT = `(async () => {
@@ -593,9 +644,13 @@ async function runSmoke(window: BrowserWindow, skipTokenCheck: boolean): Promise
 // ── sidecar + 回环启动（编排入口，被 main / full-smoke 共用）──
 
 function buildSidecars(distDir: string, loopbackOrigin: string): { bridge: SidecarHandle; backend: SidecarHandle } {
-  // OPENPENCIL_ROOT_DIR：sidecar cwd 不可依赖——宿主显式注入。允许通过 env
-  // 覆盖（full-smoke 用），默认 spawn 时所在目录的 .openpencil/
-  const rootDir = process.env.OPENPENCIL_ROOT_DIR || distDir
+  // OPENPENCIL_ROOT_DIR：状态根目录（sidecar 内 .openpencil/ 落盘点）。
+  // 解析优先级 env > app.getPath('userData')——env 优先保留是为了让 smoke /
+  // full-smoke 显式钉独立 rootDir 隔离多实例，dev 启动器 spike-electron-dev.ts
+  // 钉 worktree 根的便利也不受影响；用户日常双击图标落地即默认 userData，
+  // 不再依赖「spawn 时所在目录」（既有缺省 distDir 在打包形态下随产物目录
+  // 走——既不可读也不跨平台稳定）
+  const rootDir = process.env.OPENPENCIL_ROOT_DIR || app.getPath('userData')
   // OPENPENCIL_MCP_SOCKET / OPENPENCIL_MCP_DISCOVERY_PATH：host.ts 不隔离（单
   // 实例 + 平台默认路径）；Electron 同款——不注入则 sidecar 落平台默认路径。
   // full-smoke 通过 env 覆盖到 tmp 子目录即可隔离多 smoke 实例。
@@ -721,6 +776,13 @@ async function waitForHealthUntil(url: string, timeoutMs: number, label: string)
 let primaryWindow: BrowserWindow | null = null
 
 async function main(): Promise<void> {
+  // P1.9.1 状态根 userData 化——app.setName 必须在 whenReady 之前调，否则
+  // app.getPath('userData') 已按 package.json 名字（open-pencil-app）落盘，
+  // 再 setName 已晚（路径缓存）。统一改名为 'open-pencil' 让 Windows 下
+  // %APPDATA%/open-pencil、macOS 下 ~/Library/Application Support/open-pencil，
+  // 与产品名一致且可读
+  app.setName('open-pencil')
+
   // P0.5.2 单实例锁——必须在 whenReady 之前 requestSingleInstanceLock：
   //   1. 文档要求；2. 二实例启动 race 下第二个进程必须抢在 Electron 派发
   //   second-instance 之前判定锁，否则二实例会跳过主实例直接走自己流程。
@@ -784,6 +846,9 @@ async function main(): Promise<void> {
 
   if (devUrl) {
     const window = new BrowserWindow(baseWindowOptions({ show: showWindow, webPreferences: { contextIsolation: true, sandbox: true } }))
+    // P1.9.3 dev 形态也走窗口状态持久化（dev 调试的用户体验与产品形态对齐）
+    restoreBounds(window, loadWindowState())
+    persistBoundsOnClose(window)
     attachWindowSafety(window, devUrl)
     if (showWindow) applySafeShow(window)
     await window.loadURL(devUrl)
@@ -799,6 +864,9 @@ async function main(): Promise<void> {
   // 「多窗口共享 sidecar」对齐），app quit 才杀
   const { server, port } = await startLoopbackWithSidecars(join(__dirname, '..', '..', 'dist'))
   const window = new BrowserWindow(baseWindowOptions({ show: showWindow, webPreferences: { contextIsolation: true, sandbox: true } }))
+  // P1.9.3 恢复 + 关窗前持久化 bounds
+  restoreBounds(window, loadWindowState())
+  persistBoundsOnClose(window)
   window.once('closed', () => { server.close(); if (primaryWindow === window) primaryWindow = null })
   primaryWindow = window
   const loadUrl = `http://127.0.0.1:${port}`
@@ -810,6 +878,46 @@ async function main(): Promise<void> {
     console.log('[electron-main] SMOKE_RESULT', JSON.stringify(verdict.result))
     app.exit(verdict.ok ? 0 : 1)
   }
+}
+
+// P1.9.4 关窗语义——macOS 习惯：关窗不退出（dock 图标保留）；activate 时若
+// 无窗口则重建一个。其他平台按 OS 默认行为（window-all-closed → quit）。
+// 不在 smoke 路径下注册：smoke 路径 BrowserWindow 直接调 app.exit(0/1)
+// 走完，无需走 window-all-closed 路径；full-smoke 同理（隐藏探针不期望
+// 关窗语义被干扰）。注册条件收敛到「dev url / 默认形态」分支
+if (process.env.OPENPENCIL_SMOKE !== '1' && process.env.OPENPENCIL_FULL_SMOKE !== '1') {
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit()
+  })
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0 && primaryWindow === null) {
+      // darwin dock 点击复活——重建一个默认窗口（不带 dev url；sidecar 复用
+      // 既有 bridge/backend，避免重新 spawn 拉长恢复时延）
+      rebuildPrimaryWindow()
+    }
+  })
+}
+
+// P1.9.4 darwin 复活主窗口——dev 形态：直接 new BrowserWindow + loadURL；
+// 默认形态（sidecar 全家桶）：sidecar 句柄在 before-quit 之前持续存活，可
+// 重 listen 回环服务复用既有 bridge/backend；但实现复杂度（bridge CORS origin
+// 在 fork 时锁定，复用旧 loopback 端口不一定可用）超出本 spike 范围——P2
+// 「多窗口共享 sidecar」会顺手处理。当前只覆盖 dev 形态；默认形态下若
+// primaryWindow 被关且 primaryWindow 已 null，则 console.warn 让用户手动重启
+function rebuildPrimaryWindow(): void {
+  const devUrl = process.env.OPENPENCIL_DEV_URL
+  if (devUrl) {
+    const win = new BrowserWindow(baseWindowOptions({ show: true, webPreferences: { contextIsolation: true, sandbox: true } }))
+    restoreBounds(win, loadWindowState())
+    persistBoundsOnClose(win)
+    attachWindowSafety(win, devUrl)
+    applySafeShow(win)
+    primaryWindow = win
+    win.once('closed', () => { if (primaryWindow === win) primaryWindow = null })
+    void win.loadURL(devUrl)
+    return
+  }
+  console.warn('[electron-main] darwin activate：默认形态（sidecar 全家桶）的复活路径尚未实现，请手动重启 app')
 }
 
 // 全局兜底：Electron 对 main 进程的 uncaughtException 默认弹系统错误对话框

@@ -12,7 +12,8 @@
  *     全局（配合 bridge/runtime.ts P104 的 window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__
  *     hook——上游生产形态靠 Tauri 读 discovery 文件，web 形态无该通道）
  *  4. 反代 /api/pi* → 127.0.0.1:7700 并注入 Bearer（流式管道透传，SSE 不缓冲；
- *     客户端断连即销毁上游请求，chat abort 语义与 vite proxy 一致）
+ *     仅客户端主动断连才销毁上游——正常 SSE 收尾不杀，chat abort 语义与
+ *     vite proxy 一致；pipe 双侧 error 守卫防 EPIPE 杀进程）
  *
  * 端口：主服务 OPENPENCIL_SERVE_PORT（默认 8080）；子进程沿用既有常量
  * 7600/7700。与 vite dev 互斥（同端口冲突时子进程 EADDRINUSE 文案已有）。
@@ -234,12 +235,26 @@ function proxyPi(req: IncomingMessage, res: ServerResponse): void {
   const upstream = httpRequest(
     { host: '127.0.0.1', port: backendPort, path: req.url, method: req.method, headers },
     (up) => {
+      // 客户端在等上游响应期间断开（页面刷新/设置面板切换取消在途请求）：
+      // res 已销毁，writeHead/pipe 会抛 ERR_STREAM_DESTROYED / EPIPE——直接弃流
+      if (res.destroyed) {
+        up.destroy()
+        return
+      }
       // 上游的 hop-by-hop 头不回写（transfer-encoding 由 node 按流自动处理）
       const responseHeaders: Record<string, string | string[] | undefined> = {}
       for (const [key, value] of Object.entries(up.headers)) {
         if (!HOP_BY_HOP_HEADERS.has(key)) responseHeaders[key] = value
       }
       res.writeHead(up.statusCode ?? 502, responseHeaders)
+      // pipe 不转发错误：两侧各自挂 error 监听，否则客户端中途断连时写失败
+      // 会冒成 uncaughtException 杀掉 host 进程（Electron 版 proxyPi 实测踩中）
+      up.on('error', (error) => {
+        console.error(
+          `[host] /api/pi 上游响应流错误：${error instanceof Error ? error.message : String(error)}`
+        )
+        if (!res.destroyed) res.destroy()
+      })
       up.pipe(res) // 逐 chunk 透传——SSE 不缓冲
     }
   )
@@ -247,10 +262,17 @@ function proxyPi(req: IncomingMessage, res: ServerResponse): void {
     if (!res.headersSent) {
       res.writeHead(502, { 'content-type': 'text/plain; charset=utf-8' })
     }
-    res.end(`pi 后端不可达（${error instanceof Error ? error.message : String(error)}）`)
+    if (!res.writableEnded) {
+      res.end(`pi 后端不可达（${error instanceof Error ? error.message : String(error)}）`)
+    }
   })
-  // 客户端断连（chat abort）→ 销毁上游请求，后端 SSE 链路随之终止
-  res.on('close', () => upstream.destroy())
+  // 客户端 socket 写失败（EPIPE 典型）——吞掉并断上游，不冒泡
+  res.on('error', () => upstream.destroy())
+  // 仅客户端主动断连（res 未正常结束）才销毁上游；SSE 正常结尾时 pipe 完成
+  // 也会触发 res.close，无条件销毁会把跑到一半的 chat 杀掉（Electron 版踩过）
+  res.on('close', () => {
+    if (!res.writableEnded) upstream.destroy()
+  })
   req.pipe(upstream)
 }
 

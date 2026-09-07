@@ -27,15 +27,17 @@ jobs:
       - uses: ./.github/actions/setup-bun
 
       # tag 与 package.json version 必须一致——electron-builder 的产物名取
-      # 后者，不一致会让 artifact 名与 tag 脱钩
+      # 后者，不一致会让 artifact 名与 tag 脱钩。允许 v<version>-<后缀>
+      # 形式（v0.14.0-ci.1 这类预发/演练 tag），比较时剥掉后缀
       - name: Verify tag matches package.json version
         shell: bash
         run: |
           TAG="${GITHUB_REF_NAME#v}"
+          BASE="${TAG%%-*}"
           PKG=$(bun -e 'console.log(JSON.parse(await Bun.file("package.json").text()).version)')
-          echo "tag=$TAG package=$PKG"
-          if [ "$TAG" != "$PKG" ]; then
-            echo "::error::tag v$TAG 与 package.json version $PKG 不一致"
+          echo "tag=$TAG base=$BASE package=$PKG"
+          if [ "$BASE" != "$PKG" ]; then
+            echo "::error::tag v$TAG（基版本 $BASE）与 package.json version $PKG 不一致"
             exit 1
           fi
 

@@ -15,6 +15,7 @@
   ],
   "ignoreBinaries": [
     "open",
-    "taskkill"
+    "taskkill",
+    "tasklist"
   ]
 }

@@ -1325,7 +1325,8 @@
     "tests/engine/render/canvas/font-lifecycle.test.ts",
     "tests/engine/render/canvas/text.test.ts",
     "packages/vue/src/i18n/messages/diagnostics.ts",
-    "packages/vue/src/i18n/locales/zh-cn/diagnostics.json"
+    "packages/vue/src/i18n/locales/zh-cn/diagnostics.json",
+    "src/components/ui/AppComboboxInput.vue"
   ],
   "upstreamMergeTarball": []
 }

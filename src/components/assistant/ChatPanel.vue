@@ -110,7 +110,9 @@ const messagesEnd = ref<HTMLDivElement>()
 // nextTick 推迟到当前 flush 落定后再换 key，避免同 flush 内 unmount 半补丁树。
 const chatInputRemountKey = ref(0)
 onErrorCaptured((err, instance) => {
-  const file = (instance as unknown as { type?: { __file?: string } } | null)?.type?.__file ?? ''
+  // .type 在内部实例（instance.$）上；ComponentPublicInstance 公共类型不含该
+  // 属性——旧写法 vue-tsc 报错且运行时经公共代理取不到值，guard 恒不触发
+  const file = (instance?.$?.type as { __file?: string } | undefined)?.__file ?? ''
   const isChatInputSubtree = file.endsWith('PiChatInput.vue') || file.endsWith('InputGroup.vue')
   const isPatchCorruption = err instanceof TypeError && /insertBefore|__vnode/.test(err.message)
   if (!isChatInputSubtree || !isPatchCorruption) return true
@@ -376,11 +378,16 @@ function finalizeInterruptedToolParts(): void {
     if (!isToolUIPart(part)) return part
     if (part.state !== 'input-streaming' && part.state !== 'input-available') return part
     touched = true
+    // AI SDK 类型机：output-error 变体要求 input 键存在（unknown——值可为
+    // undefined）——中断时 input 可能未到齐，显式带上现有值满足不变量。
+    // 不能用 satisfies typeof part：那会把返回类型钉死在收窄后的 input-*
+    // 变体上，state:'output-error' 反而报错
     return {
       ...part,
-      state: 'output-error',
+      state: 'output-error' as const,
+      input: part.input,
       errorText: 'Stopped by user.'
-    } as unknown as typeof part
+    }
   })
   if (touched) {
     messages[messages.length - 1] = { ...last, parts }

@@ -85,15 +85,18 @@ function runCheck(): void {
     if (!head) return
     try {
       writeFileSync(marker, `${head}|${todayIso()}\n`, 'utf8')
-    } catch {
-      // cannot write — exit silently
+    } catch (e) {
+      // 首次播种失败：标记文件不可写（沙盒权限/只读 fs）——钩子是 advisory，不阻断 commit
+      console.debug('[mechanism-review] cannot seed marker (write failed):', e)
     }
     return
   }
   let raw = ''
   try {
     raw = readFileSync(marker, 'utf8')
-  } catch {
+  } catch (e) {
+    // 标记文件已被外部清理/损坏——等同无标记，等下次播种路径处理
+    console.debug('[mechanism-review] marker read failed (will re-seed on next pass):', e)
     return
   }
   const [markerSha, markerDate] = raw.trim().split('|')
@@ -103,8 +106,8 @@ function runCheck(): void {
     if (head) {
       try {
         writeFileSync(marker, `${head}|${todayIso()}\n`, 'utf8')
-      } catch {
-        /* noop */
+      } catch (e) {
+        console.debug('[mechanism-review] cannot re-seed malformed marker:', e)
       }
     }
     return
@@ -157,8 +160,8 @@ function runMark(): void {
   try {
     writeFileSync(marker, `${head}|${todayIso()}\n`, 'utf8')
     process.stdout.write(`[mechanism-review] marker reset → ${head.slice(0, 8)} @ ${todayIso()}\n`)
-  } catch {
-    // silent
+  } catch (e) {
+    console.debug('[mechanism-review] cannot reset marker:', e)
   }
 }
 
@@ -174,7 +177,8 @@ function main(): void {
 
 try {
   main()
-} catch {
+} catch (e) {
   // advisory never blocks; any uncaught error → exit 0
+  console.debug('[mechanism-review] main() threw (advisory only):', e)
 }
 process.exit(0)

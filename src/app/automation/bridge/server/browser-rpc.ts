@@ -212,6 +212,14 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
    *  4) 零窗：走 waitForConnection 等待逻辑（connect→register 后通知 waiters）。
    * 选中槽位后：pending 入该槽 map；ws.send 失败处理逻辑与原版一致。
    */
+
+  /** 依据显式 windowId 与全局 lastRegisteredWindowId 解析发送目标槽；未命中返回 undefined。 */
+  function pickRouteSlot(explicit: string | undefined): WindowSlot | undefined {
+    if (explicit !== undefined) return windows.get(explicit)
+    if (windows.size === 1) return windows.values().next().value
+    if (windows.size > 1 && lastRegisteredWindowId) return windows.get(lastRegisteredWindowId)
+    return undefined
+  }
   function sendRPC(
     body: Record<string, unknown>,
     opts: { windowId?: string } = {}
@@ -221,29 +229,8 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
       const doSend = () => {
         // 1) 显式 windowId 路由
         const explicit = opts.windowId
-        let slot: WindowSlot | undefined
-        if (explicit !== undefined) {
-          slot = windows.get(explicit)
-          if (!slot || slot.ws.readyState !== slot.ws.OPEN) {
-            reject(new Error(APP_NOT_CONNECTED_MESSAGE))
-            return
-          }
-        } else if (windows.size === 1) {
-          // 2) 无 windowId + 单窗
-          slot = windows.values().next().value as WindowSlot | undefined
-          if (!slot || slot.ws.readyState !== slot.ws.OPEN) {
-            reject(new Error(APP_NOT_CONNECTED_MESSAGE))
-            return
-          }
-        } else if (windows.size > 1 && lastRegisteredWindowId) {
-          // 3) 无 windowId + 多窗 → 最后注册窗
-          slot = windows.get(lastRegisteredWindowId)
-          if (!slot || slot.ws.readyState !== slot.ws.OPEN) {
-            reject(new Error(APP_NOT_CONNECTED_MESSAGE))
-            return
-          }
-        } else {
-          // 4) 零窗（理论不应到达——waitForConnection 已 gate——但保险）
+        const slot = pickRouteSlot(explicit)
+        if (!slot || slot.ws.readyState !== slot.ws.OPEN) {
           reject(new Error(APP_NOT_CONNECTED_MESSAGE))
           return
         }
@@ -251,7 +238,7 @@ export function createBrowserRPCBridge({ authToken, onConnectionChange }: Browse
         const settle = createSettler(resolve, reject)
         const timeoutMs = rpcTimeoutMs()
         const timer = setTimeout(() => {
-          slot!.pending.delete(id)
+          slot.pending.delete(id)
           settle.reject(new Error(`RPC timeout (${Math.round(timeoutMs / 1000)}s)`))
         }, timeoutMs)
         slot.pending.set(id, { resolve: settle.resolve, reject: settle.reject, timer })

@@ -122,10 +122,12 @@ async function waitForHealthOk(port: number): Promise<void> {
   }
 }
 
+type RPCBody = { ok?: boolean; error?: string; [key: string]: unknown }
+
 async function rpc(
   port: number,
   body: Record<string, unknown>
-): Promise<{ status: number; json: Record<string, unknown> }> {
+): Promise<{ status: number; json: RPCBody }> {
   const response = await fetch(`http://127.0.0.1:${port}/rpc`, {
     method: 'POST',
     headers: {
@@ -134,7 +136,7 @@ async function rpc(
     },
     body: JSON.stringify(body)
   })
-  const json = (await response.json().catch(() => ({}))) as Record<string, unknown>
+  const json = (await response.json().catch(() => ({}))) as RPCBody
   return { status: response.status, json }
 }
 
@@ -145,8 +147,9 @@ describe('窗口感知路由（multi-window routing）', () => {
       for (const b of topology.browsers) {
         try {
           b.ws.close()
-        } catch {
-          // 关闭竞态忽略
+        } catch (e) {
+          // 关闭竞态忽略——ws.close 可能因已关闭抛 InvalidStateError
+          console.debug('[window-routing] ws.close failed during teardown:', e)
         }
       }
       await topology.handle.close()
@@ -173,10 +176,10 @@ describe('窗口感知路由（multi-window routing）', () => {
     expect(resB.json.ok).toBe(true)
 
     // 各自只收到自己的 request
-    expect(browsers[0]!.receivedRequests.length).toBe(1)
-    expect(browsers[1]!.receivedRequests.length).toBe(1)
-    expect(browsers[0]!.receivedRequests[0]!.command).toBe('tool')
-    expect(browsers[1]!.receivedRequests[0]!.command).toBe('tool')
+    expect(browsers[0]?.receivedRequests.length).toBe(1)
+    expect(browsers[1]?.receivedRequests.length).toBe(1)
+    expect(browsers[0]?.receivedRequests[0]?.command).toBe('tool')
+    expect(browsers[1]?.receivedRequests[0]?.command).toBe('tool')
   })
 
   // ② 无 windowId 单窗 → 路由成功
@@ -189,7 +192,7 @@ describe('窗口感知路由（multi-window routing）', () => {
     const res = await rpc(port, { command: 'tool', args: { name: 'noop' } })
     expect(res.status).toBe(200)
     expect(res.json.ok).toBe(true)
-    expect(browsers[0]!.receivedRequests.length).toBe(1)
+    expect(browsers[0]?.receivedRequests.length).toBe(1)
   })
 
   // ③ 无 windowId 两窗 → 落最后注册窗
@@ -205,8 +208,8 @@ describe('窗口感知路由（multi-window routing）', () => {
     expect(res.status).toBe(200)
     expect(res.json.ok).toBe(true)
 
-    expect(browsers[0]!.receivedRequests.length).toBe(0)
-    expect(browsers[1]!.receivedRequests.length).toBe(1)
+    expect(browsers[0]?.receivedRequests.length).toBe(0)
+    expect(browsers[1]?.receivedRequests.length).toBe(1)
   })
 
   // ④ 显式 windowId 缺窗 → reject APP_NOT_CONNECTED_MESSAGE
@@ -226,7 +229,7 @@ describe('窗口感知路由（multi-window routing）', () => {
     const errMsg = String(res.json.error ?? '')
     expect(errMsg).toContain('not connected')
     // 唯一真窗不应收到 request
-    expect(browsers[0]!.receivedRequests.length).toBe(0)
+    expect(browsers[0]?.receivedRequests.length).toBe(0)
   })
 
   // ⑤ 同 windowId 重复 register → 旧槽 pending 被 reject 'Browser reconnected'、
@@ -241,11 +244,14 @@ describe('窗口感知路由（multi-window routing）', () => {
     // 启动一个长回合 request 到 shared-id（故意不立即应答，让它留在旧槽 pending）
     let pendingResolve: ((value: unknown) => void) | null = null
     let pendingReject: ((reason: Error) => void) | null = null
-    const pendingPromise = new Promise<unknown>((resolve, reject) => {
+    const sharedBrowser = browsers[0]
+    if (!sharedBrowser) throw new Error('test fixture missing first browser')
+    // 注册 pending 控制句柄供收尾时手动 settle；Promise 本身未 await（桥层
+    // reject 时不需要消费者介入），仅持有 resolve/reject 以防 unhandled rejection。
+    void new Promise<unknown>((resolve, reject) => {
       pendingResolve = resolve
       pendingReject = reject
     })
-    const sharedBrowser = browsers[0]!
     sharedBrowser.ws.onmessage = (event) => {
       const msg = JSON.parse(String(event.data)) as { type: string; id?: string }
       if (msg.type === 'request' && msg.id) {
@@ -299,7 +305,7 @@ describe('窗口感知路由（multi-window routing）', () => {
             command?: string
           }
           if (msg.type === 'request' && msg.id && msg.command) {
-            newSharedFake!.receivedRequests.push({ id: msg.id, command: msg.command })
+            newSharedFake?.receivedRequests.push({ id: msg.id, command: msg.command })
             newSharedWs.send(JSON.stringify({ type: 'response', id: msg.id, ok: true, result: {} }))
           }
         }
@@ -320,9 +326,9 @@ describe('窗口感知路由（multi-window routing）', () => {
     expect(sharedBrowser.closed).toBe(true)
 
     // 旧 rpc 应 reject（桥层 'Browser reconnected'）
-    const oldRpcResult = (await rpcPromise) as { ok?: boolean; error?: string }
-    expect(oldRpcResult.ok).toBe(false)
-    expect(String(oldRpcResult.error ?? '')).toContain('Browser reconnected')
+    const oldRPCResult = (await rpcPromise) as { ok?: boolean; error?: string }
+    expect(oldRPCResult.ok).toBe(false)
+    expect(String(oldRPCResult.error ?? '')).toContain('Browser reconnected')
 
     // 另一窗（other-win）应不受影响——能继续路由
     const otherRes = await rpc(port, {
@@ -358,8 +364,8 @@ describe('窗口感知路由（multi-window routing）', () => {
     const { port, browsers } = topology
 
     // 启动一个长回合 request 到 win-A（故意不立即应答）
-    let rejectReason: Error | null = null
-    const winA = browsers[0]!
+    const winA = browsers[0]
+    if (!winA) throw new Error('test fixture missing first browser')
     winA.ws.onmessage = (event) => {
       const msg = JSON.parse(String(event.data)) as { type: string; id?: string }
       if (msg.type === 'request' && msg.id) {
@@ -391,9 +397,9 @@ describe('窗口感知路由（multi-window routing）', () => {
     winA.ws.close()
 
     // 旧 rpc 应 reject（'Browser disconnected'）
-    const oldRpc = await rpcPromise
-    expect(oldRpc.ok).toBe(false)
-    expect(String(oldRpc.error ?? '')).toContain('Browser disconnected')
+    const oldRPC = await rpcPromise
+    expect(oldRPC.ok).toBe(false)
+    expect(String(oldRPC.error ?? '')).toContain('Browser disconnected')
 
     // 另一窗（win-B）应不受影响
     const otherRes = await rpc(port, {
@@ -433,6 +439,6 @@ describe('窗口感知路由（multi-window routing）', () => {
     const noWindowIdRes = await rpc(port, { command: 'tool', args: { name: 'noop' } })
     expect(noWindowIdRes.status).toBe(200)
     expect(noWindowIdRes.json.ok).toBe(true)
-    expect(browsers[0]!.receivedRequests.length).toBe(1)
+    expect(browsers[0]?.receivedRequests.length).toBe(1)
   })
 })

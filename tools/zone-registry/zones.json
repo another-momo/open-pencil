@@ -1188,6 +1188,13 @@
       "reason": "electron-desktop P0（2026-09-07）：hidden titlebar 配套——页签栏 root 加 app-region drag（窗口拖拽），trigger/close/newAction 加 no-drag（点击不被吞）。",
       "disposition": "permanent",
       "lastReviewed": "2026-09-07"
+    },
+    {
+      "id": "P215",
+      "file": "src/app/runtime/config.ts",
+      "reason": "ci-fix（2026-09-07）：appRuntimeConfig 模块顶层初始化在 bun 直跑测试时 IS_BROWSER 仍可能触 ReferenceError——Bun 1.3.5 + Windows 下 IS_BROWSER 冻结值与 window 取址时机错位。本轮直接复用常量，三元守卫与上游语义一致。",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-07"
     }
   ],
   "deletedPaths": [
@@ -1325,7 +1332,8 @@
     "tests/engine/render/canvas/font-lifecycle.test.ts",
     "tests/engine/render/canvas/text.test.ts",
     "packages/vue/src/i18n/messages/diagnostics.ts",
-    "packages/vue/src/i18n/locales/zh-cn/diagnostics.json"
+    "packages/vue/src/i18n/locales/zh-cn/diagnostics.json",
+    "src/components/ui/AppComboboxInput.vue"
   ],
   "upstreamMergeTarball": []
 }

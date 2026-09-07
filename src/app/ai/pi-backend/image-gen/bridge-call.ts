@@ -17,6 +17,7 @@
 import { readDiscoveryFile } from '@/app/automation/bridge/server/discovery'
 
 import { classifyBridgeFailure, EDITOR_UNREACHABLE_MESSAGE } from '../bridge-errors'
+import type { ToolTargetSource } from '../tools'
 
 /** 桥 RPC 缺省超时本地副本（与 automation/bridge/server/browser-rpc.ts DEFAULT_RPC_TIMEOUT_MS
  * 保持一致，tests/engine/rebuild/image-gen/rpc-timeout.test.ts 钉扎两者一致） */
@@ -31,8 +32,9 @@ export function bridgeCallTimeoutMs(): number {
 
 export type BridgeCallResult = Record<string, unknown>
 
-/** 当次请求的桥目标袋（同 tools.ts ToolTargetSource 语义，T98-路由起加 windowId） */
-export type BridgeCallTarget = { documentId?: string; windowId?: string }
+/** 当次请求的桥目标袋——形随 tools.ts ToolTargetSource（T98-路由起加 windowId），
+ *  type-shapes 门禁禁同形重复对象类型，故别名复用而非另立字面量 */
+export type BridgeCallTarget = ToolTargetSource
 
 export type BridgeCaller = (
   toolName: string,

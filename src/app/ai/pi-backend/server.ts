@@ -117,18 +117,9 @@ async function handlePiChatRequest(
     return
   }
 
-  let body: PiChatRequestBody
-  try {
-    body = JSON.parse(await readBody(req)) as PiChatRequestBody
-  } catch (error) {
-    // T27：超限单独 413；其余（坏 JSON / 连接中断）按 400
-    if (error instanceof PayloadTooLargeError) {
-      res.writeHead(413).end('Payload Too Large')
-      return
-    }
-    res.writeHead(400).end('Bad Request: invalid JSON')
-    return
-  }
+  const parsed = await parseJSONBody(req, res)
+  if (!parsed.ok) return
+  const body = parsed.body as PiChatRequestBody
 
   const sessionId = body.sessionId
   const text = lastUserText(body)
@@ -177,6 +168,33 @@ function sendJSON(res: ServerResponse, status: number, payload: unknown): void {
 }
 
 /**
+ * 解析 POST/PUT JSON body。返回 { ok: true, body } 或 { ok: false }（已写响应）。
+ * 调用方拿到 ok=false 时直接 return 即可——避免各 handler 重复 try/catch + writeHead。
+ * 超限按 413（readBody 拦截抛 PayloadTooLargeError），其余坏 JSON 一律 400。
+ */
+async function parseJSONBody(
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<{ ok: true; body: unknown } | { ok: false }> {
+  try {
+    const body: unknown = JSON.parse(await readBody(req))
+    return { ok: true, body }
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      res.writeHead(413).end('Payload Too Large')
+    } else {
+      res.writeHead(400).end('Bad Request: invalid JSON')
+    }
+    return { ok: false }
+  }
+}
+
+/** 从 unknown 取非空字符串；缺/类型错回 undefined——统一 T98 路由字段提取形态。 */
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value ? value : undefined
+}
+
+/**
  * T73：显式取消端点——POST /api/pi-chat/cancel {sessionId}。
  * 背景：唯一取消通道曾是上方 res.on('close')（T27），其触发依赖客户端
  * socket 关闭语义穿透 vite http-proxy 到达上游连接，实证不可靠（T73-plan §1
@@ -213,6 +231,8 @@ async function handlePiChatCancelRequest(
  * T60：POST /api/pi/active-design {nodeId}——②面板点选 / ③AI 声明+同意共用
  * 的移槽端点（非聊天消息）。成功 200 身份三元组；四条件驳回 422；桥不可达 502。
  */
+// T60：POST /api/pi/active-design {nodeId}——②面板点选 / ③AI 声明+同意共用
+// 的移槽端点（非聊天消息）。成功 200 身份三元组；四条件驳回 422；桥不可达 502。
 async function handleIntentConfirmRequest(
   service: ReturnType<typeof createPiChatService>,
   req: IncomingMessage,
@@ -222,30 +242,22 @@ async function handleIntentConfirmRequest(
     res.writeHead(405).end('Method Not Allowed')
     return
   }
-  let body: { modeId?: unknown; profileId?: unknown; documentId?: unknown; windowId?: unknown }
-  try {
-    body = JSON.parse(await readBody(req)) as {
-      modeId?: unknown
-      profileId?: unknown
-      documentId?: unknown
-      windowId?: unknown
-    }
-  } catch (error) {
-    if (error instanceof PayloadTooLargeError) {
-      res.writeHead(413).end('Payload Too Large')
-      return
-    }
-    res.writeHead(400).end('Bad Request: invalid JSON')
-    return
+  // intent 确认端点：modeId + profileId/documentId/windowId 可选。
+  const parsed = await parseJSONBody(req, res)
+  if (!parsed.ok) return
+  const body = parsed.body as {
+    modeId?: unknown
+    profileId?: unknown
+    documentId?: unknown
+    windowId?: unknown
   }
   if (typeof body.modeId !== 'string' || body.modeId.trim() === '') {
     res.writeHead(400).end('Bad Request: modeId required')
     return
   }
   // T98-路由：windowId/documentId 随确认请求直传——多窗时按发起窗路由桥调用
-  const windowId = typeof body.windowId === 'string' && body.windowId ? body.windowId : undefined
-  const documentId =
-    typeof body.documentId === 'string' && body.documentId ? body.documentId : undefined
+  const windowId = optionalString(body.windowId)
+  const documentId = optionalString(body.documentId)
   const result = await service.confirmNewIntent(
     {
       modeId: body.modeId,
@@ -273,20 +285,13 @@ async function handleActiveDesignRequest(
     res.writeHead(405).end('Method Not Allowed')
     return
   }
-  let body: { nodeId?: unknown; documentId?: unknown; windowId?: unknown }
-  try {
-    body = JSON.parse(await readBody(req)) as {
-      nodeId?: unknown
-      documentId?: unknown
-      windowId?: unknown
-    }
-  } catch (error) {
-    if (error instanceof PayloadTooLargeError) {
-      res.writeHead(413).end('Payload Too Large')
-      return
-    }
-    res.writeHead(400).end('Bad Request: invalid JSON')
-    return
+  // 点选端点：nodeId 必填，documentId/windowId 透传 T98 路由。
+  const parsed = await parseJSONBody(req, res)
+  if (!parsed.ok) return
+  const body = parsed.body as {
+    nodeId?: unknown
+    documentId?: unknown
+    windowId?: unknown
   }
   if (typeof body.nodeId !== 'string' || body.nodeId.trim() === '') {
     res.writeHead(400).end('Bad Request: nodeId required')

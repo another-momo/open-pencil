@@ -31,13 +31,24 @@
 - commit message：中文 conventional（`type(scope): 主题`）+ 正文写清 why——背景、方案取舍、验证证据。
 - pre-commit = check:zones；post-commit = 机制复盘计数提醒（advisory，永不阻塞）。
 
-## 5. 测试纪律
+## 5. 高发门禁坑（写代码时防一手）
+
+历史 CI 红的高频成因，皆为可机械判定的硬规则——写时避开，别等门禁拦：
+
+- 禁 `as unknown as` 双断言；要精确类型用单断言或 helper（lint 硬规则）。
+- 会被 node/测试环境加载的模块，访问 `window`/`document` 等浏览器全局前先 `typeof` 守卫（lint + 引擎测试）。
+- 新增入口/脚本/测试文件在 knip.json tasklist 登记（knip）。
+- 同形对象类型用别名复用，不另立字面量（type-shapes 门禁）。
+- ≥10 行级相似块抽 helper，不复制粘贴（jscpd 克隆门禁）。
+- 测试不读真实 env/浏览器全局，走注入与桩（引擎测试）。
+
+## 6. 测试纪律
 
 - bun:test 框架；**禁引入 DOM 测试基建**（happy-dom/jsdom 一律不许）——浏览器行为用真浏览器实测（主 agent）。
 - worker 只跑目标测试文件；全量单测用 `bun run test:unit:serial`（套件分批串行），禁单次全仓 `bun test tests/engine`（单进程内存累积）。
 - playwright（`test` / `test:figma`）主 agent 独占，与任何重型任务互斥。
 
-## 6. 仓库地图
+## 7. 仓库地图
 
 - `src/app/ai/pi-backend/` —— AI 后端（ownedRoot）：service / server / tools / transport / active-design-host / image-gen
 - `src/app/ai/fork/` —— AI 前端 fork 层（ownedRoot）：transports / session 管理
@@ -53,7 +64,7 @@
 - `docs/` —— ownedRoot；`archive/rebuild-campaign/` 为冻结历史档案，禁止引用为现行规则
 - `.github/workflows/` —— CI（ownedRoot，纯 fork 治理设施）
 
-## 7. CI
+## 8. CI
 
 - 全量 check + 全量测试在 CI 跑；本地分层能拦住的不等 CI。
 - CI 红灯先本地最小层复现再修；禁 `gh run rerun`；push 失败即积压，网络差时自然攒批。

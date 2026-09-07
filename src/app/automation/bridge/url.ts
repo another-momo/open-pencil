@@ -28,11 +28,21 @@ function readRuntimeBridgeURL(): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null
 }
 
+/** 测试环境（无 vite define）兜底——返回 ws 默认端口与 build-time 同值。 */
+const FALLBACK_AUTOMATION_WS_URL = 'ws://127.0.0.1:7600'
+
 /** WS URL——给 client.ts connectAutomation 消费 */
 export function resolveAutomationWSURL(): string {
   // 运行时全局优先于烘焙值；无任何来源时回退到默认端口。
   // dev 形态：宿主不注入 → 命中烘焙值，与 build-time 行为逐字节相同。
-  return readRuntimeBridgeURL() ?? __OPENPENCIL_LOCAL_AUTOMATION_URL__
+  // 测试形态：bun 直跑 src/ 不经 vite define 注入 → typeof 守卫 → 回退默认端口，
+  // 让 engine tests 不依赖构建产物。
+  return (
+    readRuntimeBridgeURL() ??
+    (typeof __OPENPENCIL_LOCAL_AUTOMATION_URL__ === 'string'
+      ? __OPENPENCIL_LOCAL_AUTOMATION_URL__
+      : FALLBACK_AUTOMATION_WS_URL)
+  )
 }
 
 /** HTTP URL——给 runtime.ts readAutomationHealth 消费（健康探活） */

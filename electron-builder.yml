@@ -1,0 +1,116 @@
+appId: com.openpencil.app
+productName: OpenPencil
+copyright: Copyright (c) 2026 OpenPencil
+# main 入口在 package.json#main 设了（dist-main/main.mjs，Electron 主进程 bundle）。
+# 不设 main 时 electron-builder 26 把整个工作目录当 app 根，连同 bun.lock、
+# node_modules 提示文件等全部卷进 asar；显式设 main 走标准 asar 流程。
+# P2 打包元数据——主目录命名 OpenPencil（与 productName 对齐；缺省取
+# package.json#name"open-pencil-app"太长）。artifactName 去掉平台后缀
+# （electron-builder 会自动追 _-win-x64 与 .exe/.dmg 等后缀）。
+artifactName: ${productName}-${version}-${arch}
+
+# 输出目录必须显式设为 release/——缺省是 dist/，与 vite 前端产物的 outDir
+# 同名：electron-builder 建前清空自己的输出目录，同名会把前端 dist/ 整个
+# 抹掉，extraResources 的 `from: dist` 随之拷空，打包产物缺 app/dist 起不
+# 了窗（P2 收口实测踩中）。
+directories:
+  output: release
+
+# asar：关闭——本机小项目冷启动速度提升与打包稳定性之间选后者。asar 启用
+# 时 electron-builder 26 在 workspaces 根 + "private": true + bun workspace
+# 环境下会与 `files` 配置产生未定义的交互（实测：asar 只含 node_modules，
+# main 入口 dist-main/main.mjs 找不到；关闭 asar 后正常）。
+asar: false
+
+# nodeGypRebuild / buildDependenciesFromSource：关闭——sidecar 自包含
+# externals（走 extraResources 平铺到 resources/app/native-externals/），主
+# 进程 bundle 已 external ['electron'] 不需要 rebuild；默认开的话 electron-
+# builder 会扫一遍 node_modules 把 .node 二进制重建一遍，无意义且延长构建
+nodeGypRebuild: false
+buildDependenciesFromSource: false
+
+extraResources:
+  # 平铺约定：sidecar + externals + 前端 dist/ 全部塞到 resources/app/ 下，
+  # main.ts 内 app.isPackaged 分支据此切换 sidecar 解析基准（resources/app/
+  # dist-sidecar/*.mjs，../native-externals/）。
+  - from: desktop-electron/dist-sidecar
+    to: app/dist-sidecar
+    # 滤掉 .map 等调试产物（如未来开了 sourcemap）
+    filter:
+      - "**/*"
+      - "!**/*.map"
+  - from: desktop-electron/native-externals
+    to: app/native-externals
+  - from: dist
+    to: app/dist
+    # 双保险：输出目录已显式迁到 release/（见顶部 directories），win-unpacked/
+    # nsis/ 等产物子目录不会再出现在 dist/ 下；保留过滤防未来有人改回默认
+    # 输出目录时 extraResources 把产物当源自复制递归到 ENOSPC。
+    filter:
+      - "**/*"
+      - "!win-unpacked/**"
+      - "!nsis/**"
+      - "!mac/**"
+      - "!linux-unpacked/**"
+      - "!mac-arm64/**"
+      - "!**/*.map"
+
+# 入口主进程 bundle——打进 asar（dist-main/*.mjs 是 Electron 主进程代码，体
+# 积小、走 asar 提升冷启动）。
+files:
+  # 入口仅 desktop-electron/dist-main/（main.mjs）+ package.json。**显式排除**
+  # node_modules/ ——bun workspace + "private": true 触发 electron-builder 26
+  # 自动搬运整棵 node_modules 进 app/（实测），主进程 bundle 自带 external
+  # ['electron'] 不需要运行期依赖；externals 走 extraResources 平铺。
+  - desktop-electron/dist-main/**/*
+  - package.json
+  - "!**/*.map"
+  - "!**/*.tsbuildinfo"
+  - "!**/node_modules/**"
+  - "!**/bun.lock"
+  - "!**/.git/**"
+  - "!**/.cache/**"
+  - "!**/release/**"
+  - "!**/spikes"
+  - "!**/src"
+  - "!**/packages"
+  - "!**/tests"
+  - "!**/scripts"
+  - "!**/tools"
+  - "!**/vite"
+  - "!**/node_modules"
+
+# 平台：本任务仅交付 Windows 安装包
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  # 无代码签名证书（owner 接受 SmartScreen 警告）；待 owner 拿到 cert 后由
+  # 本机导入 + 加 certificateFile / certificatePassword 字段解锁
+  # signingHashAlgorithms: ['sha256']
+  # certificateFile: ...
+  # certificatePassword: ...
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+nsis:
+  # perMachine false —— 安装到当前用户（无管理员权限要求；UAC 不弹；与
+  # SmartScreen 警告同源 —— owner 已接受此妥协）
+  perMachine: false
+  # oneClick 缺省 true 是「无 UI 一路 next」——保留默认；但关闭 allowToChangeInstallationDirectory
+  # 默认 true 后弹窗问安装到哪；desktop-electron 是 SPA 单实例产品形态，无
+  # 「装多个版本」诉求，关掉少一步 UI 干扰
+  oneClick: true
+  allowToChangeInstallationDirectory: false
+  # 卸载时清干净 app 数据；createDesktopShortcut 已默认 true
+  deleteAppDataOnUninstall: true
+  # artifactName 在 win.* 已设，这里保留 nsis 自身的命名兜底
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+# 应用图标——缺图标资源（icon 字段不填 electron-builder 用默认 Electron 标）；
+# favicon.ico 是 web 端 icon（256x256 + 多分辨率），尺寸规格与 desktop app 不
+# 同，缺损风险（默认 Electron 图标至少不漂移）——本任务 owner 接受；P2 后续
+# 接品牌图标时再加 icon: build/icon.ico
+
+# 产物输出到仓库根 release/（顶部 directories.output 显式设定，理由见该处
+# 注释）；release/ 已入 .gitignore。

@@ -12,7 +12,7 @@
  * 别名：与 vite/aliases.ts 同源——sidecar 直接打 packages/* 源码
  * （根 tsconfig paths 已由 tsdown 自动应用，此处仅为显式兜底不需要）。
  */
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -95,6 +95,42 @@ const aliasPlugin = {
   }
 }
 
+// P2：打包形态下的 NATIVE_EXTERNALS 解析基准。spike 阶段 sidecar 借助 Node
+// ESM 向上爬 worktree 根的 node_modules 找到这三个包（photon/clipboard 还
+// 借助 bun 硬链接躺在 .bun/node_modules/）；桌面打包形态没有 node_modules
+// 兜底，必须把外部化的导入 specifier 改成相对路径，指向随产物分发的
+// ./native-externals/ 子树。rolldown 写盘前在 generateBundle 钩子里做字符
+// 串替换（每个 specifier 在产物里只出现一次，重写确定性高；保留原始
+// 标识在单文件内联其他模块名相同的风险由 onlyExternalImportSpec 收敛）。
+const onlyExternalImportSpec: Record<string, string> = {
+  // 解析基准 ../native-externals/ —— sidecar 在 dist-sidecar/，往上爬一级到
+  // desktop-electron/native-externals/。打包形态下 electron-builder extraResources
+  // 把 desktop-electron/{dist-sidecar,native-externals}/ 两份平铺到
+  // resources/app/{dist-sidecar,native-externals}/，相对路径相同不变。
+  'yoga-layout': '../native-externals/yoga-layout/dist/src/index.js',
+  '@silvia-odwyer/photon-node': '../native-externals/@silvia-odwyer/photon-node/photon_rs.js',
+  '@mariozechner/clipboard': '../native-externals/@mariozechner/clipboard/index.js'
+}
+const externalRewritePlugin = {
+  name: 'openpencil-external-rewrite',
+  async generateBundle(_opts: unknown, bundle: Record<string, { type: string; code?: string; fileName: string }>) {
+    for (const chunk of Object.values(bundle)) {
+      if (chunk.type !== 'chunk' || !chunk.code) continue
+      let next = chunk.code
+      for (const [from, to] of Object.entries(onlyExternalImportSpec)) {
+        // 静态 `from "x"`:直接替换
+        next = next.split(`from"${from}"`).join(`from"${to}"`)
+        // 动态 `import("x")` / `import(\`x\`)` / `t('x)` 等 rolldown 短变量
+        // 化形态都收口——三种引号各试一次，命中即替换
+        next = next.split(`("${from}")`).join(`("${to}")`)
+        next = next.split(`('${from}')`).join(`('${to}')`)
+        next = next.split(`(\`${from}\`)`).join(`(\`${to}\`)`)
+      }
+      if (next !== chunk.code) chunk.code = next
+    }
+  }
+}
+
 function sidecar(name: string, entry: string) {
   return {
     entry: { [name]: entry },
@@ -107,7 +143,11 @@ function sidecar(name: string, entry: string) {
     clean: false,
     hash: false,
     dts: false,
-    plugins: [rawLoaderPlugin, aliasPlugin, jsonRequireInlinePlugin],
+    // P2 体积收口：minify=true（生产产物可读性不再重要）。rolldown 默认
+    // 行为对 css-tree jsonRequireInlinePlugin 内联的 JSON 字面量亦做压
+    // 缩（含去空白、保留语义）；若断言失败则回滚 false 并标注原因。
+    minify: true,
+    plugins: [rawLoaderPlugin, aliasPlugin, jsonRequireInlinePlugin, externalRewritePlugin],
     deps: {
       // alwaysBundle 先于 neverBundle 判定（tsdown DepsPlugin 顺序），
       // 外部化清单必须在 alwaysBundle 断言里排除才会落到 external

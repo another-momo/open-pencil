@@ -69,7 +69,8 @@
     "tools/visual-oracles/src/render-fixture.ts",
     "tests/engine/tools/all-tools-execution.test.ts",
     "tests/engine/tools/bridge-server-cors.test.ts",
-    "tests/engine/app/ai/bridge-errors.test.ts"
+    "tests/engine/app/ai/bridge-errors.test.ts",
+    "electron-builder.yml"
   ],
   "stubs": ["src/app/collab/use.ts"],
   "pendingReclass": [],

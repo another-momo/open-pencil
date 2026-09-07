@@ -5,6 +5,7 @@ node_modules/
 dist/
 desktop-electron/dist-sidecar/
 desktop-electron/dist-main/
+desktop-electron/native-externals/
 dist-ssr/
 coverage/
 *.tsbuildinfo
@@ -85,3 +86,4 @@ scratch/
 # T19 pi backend local state (session JSONL, models.json; never commit)
 .openpencil/
 desktop-electron/dist-smoke/
+release/

@@ -658,9 +658,19 @@ function buildSidecars(distDir: string, loopbackOrigin: string): { bridge: Sidec
     ...process.env,
     OPENPENCIL_ROOT_DIR: rootDir
   }
+  // P2 sidecar 解析基准——dev / spike 形态：相对 dist-main/ 的 dist-sidecar/
+  // （__dirname 解析 main.mjs 所在目录）；打包形态：app.isPackaged=true 且
+  // electron-builder extraResources 把 dist-sidecar 平铺到 resources/app/
+  // 下，sidecar 的 ../native-externals/ 相对路径才能解析到随产物分发的
+  // native-externals/ 子树。distDir 同款：dev 用项目根 dist/，打包形态用
+  // resources/app/dist/（同上路径平铺约定）。
+  const sidecarsDir = app.isPackaged
+    ? join(process.resourcesPath, 'app', 'dist-sidecar')
+    : join(__dirname, '..', 'dist-sidecar')
+  const packedDistDir = app.isPackaged ? join(process.resourcesPath, 'app', 'dist') : distDir
   const bridge: SidecarHandle = {
     name: 'openpencil-bridge',
-    modulePath: join(__dirname, '..', 'dist-sidecar', 'bridge.mjs'),
+    modulePath: join(sidecarsDir, 'bridge.mjs'),
     env: {
       ...baseEnv,
       PORT: String(bridgePort),
@@ -681,7 +691,7 @@ function buildSidecars(distDir: string, loopbackOrigin: string): { bridge: Sidec
   }
   const backend: SidecarHandle = {
     name: 'openpencil-pi-backend',
-    modulePath: join(__dirname, '..', 'dist-sidecar', 'pi-backend.mjs'),
+    modulePath: join(sidecarsDir, 'pi-backend.mjs'),
     env: {
       ...baseEnv,
       OPENPENCIL_PI_BACKEND_PORT: String(backendPort),
@@ -696,7 +706,7 @@ function buildSidecars(distDir: string, loopbackOrigin: string): { bridge: Sidec
   console.error(
     `[electron-main] sidecar 编排就绪（bridgePort=${bridgePort} backendPort=${backendPort}）`
   )
-  return { bridge, backend }
+  return { bridge, backend, distDir: packedDistDir }
 }
 
 async function startLoopbackWithSidecars(distDir: string): Promise<{ server: ReturnType<typeof createServer>; port: number }> {
@@ -710,7 +720,7 @@ async function startLoopbackWithSidecars(distDir: string): Promise<{ server: Ret
   const loopbackOrigin = `http://127.0.0.1:${reservedLoopbackPort}`
 
   // 1. 编排 sidecar——env 语义对齐 host.ts（端口 / token / discovery path 注入）
-  const { bridge, backend } = buildSidecars(distDir, loopbackOrigin)
+  const { bridge, backend, distDir: resolvedDistDir } = buildSidecars(distDir, loopbackOrigin)
   bridgeHandle = bridge
   backendHandle = backend
   spawnAndWatch(bridge)
@@ -727,7 +737,7 @@ async function startLoopbackWithSidecars(distDir: string): Promise<{ server: Ret
   // 3. 起回环服务。token / port 注入 createLoopbackServer；pinnedLoopbackPort
   // 由 OPENPENCIL_LOOPBACK_PORT 解析（full-smoke 钉住便于外部脚本探活）
   const { server, port } = await createLoopbackServer({
-    distDir,
+    distDir: resolvedDistDir,
     automationToken: bridgeToken,
     backendPort,
     piToken,
@@ -839,10 +849,10 @@ async function main(): Promise<void> {
     return
   }
 
-  // spike-electron-spike：OPENPENCIL_SHOW=1 让窗口可见——给主 agent L3
-  // 「真窗口+真编辑器+真侧链」手工探活用。spike 冒烟仍走隐藏窗路径（L3
-  // 不是我的工作面，本任务不开 OPENPENCIL_SHOW，只加口）。
-  const showWindow = process.env.OPENPENCIL_SHOW === '1'
+  // 窗口默认可见（产品形态）。隐藏只剩两个场景：smoke 探针（smokeMode，
+  // 探针不等 ready-to-show）与显式 OPENPENCIL_SHOW=0（无头调试）。
+  // OPENPENCIL_SHOW=1 保留兼容，等价于缺省。
+  const showWindow = !smokeMode && process.env.OPENPENCIL_SHOW !== '0'
 
   if (devUrl) {
     const window = new BrowserWindow(baseWindowOptions({ show: showWindow, webPreferences: { contextIsolation: true, sandbox: true } }))

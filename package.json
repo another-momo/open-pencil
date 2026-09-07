@@ -3,6 +3,9 @@
   "version": "0.14.0",
   "private": true,
   "license": "MIT",
+  "description": "OpenPencil — open source vector editor",
+  "author": "OpenPencil Contributors",
+  "main": "desktop-electron/dist-main/main.mjs",
   "workspaces": [
     "packages/scene-graph",
     "packages/pen",
@@ -62,7 +65,10 @@
     "spike:electron:build": "tsdown --config desktop-electron/main/tsdown.config.ts",
     "spike:electron:smoke": "bun desktop-electron/smoke/electron-smoke.ts",
     "spike:electron:full-smoke": "bun desktop-electron/smoke/electron-full-smoke.ts",
-    "spike:electron:dev": "bun desktop-electron/spike-electron-dev.ts"
+    "spike:electron:dev": "bun desktop-electron/spike-electron-dev.ts",
+    "stage:native-externals": "bun desktop-electron/tools/stage-native-externals.ts",
+    "package:dir": "bun run build:packages && vite build && bun run stage:native-externals && ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ bunx electron-builder --dir",
+    "package:win": "bun run build:packages && vite build && bun run stage:native-externals && ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ bunx electron-builder --win nsis"
   },
   "dependencies": {
     "@ai-sdk/valibot": "^3.0.27",
@@ -161,8 +167,9 @@
     "changelog-parser": "^4.1.0",
     "citty": "^0.1.6",
     "cloudflare-redirect-parser": "^1.0.0",
-    "esbuild": "^0.27.7",
     "electron": "^44.2.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.27.7",
     "fake-indexeddb": "^6.2.5",
     "franc": "^6.2.0",
     "hono": "^4.13.2",

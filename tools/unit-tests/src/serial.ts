@@ -101,7 +101,9 @@ async function main(): Promise<void> {
   let passedBatches = 0
   let failedBatches = 0
   for (const name of names) {
-    const files = heavyFilter(batches.get(name)!)
+    const rawFiles = batches.get(name)
+    if (!rawFiles) continue
+    const files = heavyFilter(rawFiles)
     if (files.length === 0) continue
     totalFiles += files.length
     const code = await runBatch(name, files)

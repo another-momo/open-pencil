@@ -110,7 +110,7 @@ const messagesEnd = ref<HTMLDivElement>()
 // nextTick 推迟到当前 flush 落定后再换 key，避免同 flush 内 unmount 半补丁树。
 const chatInputRemountKey = ref(0)
 onErrorCaptured((err, instance) => {
-  const file = (instance as unknown as { type?: { __file?: string } } | null)?.type?.__file ?? ''
+  const file = (instance?.type as { __file?: string } | undefined)?.__file ?? ''
   const isChatInputSubtree = file.endsWith('PiChatInput.vue') || file.endsWith('InputGroup.vue')
   const isPatchCorruption = err instanceof TypeError && /insertBefore|__vnode/.test(err.message)
   if (!isChatInputSubtree || !isPatchCorruption) return true
@@ -380,7 +380,7 @@ function finalizeInterruptedToolParts(): void {
       ...part,
       state: 'output-error',
       errorText: 'Stopped by user.'
-    } as unknown as typeof part
+    } satisfies typeof part
   })
   if (touched) {
     messages[messages.length - 1] = { ...last, parts }

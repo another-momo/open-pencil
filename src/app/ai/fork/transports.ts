@@ -5,6 +5,7 @@ import { Chat } from '@ai-sdk/vue'
 import type { ChatTransport, FinishReason, UIMessage } from 'ai'
 import { ref } from 'vue'
 
+import { IS_BROWSER } from '@open-pencil/core/constants'
 import { recordChatCompleted, recordChatFailed } from '@/app/diagnostics'
 import type { getActiveEditorStore } from '@/app/editor/active-store'
 
@@ -59,7 +60,7 @@ let stopRejectionGuardInstalled = false
 
 /** 安装一次性全局守卫（createChatSessionManager 内调用；多 tab 重复调用幂等） */
 export function installStopRejectionGuard(): void {
-  if (stopRejectionGuardInstalled || typeof window === 'undefined') return
+  if (stopRejectionGuardInstalled || !IS_BROWSER) return
   stopRejectionGuardInstalled = true
   window.addEventListener('unhandledrejection', (event) => {
     if (Date.now() > intentionalStopUntil) return

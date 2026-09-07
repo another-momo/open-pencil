@@ -121,18 +121,18 @@ function createHonoApp(options: {
   // 不得残留在转发体里（桥侧会误把它当工具参数塞进 args）。windowId 缺省时按
   // sendRPC 内部规则回退（单窗/多窗最后注册窗/零窗 wait）。
   app.post('/rpc', async (c) => {
-    let body = await c.req.json().catch(() => null)
+    const body = await c.req.json().catch(() => null)
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return c.json({ error: 'Invalid request body' }, 400)
     }
     try {
-      const rawBody = body as Record<string, unknown>
+      const rawBody = body as RPCJSONObject
       // 剥离 windowId 信封字段——不进转发体
       const explicitWindowId =
         typeof rawBody.windowId === 'string' && rawBody.windowId ? rawBody.windowId : undefined
       const { windowId: _stripped, ...forwardBody } = rawBody
-      const processed = preprocessRPC(forwardBody as RPCJSONObject)
-      const result = await sendToBrowser(processed as RPCJSONObject, { windowId: explicitWindowId })
+      const processed = preprocessRPC(forwardBody)
+      const result = await sendToBrowser(processed, { windowId: explicitWindowId })
       return c.json(result)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)

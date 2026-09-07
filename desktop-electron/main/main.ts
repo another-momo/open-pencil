@@ -305,9 +305,21 @@ function proxyPi(req: IncomingMessage, res: ServerResponse, backendPortInner: nu
   headers.host = `127.0.0.1:${backendPortInner}`
   const upstream = httpRequest({ host: '127.0.0.1', port: backendPortInner, path: req.url, method: req.method, headers }, (response) => {
     process.stderr.write(`[proxyPi] ← ${response.statusCode} ${req.url}\n`)
+    // 客户端在等上游响应期间断开（页面刷新/设置面板切换取消在途请求）：
+    // res 已销毁，writeHead/pipe 会抛 ERR_STREAM_DESTROYED / EPIPE——直接弃流
+    if (res.destroyed) {
+      response.destroy()
+      return
+    }
     const responseHeaders: Record<string, string | string[] | undefined> = {}
     for (const [key, value] of Object.entries(response.headers)) if (!HOP_BY_HOP_HEADERS.has(key)) responseHeaders[key] = value
     res.writeHead(response.statusCode ?? 502, responseHeaders)
+    // pipe 不转发错误：两侧各自挂 error 监听，否则客户端中途断连时
+    // res.write 抛 EPIPE → uncaughtException → Electron 弹「main process 错误」对话框
+    response.on('error', (error) => {
+      process.stderr.write(`[proxyPi] upstream response error: ${error.message}\n`)
+      if (!res.destroyed) res.destroy()
+    })
     response.pipe(res)
   })
   upstream.on('error', (error) => {
@@ -321,6 +333,11 @@ function proxyPi(req: IncomingMessage, res: ServerResponse, backendPortInner: nu
     s.on('close', (hadError) => {
       process.stderr.write(`[proxyPi] upstream socket close (hadError=${hadError})\n`)
     })
+  })
+  res.on('error', (error) => {
+    // 客户端 socket 已断后的写失败（EPIPE 典型）——吞掉并断上游，不冒泡
+    process.stderr.write(`[proxyPi] client res error: ${error.message}\n`)
+    upstream.destroy()
   })
   res.on('close', () => {
     process.stderr.write(`[proxyPi] client close (writableEnded=${res.writableEnded})\n`)
@@ -622,6 +639,16 @@ async function main(): Promise<void> {
     app.exit(verdict.ok ? 0 : 1)
   }
 }
+
+// 全局兜底：Electron 对 main 进程的 uncaughtException 默认弹系统错误对话框
+// （「A JavaScript error occurred in the main process」）——spike 期任何漏挂
+// error 监听的流（proxyPi 之类）都不该以弹窗形式打扰用户， loudly 记日志即可
+process.on('uncaughtException', (error) => {
+  console.error(`[electron-main] uncaughtException（已吞，进程继续）：${error.stack ?? error.message}`)
+})
+process.on('unhandledRejection', (reason) => {
+  console.error(`[electron-main] unhandledRejection（已吞，进程继续）：${reason instanceof Error ? reason.stack : String(reason)}`)
+})
 
 void main().catch((error) => { console.error(`[electron-main] ${error instanceof Error ? error.stack : String(error)}`); app.exit(1) })
 

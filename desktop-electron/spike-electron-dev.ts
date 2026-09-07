@@ -33,7 +33,11 @@ const child = spawn(electronExe, [mainBundle, '--no-sandbox', '--disable-gpu'], 
   cwd: root,
   env: {
     ...process.env,
-    OPENPENCIL_SHOW: '1'
+    OPENPENCIL_SHOW: '1',
+    // main.ts 缺省 rootDir=distDir（面向打包形态）——dev 启动器显式钉到 worktree
+    // 根，让 pi-backend 读到 <worktree>/.openpencil/key-env（dist/ 会被 vite
+    // build 清空，不能放凭证）
+    OPENPENCIL_ROOT_DIR: process.env.OPENPENCIL_ROOT_DIR ?? root
   },
   stdio: 'inherit'
 })

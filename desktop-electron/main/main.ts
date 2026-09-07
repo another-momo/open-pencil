@@ -17,6 +17,11 @@
  *     Windows taskkill /F 兜底——utilityProcess.kill() 不接受 signal 参数，
  *     Windows 上无原生 SIGKILL 等价）
  *  7. 窗口与 sidecar 生命周期解耦（关窗不杀 sidecar，app quit 才杀）
+ *  8. P0.5 壳加固（依据 docs/202609071041-electron-shell-ux.md §1）：
+ *     8.1 防白屏：backgroundColor + 可见窗 show:false 起步 + ready-to-show
+ *     8.2 单实例锁（smoke 路径 OPENPENCIL_DISABLE_SINGLE_INSTANCE=1 绕过）
+ *     8.3 did-fail-load 重试 3 次（1s 间隔）+ 失败日志
+ *     8.4 setWindowOpenHandler + will-navigate 双重拦截（url-safety 分类）
  *
  * token 三方对齐（不变量，spike 阶段由本文件单点维护）：
  *   pageToken === bridgeEnvToken（页面经 WS 连桥用的 token = 注入 index.html
@@ -33,7 +38,8 @@ import { createServer, request as httpRequest, type IncomingMessage, type Server
 import { spawn } from 'node:child_process'
 import { dirname, extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, utilityProcess, type UtilityProcess } from 'electron'
+import { app, BrowserWindow, shell, utilityProcess, type UtilityProcess } from 'electron'
+import { classifyExternalUrl, isHttpOrHttps, isLoopbackHttpUrl } from './url-safety.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -414,6 +420,11 @@ export function createLoopbackServer(options: LoopbackServerOptions): Promise<{ 
 const BASE_WINDOW_OPTIONS: Electron.BrowserWindowConstructorOptions = {
   width: 1440,
   height: 900,
+  // P0.5 防白屏——backgroundColor 与 --color-canvas 同色（src/app.css L41），
+  // 覆盖从 BrowserWindow 创建到 ready-to-show 之间的「无背景」窗口，避免
+  // 冷启动/代码缓存命中失败时短暂闪现默认灰白；index.html 自带 #boot-splash
+  // 与之叠加，作为内容就绪前的二次兜底。
+  backgroundColor: '#1e1e1e',
   titleBarStyle: 'hidden',
   titleBarOverlay: {
     color: '#1e1e1e',
@@ -424,6 +435,93 @@ const BASE_WINDOW_OPTIONS: Electron.BrowserWindowConstructorOptions = {
 
 function baseWindowOptions(extra: Electron.BrowserWindowConstructorOptions = {}): Electron.BrowserWindowConstructorOptions {
   return { ...BASE_WINDOW_OPTIONS, ...extra }
+}
+
+// ── 窗体安全/重试/可见时序（attachWindowSafety，applySafeShow）──
+//
+// 把四项加固收敛到一处给 BrowserWindow 挂，避免在每个分支里重复挂载。调用
+// 约定：构造 BrowserWindow 时给 show:false（含 smoke 隐藏窗），构造后立即
+// 调一次 attachWindowSafety(window, loadUrl)；applySafeShow 只在「本进程
+// 想把窗口显示出来」的路径调（默认形态 + showWindow），smoke 路径跳过——
+// ready-to-show 是「内容已绘制完成」信号，smoke 探针在 webContents 跑完
+// 之前就返回了，不该等 ready-to-show 卡时序。
+
+const LOAD_RETRY_MAX = 3
+const LOAD_RETRY_DELAY_MS = 1_000
+
+function attachWindowSafety(window: BrowserWindow, loadUrl: string): void {
+  // P0.5.3 did-fail-load 重试——加载失败多为回环服务刚 listen 完但路由未
+  // 就绪、或一次性 connection refused，等 1s 再 loadURL 即可；三次仍败让
+  // 窗口显示错误态（electron 在 did-fail-load 默认会画 ERR_* 错误页即可，
+  // 本项目不做自定义错误页，stderr 留日志便于调试）。
+  let attempt = 0
+  window.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedUrl, isMainFrame) => {
+    if (!isMainFrame) return // 子 frame 失败不重试整页
+    attempt++
+    process.stderr.write(`[electron-main] did-fail-load attempt=${attempt}/${LOAD_RETRY_MAX} code=${errorCode} ${errorDescription} url=${validatedUrl}\n`)
+    if (attempt > LOAD_RETRY_MAX) {
+      process.stderr.write(`[electron-main] 加载 ${loadUrl} 重试 ${LOAD_RETRY_MAX} 次仍失败，保持错误页显示\n`)
+      return
+    }
+    setTimeout(() => {
+      void window.loadURL(loadUrl).catch((err) => {
+        process.stderr.write(`[electron-main] loadURL 重试失败：${err instanceof Error ? err.message : String(err)}\n`)
+      })
+    }, LOAD_RETRY_DELAY_MS)
+  })
+
+  // P0.5.4 外链与导航拦截——setWindowOpenHandler 处理 window.open / target=_blank
+  // 与 <a href> click；will-navigate 处理 window.location 改写（包含 SPA 内
+  // location 跳转、第三方脚本调用 location.href 等）。两份兜底分工：
+  //   setWindowOpenHandler：仅 http/https 走 shell.openExternal；其余 deny
+  //   will-navigate：仅 http://127.0.0.1 | http://localhost 回环导航放行
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    const verdict = classifyExternalUrl(url)
+    if (verdict.kind === 'dangerous') {
+      process.stderr.write(`[electron-main] window.open 拒绝（${verdict.scheme ?? 'dangerous'}）：${verdict.reason}\n`)
+      return { action: 'deny' }
+    }
+    if (isHttpOrHttps(url)) {
+      // 调 shell.openExternal 把外链交给系统浏览器；deny 阻止在 Electron 窗内打开
+      void shell.openExternal(url).catch((err) => {
+        process.stderr.write(`[electron-main] shell.openExternal 失败：${err instanceof Error ? err.message : String(err)}\n`)
+      })
+      return { action: 'deny' }
+    }
+    process.stderr.write(`[electron-main] window.open 拒绝（非 http/https scheme）：${url}\n`)
+    return { action: 'deny' }
+  })
+
+  window.webContents.on('will-navigate', (event, navigationUrl) => {
+    // 同源回环跳转放行（vite dev / Electron 回环服务的 SPA 内跳转）
+    if (isLoopbackHttpUrl(navigationUrl)) {
+      // 同 origin 比对——拆 origin（scheme://host:port），nav 目标 origin
+      // 必须等于 loadUrl origin。127.0.0.1:port 与 127.0.0.1:other-port 视
+      // 跨源，避免「同 host 不同端口」被前缀误判放行。
+      let navOrigin: string | null = null
+      try { navOrigin = new URL(navigationUrl).origin } catch { navOrigin = null }
+      let loadOrigin: string | null = null
+      try { loadOrigin = new URL(loadUrl).origin } catch { loadOrigin = null }
+      if (navOrigin && loadOrigin && navOrigin === loadOrigin) return
+    }
+    event.preventDefault()
+    if (isHttpOrHttps(navigationUrl)) {
+      void shell.openExternal(navigationUrl).catch((err) => {
+        process.stderr.write(`[electron-main] shell.openExternal 失败：${err instanceof Error ? err.message : String(err)}\n`)
+      })
+    } else {
+      process.stderr.write(`[electron-main] will-navigate 拒绝（非 http/https 或非预期 host）：${navigationUrl}\n`)
+    }
+  })
+}
+
+function applySafeShow(window: BrowserWindow): void {
+  // P0.5.1 ready-to-show——BrowserWindow 构造时一律 show:false，等首次绘制
+  // 完成（ready-to-show）再 show 一次，避免 Windows 上常见的「窗口先白/灰
+  // 一帧再换内容」闪烁。smoke 路径不调（探针不等绘制），hide 模式也不调。
+  window.once('ready-to-show', () => {
+    if (!window.isDestroyed()) window.show()
+  })
 }
 
 // ── 隐藏窗探针（与 electron-smoke 同款，full-smoke 用）──
@@ -618,7 +716,46 @@ async function waitForHealthUntil(url: string, timeoutMs: number, label: string)
 
 // ── main 入口 ──
 
+// 模块态：当前主窗口引用——second-instance 事件里拿来 restore+focus；锁以
+// 后第一次 new BrowserWindow 的实例写入；窗口 closed 时清回 null。
+let primaryWindow: BrowserWindow | null = null
+
 async function main(): Promise<void> {
+  // P0.5.2 单实例锁——必须在 whenReady 之前 requestSingleInstanceLock：
+  //   1. 文档要求；2. 二实例启动 race 下第二个进程必须抢在 Electron 派发
+  //   second-instance 之前判定锁，否则二实例会跳过主实例直接走自己流程。
+  //
+  // 绕过例外：smoke / full-smoke 模式（OPENPENCIL_SMOKE=1 / OPENPENCIL_
+  // FULL_SMOKE=1）默认绕过——理由：
+  //   (a) smoke 探针靠子进程监听 stdout，Electron 单实例锁会把「同一个
+  //   userData 下的二实例」踢到主实例，二实例的 SMOKE_RESULT 行根本没
+  //   人收，断言脚本会拿不到结果而误判。
+  //   (b) full-smoke 每次跑会建独立 rootDir + 独立端口集合，逻辑上应当
+  //   可以并存多实例。
+  //   (c) CI 上若需真测单实例行为，spike 脚本尚未写——P2 后由测试侧补。
+  // 此外保留 OPENPENCIL_DISABLE_SINGLE_INSTANCE=1 作为「我就是要开锁」的
+  // 显式旁路（写死/双击图标时也可临时设）。
+  const smokeModeForLock = process.env.OPENPENCIL_SMOKE === '1' || process.env.OPENPENCIL_FULL_SMOKE === '1'
+  const disableLock = smokeModeForLock || process.env.OPENPENCIL_DISABLE_SINGLE_INSTANCE === '1'
+  if (!disableLock) {
+    const got = app.requestSingleInstanceLock()
+    if (!got) {
+      // 二实例——Electron 默认会自动 quit，但显式调一次更稳（Electron
+      // 28+ 行为有变，部分版本不再自动退出非 default event loop 实例）。
+      console.error('[electron-main] 二实例抢锁失败，退出；既有实例会经 second-instance 事件拉回焦点')
+      app.quit()
+      return
+    }
+    // 一实例——监听二实例启动事件：恢复最小化窗口 + 抢焦点。打开 URL 等
+    // 路由语义本项目暂不接（无 deep link 协议），仅做焦点兜底。
+    app.on('second-instance', () => {
+      const win = primaryWindow
+      if (!win || win.isDestroyed()) return
+      if (win.isMinimized()) win.restore()
+      win.focus()
+    })
+  }
+
   await app.whenReady()
   const devUrl = process.env.OPENPENCIL_DEV_URL
   const smokeMode = process.env.OPENPENCIL_SMOKE === '1'
@@ -629,7 +766,10 @@ async function main(): Promise<void> {
   if (fullSmokeMode) {
     const { server, port } = await startLoopbackWithSidecars(join(__dirname, '..', '..', 'dist'))
     const window = new BrowserWindow(baseWindowOptions({ show: false, webPreferences: { contextIsolation: true, sandbox: true } }))
-    window.once('closed', () => { server.close() })
+    window.once('closed', () => { server.close(); if (primaryWindow === window) primaryWindow = null })
+    attachWindowSafety(window, `http://127.0.0.1:${port}`)
+    // full-smoke 不调 applySafeShow——探针靠 webContents.executeJavaScript 跑
+    // 不依赖 ready-to-show，强行等会卡超时。
     await window.loadURL(`http://127.0.0.1:${port}`)
     const verdict = await runSmoke(window, false)
     console.log('[electron-main] FULL_SMOKE_RESULT', JSON.stringify(verdict.result))
@@ -644,6 +784,8 @@ async function main(): Promise<void> {
 
   if (devUrl) {
     const window = new BrowserWindow(baseWindowOptions({ show: showWindow, webPreferences: { contextIsolation: true, sandbox: true } }))
+    attachWindowSafety(window, devUrl)
+    if (showWindow) applySafeShow(window)
     await window.loadURL(devUrl)
     if (smokeMode) {
       const verdict = await runSmoke(window, true)
@@ -657,8 +799,12 @@ async function main(): Promise<void> {
   // 「多窗口共享 sidecar」对齐），app quit 才杀
   const { server, port } = await startLoopbackWithSidecars(join(__dirname, '..', '..', 'dist'))
   const window = new BrowserWindow(baseWindowOptions({ show: showWindow, webPreferences: { contextIsolation: true, sandbox: true } }))
-  window.once('closed', () => server.close())
-  await window.loadURL(`http://127.0.0.1:${port}`)
+  window.once('closed', () => { server.close(); if (primaryWindow === window) primaryWindow = null })
+  primaryWindow = window
+  const loadUrl = `http://127.0.0.1:${port}`
+  attachWindowSafety(window, loadUrl)
+  if (showWindow) applySafeShow(window)
+  await window.loadURL(loadUrl)
   if (smokeMode) {
     const verdict = await runSmoke(window, false)
     console.log('[electron-main] SMOKE_RESULT', JSON.stringify(verdict.result))

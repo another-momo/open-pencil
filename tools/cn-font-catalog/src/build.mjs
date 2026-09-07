@@ -133,8 +133,8 @@ async function probeFamilyDirs(name, version, dirs) {
   const families = new Map() // family → { weights:Set, variable, bases:Set }
   const dirFailures = []
   for (const dir of dirs) {
-    let css = await fetchText(`${JSDELIVR}/${name}@${version}/dist/${dir}/result.css`)
-    let base = undefined // undefined = jsdelivr（catalog 缺省）
+    const css = await fetchText(`${JSDELIVR}/${name}@${version}/dist/${dir}/result.css`)
+    const base = undefined // undefined = jsdelivr（catalog 缺省）
     if (!css) {
       dirFailures.push(dir)
       continue

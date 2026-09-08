@@ -227,7 +227,7 @@ export function resolveTurnAssets(
   slot: ActiveDesignSlotState,
   newIntent: NewIntentState | null
 ): TurnSlotState {
-  const useIntent = newIntent !== null && newIntent.confirmed && newIntent.modeId !== ''
+  const useIntent = newIntent?.confirmed === true && newIntent.modeId !== ''
   const slotModeId = slot.status === 'ok' ? slot.design.modeId : ''
   const slotProfileId = slot.status === 'ok' ? slot.design.profileId : ''
   const modeId = useIntent ? newIntent.modeId : slotModeId

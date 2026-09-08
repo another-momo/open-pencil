@@ -30,7 +30,7 @@
 - commit 前 `git status` 核对无残留未暂存改动——pre-commit 门禁跑的是工作区，绿 ≠ 已入库（2026-09-08 事故：三文件台账改动未暂存，随 worktree 拆除灭失，CI 红一轮才兜住）。
 - 日常收口门禁：`bun run check:quick`（format + lint + typecheck + zones 四步串行）。
 - 变更集含 `.vue` 时收口补跑 `bun run check:vue`（约 72s，不进 check:quick 是刻意的——主 agent 收口职责，worker 无责）。
-- 注意：本机 oxlint 目录取文件为 0（静默假绿，2026-09-07 起未定位）——本地 lint 结果不可信，lint 类门禁以 CI 为准。
+- 注意：本机 oxlint 目录取文件为 0（静默假绿，2026-09-07 起未定位）——本地 lint 结果不可信，lint 类门禁以 CI 为准。本地复现 CI lint 的替代法：`bunx oxlint -c oxlint.json --type-aware --type-check <单文件>`（单文件参数不受 0 文件问题影响；prefer-optional-chain 等 type-aware 规则只在 lint 第二段跑，第一段失败会屏蔽它）。
 - 大改动（≥10 文件或 ≥200 行）收口跑全量 `bun run check`，跑前停 dev server。
 - commit message：中文 conventional（`type(scope): 主题`）+ 正文写清 why——背景、方案取舍、验证证据。
 - pre-commit = check:zones；post-commit = 机制复盘计数提醒（advisory，永不阻塞）。

@@ -15,7 +15,7 @@
  * 病态整条不注册，文件缺失不连坐资产本体），命中条目进 resolvedReferences
  * 内部桶（绝对路径不出后端进程，manifest 不投影）。
  * 扫描深度钉扎：listMarkdownFiles 非递归（仅直视子 .md 文件）——references
- * 子目录（如 `workflows/editable-design/references/`）永不被当资产注册。
+ * 子目录（如 `workflows/art-directed/references/`）永不被当资产注册。
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'

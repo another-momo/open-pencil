@@ -44,7 +44,7 @@ export function validateCommon(
   } else if (!isAssetId(id)) {
     issues.push({
       reason: `id「${id}」不是合法机读 id`,
-      hint: 'id 只允许小写字母/数字/连字符/下划线（如 `watercolor_poster_v3` 或 `longform`）'
+      hint: 'id 只允许小写字母/数字/连字符/下划线（如 `watercolor_poster_v3` 或 `longform-hero-kv-first`）'
     })
   }
   if (!stringField(fm.label)) {
@@ -291,7 +291,7 @@ export function validateProfile(
     if (!Array.isArray(fm.applicable_to) || fm.applicable_to.some((v) => typeof v !== 'string')) {
       issues.push({
         reason: '`applicable_to` 不是字符串列表',
-        hint: '形如 `applicable_to: [longform]`'
+        hint: '形如 `applicable_to: [longform-hero-kv-first]`'
       })
     } else {
       applicableTo = fm.applicable_to as string[]

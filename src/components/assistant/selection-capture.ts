@@ -12,7 +12,7 @@
  *  - 一致性纪律：清单以提交时**文本流实扫**到的占位串为准——用户手删占位串 =
  *    token 失效（登记表残留条目不进清单）；手打无登记占位串 → 清单行标
  *    「未采集的引用」（诚实告知 agent，不假装有节点）。
- *  - 消息尾清单格式（§1.4，追加在用户文本之后、空行分隔，与 longform `[画布选区]`
+ *  - 消息尾清单格式（§1.4，追加在用户文本之后、空行分隔，与 longform-hero-kv-first `[画布选区]`
  *    纪律同前缀）：
  *
  *      [画布选区]
@@ -38,7 +38,7 @@ const TOKEN_PATTERN_SOURCE = '「@画布选区-(\\d+)」'
 /** 全局扫描用（matchAll 要求 g flag；每次新建实例避免 lastIndex 串扰） */
 const TOKEN_PATTERN_GLOBAL = new RegExp(TOKEN_PATTERN_SOURCE, 'g')
 
-/** 清单头（与 longform.md 通用纪律第 4 则 `[画布选区]` 前缀一致） */
+/** 清单头（与 longform-hero-kv-first.md 通用纪律第 4 则 `[画布选区]` 前缀一致） */
 export const SELECTION_MANIFEST_HEADER = '[画布选区]'
 
 /** 生成占位串字面量 */

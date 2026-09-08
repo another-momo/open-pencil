@@ -197,7 +197,7 @@ test('golden-0 profile 钉扎：五必需节齐全、新序工具链、canvas_wi
   // frontmatter 钉扎（id/label/applicable_to/version 维持；hero_composition 裁决 = 不补带）
   expect(
     text.startsWith(
-      '---\nid: watercolor_poster_v2\nlabel: 水彩海报 v2\napplicable_to: [longform]\nversion: 2\n---'
+      '---\nid: watercolor_poster_v2\nlabel: 水彩海报 v2\napplicable_to: [longform-hero-kv-first]\nversion: 2\n---'
     )
   ).toBe(true)
   expect(text).not.toContain('hero_composition')

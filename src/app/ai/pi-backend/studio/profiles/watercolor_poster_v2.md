@@ -1,7 +1,7 @@
 ---
 id: watercolor_poster_v2
 label: 水彩海报 v2
-applicable_to: [longform]
+applicable_to: [longform-hero-kv-first]
 version: 2
 ---
 

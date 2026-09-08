@@ -1,5 +1,5 @@
 ---
-id: longform
+id: longform-hero-kv-first
 label: 长图设计
 subtitle: 电商详情 / 产品长文 / 小红书长图的分区物料
 step_budget: 50

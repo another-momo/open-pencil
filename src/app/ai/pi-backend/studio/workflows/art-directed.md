@@ -1,7 +1,7 @@
 ---
-id: editable-design-full
+id: art-directed
 label: 海报设计（完整流程）
-subtitle: 原 editable-design skill 高保真移植——参考模式 / 一体化决策 / 批量资产 / 审阅闭环
+subtitle: 高保真海报设计——参考模式 / 一体化决策 / 批量资产 / 审阅闭环
 step_budget: 50
 sizes:
   - label: 竖版海报（A4 印刷比）

@@ -13,6 +13,12 @@
  * T85（2026-09-02）：editable-design mode 落位（references 按需读取机制首个
  * 消费者）——modes 投影三连 + 4 条 references 注册/解析钉扎；扫描器不吞
  * references 子目录的真目录钉扎（workflows 恰好 2 个而非 2+4）。
+ *
+ * P1-5（2026-09-07）：资产重命名——longform → longform-hero-kv-first、editable-design-full
+ * → art-directed；editable-design.md / editable-design/、solid_poster_v1 / editorial_poster_v1
+ * 整条删除（占位精简）；applicable_to 由 longform → longform-hero-kv-first。
+ * 新集合：workflows={art-directed, longform-hero-kv-first}、profiles={watercolor_poster_v2,
+ * watercolor_poster_v3}；modes 投影按文件名字典序，art-directed 排 longform-hero-kv-first 前。
  */
 
 import { expect, test } from 'bun:test'
@@ -24,7 +30,7 @@ import { loadStudioFromDirs } from '@/app/ai/pi-backend/studio'
 
 const BUILTIN_DIR = join(import.meta.dir, '../../../../src/app/ai/pi-backend/studio')
 
-test('内置资产集过校验面：failures 零、base 注册（免 label）、三 workflow 注册（longform 画布尺寸节非空；editable-design/full references 全解析）、四 profile 注册、modes=[general, editable-design, editable-design-full, longform]', () => {
+test('内置资产集过校验面：failures 零、base 注册（免 label）、两 workflow 注册（longform-hero-kv-first 画布尺寸节非空；art-directed references 全解析）、两 profile 注册、modes=[general, art-directed, longform-hero-kv-first]', () => {
   const userDir = mkdtempSync(join(tmpdir(), 'studio-user-empty-'))
   try {
     const r = loadStudioFromDirs(BUILTIN_DIR, userDir)
@@ -37,9 +43,9 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
     expect(r.base.id).toBe('base')
     expect(r.base.origin).toBe('builtin')
 
-    // workflow：longform 注册；T62 后无 types 数据面，mode 级尺寸说明节非空
-    const longform = r.workflows.get('longform')
-    if (!longform) throw new Error('longform 未注册')
+    // workflow：longform-hero-kv-first 注册；T62 后无 types 数据面，mode 级尺寸说明节非空
+    const longform = r.workflows.get('longform-hero-kv-first')
+    if (!longform) throw new Error('longform-hero-kv-first 未注册')
     expect('types' in longform).toBe(false)
     expect(longform.stepBudget).toBe(50)
     expect(longform.sections['画布尺寸']).toBeTruthy()
@@ -49,72 +55,42 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
       { label: '电商详情长图', canvas: '750x' },
       { label: '小红书长图', canvas: '1080x' }
     ])
-    expect(r.modes.find((m) => m.id === 'longform')?.sizes).toEqual(longform.sizes)
+    expect(r.modes.find((m) => m.id === 'longform-hero-kv-first')?.sizes).toEqual(longform.sizes)
 
-    // T85：editable-design 注册（定画布海报 mode）+ 4 条 references 声明全解析；
-    // 扫描器不吞 references 子目录——workflows 恰好 3 个（references/*.md 未误注册）
-    expect(r.workflows.size).toBe(3)
-    const editable = r.workflows.get('editable-design')
-    if (!editable) throw new Error('editable-design 未注册')
-    expect(editable.stepBudget).toBe(50)
-    expect(editable.sizes).toEqual([
+    // P1-5：art-directed 注册（高保真海报 mode）+ 4 条 references 声明全解析；
+    // 扫描器不吞 references 子目录——workflows 恰好 2 个（references/*.md 未误注册）
+    expect(r.workflows.size).toBe(2)
+    const artDirected = r.workflows.get('art-directed')
+    if (!artDirected) throw new Error('art-directed 未注册')
+    expect(artDirected.stepBudget).toBe(50)
+    expect(artDirected.sizes).toEqual([
       { label: '竖版海报（A4 印刷比）', canvas: '794x1123' },
       { label: '方形社交卡片', canvas: '1080x1080' }
     ])
-    expect(editable.references?.map((ref) => ref.path)).toEqual([
+    expect(artDirected.references?.map((ref) => ref.path)).toEqual([
       'references/asset-architecture.md',
       'references/imagery.md',
       'references/layout-typography.md',
       'references/font-system.md'
     ])
-    const bucket = r.resolvedReferences.get('workflow:editable-design')
+    const bucket = r.resolvedReferences.get('workflow:art-directed')
     expect(bucket?.size).toBe(4)
     for (const abs of bucket?.values() ?? []) {
-      expect(abs).toContain(join('workflows', 'editable-design', 'references'))
+      expect(abs).toContain(join('workflows', 'art-directed', 'references'))
     }
-    expect(r.modes.find((m) => m.id === 'editable-design')?.sizes).toEqual(editable.sizes)
+    expect(r.modes.find((m) => m.id === 'art-directed')?.sizes).toEqual(artDirected.sizes)
 
-    // T86：editable-design-full 注册（高保真移植版，与改写版并存对比）——同尺寸预设、
-    // 独立 references 目录 4 条全解析（解析基 workflows/<id>/references/）
-    const editableFull = r.workflows.get('editable-design-full')
-    if (!editableFull) throw new Error('editable-design-full 未注册')
-    expect(editableFull.stepBudget).toBe(50)
-    expect(editableFull.sizes).toEqual(editable.sizes)
-    expect(editableFull.references?.map((ref) => ref.path)).toEqual([
-      'references/asset-architecture.md',
-      'references/imagery.md',
-      'references/layout-typography.md',
-      'references/font-system.md'
-    ])
-    const fullBucket = r.resolvedReferences.get('workflow:editable-design-full')
-    expect(fullBucket?.size).toBe(4)
-    for (const abs of fullBucket?.values() ?? []) {
-      expect(abs).toContain(join('workflows', 'editable-design-full', 'references'))
-    }
-    expect(r.modes.find((m) => m.id === 'editable-design-full')?.sizes).toEqual(editableFull.sizes)
-
-    // profiles：恰好四份精品（T48 补迁 watercolor_poster_v2），applicable_to 均指向 longform
-    expect([...r.profiles.keys()].sort()).toEqual([
-      'editorial_poster_v1',
-      'solid_poster_v1',
-      'watercolor_poster_v2',
-      'watercolor_poster_v3'
-    ])
+    // profiles：恰好两份精品（watercolor_poster_v2 + v3），applicable_to 均指向 longform-hero-kv-first
+    expect([...r.profiles.keys()].sort()).toEqual(['watercolor_poster_v2', 'watercolor_poster_v3'])
     for (const p of r.profiles.values()) {
-      expect(p.applicableTo).toEqual(['longform'])
+      expect(p.applicableTo).toEqual(['longform-hero-kv-first'])
     }
 
-    // modes 投影：general 恒在 + 三 workflow 派生（文件名序：'-'(0x2D) < '.'(0x2E)，
-    // 故 editable-design-full.md 排在 editable-design.md 前）
-    expect(r.modes.map((m) => m.id)).toEqual([
-      'general',
-      'editable-design-full',
-      'editable-design',
-      'longform'
-    ])
+    // modes 投影：general 恒在 + 两 workflow 派生（文件名序：'a' < 'l'，
+    // 故 art-directed.md 排在 longform-hero-kv-first.md 前）
+    expect(r.modes.map((m) => m.id)).toEqual(['general', 'art-directed', 'longform-hero-kv-first'])
     expect(r.modes[1].source).toBe('workflow')
     expect(r.modes[2].source).toBe('workflow')
-    expect(r.modes[3].source).toBe('workflow')
   } finally {
     rmSync(userDir, { recursive: true, force: true })
   }

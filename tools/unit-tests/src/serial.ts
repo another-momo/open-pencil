@@ -9,7 +9,10 @@ import { spawn } from 'node:child_process'
  * per batch. Reuses tools/unit-tests/src/list.ts for heavy-only filtering
  * (when --heavy-only is passed).
  *
- * Usage: bun tools/unit-tests/src/serial.ts [--heavy-only]
+ * Usage: bun tools/unit-tests/src/serial.ts [--heavy-only] [batch ...]
+ *   batch — run only the named batches (tests/engine 一级目录名, `_root`
+ *   for root-level files); unknown names fail loudly (typo guard).
+ *   改动域明确时只跑受影响批次，全量交 CI 或后台长跑。
  * Exit 0 = all batches pass; non-zero = first failing batch's exit code.
  */
 import { readdir, readFile } from 'node:fs/promises'
@@ -20,6 +23,7 @@ const TESTS_ROOT = resolve(ROOT, 'tests/engine')
 
 const args = new Set(process.argv.slice(2))
 const heavyOnly = args.has('--heavy-only')
+const onlyBatches = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 
 async function listBatchFiles(): Promise<Map<string, string[]>> {
   const entries = await readdir(TESTS_ROOT, { withFileTypes: true })
@@ -71,12 +75,12 @@ function heavyFilter(files: string[]): string[] {
   return files.filter((f) => HEAVY.some((p) => norm(f).startsWith(p) || norm(f) === p))
 }
 
-async function runBatch(name: string, files: string[]): Promise<number> {
+async function runBatch(name: string, files: string[], progress: string): Promise<number> {
   if (files.length === 0) {
-    console.log(`[serial] batch ${name}: 0 files, skip`)
+    console.log(`[serial] ${progress} batch ${name}: 0 files, skip`)
     return 0
   }
-  console.log(`[serial] batch ${name}: ${files.length} files`)
+  console.log(`[serial] ${progress} batch ${name}: ${files.length} files`)
   const t0 = Date.now()
   return new Promise((resolveRun) => {
     const proc = spawn('bun', ['test', ...files], {
@@ -87,7 +91,7 @@ async function runBatch(name: string, files: string[]): Promise<number> {
     proc.on('close', (code) => {
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1)
       const status = code === 0 ? 'PASS' : `FAIL (exit ${code ?? 'null'})`
-      console.log(`[serial] batch ${name}: ${status} in ${elapsed}s`)
+      console.log(`[serial] ${progress} batch ${name}: ${status} in ${elapsed}s`)
       resolveRun(code ?? 1)
     })
   })
@@ -96,17 +100,24 @@ async function runBatch(name: string, files: string[]): Promise<number> {
 async function main(): Promise<void> {
   const batches = await listBatchFiles()
   // stable, alphabetical ordering for predictable output
-  const names = [...batches.keys()].sort()
+  const allNames = [...batches.keys()].sort()
+  const unknown = onlyBatches.filter((n) => !allNames.includes(n))
+  if (unknown.length > 0) {
+    console.error(`[serial] unknown batch: ${unknown.join(', ')} (have: ${allNames.join(', ')})`)
+    process.exit(2)
+  }
+  const names = onlyBatches.length > 0 ? allNames.filter((n) => onlyBatches.includes(n)) : allNames
   let totalFiles = 0
   let passedBatches = 0
   let failedBatches = 0
-  for (const name of names) {
+  const t0All = Date.now()
+  for (const [index, name] of names.entries()) {
     const rawFiles = batches.get(name)
     if (!rawFiles) continue
     const files = heavyFilter(rawFiles)
     if (files.length === 0) continue
     totalFiles += files.length
-    const code = await runBatch(name, files)
+    const code = await runBatch(name, files, `(${index + 1}/${names.length})`)
     if (code === 0) passedBatches++
     else {
       failedBatches++
@@ -114,8 +125,9 @@ async function main(): Promise<void> {
       process.exit(code)
     }
   }
+  const elapsedAll = ((Date.now() - t0All) / 1000).toFixed(1)
   console.log(
-    `[serial] done: ${passedBatches}/${passedBatches + failedBatches} batches passed, ${totalFiles} files${heavyOnly ? ' (heavy-only)' : ''}`
+    `[serial] done: ${passedBatches}/${passedBatches + failedBatches} batches passed, ${totalFiles} files in ${elapsedAll}s${heavyOnly ? ' (heavy-only)' : ''}`
   )
 }
 

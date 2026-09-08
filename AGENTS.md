@@ -13,7 +13,7 @@
 
 - 主 agent 唯一允许：git 写（commit / merge-back）、browser 实测、gh 操作。
 - worker（subagent）：限定范围实现 + 目标测试文件；**禁**全量 test / dev / build、commit / push、`gh run rerun`；browser 默认禁——Playwright MCP 与主 agent 共享浏览器单例，派单显式授权时方可自验证且须互斥。commit / push 可经 owner 专项派单授权解禁（授权范围以派单文本为准）。
-- push：主 agent 每次收口 commit 后顺势试推**一次**；失败即停（不原地重试），积压归 owner 后续处理。worker 禁 push。
+- push：主 agent 每次收口 commit 后顺势推；失败允许重试 3 次、每次间隔 30s，仍败即积压归 owner 后续处理。worker 禁 push。
 - gh 命令一律带 `-R another-momo/open-pencil`。
 
 ## 3. zone 纪律（改代码前必读）
@@ -49,7 +49,7 @@
 ## 6. 测试纪律
 
 - bun:test 框架；**禁引入 DOM 测试基建**（happy-dom/jsdom 一律不许）——浏览器行为用真浏览器实测（主 agent）。
-- worker 只跑目标测试文件；全量单测用 `bun run test:unit:serial`（套件分批串行），禁单次全仓 `bun test tests/engine`（单进程内存累积）。
+- worker 只跑目标测试文件；全量单测用 `bun run test:unit:serial`（套件分批串行，带 `(i/N)` 批次进度），禁单次全仓 `bun test tests/engine`（单进程内存累积）。serial 可按批次过滤（`bun tools/unit-tests/src/serial.ts editor scene`，批次 = tests/engine 一级目录）——改动域明确时本地只跑受影响批次，全量交 CI（分片并行）或后台长跑。
 - playwright（`test` / `test:figma`）主 agent 独占，与任何重型任务互斥。
 
 ## 7. 仓库地图
@@ -70,5 +70,5 @@
 
 ## 8. CI
 
-- 全量 check + 全量测试在 CI 跑；本地分层能拦住的不等 CI。
-- CI 红灯先本地最小层复现再修；禁 `gh run rerun`；push 失败即积压，网络差时自然攒批。
+- CI 跑全量门禁（check + 测试）做最终裁决；本地分层拦截优先——改动域明确时单测只跑受影响批次（§6），大改动收口跑全量 check（§4）。
+- CI 红灯先本地最小层复现再修；禁 `gh run rerun`。

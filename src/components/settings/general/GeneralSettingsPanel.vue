@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { type Locale, useI18n } from '@open-pencil/vue'
 
 import { recoveryEnabled, setRecoveryEnabled } from '@/app/document/recovery/preferences'
@@ -41,6 +41,37 @@ const snapToObjects = computed({
 const snapToPixelGrid = computed({
   get: () => appPreferences.value.editing.snapping.pixelGrid,
   set: (enabled: boolean) => setSnappingPreference('pixelGrid', enabled)
+})
+
+// P2-11：studio 文件夹入口。当前 fork 尚未提供 Electron/Tauri IPC 桥让 UI
+// 直接调 shell.openPath；浏览器环境也无 file:// 链接等价行为。采用降级策略：
+// 显式展示路径文本 + 「复制路径」按钮——用户自行粘贴到资源管理器/终端/Finder
+// 打开。后续 IPC 桥就位后可在此 hook 上接 openPath，UI 与 i18n 不变。
+//
+// 路径以 POSIX 风格相对显示（`~/.openpencil/studio`），跨平台用户均能识别；
+// Windows 实际为 `%USERPROFILE%\.openpencil\studio`，macOS 为
+// `$HOME/.openpencil/studio`，Linux 同 macOS。绝对路径需后端 IPC 才能解析，
+// 留待 IPC 桥就位后由后端注入。
+const studioFolderPath = '~/.openpencil/studio'
+const copyStatus = ref<'idle' | 'copied' | 'failed'>('idle')
+
+async function copyStudioFolderPath(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(studioFolderPath)
+    copyStatus.value = 'copied'
+  } catch {
+    copyStatus.value = 'failed'
+  }
+  // 1.2s 后回归 idle，避免状态文字长期残留
+  setTimeout(() => {
+    copyStatus.value = 'idle'
+  }, 1200)
+}
+
+const copyStatusLabel = computed(() => {
+  if (copyStatus.value === 'copied') return '已复制'
+  if (copyStatus.value === 'failed') return '复制失败'
+  return '复制路径'
 })
 </script>
 
@@ -129,6 +160,41 @@ const snapToPixelGrid = computed({
     </SettingsGroup>
 
     <p class="text-[10px] text-muted">{{ settings.temporaryDisableSnappingHint }}</p>
+
+    <SettingsSectionHeader>
+      Studio 资产扩展
+      <template #description>
+        你的自定义 workflow / profile 放在用户目录
+        <code>~/.openpencil/studio/</code> 下，以同名子目录包裹（<code
+          >workflows/&lt;id&gt;/workflow.md</code
+        >
+        与 <code>profiles/&lt;id&gt;/profile.md</code>）。首跑时已自动复制
+        <code>_example</code> 示例模板，复制后即可改名改写。
+      </template>
+    </SettingsSectionHeader>
+
+    <SettingsGroup>
+      <div class="flex items-center justify-between gap-4 px-3 py-2.5">
+        <div class="min-w-0">
+          <span class="block text-xs text-surface">Studio 文件夹路径</span>
+          <span
+            class="mt-0.5 block truncate font-mono text-[10px] text-muted"
+            :title="studioFolderPath"
+            data-test-id="settings-studio-folder-path"
+            >{{ studioFolderPath }}</span
+          >
+        </div>
+        <button
+          type="button"
+          class="shrink-0 rounded border border-border bg-surface px-2 py-1 text-[11px] text-surface transition-colors hover:bg-hover disabled:opacity-50"
+          :disabled="copyStatus !== 'idle'"
+          data-test-id="settings-studio-folder-copy"
+          @click="copyStudioFolderPath"
+        >
+          {{ copyStatusLabel }}
+        </button>
+      </div>
+    </SettingsGroup>
 
     <RenderingSettingsSection />
   </section>

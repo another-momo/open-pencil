@@ -36,6 +36,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 import {
@@ -69,6 +70,7 @@ import { buildSetupCatalog, type SetupDesignContext } from './setup-catalog'
 import { normalizeSkillCommandText } from './skill-command'
 import { getStudioRegistry } from './studio'
 import { toStudioManifest, type PiStudioManifest } from './studio/manifest'
+import { ensureUserStudioSeed } from './studio/seed'
 import { createOpenPencilTools } from './tools'
 import { sendUndoGroupSignal } from './undo-group'
 
@@ -162,6 +164,23 @@ export function createPiChatService({
   const archiveDir = join(stateDir, 'pi-sessions-archive')
   const maxSessions = Number(process.env.OPENPENCIL_MAX_SESSIONS ?? 200)
   const sessionMaxAgeDays = Number(process.env.OPENPENCIL_SESSION_MAX_AGE_DAYS ?? 30)
+
+  // P2-11：seed 用户 studio 目录——首跑检测无 `_` 前缀模板则复制内置 _example。
+  // 失败仅 warn 不阻断（IO 权限 / 磁盘满等不应挂掉整个后端）。
+  // 路径与 registry.ts defaultDirs 同源——保持两者对齐，避免下次 reload
+  // 时 builtinDir 解析漂移导致 seed 复制出来的引用错位。
+  const builtinStudioDir =
+    process.env.OPENPENCIL_STUDIO_BUILTIN_DIR ||
+    join(rootDir, 'src', 'app', 'ai', 'pi-backend', 'studio')
+  const userStudioDir = join(homedir(), '.openpencil', 'studio')
+  try {
+    ensureUserStudioSeed(userStudioDir, builtinStudioDir)
+  } catch (error) {
+    console.warn(
+      '[pi-backend] studio seed 失败（忽略，不阻断主流程）：' +
+        (error instanceof Error ? error.message : String(error))
+    )
+  }
 
   // T60：studio 注册表每回合读单例（getStudioRegistry 进程级缓存已在；
   // reloadStudio 触发面接上后天然跟随）——不再启动期快照固化。

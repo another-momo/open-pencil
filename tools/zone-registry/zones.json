@@ -1197,6 +1197,13 @@
       "lastReviewed": "2026-09-08"
     },
     {
+      "id": "P219",
+      "file": "src/components/settings/general/GeneralSettingsPanel.vue",
+      "reason": "P2-11（2026-09-07）：「Studio 资产扩展」节——展示 ~/.openpencil/studio 用户扩展目录路径 + 复制按钮三态（studio seed 机制配套入口，Phase 4+5 泳道 C）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-07"
+    },
+    {
       "id": "P215",
       "file": "src/app/runtime/config.ts",
       "reason": "ci-fix（2026-09-07）：appRuntimeConfig 模块顶层初始化在 bun 直跑测试时 IS_BROWSER 仍可能触 ReferenceError——Bun 1.3.5 + Windows 下 IS_BROWSER 冻结值与 window 取址时机错位。本轮直接复用常量，三元守卫与上游语义一致。",

@@ -34,7 +34,7 @@ import {
   setPiChipSelection
 } from '@/app/ai/pi-backend/mode-selection'
 import { useForkChips } from '@/app/i18n/fork'
-import { menuItem, useMenuUI } from '@/components/ui/menu'
+import { menuItem, useMenuUI } from '@/components/ui/menu/menu'
 
 const { disabled = false } = defineProps<{ disabled?: boolean }>()
 

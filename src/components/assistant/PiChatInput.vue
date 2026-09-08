@@ -76,8 +76,8 @@ import {
   composeSkillSubmission,
   extractLeadingSkillCommand
 } from '@/components/assistant/skill-chip'
-import IconButton from '@/components/ui/IconButton.vue'
-import InputGroup from '@/components/ui/InputGroup.vue'
+import IconButton from '@/components/ui/button/IconButton.vue'
+import InputGroup from '@/components/ui/input/InputGroup.vue'
 import { piDesignAssignment } from '@/app/ai/pi-backend/assignment'
 import {
   ensurePiStudioManifest,

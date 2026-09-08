@@ -54,10 +54,10 @@ import {
   type ContextSwitchPartData,
   type NewIntentPartData
 } from './active-design'
-import AppPlaceholder from '@/components/ui/AppPlaceholder.vue'
+import AppPlaceholder from '@/components/ui/feedback/AppPlaceholder.vue'
 import AppTextButton from '@/components/ui/AppTextButton.vue'
-import Tip from '@/components/ui/Tip.vue'
-import { menuItem, useMenuUI } from '@/components/ui/menu'
+import Tip from '@/components/ui/overlay/Tip.vue'
+import { menuItem, useMenuUI } from '@/components/ui/menu/menu'
 import { useAIChat } from '@/app/ai/fork/use'
 import { toast } from '@/app/shell/ui'
 import { useI18n } from '@open-pencil/vue'

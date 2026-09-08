@@ -40,7 +40,7 @@ import type { PiCatalogModel } from '@/app/ai/pi-backend/catalog'
 // T35：27 条 pi 段 i18n 迁回 fork seam——本面板 pi 段用 useForkPi()，通用段（models/connected/modelNeedsCredential）仍走 useI18n()
 import { useForkPi } from '@/app/i18n/fork'
 
-import Tip from '@/components/ui/Tip.vue'
+import Tip from '@/components/ui/overlay/Tip.vue'
 
 const dialogs = useForkPi()
 const { ai, collaboration: uiCollab } = useI18n()

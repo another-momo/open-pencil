@@ -14,12 +14,12 @@ import { settingsDialogOpen, settingsDialogSection } from '@/app/settings/dialog
 import AgentSettingsPanel from '@/components/settings/agent/AgentSettingsPanel.vue'
 import FontsSettingsPanel from '@/components/settings/fonts/FontsSettingsPanel.vue'
 import GeneralSettingsPanel from '@/components/settings/general/GeneralSettingsPanel.vue'
-import ModelsPanel from '@/components/settings/models/ModelsPanel.vue'
+import PiModelsPanel from '@/components/settings/models/PiModelsPanel.vue'
 import ImageGenKeysSection from '@/components/settings/provider/ImageGenKeysSection.vue'
 import StockPhotoKeysSection from '@/components/settings/provider/StockPhotoKeysSection.vue'
 import StorageSettingsPanel from '@/components/settings/storage/StorageSettingsPanel.vue'
 import VectorizeSettingsSection from '@/components/settings/vectorize/VectorizeSettingsSection.vue'
-import AppSwitch from '@/components/ui/AppSwitch.vue'
+import AppSwitch from '@/components/ui/toggle/AppSwitch.vue'
 import { AppDialogFooter, AppDialogHeader, AppDialogRoot } from '@/components/ui/dialog'
 
 const { settings, common, credentials } = useI18n()
@@ -125,7 +125,7 @@ const navigationClass =
           data-test-id="settings-ai-panel"
         >
           <!-- T91k：去 h-full——本区与 Agent 能力同流，由外层对话框容器统一滚动 -->
-          <ModelsPanel />
+          <PiModelsPanel />
           <!-- T96：ModelsPanel 与 Agent 能力分区之间的视觉分隔（预研 §5.3） -->
           <div class="border-t border-border" />
           <!-- T87：Agent 能力配置（T96：builtinTools 三档位 + agentSkills 开关） -->

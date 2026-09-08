@@ -34,7 +34,7 @@ import { getActiveEditorStoreOrNull, useActiveEditorStoreRef } from '@/app/edito
 import { useForkPanels } from '@/app/i18n/fork'
 import { toast } from '@/app/shell/ui'
 import AppTextButton from '@/components/ui/AppTextButton.vue'
-import { usePopoverUI } from '@/components/ui/popover'
+import { usePopoverUI } from '@/components/ui/overlay/popover'
 
 import {
   createBriefOnPage,

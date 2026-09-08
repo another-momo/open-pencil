@@ -22,6 +22,7 @@
 - pre-commit 强制 `check:zones`；`bun run check:zones:drift` 查看对上游漂移明细。
 - 上游合并 SOP：合并前 check:zones 绿 → 按 zone 裁定冲突 → 合并后 ownedFiles 字节审计 + relocations / tarball 台账更新。
 - `tools/zone-registry/` 自身与 `.github/workflows/` 均为 ownedRoot，fork 治理设施自由改。
+- 设置类工作流归各业务域自己的 `settings/` 目录（`use.ts` 编排 + 兄弟模块分工、持久化留在 domain services），不建全局 composables 桶——采上游 2026-09 family 重组语义（上游原文以 src/app/ai/models/ 为例，该域 fork 已裁，语义仍适用于健在域）。
 
 ## 4. 提交与门禁
 

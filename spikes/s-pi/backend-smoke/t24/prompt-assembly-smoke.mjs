@@ -93,7 +93,7 @@ function layoutRoot(withStudioAssets) {
       join(repoRoot, 'src/app/ai/pi-backend/studio/base.md'),
       join(tempRoot, 'src/app/ai/pi-backend/studio/base.md')
     )
-    // T85：workflow references 按资产分目录（workflows/editable-design/references/）——
+    // T85：workflow references 按资产分目录（workflows/<id>/references/，如 art-directed）——
     // 改递归整目录复制，references 文件随资产进 temp 布局（缺文件会进 manifest failures）
     for (const sub of ['workflows', 'profiles']) {
       const srcDir = join(repoRoot, 'src/app/ai/pi-backend/studio', sub)
@@ -236,14 +236,14 @@ try {
   const manifestRes = await fetch(`${BASE}/api/pi/studio/manifest`, { headers: authHeaders(token) })
   const manifest = await manifestRes.json()
   check(
-    "路由 manifest：modes = general + editable-design-full + editable-design + longform（T62：无 types 数据面；T85/T86：双海报 mode——文件名序 '-' < '.'，editable-design-full 在前）",
+    "路由 manifest：modes = general + art-directed + longform-hero-kv-first + longform-structure-first（T62：无 types 数据面；P1-5 重命名+P1-6 general.md 落位——文件名序 'a'<'l'，共同前缀后 'h'<'s'）",
     manifestRes.ok &&
       Array.isArray(manifest.modes) &&
       manifest.modes.length === 4 &&
       manifest.modes[0]?.id === 'general' &&
-      manifest.modes[1]?.id === 'editable-design-full' &&
-      manifest.modes[2]?.id === 'editable-design' &&
-      manifest.modes[3]?.id === 'longform' &&
+      manifest.modes[1]?.id === 'art-directed' &&
+      manifest.modes[2]?.id === 'longform-hero-kv-first' &&
+      manifest.modes[3]?.id === 'longform-structure-first' &&
       manifest.modes.every((m) => !('types' in m)),
     JSON.stringify(manifest).slice(0, 160)
   )
@@ -253,22 +253,22 @@ try {
     JSON.stringify(manifest.failures).slice(0, 160)
   )
   check(
-    '路由 manifest：profiles 四精品摘要含 watercolor_poster_v2/v3（applicableTo=[longform]，T48 补迁 v2）',
+    '路由 manifest：profiles 两精品摘要含 watercolor_poster_v2/v3（applicableTo=[longform-hero-kv-first]，P0-2 删占位后）',
     Array.isArray(manifest.profiles) &&
-      manifest.profiles.length === 4 &&
+      manifest.profiles.length === 2 &&
       manifest.profiles.some(
         (p) =>
           p.id === 'watercolor_poster_v3' &&
           p.label === '水彩海报 v3' &&
           Array.isArray(p.applicableTo) &&
-          p.applicableTo[0] === 'longform'
+          p.applicableTo[0] === 'longform-hero-kv-first'
       ) &&
       manifest.profiles.some(
         (p) =>
           p.id === 'watercolor_poster_v2' &&
           p.label === '水彩海报 v2' &&
           Array.isArray(p.applicableTo) &&
-          p.applicableTo[0] === 'longform'
+          p.applicableTo[0] === 'longform-hero-kv-first'
       )
   )
   check(
@@ -396,7 +396,7 @@ try {
     {
       sessionId: 't60-envelope',
       messages: userMessage(
-        '[新建意图确认 modeId=longform profileId=watercolor_poster_v3]\n帮我做一张长图'
+        '[新建意图确认 modeId=longform-hero-kv-first profileId=watercolor_poster_v3]\n帮我做一张长图'
       )
     },
     token

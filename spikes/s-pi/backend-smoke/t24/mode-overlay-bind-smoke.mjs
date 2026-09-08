@@ -16,8 +16,8 @@
  * 覆盖：
  *  ① 默认 ui 模式：模式选择器显示 "UI design"、profile 下拉不渲染；
  *    发送体 chatMode='ui' + pickedProfileId=null（C4/C5 默认态）
- *  ② 切 marketing：profile 下拉出现；打开列出注册表 profiles（水彩海报 v3
- *    等四精品——T48 补迁 watercolor_poster_v2）与 "No style profile" 项（C5 manifest 投影真实可见）
+ *  ② 切 marketing：profile 下拉出现；打开列出注册表 profiles（水彩海报 v2/v3
+ *    两精品——P0-2 删占位后）与 "No style profile" 项（C5 manifest 投影真实可见）
  *  ③ 选 watercolor_poster_v3 后发送：请求体 chatMode='marketing' +
  *    pickedProfileId='watercolor_poster_v3'，且体不含任何 manifest/overlay
  *    内容（C4 最小载荷）；SSE 延迟期间两个选择器均禁用（C5 流式中禁用）
@@ -186,11 +186,11 @@ try {
   const solidOption = page.getByRole('option', { name: '扁平几何海报' })
   await watercolorOption.waitFor({ timeout: 10000 })
   check(
-    '② profile 下拉列出注册表四精品（杂志封面海报 / 水彩海报 v2 / 水彩海报 v3 / 扁平几何海报，T48）',
-    (await editorialOption.count()) === 1 &&
-      (await watercolorV2Option.count()) === 1 &&
+    '② profile 下拉列出注册表两精品（水彩海报 v2 / 水彩海报 v3；P0-2 删占位后杂志封面/扁平几何不再出现）',
+    (await watercolorV2Option.count()) === 1 &&
       (await watercolorOption.count()) === 1 &&
-      (await solidOption.count()) === 1
+      (await editorialOption.count()) === 0 &&
+      (await solidOption.count()) === 0
   )
   check(
     '② profile 下拉含 "No style profile" 清除项',

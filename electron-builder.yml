@@ -107,12 +107,22 @@ nsis:
   # perMachine false —— 安装到当前用户（无管理员权限要求；UAC 不弹；与
   # SmartScreen 警告同源 —— owner 已接受此妥协）
   perMachine: false
-  # oneClick 缺省 true 是「无 UI 一路 next」——保留默认；但关闭 allowToChangeInstallationDirectory
-  # 默认 true 后弹窗问安装到哪；desktop-electron 是 SPA 单实例产品形态，无
-  # 「装多个版本」诉求，关掉少一步 UI 干扰
-  oneClick: true
-  allowToChangeInstallationDirectory: false
-  # 卸载时清干净 app 数据；createDesktopShortcut 已默认 true
+  # shell-polish B1：assisted 向导（oneClick=false）才会显示目录选择页 + 安装
+  # 进度条；electron-builder 26 的 oneClick 缺省为 true 是「无 UI 一路 next」，
+  # 配套 allowToChangeInstallationDirectory 缺省 true——P2 时期此项目无「装多版
+  # 本」诉求故关掉省 UI。shell-polish 改 assisted 后必须开 allowToChange 让
+  # 目录选择页生效（否则用户看不到选择控件，一步到下页装默认位）。
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  # 卸载时清干净 app 数据；createDesktopShortcut 已默认 true。
+  # shell-polish B2：deleteAppDataOnUninstall 只删 %APPDATA% 下 userData
+  # （electron-builder 自动判 APP_FILENAME / APP_PRODUCT_FILENAME / APP_PACKAGE_NAME
+  # 三 key），但用户自定义 studio 目录 %USERPROFILE%\.openpencil\studio\ 不在其
+  # 内——补删走 desktop-electron/nsis/include.nsh 的 customUnInstall 钩子。
+  # electron-builder 26 会用 !include "<path>" 把文件加入主 installer.nsi
+  # （NsisTarget.js L603 scriptGenerator.include），并自动把仓库根加入
+  # !addincludedir，路径相对仓库根解析。
+  include: desktop-electron/nsis/include.nsh
   deleteAppDataOnUninstall: true
   # artifactName 在 win.* 已设，这里保留 nsis 自身的命名兜底
   artifactName: ${productName}-Setup-${version}.${ext}

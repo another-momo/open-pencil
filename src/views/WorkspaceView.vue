@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, provide, ref } from 'vue'
+import { computed, onMounted, onUnmounted, provide, ref } from 'vue'
 import { useEventListener, useUrlSearchParams } from '@vueuse/core'
 import { useRoute } from 'vue-router'
 
 import { exposeCollaborationActions } from '@/app/browser-bridge'
 import { startMCPRuntime, stopMCPRuntime } from '@/app/automation/bridge/runtime'
 import { COLLAB_KEY, useCollab } from '@/app/collab/use'
+import { isElectron } from '@/app/shell/electron'
 import { useKeyboard } from '@/app/shell/keyboard/use'
 import { openFileFromPath, useEditorMenu } from '@/app/shell/menu/use'
 import {
@@ -47,6 +48,16 @@ useEventListener(
 
 const fileAssociationCleanup = ref<(() => void) | null>(null)
 
+// shell-polish A1：Electron 形态下 titleBarOverlay（46px × 3 按钮 ≈ 138px）盖
+// 在页面顶部，FontStatusBanner + TabBar 两个顶部通栏需要右侧预留等宽——
+// 把宽度挂在 editor-root 的内联 style 上，下游组件读 var(--window-controls-width)
+// 即自动避开；浏览器形态（isElectron()=false）走空对象，padding-right 回退
+// 默认值 0px，行为不变。138px 是设计默认值，L3 验收时按真机校准。
+const electronShellStyle = computed((): Record<string, string> => {
+  if (!isElectron()) return {}
+  return { '--window-controls-width': '138px' }
+})
+
 interface PendingOpenFile {
   path: string
 }
@@ -83,7 +94,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div data-test-id="editor-root" class="flex h-screen w-screen flex-col">
+  <div
+    data-test-id="editor-root"
+    class="flex h-screen w-screen flex-col"
+    :style="electronShellStyle"
+  >
     <FontStatusBanner />
     <RenameSelectionDialog />
     <CommandPalette />

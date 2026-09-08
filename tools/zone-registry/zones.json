@@ -20,6 +20,7 @@
     "desktop-electron/"
   ],
   "ownedFiles": [
+    "src/app/shell/electron.ts",
     "src/components/settings/models/PiModelsPanel.vue",
     "src/components/settings/agent/AgentSettingsPanel.vue",
     "src/app/settings/credentials/stock-photo-keys.ts",
@@ -1195,6 +1196,20 @@
       "reason": "ci-fix（2026-09-07）：appRuntimeConfig 模块顶层初始化在 bun 直跑测试时 IS_BROWSER 仍可能触 ReferenceError——Bun 1.3.5 + Windows 下 IS_BROWSER 冻结值与 window 取址时机错位。本轮直接复用常量，三元守卫与上游语义一致。",
       "disposition": "permanent",
       "lastReviewed": "2026-09-07"
+    },
+    {
+      "id": "P216",
+      "file": "src/app/shell/theme.ts",
+      "reason": "shell-polish（2026-09-08）：applyTheme 尾部追加 syncElectronTitleBar——Electron 形态下经 loopback POST /__openpencil/titlebar-theme 调 setTitleBarOverlay，让原生三键背景/图标色跟随 --color-canvas/--color-surface；浏览器形态 isElectron() 守卫早退，行为不变。",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-08"
+    },
+    {
+      "id": "P217",
+      "file": "src/components/font-status/FontStatusBanner.vue",
+      "reason": "shell-polish（2026-09-08）：顶部通栏右侧加 pr-[length:var(--window-controls-width,0px)]——Electron titleBarOverlay（46px×3≈138px）由 OS 画在页面之上，banner 右侧按钮需避让；浏览器形态变量缺省回退 0px。",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-08"
     }
   ],
   "deletedPaths": [

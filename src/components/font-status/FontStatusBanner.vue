@@ -15,7 +15,7 @@ const issues = computed(() => status.value.issues)
   <div
     v-if="issues.length > 0"
     data-test-id="font-status-banner"
-    class="border-b border-[var(--color-warning-border)] bg-[var(--color-warning-bg)] text-xs text-[var(--color-warning-text)]"
+    class="border-b border-[var(--color-warning-border)] bg-[var(--color-warning-bg)] pr-[length:var(--window-controls-width,0px)] text-xs text-[var(--color-warning-text)]"
   >
     <div class="flex items-center gap-2 px-3 py-1.5">
       <icon-lucide-triangle-alert class="size-3.5 shrink-0" />

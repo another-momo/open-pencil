@@ -6,6 +6,7 @@ import { parseColor } from '@open-pencil/core/color'
 import { IS_BROWSER } from '@open-pencil/core/constants'
 
 import { getActiveEditorStoreOrNull, useActiveEditorStoreRef } from '@/app/editor/active-store'
+import { isElectron } from '@/app/shell/electron'
 
 export type AppTheme = 'dark' | 'light' | 'auto'
 
@@ -38,12 +39,37 @@ function updateCanvasTheme(): void {
   store.requestRepaint()
 }
 
+// shell-polish A2：标题栏主题跟随——同色 + 高对比前景。端点 POST 静默 catch，
+// 网络抖动或 main 进程尚未就绪不影响前端应用主题本身（页面背景已正确切）。
+// 端点幂等，无需去抖——每次 applyTheme 都发。symbolColor 仅 Windows 实际生效
+// （macOS titleBarOverlay 无按钮可见），逻辑仍写全端兼容代码。
+function syncElectronTitleBar(value: 'dark' | 'light'): void {
+  if (!IS_BROWSER || !isElectron()) return
+  const style = getComputedStyle(document.documentElement)
+  const color = style.getPropertyValue('--color-canvas').trim()
+  // symbolColor：app.css 无独立 --color-titlebar-symbol；浅色主题用 --color-surface
+  // （src/app.css L84 = #1f2328，与白底对比度 OK）；深色主题用 #ffffff（与
+  // --color-canvas: #1e1e1e 对比度 16:1，满足 WCAG AAA）。前端 fallback 不应
+  // 触发——color 缺位说明 app.css 漏 token，是上游 bug 而非缺值。
+  const symbolColor =
+    value === 'light' ? style.getPropertyValue('--color-surface').trim() : '#ffffff'
+  if (!color) return
+  void fetch('/__openpencil/titlebar-theme', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ color, symbolColor })
+  }).catch(() => {
+    // 静默——端点可能尚未 listen（首启竞速）或网络断开，不影响主题应用本身
+  })
+}
+
 function applyTheme(value: 'dark' | 'light', setting: AppTheme): void {
   if (!IS_BROWSER || !('document' in globalThis)) return
   document.documentElement.dataset.theme = value
   document.documentElement.dataset.themeSetting = setting
   document.documentElement.style.colorScheme = value
   updateCanvasTheme()
+  syncElectronTitleBar(value)
 }
 
 export function useAppTheme() {

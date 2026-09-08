@@ -389,6 +389,14 @@ export function createLoopbackServer(options: LoopbackServerOptions): Promise<{ 
     if (urlPath.startsWith('/api/pi') && options.backendPort && options.piToken) {
       return proxyPi(req, res, options.backendPort, options.piToken)
     }
+    // shell-polish A2：三键主题跟随——前端把当前主题色 POST 过来，main 调
+    // setTitleBarOverlay。严格 ^#[0-9a-fA-F]{6}$ 校验拒绝一切非法输入；端点
+    // 幂等（setTitleBarOverlay 重复同值无副作用），所以前端每次 applyTheme 都
+    // 发即可。命名空间 /__openpencil/* 留扩展位（如未来 chat-telegram 等
+    // shell-side hook 都走此前缀，避免与产品路由 /api/* 混）。
+    if (urlPath === '/__openpencil/titlebar-theme' && req.method === 'POST') {
+      return handleTitleBarTheme(req, res)
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405).end(); return }
     const filePath = normalize(join(distDir, urlPath))
     const relative = filePath.slice(distDir.length)
@@ -402,7 +410,11 @@ export function createLoopbackServer(options: LoopbackServerOptions): Promise<{ 
       // 随机端口（bridgePort），页面必须拿这个 URL 去连；只有 token 没有 URL
       // 会让页面去撞 build-time 烘焙的 ws://127.0.0.1:7600，撞主战场 + token
       // 不符。dev 形态不注入，页面 fallback 到 vite define 烘焙值。
-      const script = `<script>window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__=${JSON.stringify(token)};window.__OPENPENCIL_RUNTIME_BRIDGE_URL__=${JSON.stringify(`ws://127.0.0.1:${bridgePort}`)}</script>`
+      // shell-polish A1：三键遮挡顶部通栏——前端用 isElectron() 给 editor-root 顶
+      // 部通栏右侧预留 titleBarOverlay 宽度；A2：标题栏主题切换——前端把当前主
+      // 题色 POST 到 /__openpencil/titlebar-theme，main 调 setTitleBarOverlay。
+      // 浏览器形态（含 dev url 路径）不注入——这些功能只在 Electron 壳里生效。
+      const script = `<script>window.__OPENPENCIL_RUNTIME_AUTOMATION_TOKEN__=${JSON.stringify(token)};window.__OPENPENCIL_RUNTIME_BRIDGE_URL__=${JSON.stringify(`ws://127.0.0.1:${bridgePort}`)};window.__OPENPENCIL_ELECTRON__=true</script>`
       res.writeHead(200, { 'content-type': MIME_TYPES['.html'] }); res.end(html.replace('<head>', `<head>${script}`)); return
     }
     sendFile(res, candidate)
@@ -444,6 +456,62 @@ const BASE_WINDOW_OPTIONS: Electron.BrowserWindowConstructorOptions = {
     symbolColor: '#ffffff',
     height: 36
   }
+}
+
+// shell-polish A2：标题栏高度常量——handleTitleBarTheme 与 BASE_WINDOW_OPTIONS
+// 共享此值，防漂移（前端 --window-controls-width 按 height×3+ 余量校准）。
+const TITLEBAR_OVERLAY_HEIGHT = 36
+
+// shell-polish A2：处理前端 POST /__openpencil/titlebar-theme。严格六位 hex
+// 校验拒绝任何非法输入；端点幂等（重复同值无副作用），无需去抖。读 body 用
+// 累加 chunk 模式——http.IncomingMessage 不直接给完整 body，需自管 buffer。
+// apply 走 BrowserWindow.getAllWindows()——覆盖 dev 形态 / 默认形态 / 未来
+// 多窗口共享 sidecar 形态；窗口已 destroyed 静默跳过。
+function handleTitleBarTheme(req: IncomingMessage, res: ServerResponse): void {
+  const chunks: Buffer[] = []
+  req.on('data', (chunk: Buffer) => chunks.push(chunk))
+  req.on('end', () => {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    } catch (error) {
+      res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' })
+      res.end(JSON.stringify({ error: 'invalid json', detail: String(error) }))
+      return
+    }
+    const body = parsed as { color?: unknown; symbolColor?: unknown }
+    if (typeof body.color !== 'string' || typeof body.symbolColor !== 'string') {
+      res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' })
+      res.end(JSON.stringify({ error: 'color and symbolColor must be strings' }))
+      return
+    }
+    const HEX6 = /^#[0-9a-fA-F]{6}$/
+    if (!HEX6.test(body.color) || !HEX6.test(body.symbolColor)) {
+      res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' })
+      res.end(JSON.stringify({ error: 'color and symbolColor must match ^#[0-9a-fA-F]{6}$' }))
+      return
+    }
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (window.isDestroyed()) continue
+      try {
+        window.setTitleBarOverlay({
+          color: body.color,
+          symbolColor: body.symbolColor,
+          height: TITLEBAR_OVERLAY_HEIGHT
+        })
+      } catch (error) {
+        // setTitleBarOverlay 在非 Windows 平台会抛——本任务仅交付 Windows 包，但
+        // main.ts 复用为产品形态后会被 macOS 跑；记日志不冒泡。
+        process.stderr.write(`[electron-main] setTitleBarOverlay 失败：${error instanceof Error ? error.message : String(error)}\n`)
+      }
+    }
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
+    res.end(JSON.stringify({ ok: true }))
+  })
+  req.on('error', (error) => {
+    process.stderr.write(`[electron-main] titlebar-theme 请求体读失败：${error.message}\n`)
+    if (!res.headersSent) res.writeHead(400).end()
+  })
 }
 
 function baseWindowOptions(extra: Electron.BrowserWindowConstructorOptions = {}): Electron.BrowserWindowConstructorOptions {

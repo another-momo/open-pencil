@@ -27,6 +27,8 @@
 
 - commit 前必跑 `bun run format:check`（CI 红灯首要嫌疑，历史教训）。
 - 日常收口门禁：`bun run check:quick`（format + lint + typecheck + zones 四步串行）。
+- 变更集含 `.vue` 时收口补跑 `bun run check:vue`（约 72s，不进 check:quick 是刻意的——主 agent 收口职责，worker 无责）。
+- 注意：本机 oxlint 目录取文件为 0（静默假绿，2026-09-07 起未定位）——本地 lint 结果不可信，lint 类门禁以 CI 为准。
 - 大改动（≥10 文件或 ≥200 行）收口跑全量 `bun run check`，跑前停 dev server。
 - commit message：中文 conventional（`type(scope): 主题`）+ 正文写清 why——背景、方案取舍、验证证据。
 - pre-commit = check:zones；post-commit = 机制复盘计数提醒（advisory，永不阻塞）。

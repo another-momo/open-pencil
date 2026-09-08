@@ -12,21 +12,22 @@
 ## 2. 协作摘要（最低限度规则）
 
 - 主 agent 唯一允许：git 写（commit / merge-back）、browser 实测、gh 操作。
-- worker（subagent）：限定范围实现 + 目标测试文件；**禁**全量 test / dev / build、push、`gh run rerun`；browser 默认禁——Playwright MCP 与主 agent 共享浏览器单例，派单显式授权时方可自验证且须互斥。
+- worker（subagent）：限定范围实现 + 目标测试文件；**禁**全量 test / dev / build、commit / push、`gh run rerun`；browser 默认禁——Playwright MCP 与主 agent 共享浏览器单例，派单显式授权时方可自验证且须互斥。commit / push 可经 owner 专项派单授权解禁（授权范围以派单文本为准）。
 - push：主 agent 每次收口 commit 后顺势试推**一次**；失败即停（不原地重试），积压归 owner 后续处理。worker 禁 push。
 - gh 命令一律带 `-R another-momo/open-pencil`。
 
 ## 3. zone 纪律（改代码前必读）
 
-- `tools/zone-registry/zones.json` 是唯一所有权真相：`ownedRoots` / `ownedFiles` 内自由改；改动其他（上游供血）文件必须登记 `patches`；删除走 `deletedPaths`；搬移登记 `relocations`。
+- `tools/zone-registry/zones.json` 是唯一所有权真相：`ownedRoots` / `ownedFiles` 内自由改；改动其他（上游供血）文件必须登记 `patches`；删除走 `deletedPaths`；搬移登记 `relocations`。台账登记与代码改动同批提交——漏登 = 交付不完整。
 - pre-commit 强制 `check:zones`；`bun run check:zones:drift` 查看对上游漂移明细。
-- 上游合并 SOP：合并前 check:zones 绿 → 按 zone 裁定冲突 → 合并后 ownedFiles 字节审计 + relocations / tarball 台账更新。
+- 上游合并 SOP：合并前 check:zones 绿 → 按 zone 裁定冲突 → 合并窗口内每次 check:zones 输出的 RELOCATION_WATCH advisory 必读（上游残迹落进 ownedRoot 的最早信号），逐条裁定后再 commit → 合并后 ownedFiles 字节审计 + relocations / tarball 台账更新。裁撤目录必须以目录条目登记 deletedPaths——逐文件条目挡不住上游新增，目录条目才有 checkDeletedAbsent 复活硬拦截。
 - `tools/zone-registry/` 自身与 `.github/workflows/` 均为 ownedRoot，fork 治理设施自由改。
 - 设置类工作流归各业务域自己的 `settings/` 目录（`use.ts` 编排 + 兄弟模块分工、持久化留在 domain services），不建全局 composables 桶——采上游 2026-09 family 重组语义（上游原文以 src/app/ai/models/ 为例，该域 fork 已裁，语义仍适用于健在域）。
 
 ## 4. 提交与门禁
 
 - commit 前必跑 `bun run format:check`（CI 红灯首要嫌疑，历史教训）。
+- commit 前 `git status` 核对无残留未暂存改动——pre-commit 门禁跑的是工作区，绿 ≠ 已入库（2026-09-08 事故：三文件台账改动未暂存，随 worktree 拆除灭失，CI 红一轮才兜住）。
 - 日常收口门禁：`bun run check:quick`（format + lint + typecheck + zones 四步串行）。
 - 变更集含 `.vue` 时收口补跑 `bun run check:vue`（约 72s，不进 check:quick 是刻意的——主 agent 收口职责，worker 无责）。
 - 注意：本机 oxlint 目录取文件为 0（静默假绿，2026-09-07 起未定位）——本地 lint 结果不可信，lint 类门禁以 CI 为准。

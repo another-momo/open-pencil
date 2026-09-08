@@ -51,6 +51,16 @@ hero-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向提�
 
 候选纪律：单变量受控变异——风格词与标题参照锁同，一批内只动一个变量轴（构图 / 氛围 / 题材择一）。用户整批拒绝 = 合法请求，宿主 UI 自带成本提示；整批重生计数与脱困阀见「脱困阀」节（每次整批重生写一行结论区备查）。
 
+### profile 协同（三档）
+
+本节按「profile 有相关规范 → 按 profile；profile 无相关规范 → 用 workflow 兜底值；无 profile → 同兜底值，agent 自行发挥处注明」三档列出阶段 2/3 的协同纪律：
+
+- **HeroContent 版式（lockup / 高度 / 眉题）**：profile 有规范时按 profile 的 Hero treatment 节里的 lockup / 高度 / 眉题规则执行；无规范（含无 profile）时 workflow 兜底 = lower-third 默认版式、hero 高度 = W（画布宽）、无眉题。
+- **prepare_hero_scaffold 参数**：profile 有规范时按 profile 的 scaffold 参数（underlap_px / transition_zone_px）执行；无规范时 workflow 兜底 = underlap_px = 100、transition_zone_px = 100（均按 W 缩放）。
+- **generate_image prompt 风格**：profile 有规范时按 profile 的水彩 prompt 规则（若 profile 是其他风格则按其风格规则，如赛博朋克按 cyber 规则）；无规范时 agent 按 CP1 锁定方向自行决定风格——profile 缺席处 agent 自判并写一行结论区备查风格选择与参照用法。标题参照用法一律明写：围绕标题构图、标题区保持平静低细节、画面中不画任何文字。
+- **compose_backdrop 配置（阶段 3 调用时）**：profile 有规范时按 profile（自动采样语义由 profile 给定）执行；无规范时缺省自动采样，不传 hero_color。外部 hero 图源（用户上传、无 scaffold）用 `compose_backdrop({ root_id, hero_image_from })`。
+- **look 验收标准**：profile 有验收标准按其标准；无规范时看 hero 底部无可见接缝、标题区可读，agent 自判通过。
+
 ══ CP2 · 图像表单 ══ image_select 引用全部候选节点 nodeId 择优 + 图片来源确认（AI 生成 / stock_photo / 用户素材——顺带确认后续节次用图来源）。
 
 不做：不铺超过 3 个候选；不在 CP2 前 compose_backdrop。
@@ -65,7 +75,7 @@ hero-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向提�
 
 ══ CP3 · 渲染图表单 ══ 骨架结构确认 + 色调氛围与方向锁定一致性确认（配色无专用工具，PD-4——在填充开始前截断「色调跑偏」的返工半径；用户看着画布上的骨架对照回答）。确认项不通过 → 按作答调整骨架/氛围后重发 CP3，不进填充。
 
-不做：不在 CP3 确认前填充内容；profile 配方（视觉环境段）另有规定时以 profile 为准。
+不做：不在 CP3 确认前填充内容；profile 的 Hero treatment 节另有规定时以 profile 为准。
 
 工具：render / describe / look / calc / compose_backdrop / generate_image / stock_photo / batch_update / update_node / set_layout / set_layout_child / set_radius / set_fill / set_stroke / set_text / set_text_properties / set_text_resize / node_resize / reparent_node / delete_node / find_nodes / get_node / get_jsx / ask_user_question / append_brief_conclusion。
 

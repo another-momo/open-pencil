@@ -61,14 +61,25 @@ structure-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向
 
 ## 阶段 2.5 · 视觉环境物化（profile 驱动的独立 slot）
 
-**本阶段是 profile 驱动的 slot，不是固定 workflow 节点。** workflow 只定执行时机（在 CP2 之后、阶段 3 填充之前——视觉物化耗真实算力、必须在结构确认后做）和出口契约（look 验）。具体执行内容由 active profile 的 `## Visual environment setup (Phase 2.5)` 小节决定：
+**本阶段是 profile 驱动的 slot，不是固定 workflow 节点。** workflow 只定执行时机（在 CP2 之后、阶段 3 填充之前——视觉物化耗真实算力、必须在结构确认后做）和出口契约（look 验）。具体执行内容由 active profile 的 Hero treatment 节（及 Typography / Color 相关规则）决定：
 
-- **无 active profile，或 profile 无 Phase 2.5 小节** → 本阶段跳过，阶段 3 在默认白画布上开始。
-- **profile 规定视觉环境 / 背景 / 配方** → 按其 recipe 执行。一般形态：若骨架内含 hero 槽则先生成/填入 hero 图（hero-led profile 用 prepare_hero_scaffold 做参考帧 + generate_image 围绕标题参照出图；profile 无此规定则直接 render / stock_photo 填占位）→ compose_backdrop 把图沉到 BackgroundLayer 并自动采样补色。**调用 prepare_hero_scaffold 时**，underlap_px / transition_zone_px 按 profile 语境定值，几何记录写进 scaffold，下游只读记录不散传。
+- **profile 有规范** → 按其 recipe 执行。一般形态：若骨架内含 hero 槽则先生成/填入 hero 图（hero-led profile 用 prepare_hero_scaffold 做参考帧 + generate_image 围绕标题参照出图；profile 无此规定则直接 render / stock_photo 填占位）→ compose_backdrop 把图沉到 BackgroundLayer 并自动采样补色。**调用 prepare_hero_scaffold 时**，underlap_px / transition_zone_px 按 profile 语境定值，几何记录写进 scaffold，下游只读记录不散传。
 - **profile 规定色板派生/配色规则** → 按派生结果把色票应用到骨架节填色与文字。
 - **永远以 look 验收本阶段**——profile recipe 内 success criteria（「接缝不可见」「压字清晰」等）为权威。失败按 recipe 给的恢复路径走；超 2 轮仍未通过 → 在结论区登记，重生 hero 图计入「脱困阀」节的整批重生纪律。
 
 仅当 profile recipe 实际需要的工具才调：recipe 不要求 prepare_hero_scaffold / compose_backdrop 时绝不调；recipe 命名了工具列表中不存在的 helper 时，按 recipe 的意图用 render 兜底，不发明调用。
+
+### 兜底工序（profile 无规范时）
+
+**无 active profile，或 profile 无 Hero treatment 节 → 按下方兜底工序以通用参数执行**（不跳过——视觉环境是长图基本盘；仅当 brief 明确纯文字长图时跳过并在结论区声明）。骨架已在阶段 2 立好的语境下走：
+
+1. 在骨架 hero 槽渲染标题版式 HeroContent（真文案、真字号；lockup 默认 lower-third、高度 = W、无眉题）。
+2. `prepare_hero_scaffold({ root_id, source_node_id: HeroContent.id, underlap_px: 100, transition_zone_px: 100 })`——underlap / transition_zone 按 W 缩放；返回几何记录下游只读。
+3. `generate_image` 单请求：replace_id = scaffold_id、references 用 scaffold 合成参照、尺寸 = 返回值 width × height；prompt 按 CP1 锁定方向自拟，明写参照用法（围绕标题构图、标题区保持平静低细节、画面中不画任何文字、底部 underlap 带保持平静）。
+4. 阶段 3 填充完成、根框高度稳定后 `compose_backdrop({ root_id, scaffold_id })`——缺省自动采样，不传 hero_color。外部 hero 图源（用户上传、无 scaffold）用 `compose_backdrop({ root_id, hero_image_from })`。
+5. `look` 验收：hero 底部无可见接缝、标题区可读；hero 后续重生则同参重调 compose_backdrop。
+
+兜底纪律沿用本节「recipe 命名了不存在的 helper 按意图用 render 兜底」「跳步 = 显式失败」「不发明几何」「不发明调用」口径——profile 缺席处的 agent 自行发挥处写一行结论区备查（风格选择 / 参照用法）。
 
 工具（按 profile recipe 实际需要裁剪）：render / prepare_hero_scaffold / generate_image / stock_photo / compose_backdrop / set_fill / set_text / describe / look / calc / ask_user_question / append_brief_conclusion。
 

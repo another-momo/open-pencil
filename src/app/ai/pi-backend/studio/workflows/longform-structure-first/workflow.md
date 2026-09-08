@@ -2,12 +2,21 @@
 id: longform-structure-first
 label: 长图设计（骨架先行）
 subtitle: 多分区长图 / 内容驱动 / 骨架先行于视觉物化
-step_budget: 50
+step_budget: 75
 sizes:
   - label: 电商详情长图
     canvas: 750x
   - label: 小红书长图
     canvas: 1080x
+references:
+  - path: references/fallback-recipe.md
+    description: profile 无规范时的视觉环境兜底五步（HeroContent 版式 → prepare_hero_scaffold → 生图 → compose_backdrop → look 验收）+ 失败恢复路径 + 跳过条件——阶段 2.5 走到兜底工序前读
+  - path: references/skeleton-progress-table.md
+    description: resume 进度判定表（按画布实物 6 档判定续跑起点）+ 判定顺序 + 未答表单处理——续作 / 超预算收尾读现场时读
+  - path: references/coordinates.md
+    description: 坐标系语义（原点左上 / Y 向下 / px / parent-relative）+ scaffold 几何记录字段表 + 落位几何——调 prepare_hero_scaffold 前、算中央 / 三等分 / 接缝等坐标前读
+  - path: references/hero-prompt-template.md
+    description: hero 候选生图 prompt 三段模板 + 变异纪律 + 续填素材 prompt 模式 + 回图诊断表——阶段 2.5/3 写候选或配图 prompt 前、回图异常复查时读
 ---
 
 ## 执行总纲
@@ -16,7 +25,7 @@ structure-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向
 
 与 hero-first（longform-hero-kv-first）的差异点：结构确认在视觉物化之前——阶段 2 骨架渲染完成即 CP2，用户确认分区配重后再进阶段 2.5 物化；hero-led 风格里骨架由 hero 反推，本 mode 骨架由内容大纲驱动，不被 hero 反向塑形。
 
-预算纪律：step_budget = 50；每 CP 自然停顿即 run 终止续跑，用户作答后预算重置；阶段 3 填充中途预算不足时按「resume 协议」节收尾，不硬撑。
+预算纪律：step_budget = 75；每 CP 自然停顿即 run 终止续跑，用户作答后预算重置；阶段 3 填充中途预算不足时按「resume 协议」节收尾，不硬撑。
 
 ## 通用纪律（四则，各阶段适用）
 
@@ -69,17 +78,11 @@ structure-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向
 
 仅当 profile recipe 实际需要的工具才调：recipe 不要求 prepare_hero_scaffold / compose_backdrop 时绝不调；recipe 命名了工具列表中不存在的 helper 时，按 recipe 的意图用 render 兜底，不发明调用。
 
+**references 读取点**：调 prepare_hero_scaffold / 算落位坐标前读 `references/coordinates.md`；写 hero 候选 prompt / 配图 prompt 前读 `references/hero-prompt-template.md`（均经 load_reference）。
+
 ### 兜底工序（profile 无规范时）
 
-**无 active profile，或 profile 无 Hero treatment 节 → 按下方兜底工序以通用参数执行**（不跳过——视觉环境是长图基本盘；仅当 brief 明确纯文字长图时跳过并在结论区声明）。骨架已在阶段 2 立好的语境下走：
-
-1. 在骨架 hero 槽渲染标题版式 HeroContent（真文案、真字号；lockup 默认 lower-third、高度 = W、无眉题）。
-2. `prepare_hero_scaffold({ root_id, source_node_id: HeroContent.id, underlap_px: 100, transition_zone_px: 100 })`——underlap / transition_zone 按 W 缩放；返回几何记录下游只读。
-3. `generate_image` 单请求：replace_id = scaffold_id、references 用 scaffold 合成参照、尺寸 = 返回值 width × height；prompt 按 CP1 锁定方向自拟，明写参照用法（围绕标题构图、标题区保持平静低细节、画面中不画任何文字、底部 underlap 带保持平静）。
-4. 阶段 3 填充完成、根框高度稳定后 `compose_backdrop({ root_id, scaffold_id })`——缺省自动采样，不传 hero_color。外部 hero 图源（用户上传、无 scaffold）用 `compose_backdrop({ root_id, hero_image_from })`。
-5. `look` 验收：hero 底部无可见接缝、标题区可读；hero 后续重生则同参重调 compose_backdrop。
-
-兜底纪律沿用本节「recipe 命名了不存在的 helper 按意图用 render 兜底」「跳步 = 显式失败」「不发明几何」「不发明调用」口径——profile 缺席处的 agent 自行发挥处写一行结论区备查（风格选择 / 参照用法）。
+**无 active profile，或 profile 无 Hero treatment 节 → 走兜底工序以通用参数执行**（不跳过——视觉环境是长图基本盘；仅当 brief 明确纯文字长图时跳过并在结论区声明）。兜底五步（骨架 hero 槽渲染 HeroContent 标题版式 → prepare_hero_scaffold 通用参数 → generate_image 单请求围绕标题参照 → 阶段 3 完成后 compose_backdrop 缺省采样 → look 验收接缝与标题区可读）与失败恢复路径在 `references/fallback-recipe.md`，走到本节前经 load_reference 读取；profile 缺席处的 agent 自行发挥处写一行结论区备查（风格选择 / 参照用法）。
 
 工具（按 profile recipe 实际需要裁剪）：render / prepare_hero_scaffold / generate_image / stock_photo / compose_backdrop / set_fill / set_text / describe / look / calc / ask_user_question / append_brief_conclusion。
 
@@ -144,14 +147,7 @@ structure-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向
 2. describe / look 验画布实物进度——结论区与画布冲突时以画布实物为准，并补记一行勘误进结论区。
 3. 会话历史找未答表单（[表单作答]/[表单跳过] 信封是否已回）——未答即续等语义，不重发同一表单。
 
-进度判定表（按画布实物）：
-
-- 仅 setup_design 根框 → 重跑阶段 1。
-- 根框 + 骨架渲染完成 → 已过 CP2，重跑阶段 2.5 / 阶段 3 起段。
-- 根框 + 骨架 + 视觉环境物化完成 → 阶段 3 起段。
-- 根框 + 骨架 + 部分节填充 → 从下一未填节续填。
-- 全节填充 + 未 polish → polish 段。
-- 全节填充 + polish 已过 → 阶段 4 终审。
+进度判定表（按画布实物 6 档判定续跑起点 + 判定顺序 + 未答表单处理）在 `references/skeleton-progress-table.md`，续作读现场时经 load_reference 读取。
 
 fill 超预算收尾（收到剩余步数告警或自判不足时）：当前节修到 describe 无 error → append_brief_conclusion 写进度行（已完成节次 / 剩余节次 / 下一步动作）→ 固定话术收尾：「已画完 N/M 节，回复『继续』从第 N+1 节续填。」——不停在半节中间，不静默省略剩余节。
 

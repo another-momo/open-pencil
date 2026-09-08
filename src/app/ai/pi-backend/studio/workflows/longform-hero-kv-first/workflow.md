@@ -2,19 +2,26 @@
 id: longform-hero-kv-first
 label: 长图设计
 subtitle: 电商详情 / 产品长文 / 小红书长图的分区物料
-step_budget: 50
+step_budget: 70
 sizes:
   - label: 电商详情长图
     canvas: 750x
   - label: 小红书长图
     canvas: 1080x
+references:
+  - path: references/coordinates.md
+    description: 坐标系语义（原点左上 / Y 向下 / px / parent-relative）+ scaffold 几何记录字段表 + 落位几何 + 校准自检——阶段 2 调 prepare_hero_scaffold 前、阶段 3 算中央 / 三等分 / 接缝等坐标前读
+  - path: references/hero-prompt-template.md
+    description: hero 候选生图 prompt 三段模板（风格定调 + 参照用法 + 文字禁令）+ 变异纪律 + 续填素材 prompt 模式 + 回图诊断表——阶段 2 写候选 prompt 前、阶段 3 写配图 prompt 前、回图异常复查时读
+  - path: references/profile-coordination.md
+    description: profile 协同字段查找表（HeroContent 版式 / scaffold 参数 / 风格规则 / 配色 / 字阶 / look 验收 × profile 三档）+ 判定速查——阶段 2/3 涉及「按 profile 走还是按 workflow 兜底」选择前读
 ---
 
 ## 执行总纲
 
 hero-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向提案（文本轮，CP1）→ 阶段 2 hero 物化（图像轮，CP2）→ 阶段 3 结构与填充（CP3，polish 独立成段）→ 阶段 4 终审（CP4）**。Checkpoint 总数 = 4（文本 ×1 + 图像 ×3），载体一律是 ask_user_question 表单（契约见「Checkpoint 表单」节）。
 
-预算纪律：step_budget = 50；每 CP 自然停顿即 run 终止续跑，用户作答后预算重置；阶段 3 填充中途预算不足时按「resume 协议」节收尾，不硬撑。
+预算纪律：step_budget = 70；每 CP 自然停顿即 run 终止续跑，用户作答后预算重置；阶段 3 填充中途预算不足时按「resume 协议」节收尾，不硬撑。
 
 ## 通用纪律（四则，各阶段适用）
 
@@ -47,19 +54,13 @@ hero-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向提�
 
 ## 阶段 2 · hero 物化（图像轮）
 
-做：先把锁定的标题渲染为最小版式（真文案、真字号，render 进根框并 describe 修尽 error）→ prepare_hero_scaffold（克隆标题版式为页面级参考帧；underlap_px / transition_zone_px 按 profile 语境定值，几何记录写进 scaffold，下游只读记录不散传）→ generate_image 全分辨率候选 ×2~3（默认 2~3，直接全分辨率，无低清分级，PD-1）。每候选落独立节点（同尺寸、同标题参照）；references 用 scaffold 作合成参照时 prompt 必须明写参照用法（围绕标题构图、标题区保持平静低细节、画面中不画任何文字）。
+做：先把锁定的标题渲染为最小版式（真文案、真字号，render 进根框并 describe 修尽 error）→ prepare_hero_scaffold（克隆标题版式为页面级参考帧；underlap_px / transition_zone_px 按 profile 语境定值，几何记录写进 scaffold，下游只读记录不散传）→ generate_image 全分辨率候选 ×2~3（默认 2~3，直接全分辨率，无低清分级，PD-1）。每候选落独立节点（同尺寸、同标题参照）；references 用 scaffold 作合成参照时 prompt 必须明写参照用法（围绕标题构图、标题区保持平静低细节、画面中不画任何文字）。写候选 prompt 前经 load_reference 读 `references/hero-prompt-template.md`（三段模板 + 变异纪律 + 回图诊断）；算 scaffold 几何 / 落位坐标前读 `references/coordinates.md`。
 
 候选纪律：单变量受控变异——风格词与标题参照锁同，一批内只动一个变量轴（构图 / 氛围 / 题材择一）。用户整批拒绝 = 合法请求，宿主 UI 自带成本提示；整批重生计数与脱困阀见「脱困阀」节（每次整批重生写一行结论区备查）。
 
 ### profile 协同（三档）
 
-本节按「profile 有相关规范 → 按 profile；profile 无相关规范 → 用 workflow 兜底值；无 profile → 同兜底值，agent 自行发挥处注明」三档列出阶段 2/3 的协同纪律：
-
-- **HeroContent 版式（lockup / 高度 / 眉题）**：profile 有规范时按 profile 的 Hero treatment 节里的 lockup / 高度 / 眉题规则执行；无规范（含无 profile）时 workflow 兜底 = lower-third 默认版式、hero 高度 = W（画布宽）、无眉题。
-- **prepare_hero_scaffold 参数**：profile 有规范时按 profile 的 scaffold 参数（underlap_px / transition_zone_px）执行；无规范时 workflow 兜底 = underlap_px = 100、transition_zone_px = 100（均按 W 缩放）。
-- **generate_image prompt 风格**：profile 有规范时按 profile 的水彩 prompt 规则（若 profile 是其他风格则按其风格规则，如赛博朋克按 cyber 规则）；无规范时 agent 按 CP1 锁定方向自行决定风格——profile 缺席处 agent 自判并写一行结论区备查风格选择与参照用法。标题参照用法一律明写：围绕标题构图、标题区保持平静低细节、画面中不画任何文字。
-- **compose_backdrop 配置（阶段 3 调用时）**：profile 有规范时按 profile（自动采样语义由 profile 给定）执行；无规范时缺省自动采样，不传 hero_color。外部 hero 图源（用户上传、无 scaffold）用 `compose_backdrop({ root_id, hero_image_from })`。
-- **look 验收标准**：profile 有验收标准按其标准；无规范时看 hero 底部无可见接缝、标题区可读，agent 自判通过。
+profile 协同按「profile 有相关规范 → 按 profile；无规范 → workflow 兜底值；无 profile → 同兜底值，agent 自行发挥处注明」三档执行——字段级查找表（HeroContent 版式 / scaffold 参数 / prompt 风格 / compose_backdrop 配置 / look 验收 × 三档各自的值）与判定速查在 `references/profile-coordination.md`，阶段 2/3 走到协同点前经 load_reference 读取。
 
 ══ CP2 · 图像表单 ══ image_select 引用全部候选节点 nodeId 择优 + 图片来源确认（AI 生成 / stock_photo / 用户素材——顺带确认后续节次用图来源）。
 

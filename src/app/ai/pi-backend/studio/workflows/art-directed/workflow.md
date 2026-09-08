@@ -10,13 +10,13 @@ sizes:
     canvas: 1080x1080
 references:
   - path: references/asset-architecture.md
-    description: Multi-asset architecture discipline (slot matrix / cutout stack / layered collage) and asset-plan recording
+    description: Multi-asset architecture discipline (slot matrix / cutout stack / layered collage) and asset-plan recording——一体化决策选定槽位矩阵 / 镂空叠层 / 分层拼贴之一后、写资产计划前读
   - path: references/imagery.md
-    description: Image-generation prompt construction and result diagnosis (quiet bands / band writing / size params / transparent assets)
+    description: Image-generation prompt construction and result diagnosis (quiet bands / band writing / size params / transparent assets)——写任何交付资产 prompt 前读；回图异常（图内文字 / 构图错 / 透明脏边 / 比例不符）时再读
   - path: references/layout-typography.md
-    description: Layout and typography principles (hierarchy / grid / bands / type ramp / CJK typesetting)
+    description: Layout and typography principles (hierarchy / grid / bands / type ramp / CJK typesetting)——版式拿不准时读；一体化决策前看「版式」节、渲染前看「画布构建约定」节
   - path: references/font-system.md
-    description: Font registry selection, role pairing, and landing checks
+    description: Font registry selection, role pairing, and landing checks——排印担纲设计 / brief 需要独特编辑声部 / 默认无衬线不够时读；一体化决策前看注册表
 ---
 
 # Editable Design
@@ -89,14 +89,23 @@ descriptions.
 Treat reference handling as a four-value mode even when the host exposes no
 formal setting:
 
-- `auto` — the default. Resolve it to `art-directed` for every new poster,
-  including an open brief; the composition reference is a standard design
-  step, not an optional enhancement that depends on the user describing a
-  finished picture. Resolve it to `off` only when the user explicitly declines
-  reference generation, or when a small revision to an existing poster does
-  not change its composition. Resolve it to `reproduce` when the user supplied
-  an image as the target or asked to match one closely. A loose style or mood
-  reference does not imply reproduction.
+- `auto` — the default. Resolve it per-brief, not per-policy:
+  - Resolve to `art-directed` when the brief clearly needs a composition
+    reference to land: a vague open brief (subject, mood, no visual direction),
+    a request that the design "look like" something without supplying an image,
+    or a brand/category where composed photography or illustration carries
+    the design (campaign visuals, event posters, product hero).
+  - Resolve to `off` when live typography, vector geometry, icons, modular
+    patterns, and user-supplied assets can satisfy the brief: dense
+    information layouts, code-native modular systems, typography-led
+    editorials, the user supplied enough reference material that an extra
+    reference image would add cost without adding design value, or a small
+    revision to an existing poster that does not change its composition.
+  - Resolve to `reproduce` when the user supplied an image as the target or
+    asked to match one closely. A loose style or mood reference does not
+    imply reproduction.
+    Decide from the brief; do not default either way. The composition reference
+    is a design tool — use it where the brief asks for it.
 - `off` — skip composition-reference generation.
 - `art-directed` — generate one enhanced, non-shipping composition concept.
 - `reproduce` — treat the supplied reference as a high-fidelity specification.

@@ -49,7 +49,7 @@ import { loadStudioFromDirs } from '@/app/ai/pi-backend/studio'
 
 const BUILTIN_DIR = join(import.meta.dir, '../../../../src/app/ai/pi-backend/studio')
 
-test('内置资产集过校验面：failures 零、base 注册（免 label）、四 workflow 注册（general + longform-hero-kv-first/longform-structure-first 画布尺寸节非空；art-directed references 全解析；structure-first references 缺席）、两 profile 注册（v2 + v2_zh 双语）、modes=[general, art-directed, longform-hero-kv-first, longform-structure-first]', () => {
+test('内置资产集过校验面：failures 零、base 注册（免 label）、四 workflow 注册（general + longform-hero-kv-first/longform-structure-first 画布尺寸节非空；art-directed + 双 longform references 全解析）、两 profile 注册（v2 + v2_zh 双语）、modes=[general, art-directed, longform-hero-kv-first, longform-structure-first]', () => {
   const userDir = mkdtempSync(join(tmpdir(), 'studio-user-empty-'))
   try {
     const r = loadStudioFromDirs(BUILTIN_DIR, userDir)
@@ -73,8 +73,15 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
     const longform = r.workflows.get('longform-hero-kv-first')
     if (!longform) throw new Error('longform-hero-kv-first 未注册')
     expect('types' in longform).toBe(false)
-    expect(longform.stepBudget).toBe(50)
+    expect(longform.stepBudget).toBe(70)
     expect(longform.body).toContain('画布尺寸')
+    // P2-12/2-13：hero-first 三条按需 references（坐标 / prompt 模板 / profile 协同）
+    expect(longform.references?.map((ref) => ref.path)).toEqual([
+      'references/coordinates.md',
+      'references/hero-prompt-template.md',
+      'references/profile-coordination.md'
+    ])
+    expect(r.resolvedReferences.get('workflow:longform-hero-kv-first')?.size).toBe(3)
 
     // T65：sizes 尺寸预设清单（原三蓝图 750x/750x/1080x 证据——同尺寸只收一条）
     expect(longform.sizes).toEqual([
@@ -106,14 +113,21 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
     }
     expect(r.modes.find((m) => m.id === 'art-directed')?.sizes).toEqual(artDirected.sizes)
 
-    // 结构先行长图 mode：与 longform-hero-kv-first 同尺寸预设、同 step budget，
-    // references 字段缺席，body 含「画布尺寸」节（同口径——mode 级尺寸说明存在性钉扎；
-    // P2-6 后 sections 字段从 types 移除，改用 body 包含断言）
+    // 结构先行长图 mode：与 longform-hero-kv-first 同尺寸预设，body 含「画布尺寸」节
+    //（同口径——mode 级尺寸说明存在性钉扎；P2-6 后 sections 字段从 types 移除，改用
+    // body 包含断言）；P2-12/2-13 起带四条按需 references（兜底工序 / 进度判定表 /
+    // 坐标 / prompt 模板）
     const structureFirst = r.workflows.get('longform-structure-first')
     if (!structureFirst) throw new Error('longform-structure-first 未注册')
-    expect(structureFirst.stepBudget).toBe(50)
+    expect(structureFirst.stepBudget).toBe(75)
     expect(structureFirst.sizes).toEqual(longform.sizes)
-    expect(structureFirst.references ?? []).toEqual([])
+    expect(structureFirst.references?.map((ref) => ref.path)).toEqual([
+      'references/fallback-recipe.md',
+      'references/skeleton-progress-table.md',
+      'references/coordinates.md',
+      'references/hero-prompt-template.md'
+    ])
+    expect(r.resolvedReferences.get('workflow:longform-structure-first')?.size).toBe(4)
     expect(structureFirst.body).toContain('画布尺寸')
     expect(r.modes.find((m) => m.id === 'longform-structure-first')?.sizes).toEqual(
       structureFirst.sizes

@@ -23,107 +23,97 @@
  * [.md,.txt,.json,.yaml,.csv]；50KB 截断逻辑不变。
  */
 
-import { readFileSync } from 'node:fs'
+import { readFileSync } from "node:fs";
 
-import { defineTool, type AgentToolResult } from '@earendil-works/pi-coding-agent'
-import { Type } from 'typebox'
+import { defineTool, type AgentToolResult } from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
 
-import { toToolResult } from './tool-result'
+import { toToolResult } from "./tool-result";
+import { referencePathProblem } from "./studio/reference-path";
 
 /** 单次读取体积上限（超出按字节截断 + 尾部注明） */
-export const LOAD_REFERENCE_MAX_BYTES = 50 * 1024
-
-/** P2-3a：references path 扩展名白名单（与 validate.ts REFERENCE_EXT_ALLOWLIST 同步） */
-const REFERENCE_EXT_ALLOWLIST = new Set(['.md', '.txt', '.json', '.yaml', '.csv'])
+export const LOAD_REFERENCE_MAX_BYTES = 50 * 1024;
 
 const LOAD_REFERENCE_DESCRIPTION =
-  'Load one on-demand reference file declared by the active studio assets (base/workflow/profile). The readable paths for THIS turn are listed in the system prompt section "按需参考（load_reference 工具按需读取）" — pass `path` exactly as listed there (relative; .md/.txt/.json/.yaml/.csv). Reads are whitelisted per turn: any other path is rejected and the error echoes the readable list. Returns the file text (truncated past 50KB with a trailing note). Use it to pull detailed design guidance only when the current step actually needs it — do not pre-read everything.'
+  'Load one on-demand reference file declared by the active studio assets (base/workflow/profile). The readable paths for THIS turn are listed in the system prompt section "按需参考（load_reference 工具按需读取）" — pass `path` exactly as listed there (relative; .md/.txt/.json/.yaml/.csv). Reads are whitelisted per turn: any other path is rejected and the error echoes the readable list. Returns the file text (truncated past 50KB with a trailing note). Use it to pull detailed design guidance only when the current step actually needs it — do not pre-read everything.';
 
 export interface LoadReferenceToolDeps {
   /** 本回合允许集（声明 path → 加载期解析绝对路径）；宿主每回合装配、finalizeTurn 复位 */
-  allowedPaths(): ReadonlyMap<string, string>
+  allowedPaths(): ReadonlyMap<string, string>;
   /** 文件读取（缺省 node:fs 同步读 utf8，同 registry 加载口径）；测试注入确定性 */
-  readFile?: (absolutePath: string) => string
+  readFile?: (absolutePath: string) => string;
 }
 
-/** 运行期遍历/绝对路径拒止（null = 通过）；validate 侧拒声明期，本侧拒运行期（纵深防御） */
-function rejectedPathReason(path: string): string | null {
-  if (path.startsWith('/')) return '是绝对路径'
-  if (/^[A-Za-z]:/.test(path)) return '含盘符'
-  if (path.split('/').some((seg) => seg === '..')) return '含 `..` 上跳'
-  const ext = path.slice(path.lastIndexOf('.')).toLowerCase()
-  if (!REFERENCE_EXT_ALLOWLIST.has(ext)) {
-    return `扩展名「${ext}」不在白名单（${[...REFERENCE_EXT_ALLOWLIST].join('/')}）`
-  }
-  return null
-}
+/** 运行期遍历/绝对路径拒止（null = 通过）；validate 侧拒声明期，本侧拒运行期（纵深防御，
+ *  规则本体 = studio/reference-path.ts 单一真源） */
+const rejectedPathReason = referencePathProblem;
 
 export function createLoadReferenceTool(deps: LoadReferenceToolDeps) {
-  const readFile = deps.readFile ?? ((absolutePath: string) => readFileSync(absolutePath, 'utf8'))
+  const readFile = deps.readFile ?? ((absolutePath: string) => readFileSync(absolutePath, "utf8"));
   return defineTool({
-    name: 'load_reference',
-    label: 'Load Reference',
+    name: "load_reference",
+    label: "Load Reference",
     description: LOAD_REFERENCE_DESCRIPTION,
     parameters: Type.Object({
       path: Type.String({
         description:
-          'Reference path exactly as listed in the 按需参考 section (relative; .md/.txt/.json/.yaml/.csv)'
-      })
+          "Reference path exactly as listed in the 按需参考 section (relative; .md/.txt/.json/.yaml/.csv)",
+      }),
     }),
     async execute(_toolCallId, params): Promise<AgentToolResult<Record<string, unknown>>> {
-      const requested = typeof params.path === 'string' ? params.path.trim() : ''
+      const requested = typeof params.path === "string" ? params.path.trim() : "";
       // 请求侧同口径归一（validate 存储形态 = 正斜杠相对路径）
-      const normalized = requested.replaceAll('\\', '/')
-      const allowed = deps.allowedPaths()
-      const available = [...allowed.keys()]
+      const normalized = requested.replaceAll("\\", "/");
+      const allowed = deps.allowedPaths();
+      const available = [...allowed.keys()];
 
-      const rejected = requested === '' ? 'path 为空' : rejectedPathReason(normalized)
+      const rejected = requested === "" ? "path 为空" : rejectedPathReason(normalized);
       if (rejected) {
         return toToolResult({
-          error: 'reference_path_rejected',
+          error: "reference_path_rejected",
           message: `path「${requested}」${rejected}——只接受本回合「按需参考」节列出的白名单扩展名相对路径`,
-          available
-        })
+          available,
+        });
       }
 
-      const abs = allowed.get(normalized)
+      const abs = allowed.get(normalized);
       if (!abs) {
         return toToolResult({
-          error: 'reference_not_allowed',
+          error: "reference_not_allowed",
           message:
             available.length === 0
               ? `path「${normalized}」不在本回合可读清单——本回合 active 资产未声明任何 references（无可读项）`
-              : `path「${normalized}」不在本回合可读清单——仅可读：${available.join('、')}`,
-          available
-        })
+              : `path「${normalized}」不在本回合可读清单——仅可读：${available.join("、")}`,
+          available,
+        });
       }
 
-      let text: string
+      let text: string;
       try {
-        text = readFile(abs)
+        text = readFile(abs);
       } catch (e) {
         return toToolResult({
-          error: 'reference_read_failed',
+          error: "reference_read_failed",
           message: `读取失败：${e instanceof Error ? e.message : String(e)}——文件在加载期存在性已检，运行期缺失通常是加载后被移动/删除；重载 studio 注册表后再试`,
-          available
-        })
+          available,
+        });
       }
 
-      const bytes = Buffer.byteLength(text, 'utf8')
-      let truncated = false
+      const bytes = Buffer.byteLength(text, "utf8");
+      let truncated = false;
       if (bytes > LOAD_REFERENCE_MAX_BYTES) {
-        truncated = true
+        truncated = true;
         // 字节截断可能切开多字节字符——剥掉边界替代符（U+FFFD），保持输出为干净 utf8
-        text = Buffer.from(text, 'utf8')
+        text = Buffer.from(text, "utf8")
           .subarray(0, LOAD_REFERENCE_MAX_BYTES)
-          .toString('utf8')
-          .replace(/�+$/, '')
-        text += `\n\n[已截断：原文约 ${Math.round(bytes / 1024)}KB，超出 ${LOAD_REFERENCE_MAX_BYTES / 1024}KB 上限——以上为前 50KB]`
+          .toString("utf8")
+          .replace(/�+$/, "");
+        text += `\n\n[已截断：原文约 ${Math.round(bytes / 1024)}KB，超出 ${LOAD_REFERENCE_MAX_BYTES / 1024}KB 上限——以上为前 50KB]`;
       }
       return {
-        content: [{ type: 'text', text }],
-        details: { path: normalized, bytes, truncated }
-      }
-    }
-  })
+        content: [{ type: "text", text }],
+        details: { path: normalized, bytes, truncated },
+      };
+    },
+  });
 }

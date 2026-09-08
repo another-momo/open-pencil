@@ -26,7 +26,7 @@
  *    = base only + 无封套；mode 有 id 但 workflow 文件缺失 → 一行提示 +
  *    按 general 组装（不注 profile）。
  *    T85 起尾段追加「按需参考」索引节（active 资产 references 并集非空时），
- *    并集即本回合 read_reference 允许集（read-reference.ts）。
+ *    并集即本回合 load_reference 允许集（load-reference.ts）。
  *  - 新建意图一次性旗标：首行信封 `[新建意图确认 modeId=<id> profileId=<id>
  *    canvas=<值>]`（字段可缺省，顺序固定；canvas 自 T65 起）剥离 → 本回合
  *    newIntentConfirmed() 返真 → run 结束 finalizeTurn（runPrompt finally）
@@ -101,15 +101,15 @@ export interface TurnAssembly {
   /** context 注入行（身份封套 + 系统提示）；空槽 → 空数组 */
   contextLines: string[]
   /**
-   * T85 定谳 4：本回合 read_reference 允许集（声明 path → 加载期解析绝对路径；
+   * T85 定谳 4：本回合 load_reference 允许集（声明 path → 加载期解析绝对路径；
    * 空 = 本回合不可读任何 reference）。宿主持有于 turn 缓存袋，finalizeTurn
    * 随 turn=null 一并复位（同 intentConfirmed 一次性态纪律）。
    */
   allowedReferences: ReadonlyMap<string, string>
 }
 
-/** 索引节标题（T85 定谳 3 字面口径） */
-const REFERENCES_INDEX_HEADING = '## 按需参考（read_reference 工具按需读取）'
+/** 索引节标题（T85 定谳 3 字面口径；P2-3 同步工具名） */
+const REFERENCES_INDEX_HEADING = '## 按需参考（load_reference 工具按需读取）'
 
 /** 本回合 active 资产的 references 并集：base 恒在 + 命中的 workflow + 命中的 profile */
 function collectActiveReferences(
@@ -150,10 +150,12 @@ function finishTurn(
   }
 }
 
-/** 身份封套首行（三元组 + 节点 id；profileId 缺省字段省略，同信封风格） */
+/** 身份封套首行（nodeId + briefId；P2-2 §8.1.1 移除 modeId/profileId——agent 从
+ *  system prompt 内容本身知道当前 workflow/profile，不需文件名 id；暴露可能泄露
+ *  给用户，且 id 不稳定）。注意：`[新建意图确认 modeId=... profileId=...]` 是
+ *  P0-1 newIntent 流程的承重设计（setup_design 守卫依赖），绝不可动。 */
 export function designTargetEnvelope(design: DesignRootSnapshot): string {
-  const profile = design.profileId === '' ? '' : ` profileId=${design.profileId}`
-  return `[当前设计目标 nodeId=${design.nodeId} modeId=${design.modeId}${profile} briefId=${design.briefId}]`
+  return `[当前设计目标 nodeId=${design.nodeId} briefId=${design.briefId}]`
 }
 
 /**
@@ -185,7 +187,7 @@ export type TurnSlotState = ActiveDesignSlotState & {
  *  - workflowMissingModeId 非空 → 一行 workflowMissing 提示（身份封套保留——目标事实仍在）
  *  - T85 定谳 3：本回合 active 资产（base 恒在 + 命中 workflow + 命中 profile）的
  *    references 并集非空时，systemPrompt 尾段追加「按需参考」索引节；并集即本回合
- *    read_reference 允许集（allowedReferences，finalizeTurn 复位）
+ *    load_reference 允许集（allowedReferences，finalizeTurn 复位）
  */
 export function assembleTurn(
   registry: StudioRegistry,
@@ -238,10 +240,17 @@ export function resolveTurnAssets(
   const workflow = registry.workflows.get(modeId)
   // 缺失 → 按 base only 组装（不注 profile）+ 提示行
   if (!workflow) return { ...slot, workflowMissingModeId: modeId }
+  // P2-10（2026-09-07）：profile 的 modes 字段是运行时过滤权威——UI 层（chips 菜单）
+  // 与 prompt 注入层（本校验）都按 modes 筛选，缺省/空数组 = 所有 mode 可用。
+  // 若 profile 显式列出 modes 但当前 modeId 不在列 → 不注入该 profile（防御层：
+  // UI 正常不会选出这种组合，但 pluginData 信封跨文档残留等场景仍需拦截）。
+  const profileMatches = profile
+    ? profile.modes.length === 0 || profile.modes.includes(modeId)
+    : true
   return {
     ...slot,
     resolvedWorkflow: workflow,
-    ...(profile ? { resolvedProfile: profile } : {})
+    ...(profile && profileMatches ? { resolvedProfile: profile } : {})
   }
 }
 

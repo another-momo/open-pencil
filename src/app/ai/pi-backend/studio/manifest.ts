@@ -19,11 +19,11 @@ import type { StudioFailure, StudioMode, StudioRegistry } from './types'
  *  T65：sizes 尺寸预设清单透传——形状与 StudioMode 全等 → 别名不双写（type-shapes 门禁）） */
 export type PiStudioModeEntry = StudioMode
 
-/** profile 摘要（gallery 展示用；applicableTo 为描述性元信息，PD-17 不构成过滤） */
+/** profile 摘要（gallery 展示用；P2-4：`modes` 为「适用 mode」列表，P2-10 启用过滤） */
 export type PiStudioProfileSummary = {
   id: string
   label: string
-  applicableTo: string[]
+  modes: string[]
 }
 
 /** 加载失败条目（S2 §8 显式暴露数据面；path 相对 origin 目录） */
@@ -75,7 +75,7 @@ export function toStudioManifest(
   })
   const profiles: PiStudioProfileSummary[] = [...registry.profiles.values()]
     .filter((p) => !p.deprecated)
-    .map((p) => ({ id: p.id, label: p.label, applicableTo: p.applicableTo }))
+    .map((p) => ({ id: p.id, label: p.label, modes: p.modes }))
   const failures: PiStudioFailureEntry[] = registry.failures.map((f) => ({
     ...(f.origin ? { origin: f.origin } : {}),
     path: f.path,

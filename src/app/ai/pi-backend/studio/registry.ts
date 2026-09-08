@@ -14,8 +14,15 @@
  * 所在目录解析）——缺失条目摘出注册资产 + failures 显式条目（S2 §8：frontmatter
  * 病态整条不注册，文件缺失不连坐资产本体），命中条目进 resolvedReferences
  * 内部桶（绝对路径不出后端进程，manifest 不投影）。
- * 扫描深度钉扎：listMarkdownFiles 非递归（仅直视子 .md 文件）——references
- * 子目录（如 `workflows/art-directed/references/`）永不被当资产注册。
+ *
+ * P2-9（2026-09-07）：目录布局重组——资产本体与 references 子目录同目录
+ * （`workflows/<id>/workflow.md + references/`、`profiles/<id>/profile.md + references/`）。
+ * 扫描器仅扫子目录：workflows 下形如 id/workflow.md，profiles 下形如 id/profile.md，id = 目录名。
+ * references 子目录中的文件不再走资产扫描器（仅 resolveReferences 按需解析）。
+ * `base.md` 保持 `studio/base.md` 单文件不变。
+ *
+ * P2-10 储备（2026-09-07）：`_` 前缀目录扫描时跳过不注册——为 P2-11 seed 模板
+ * （用户目录内置 `_example/_seed` 占位）让路，内置与用户同口径。
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -36,6 +43,7 @@ import {
 } from './types'
 import {
   parseReferences,
+  validateBase,
   validateProfile,
   validateWorkflow,
   type ValidationIssue
@@ -43,6 +51,10 @@ import {
 
 const BUILTIN_STUDIO_SUBPATH = join('src', 'app', 'ai', 'pi-backend', 'studio')
 const USER_STUDIO_SUBPATH = join('.openpencil', 'studio')
+
+/** P2-9：资产本体文件名（与目录同构——id 挂到目录名） */
+const WORKFLOW_FILENAME = 'workflow.md'
+const PROFILE_FILENAME = 'profile.md'
 
 interface Candidate {
   id: string
@@ -52,11 +64,13 @@ interface Candidate {
   relPath: string
 }
 
-function listMarkdownFiles(dir: string): string[] {
-  if (!existsSync(dir)) return []
+/** P2-9：扫描 `parentDir` 下形如 `<id>/<filename>` 的子目录（顶层 .md 一律忽略）。
+ *  `_` 前缀目录扫描时跳过不注册（P2-11 seed 模板预留）。返回按 id 排序的目录列表。 */
+function listAssetDirs(parentDir: string): string[] {
+  if (!existsSync(parentDir)) return []
   try {
-    return readdirSync(dir, { withFileTypes: true })
-      .filter((e) => e.isFile() && e.name.endsWith('.md'))
+    return readdirSync(parentDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && !e.name.startsWith('_'))
       .map((e) => e.name)
       .sort()
   } catch {
@@ -64,20 +78,25 @@ function listMarkdownFiles(dir: string): string[] {
   }
 }
 
-/** 内置 → 用户顺序收集候选；同 id 用户覆盖内置（S2 §2 分层覆盖） */
-function collectCandidates(builtinDir: string, userDir: string, subdir: string): Candidate[] {
+/** 内置 → 用户顺序收集候选；同 id 用户覆盖内置（S2 §2 分层覆盖）。
+ *  P2-9：扫描的是 `parentDir/<id>/<filename>`（目录名 = id），与原 `parentDir/*.md` 同口径。 */
+function collectCandidates(
+  builtinDir: string,
+  userDir: string,
+  subdir: string,
+  filename: string
+): Candidate[] {
   const byId = new Map<string, Candidate>()
   for (const [dir, origin] of [
     [join(builtinDir, subdir), 'builtin'],
     [join(userDir, subdir), 'user']
   ] as const) {
-    for (const name of listMarkdownFiles(dir)) {
-      const id = name.slice(0, -'.md'.length)
+    for (const id of listAssetDirs(dir)) {
       byId.set(id, {
         id,
         origin,
-        path: join(dir, name),
-        relPath: join(subdir, name).replaceAll('\\', '/')
+        path: join(dir, id, filename),
+        relPath: join(subdir, id, filename).replaceAll('\\', '/')
       })
     }
   }
@@ -118,9 +137,9 @@ function fail(
 type ResolvedBuckets = Map<string, Map<string, string>>
 
 /**
- * T85 定谳 1/2：references 存在性检查与绝对路径解析。解析基 = **按资产分目录**
- * （`<资产文件所在目录>/<资产 id>/`，定谳 2「与资产同侧按资产分目录」布局——
- * 声明 `references/imagery.md` 即 `<所在目录>/<id>/references/imagery.md`）。
+ * T85 定谳 1/2：references 存在性检查与绝对路径解析。解析基 = **资产所在目录**
+ * （P2-9 新布局：`workflows|profiles/<id>/`，references 子目录与资产本体同目录）。
+ * 声明 `references/imagery.md` 即 `workflows|profiles/<id>/references/imagery.md`。
  * 命中 → 留在注册资产 + 进 resolved 桶；缺失 → 条目摘出 + failures 显式条目
  * （文件缺失不连坐资产本体——frontmatter 病态已在 validate 段整条拦下）。
  */
@@ -134,7 +153,7 @@ function resolveReferences(
   if (!references) return undefined
   const kept: StudioAssetReference[] = []
   for (const ref of references) {
-    const abs = join(dirname(candidate.path), candidate.id, ref.path)
+    const abs = join(dirname(candidate.path), ref.path)
     if (existsSync(abs)) {
       kept.push(ref)
       let bucket = resolved.get(referenceBucketKey(kind, candidate.id))
@@ -149,7 +168,7 @@ function resolveReferences(
         candidate,
         kind,
         `references 声明的「${ref.path}」文件不存在`,
-        `补齐该文件（按资产分目录布局：<资产同侧目录>/${candidate.id}/${ref.path}），或从 frontmatter 删除该条声明`
+        `补齐该文件（资产目录布局：workflows|profiles/${candidate.id}/${ref.path}），或从 frontmatter 删除该条声明`
       )
     }
   }
@@ -199,27 +218,37 @@ function loadBase(
     return null
   }
   // T85：base 同享 references 机制（校验同三类口径；病态 → base 不注册，同 id 错硬失败先例）
+  // P2-7：version/deprecated 通用化由 validateBase 承载
   const referenceIssues: ValidationIssue[] = []
-  const { references } = parseReferences(parsed.frontmatter, referenceIssues)
+  const baseReferenceParse = parseReferences(parsed.frontmatter, referenceIssues)
   if (referenceIssues.length > 0) {
     for (const issue of referenceIssues) {
       fail(failures, baseCandidate, 'base', issue.reason, issue.hint)
     }
     return null
   }
-  const keptReferences = resolveReferences(references, baseCandidate, 'base', resolved, failures)
-  return {
+  const { version, deprecated } = validateBase(parsed)
+  const keptReferences = resolveReferences(
+    baseReferenceParse.references,
+    baseCandidate,
+    'base',
+    resolved,
+    failures
+  )
+  const entry: StudioBase = {
     kind: 'base',
     id: 'base',
     body: parsed.body,
-    sections: parsed.sections,
     ...(keptReferences ? { references: keptReferences } : {}),
+    ...(version !== undefined ? { version } : {}),
+    ...(deprecated ? { deprecated } : {}),
     origin: baseCandidate.origin,
     path: baseCandidate.path
   }
+  return entry
 }
 
-/** workflows 先于 profiles 校验：applicable_to 引用完整性需要已注册 mode 集合 */
+/** workflows 先于 profiles 校验：modes 引用完整性需要已注册 mode 集合 */
 function loadWorkflows(
   builtinDir: string,
   userDir: string,
@@ -227,16 +256,14 @@ function loadWorkflows(
   failures: StudioFailure[]
 ): Map<string, StudioWorkflow> {
   const workflows = new Map<string, StudioWorkflow>()
-  for (const candidate of collectCandidates(builtinDir, userDir, 'workflows')) {
+  for (const candidate of collectCandidates(builtinDir, userDir, 'workflows', WORKFLOW_FILENAME)) {
     const parsed = readAndParse(candidate)
     if (!parsed.ok) {
       fail(failures, candidate, 'workflow', parsed.reason, parsed.hint)
       continue
     }
-    const { issues, stepBudget, subtitle, sizes, references } = validateWorkflow(
-      parsed,
-      candidate.id
-    )
+    const { issues, stepBudget, subtitle, sizes, references, version, deprecated } =
+      validateWorkflow(parsed, candidate.id)
     if (issues.length > 0) {
       for (const issue of issues) fail(failures, candidate, 'workflow', issue.reason, issue.hint)
       continue
@@ -247,7 +274,6 @@ function loadWorkflows(
       id: candidate.id,
       label: String(parsed.frontmatter.label),
       body: parsed.body,
-      sections: parsed.sections,
       origin: candidate.origin,
       path: candidate.path
     }
@@ -255,6 +281,8 @@ function loadWorkflows(
     if (stepBudget !== undefined) workflowEntry.stepBudget = stepBudget
     if (sizes) workflowEntry.sizes = sizes
     if (keptReferences) workflowEntry.references = keptReferences
+    if (version !== undefined) workflowEntry.version = version
+    if (deprecated) workflowEntry.deprecated = deprecated
     workflows.set(candidate.id, workflowEntry)
   }
   return workflows
@@ -268,14 +296,17 @@ function loadProfiles(
   failures: StudioFailure[]
 ): Map<string, StudioProfile> {
   const profiles = new Map<string, StudioProfile>()
-  for (const candidate of collectCandidates(builtinDir, userDir, 'profiles')) {
+  for (const candidate of collectCandidates(builtinDir, userDir, 'profiles', PROFILE_FILENAME)) {
     const parsed = readAndParse(candidate)
     if (!parsed.ok) {
       fail(failures, candidate, 'profile', parsed.reason, parsed.hint)
       continue
     }
-    const { issues, applicableTo, heroComposition, version, deprecated, references } =
-      validateProfile(parsed, candidate.id, knownModeIds)
+    const { issues, modes, version, deprecated, references } = validateProfile(
+      parsed,
+      candidate.id,
+      knownModeIds
+    )
     if (issues.length > 0) {
       for (const issue of issues) fail(failures, candidate, 'profile', issue.reason, issue.hint)
       continue
@@ -285,14 +316,12 @@ function loadProfiles(
       kind: 'profile',
       id: candidate.id,
       label: String(parsed.frontmatter.label),
-      applicableTo,
+      modes,
       deprecated,
       body: parsed.body,
-      sections: parsed.sections,
       origin: candidate.origin,
       path: candidate.path
     }
-    if (heroComposition) profileEntry.heroComposition = heroComposition
     if (version !== undefined) profileEntry.version = version
     if (keptReferences) profileEntry.references = keptReferences
     profiles.set(candidate.id, profileEntry)

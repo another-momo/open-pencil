@@ -29,10 +29,15 @@
  * longform-structure-first。
  *
  * P2-1（2026-09-07）：studio profile 由「by 行为类别」重组为「by 设计要素」——
- * v2 重组为 Typography / Color / Layout / Hero treatment / Forbidden / Tone 六节，
- * applicable_to 扩到 longform-hero-kv-first + longform-structure-first 两种
- * longform workflow 共享；v3 退役（v2 是超集）；新增 watercolor_poster_v2_zh
- * 中文版（id=watercolor_poster_v2_zh，label=水彩海报 v2（中文））。
+ *  v2 重组为 Typography / Color / Layout / Hero treatment / Forbidden / Tone 六节，
+ *  applicable_to 扩到 longform-hero-kv-first + longform-structure-first 两种
+ *  longform workflow 共享；v3 退役（v2 是超集）；新增 watercolor_poster_v2_zh
+ *  中文版（id=watercolor_poster_v2_zh，label=水彩海报 v2（中文））。
+ *
+ *  P2-4（2026-09-07）：`applicable_to` → `modes`。
+ *  P2-6（2026-09-07）：`sections` 字段移除，画布尺寸节存在性改为 body 包含断言。
+ *  P2-9（2026-09-07）：资产本体移至 workflows/<id>/workflow.md 与
+ *  profiles/<id>/profile.md——`BUILTIN_DIR` 指向仓库根的 studio/ 即可（扫描器只看子目录）。
  */
 
 import { expect, test } from 'bun:test'
@@ -69,7 +74,7 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
     if (!longform) throw new Error('longform-hero-kv-first 未注册')
     expect('types' in longform).toBe(false)
     expect(longform.stepBudget).toBe(50)
-    expect(longform.sections['画布尺寸']).toBeTruthy()
+    expect(longform.body).toContain('画布尺寸')
 
     // T65：sizes 尺寸预设清单（原三蓝图 750x/750x/1080x 证据——同尺寸只收一条）
     expect(longform.sizes).toEqual([
@@ -102,25 +107,27 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
     expect(r.modes.find((m) => m.id === 'art-directed')?.sizes).toEqual(artDirected.sizes)
 
     // 结构先行长图 mode：与 longform-hero-kv-first 同尺寸预设、同 step budget，
-    // references 字段缺席，画布尺寸节非空（同口径——mode 级尺寸说明存在性钉扎）
+    // references 字段缺席，body 含「画布尺寸」节（同口径——mode 级尺寸说明存在性钉扎；
+    // P2-6 后 sections 字段从 types 移除，改用 body 包含断言）
     const structureFirst = r.workflows.get('longform-structure-first')
     if (!structureFirst) throw new Error('longform-structure-first 未注册')
     expect(structureFirst.stepBudget).toBe(50)
     expect(structureFirst.sizes).toEqual(longform.sizes)
     expect(structureFirst.references ?? []).toEqual([])
-    expect(structureFirst.sections['画布尺寸']).toBeTruthy()
+    expect(structureFirst.body).toContain('画布尺寸')
     expect(r.modes.find((m) => m.id === 'longform-structure-first')?.sizes).toEqual(
       structureFirst.sizes
     )
 
-    // P2-1：profiles 双语精品——v2 英文 + v2_zh 中文；applicable_to 共享两种 longform workflow
+    // P2-1：profiles 双语精品——v2 英文 + v2_zh 中文；modes 共享两种 longform workflow
     //（longform-hero-kv-first + longform-structure-first 由 v2 一份 profile 覆盖）
     expect([...r.profiles.keys()].sort()).toEqual([
       'watercolor_poster_v2',
       'watercolor_poster_v2_zh'
     ])
     for (const p of r.profiles.values()) {
-      expect(p.applicableTo).toEqual(['longform-hero-kv-first', 'longform-structure-first'])
+      // P2-4：applicableTo → modes
+      expect(p.modes).toEqual(['longform-hero-kv-first', 'longform-structure-first'])
     }
 
     // modes 投影：general 首位（general.md 派生，source 标 general）+ 三 workflow 派生

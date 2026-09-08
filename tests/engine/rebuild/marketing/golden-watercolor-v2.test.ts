@@ -67,9 +67,10 @@ const HERO_H = 750
 const UNDERLAP = 100
 const ROOT_H = 2120
 
+// P2-9（2026-09-07）：资产本体移至子目录，路径同步
 const PROFILE_PATH = join(
   import.meta.dir,
-  '../../../../src/app/ai/pi-backend/studio/profiles/watercolor_poster_v2.md'
+  '../../../../src/app/ai/pi-backend/studio/profiles/watercolor_poster_v2/profile.md'
 )
 
 /** v2 Typography 节的 W=750 字阶档（从真实 profile 文件提取，改字阶即改门禁） */
@@ -189,7 +190,7 @@ function childByName(graph: SceneGraph, parent: SceneNode, name: string): SceneN
 
 // ── profile 文件钉扎（七必改的文件级门禁） ────────────────────────────────────
 
-test('golden-0 profile 钉扎：六设计要素节齐全、Recipe 已迁出、frontmatter applicable_to 双 longform', () => {
+test('golden-0 profile 钉扎：六设计要素节齐全、Recipe 已迁出、frontmatter modes 双 longform', () => {
   const text = readFileSync(PROFILE_PATH, 'utf8')
   // P2-1（2026-09-07）：profile 由 by 行为类别重组为 by 设计要素——六节名称钉扎
   for (const section of ['Typography', 'Color', 'Layout', 'Hero treatment', 'Forbidden', 'Tone']) {
@@ -200,10 +201,10 @@ test('golden-0 profile 钉扎：六设计要素节齐全、Recipe 已迁出、fr
   expect(text).not.toContain('Fixed system')
   expect(text).not.toContain('Variable system')
   expect(text).not.toContain('Anti-identity')
-  // frontmatter 钉扎（id/label/version 维持；applicable_to 扩到双 longform workflow 共享）
+  // P2-4（2026-09-07）：frontmatter 钉扎（id/label/version 维持；modes 扩到双 longform workflow 共享）
   expect(
     text.startsWith(
-      '---\nid: watercolor_poster_v2\nlabel: 水彩海报 v2\napplicable_to: [longform-hero-kv-first, longform-structure-first]\nversion: 2\n---'
+      '---\nid: watercolor_poster_v2\nlabel: 水彩海报 v2\nmodes: [longform-hero-kv-first, longform-structure-first]\nversion: 2\n---'
     )
   ).toBe(true)
   expect(text).not.toContain('hero_composition')
@@ -219,8 +220,8 @@ test('golden-0 profile 钉扎：六设计要素节齐全、Recipe 已迁出、fr
   expect(text).not.toContain('结构与填充')
   expect(text).not.toContain('Phase 2 skeleton')
   expect(text).not.toContain('Phase 2.5')
-  // applicable_to 无 type 提法（T62 后 type 层级删除）
-  expect(text).not.toMatch(/applicable_to[^\n]*type/i)
+  // P2-4：modes 无 type 提法（T62 后 type 层级删除）
+  expect(text).not.toMatch(/modes[^\n]*type/i)
 })
 
 // ── golden 管线：固定 brief + 750x 预设的确定性断言 ──────────────────────────

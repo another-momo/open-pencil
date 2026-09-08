@@ -1,19 +1,25 @@
 /**
- * T85（资产 references 按需读取机制，定谳 4）：read_reference 后端本地工具单测。
+ * T85（资产 references 按需读取机制，定谳 4）：load_reference 后端本地工具单测。
  * 形态参照 tests/engine/rebuild/marketing/ask-user-question.test.ts（pi 工具工厂经
  * 双参直调 execute 钉行为）。
  *
  * 验收映射（T85-plan §3.8）：允许 / 拒绝（未声明列出可读清单）/ 遍历拒绝（`..`
  * 与绝对路径运行期再拒，纵深防御）/ 50KB 截断（尾部注明）/ 读失败结构化错误 /
  * 请求侧反斜杠归一 / 回合外空集全拒。
+ *
+ * P2-3（2026-09-07）：read_reference → load_reference 工具名重命名；测试入口与
+ * 描述同步。factory 与常量名同步迁移。
+ *
+ * P2-3a（2026-09-07）：references path 扩展名白名单放宽为 [.md,.txt,.json,.yaml,.csv]——
+ * 工具运行侧路径拒止与工具描述同步放宽；新增合法扩展名钉扎。
  */
 
 import { describe, expect, test } from 'bun:test'
 
 import {
-  createReadReferenceTool,
-  READ_REFERENCE_MAX_BYTES
-} from '@/app/ai/pi-backend/read-reference'
+  createLoadReferenceTool,
+  LOAD_REFERENCE_MAX_BYTES
+} from '@/app/ai/pi-backend/load-reference'
 
 const CONTENT = '# 图像决策纪律\n\n留白带只描述外观。\n'
 
@@ -26,14 +32,14 @@ function stubReadFile(files: Record<string, string>): (abs: string) => string {
 }
 
 function makeTool(files: Record<string, string>, allowed?: ReadonlyMap<string, string>) {
-  return createReadReferenceTool({
+  return createLoadReferenceTool({
     allowedPaths: () =>
       allowed ?? new Map([['references/imagery.md', '/abs/editable-design/references/imagery.md']]),
     readFile: stubReadFile(files)
   })
 }
 
-describe('read_reference：允许与读取', () => {
+describe('load_reference：允许与读取', () => {
   test('命中 → 返回全文 + details 带 path/bytes/truncated=false', async () => {
     const tool = makeTool({ '/abs/editable-design/references/imagery.md': CONTENT })
     const result = await tool.execute('call-1', { path: 'references/imagery.md' })
@@ -54,7 +60,7 @@ describe('read_reference：允许与读取', () => {
   })
 })
 
-describe('read_reference：拒绝面', () => {
+describe('load_reference：拒绝面', () => {
   test('未声明 → reference_not_allowed + 列出本回合可读清单', async () => {
     const tool = makeTool({})
     const result = await tool.execute('call-1', { path: 'references/font-system.md' })
@@ -75,7 +81,7 @@ describe('read_reference：拒绝面', () => {
 
   test('`..` 上跳与绝对路径运行期再拒（reference_path_rejected，不查文件）', async () => {
     let reads = 0
-    const tool = createReadReferenceTool({
+    const tool = createLoadReferenceTool({
       allowedPaths: () => new Map([['references/imagery.md', '/abs/x.md']]),
       readFile: () => {
         reads++
@@ -96,6 +102,15 @@ describe('read_reference：拒绝面', () => {
     expect(reads).toBe(0)
   })
 
+  // P2-3a：非白名单扩展名（.html）运行期再拒
+  test('P2-3a：非白名单扩展名（.html）→ reference_path_rejected', async () => {
+    const tool = makeTool({}, new Map([['references/imagery.html', '/abs/x.html']]))
+    const result = await tool.execute('call-1', { path: 'references/imagery.html' })
+    const details = result.details as { error?: string; message?: string }
+    expect(details.error).toBe('reference_path_rejected')
+    expect(details.message).toContain('扩展名')
+  })
+
   test('空 path → reference_path_rejected', async () => {
     const tool = makeTool({})
     const result = await tool.execute('call-1', { path: '  ' })
@@ -111,7 +126,7 @@ describe('read_reference：拒绝面', () => {
   })
 })
 
-describe('read_reference：50KB 截断', () => {
+describe('load_reference：50KB 截断', () => {
   test('超出上限 → 按字节截断 + 尾部注明 + details.truncated=true', async () => {
     // 构造 60KB 文本（ASCII 计字节即字符）
     const big = '密'.repeat(20 * 1024) // 3 字节/字 → 60KB
@@ -124,12 +139,12 @@ describe('read_reference：50KB 截断', () => {
     expect(text).toContain('[已截断')
     // 截断体 ≤ 上限（尾部注记另加）
     expect(Buffer.byteLength(text.split('[已截断')[0], 'utf8')).toBeLessThanOrEqual(
-      READ_REFERENCE_MAX_BYTES
+      LOAD_REFERENCE_MAX_BYTES
     )
   })
 
   test('恰在上限内 → 不截断', async () => {
-    const ok = 'a'.repeat(READ_REFERENCE_MAX_BYTES - 10)
+    const ok = 'a'.repeat(LOAD_REFERENCE_MAX_BYTES - 10)
     const tool = makeTool({ '/abs/editable-design/references/imagery.md': ok })
     const result = await tool.execute('call-1', { path: 'references/imagery.md' })
     expect((result.details as { truncated?: boolean }).truncated).toBe(false)

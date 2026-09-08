@@ -74,7 +74,7 @@ const LONGFORM_SIZES = [
 const PROFILE_MD = `---
 id: watercolor_poster_v3
 label: 水彩海报 v3
-applicable_to: [longform]
+modes: [longform]
 version: 3
 ---
 
@@ -102,7 +102,7 @@ version: 3
 const DEPRECATED_MD = `---
 id: old_poster
 label: 旧海报
-applicable_to: [longform]
+modes: [longform]
 deprecated: true
 ---
 
@@ -129,8 +129,8 @@ deprecated: true
 
 test('投影：modes 收两级（general 首位 + longform 带 subtitle，无 types 数据面）', () => {
   put(builtinDir, 'base.md', BASE_MD)
-  put(builtinDir, join('workflows', 'longform.md'), LONGFORM_MD)
-  put(builtinDir, join('profiles', 'watercolor_poster_v3.md'), PROFILE_MD)
+  put(builtinDir, join('workflows', 'longform', 'workflow.md'), LONGFORM_MD)
+  put(builtinDir, join('profiles', 'watercolor_poster_v3', 'profile.md'), PROFILE_MD)
   const m = toStudioManifest(loadStudioFromDirs(builtinDir, userDir))
 
   expect(m.modes.map((mode) => mode.id)).toEqual(['general', 'longform'])
@@ -148,9 +148,9 @@ test('投影：modes 收两级（general 首位 + longform 带 subtitle，无 ty
 
 test('投影：profiles 摘要无 body；deprecated 不进数据面', () => {
   put(builtinDir, 'base.md', BASE_MD)
-  put(builtinDir, join('workflows', 'longform.md'), LONGFORM_MD)
-  put(builtinDir, join('profiles', 'watercolor_poster_v3.md'), PROFILE_MD)
-  put(builtinDir, join('profiles', 'old_poster.md'), DEPRECATED_MD)
+  put(builtinDir, join('workflows', 'longform', 'workflow.md'), LONGFORM_MD)
+  put(builtinDir, join('profiles', 'watercolor_poster_v3', 'profile.md'), PROFILE_MD)
+  put(builtinDir, join('profiles', 'old_poster', 'profile.md'), DEPRECATED_MD)
   const registry = loadStudioFromDirs(builtinDir, userDir)
   expect(registry.profiles.size).toBe(2) // deprecated 仍注册在案
   const m = toStudioManifest(registry)
@@ -158,19 +158,20 @@ test('投影：profiles 摘要无 body；deprecated 不进数据面', () => {
   expect(m.profiles.map((p) => p.id)).toEqual(['watercolor_poster_v3'])
   const summary = m.profiles[0]
   expect(summary.label).toBe('水彩海报 v3')
-  expect(summary.applicableTo).toEqual(['longform'])
+  // P2-4：applicableTo → modes
+  expect(summary.modes).toEqual(['longform'])
   expect('body' in summary).toBe(false) // 信任边界：正文不下发
-  expect(Object.keys(summary).sort()).toEqual(['applicableTo', 'id', 'label'])
+  expect(Object.keys(summary).sort()).toEqual(['id', 'label', 'modes'])
 })
 
 test('投影：failures 相对路径 + origin；整体缺失态 path=.', () => {
-  // 文件级失败：坏 frontmatter 的 profile（workflows 空 → applicable_to 不拦）
+  // 文件级失败：坏 frontmatter 的 profile（workflows 空 → modes 不拦）
   put(builtinDir, 'base.md', BASE_MD)
-  put(builtinDir, join('profiles', 'broken.md'), '无 frontmatter')
+  put(builtinDir, join('profiles', 'broken', 'profile.md'), '无 frontmatter')
   const m = toStudioManifest(loadStudioFromDirs(builtinDir, userDir))
   const fileFailure = m.failures.find((f) => f.kind === 'profile')
   if (!fileFailure) throw new Error('缺 profile 失败条目')
-  expect(fileFailure.path).toBe('profiles/broken.md') // 统一正斜杠（跨平台口径）
+  expect(fileFailure.path).toBe('profiles/broken/profile.md') // 统一正斜杠（跨平台口径）
   expect(fileFailure.origin).toBe('builtin')
   expect(fileFailure.path).not.toContain(builtinDir) // 绝对路径不下发
 
@@ -187,7 +188,7 @@ test('投影：failures 相对路径 + origin；整体缺失态 path=.', () => {
 
 test('整体缺失态：零注册且有失败 → studio 级 failure 入投影', () => {
   const empty = mkdtempSync(join(tmpdir(), 'studio-broken-'))
-  put(empty, join('workflows', 'bad.md'), '无 frontmatter')
+  put(empty, join('workflows', 'bad', 'workflow.md'), '无 frontmatter')
   const m = toStudioManifest(loadStudioFromDirs(empty, userDir))
   const total = m.failures.find((f) => f.kind === 'studio')
   if (!total) throw new Error('缺整体缺失态条目')
@@ -199,16 +200,16 @@ test('整体缺失态：零注册且有失败 → studio 级 failure 入投影',
 
 test('overlay 适配：profiles markdown=body（types 段已随 T62 整段删除）', () => {
   put(builtinDir, 'base.md', BASE_MD)
-  put(builtinDir, join('workflows', 'longform.md'), LONGFORM_MD)
+  put(builtinDir, join('workflows', 'longform', 'workflow.md'), LONGFORM_MD)
   put(
     builtinDir,
-    join('workflows', 'creative.md'),
+    join('workflows', 'creative', 'workflow.md'),
     LONGFORM_MD.replace('id: longform', 'id: creative').replace(
       'label: 长图设计',
       'label: 创意生图'
     )
   )
-  put(builtinDir, join('profiles', 'watercolor_poster_v3.md'), PROFILE_MD)
+  put(builtinDir, join('profiles', 'watercolor_poster_v3', 'profile.md'), PROFILE_MD)
   const registry = loadStudioFromDirs(builtinDir, userDir)
   const input = studioOverlayInput(registry)
 
@@ -226,7 +227,7 @@ test('overlay 适配：profiles markdown=body（types 段已随 T62 整段删除
 
 test('T87 投影：capabilities 默认 OFF + skills=[]（无 store 兼容）', () => {
   put(builtinDir, 'base.md', BASE_MD)
-  put(builtinDir, join('workflows', 'longform.md'), LONGFORM_MD)
+  put(builtinDir, join('workflows', 'longform', 'workflow.md'), LONGFORM_MD)
   const m = toStudioManifest(loadStudioFromDirs(builtinDir, userDir))
   expect(m.capabilities).toEqual({ builtinTools: 'off', agentSkills: false })
   expect(m.skills).toEqual([])
@@ -234,7 +235,7 @@ test('T87 投影：capabilities 默认 OFF + skills=[]（无 store 兼容）', (
 
 test('T87 投影：传 fakeStore OFF 时 skills=[]；ON 时透传 name/description 且无 filePath/baseDir', () => {
   put(builtinDir, 'base.md', BASE_MD)
-  put(builtinDir, join('workflows', 'longform.md'), LONGFORM_MD)
+  put(builtinDir, join('workflows', 'longform', 'workflow.md'), LONGFORM_MD)
   const registry = loadStudioFromDirs(builtinDir, userDir)
   // OFF：fakeStore 拒绝透传任何 skill（真实 store 的 listSkills 守门：OFF → []）
   const offStore = {

@@ -238,10 +238,12 @@ try {
   )
   const rawBody = JSON.stringify(marketingSend ?? {})
   check(
+    // P2-4（2026-09-07）：applicableTo → modes（字段名变更不影响脱敏语义）
     '③ 载荷最小：体不含 manifest/overlay 内容（无 profile 正文、无 types 段标题）',
     !rawBody.includes('水彩海报') &&
       !rawBody.includes('Material types in the current brand') &&
-      !rawBody.includes('applicableTo'),
+      !rawBody.includes('applicableTo') &&
+      !rawBody.includes('"modes"'),
     rawBody.slice(0, 200)
   )
 

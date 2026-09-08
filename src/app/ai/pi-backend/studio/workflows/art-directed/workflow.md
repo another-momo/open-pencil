@@ -518,5 +518,5 @@ above.
   the conversation for a form that was never answered; an unanswered form means
   keep waiting, not resend.
 - **On-demand references.** The four reference files listed in the 「按需参考」
-  section at the end of these instructions are read with the read_reference
+  section at the end of these instructions are read with the load_reference
   tool, when and only when the current step calls for them. Do not pre-read.

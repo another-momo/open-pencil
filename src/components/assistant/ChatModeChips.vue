@@ -3,7 +3,7 @@
  * T61（Phase 3 W3/T-B10）：输入条内联 chips——T24 ChatModeSelect /
  * ChatStyleProfileSelect 的 PD-16 翻案重做（S1 §6 选择器层级）。
  *
- *  - 两级数据驱动：mode chip → profile chip 恒在（正交不过滤，PD-17）。
+ *  - 两级数据驱动：mode chip → profile chip。
  *    type 中间级已随 T62 删除（manifest.modes[].types 数据面退役）——本文件
  *    无 type 级专属逻辑。
  *  - 恒回显 active_design（piChipSelection：未确认意向 > active 读穿 >
@@ -15,6 +15,10 @@
  *    意向内容，不等发送）+ 可点 × 一键撤销（clearPiPendingNewIntent）。
  *  - manifest 失败（piStudioManifestFailed）→ chips 禁用（错误条 + 重试在
  *    ChatInput 错误条区，08 P0-2）。
+ *  - P2-10（2026-09-07）：profile 菜单按当前选中 mode ⊆ profile.modes 过滤——
+ *    缺省/空数组 = 所有 mode 可用（无限制），显式填写时仅在指定 mode 下展示
+ *    与注入。`「无风格档案」`项恒在（mode 仅决定时不强制选 profile）。
+ *    （PD-17「正交不过滤」就此改变——modes 字段成为运行时权威。）
  */
 import {
   DropdownMenuContent,
@@ -44,6 +48,12 @@ const itemCls = menuItem({ justify: 'start' })
 
 const modes = computed(() => piStudioManifest.value?.modes ?? [])
 const profiles = computed(() => piStudioManifest.value?.profiles ?? [])
+
+// P2-10：profile 菜单按当前选中 mode 过滤——modes 缺省/空 = 全显示；显式填写仅在指定 mode 显示
+const profilesForCurrentMode = computed(() => {
+  const modeId = selection.value.modeId
+  return profiles.value.filter((p) => p.modes.length === 0 || p.modes.includes(modeId))
+})
 
 const selection = computed(() => piChipSelection.value)
 
@@ -152,7 +162,7 @@ const triggerCls =
             <span class="min-w-0 truncate">{{ chipsText.chipsNoProfile }}</span>
           </DropdownMenuItem>
           <DropdownMenuItem
-            v-for="profile in profiles"
+            v-for="profile in profilesForCurrentMode"
             :key="profile.id"
             :class="itemCls"
             :data-test-id="`chat-profile-chip-item`"

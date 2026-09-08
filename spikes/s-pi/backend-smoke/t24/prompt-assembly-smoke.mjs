@@ -253,22 +253,24 @@ try {
     JSON.stringify(manifest.failures).slice(0, 160)
   )
   check(
-    '路由 manifest：profiles 两精品摘要含 watercolor_poster_v2/v2_zh（applicableTo[0]=longform-hero-kv-first；v3 退役 P2-1）',
+    // P2-4（2026-09-07）：applicableTo → modes（语义「在哪些 mode 下可用」）；
+    // P2-10 启用运行时过滤（chips 菜单 + prompt 注入两层按 modes 筛选）
+    '路由 manifest：profiles 两精品摘要含 watercolor_poster_v2/v2_zh（modes[0]=longform-hero-kv-first；v3 退役 P2-1）',
     Array.isArray(manifest.profiles) &&
       manifest.profiles.length === 2 &&
       manifest.profiles.some(
         (p) =>
           p.id === 'watercolor_poster_v2' &&
           p.label === '水彩海报 v2' &&
-          Array.isArray(p.applicableTo) &&
-          p.applicableTo[0] === 'longform-hero-kv-first'
+          Array.isArray(p.modes) &&
+          p.modes[0] === 'longform-hero-kv-first'
       ) &&
       manifest.profiles.some(
         (p) =>
           p.id === 'watercolor_poster_v2_zh' &&
           p.label === '水彩海报 v2（中文）' &&
-          Array.isArray(p.applicableTo) &&
-          p.applicableTo[0] === 'longform-hero-kv-first'
+          Array.isArray(p.modes) &&
+          p.modes[0] === 'longform-hero-kv-first'
       )
   )
   check(

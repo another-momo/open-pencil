@@ -25,7 +25,7 @@
  *  - T59：undo burst coalesce——每个 prompt run（= 一个 AI 回合）首尾向
  *    7600 桥发 undo_group begin/end 边界信号（undo-group.ts，失败不阻断），
  *    桥侧按设计区合并撤销单元
- *  - T85：read_reference 本地工具装配（customTools 同缝）——允许集读
+ *  - T85：load_reference 本地工具装配（customTools 同缝）——允许集读
  *    host.turnAssembly().allowedReferences，回合外恒空集
  *
  * 仅运行于独立后端进程（T20 起：main.ts 入口 / vite 插件 spawn 的子进程，
@@ -60,9 +60,9 @@ import { type Capabilities, createCapabilitiesStore } from './capabilities'
 import { readPiHistoryFile } from './history'
 import type { ImageGenCredentialStore } from './image-gen/credentials'
 import { createImageGenTool } from './image-gen/generate'
+import { createLoadReferenceTool } from './load-reference'
 import { createPiEventMapper } from './mapping'
 import type { ModelSpec, ProviderAdmin } from './provider-admin'
-import { createReadReferenceTool } from './read-reference'
 import { runSessionGc } from './session-gc'
 import type { PiSessionSummary } from './session-summary'
 import { buildSetupCatalog, type SetupDesignContext } from './setup-catalog'
@@ -142,7 +142,7 @@ type SessionEntry = {
 
 type SessionIndex = Record<string, { file: string }>
 
-/** T85：回合外/无声明时的 read_reference 空允许集（共享常量，避免每调用分配） */
+/** T85：回合外/无声明时的 load_reference 空允许集（共享常量，避免每调用分配） */
 const EMPTY_REFERENCES: ReadonlyMap<string, string> = new Map()
 
 export function createPiChatService({
@@ -274,10 +274,11 @@ export function createPiChatService({
       // T56：ask_user_question 后端本地工具（不经桥——表单卡片由前端读 tool
       // part 渲染，作答序列化为新回合用户消息回流；run 终止续跑，无挂起态）
       createAskUserQuestionTool(),
-      // T85：read_reference 后端本地工具（资产 references 按需读取；允许集 =
+      // T85：load_reference 后端本地工具（资产 references 按需读取；允许集 =
       // 本回合 active 资产声明并集——assembleTurn 计算、host 持有于 turn 缓存袋、
       // finalizeTurn 随 turn=null 复位；回合外空集，任何 path 皆拒）
-      createReadReferenceTool({
+      // P2-3（2026-09-07）：read_reference → load_reference 重命名
+      createLoadReferenceTool({
         allowedPaths: () => host.turnAssembly()?.allowedReferences ?? EMPTY_REFERENCES
       })
     ]

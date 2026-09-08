@@ -1,9 +1,14 @@
 /**
- * T43 studio 机制——frontmatter 切分与正文小节索引。
+ * T43 studio 机制——frontmatter 切分。
  *
  * 不引 gray-matter：手写 `---` 块切分 + yaml 包 parse（根依赖 ^2.9.0，零新增依赖）。
  * 切分/解析失败不抛出——返回 error 判别联合，由 registry 记入 failures（S2 §8：
  * 单文件失败不影响其余文件）。
+ *
+ * P2-6（2026-09-07）：移除 `sections` 字段（小节索引 `Record<标题, 内容>`）——
+ * 唯一消费方 PROFILE_REQUIRED_SECTIONS 已随 P2-5 删除，AI 读 body 全文，代码
+ * 不再需要按标题拆分查找。`indexSections` 函数一并删除（保留 splitFrontmatter 与
+ * isAssetId）。
  */
 
 import { parse as parseYaml } from 'yaml'
@@ -13,7 +18,6 @@ export type ParsedAsset =
       ok: true
       frontmatter: Record<string, unknown>
       body: string
-      sections: Record<string, string>
     }
   | { ok: false; reason: string; hint: string }
 
@@ -76,32 +80,5 @@ export function splitFrontmatter(raw: string): ParsedAsset {
     }
   }
   const body = lines.slice(closeIndex + 1).join('\n')
-  return { ok: true, frontmatter: doc, body, sections: indexSections(body) }
-}
-
-/**
- * 正文小节索引：`## X`（二级）与 `### X`（三级）标题均入索引；节内容 = 标题行
- * 之后到下一个任意级标题之间的文本（trim 后）。profile 的 `##` 功能节与
- * workflow 正文小节共用本索引（types.ts 头部口径）。
- */
-export function indexSections(body: string): Record<string, string> {
-  const sections: Record<string, string> = {}
-  const headingRe = /^#{2,3}\s+(.+?)\s*$/
-  let current: string | null = null
-  let buffer: string[] = []
-  const flush = () => {
-    if (current !== null && !(current in sections)) sections[current] = buffer.join('\n').trim()
-  }
-  for (const line of body.split('\n')) {
-    const m = line.match(headingRe)
-    if (m) {
-      flush()
-      current = m[1]
-      buffer = []
-    } else if (current !== null) {
-      buffer.push(line)
-    }
-  }
-  flush()
-  return sections
+  return { ok: true, frontmatter: doc, body }
 }

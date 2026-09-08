@@ -1,5 +1,5 @@
 /**
- * T48 保真核验：watercolor_poster_v2 抢救性迁移——git 钉扎源 vs profiles/watercolor_poster_v2.md。
+ * T48 保真核验：watercolor_poster_v2 抢救性迁移——git 钉扎源 vs profiles/watercolor_poster_v2/profile.md。
  *
  * 源 = `git show 4ce51816:src/app/ai/pi-backend/brand/config.yaml`（T45 已删除 brand/，
  * v2 仅存于 git 历史；commit 钉扎防分支漂移，blob ec9b22a3 与 rebuild/pi 同值，
@@ -8,6 +8,11 @@
  *
  * oxfmt canonical 化观察项（T48 自检登记）：oxfmt 在 `## Tone` 前补了一个结构性空行——
  * 节体按 trim 口径对照，不受影响，无需 NORMALIZE 条目。
+ *
+ * P2-4（2026-09-07）：frontmatter `applicable_to` → `modes`，且从单 longform 扩展为
+ * 双 longform（longform-hero-kv-first + longform-structure-first，P2-1 共享）。
+ * P2-9（2026-09-07）：资产本体移至 profiles/watercolor_poster_v2/profile.md
+ * （子目录布局）。
  *
  * 前置：PATH 上需有 git（源经 execSync `git show` 读取；缺 git 响亮 ENOENT，非静默）。
  * 用法：node tools/rebuild/src/verify/t48-v2-rescue-fidelity.mjs（cwd = 仓库根）
@@ -84,9 +89,9 @@ ok(oldMd !== undefined, '钉扎源含 watercolor_poster_v2 条目')
 
 if (oldMd) {
   const { frontmatter, body } = splitFile(
-    readFileSync('src/app/ai/pi-backend/studio/profiles/watercolor_poster_v2.md', 'utf8')
+    readFileSync('src/app/ai/pi-backend/studio/profiles/watercolor_poster_v2/profile.md', 'utf8')
   )
-  ok(frontmatter === EXPECTED_FRONTMATTER, 'frontmatter 四键钉扎（id/label/applicable_to/version）')
+  ok(frontmatter === EXPECTED_FRONTMATTER, 'frontmatter 四键钉扎（id/label/modes/version）')
 
   const oldS = splitSections(oldMd)
   const newS = splitSections(body)

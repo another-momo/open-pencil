@@ -64,7 +64,6 @@ function makeWorkflow(
     label: id,
     ...(references ? { references } : {}),
     body,
-    sections: {},
     origin: 'builtin',
     path: `${id}.md`
   }
@@ -76,7 +75,6 @@ function makeRegistry(): StudioRegistry {
       kind: 'base',
       id: 'base',
       body: 'BASE',
-      sections: {},
       origin: 'builtin',
       path: 'base.md'
     },
@@ -93,10 +91,9 @@ function makeRegistry(): StudioRegistry {
           kind: 'profile' as const,
           id: 'watercolor',
           label: '水彩',
-          applicableTo: ['longform'],
+          modes: ['longform'],
           deprecated: false,
           body: 'PROFILE-BODY',
-          sections: {},
           origin: 'builtin' as const,
           path: 'watercolor.md'
         }
@@ -318,7 +315,7 @@ describe('确认参数系统提示行注入', () => {
     await host.prepareTurn('[新建意图确认 modeId=general canvas=750x]\n另起一张')
     const lines = host.turnAssembly()?.contextLines
     expect(lines).toEqual([
-      '[当前设计目标 nodeId=d1 modeId=longform profileId=watercolor briefId=b1]',
+      '[当前设计目标 nodeId=d1 briefId=b1]',
       '用户已为本次新建确认参数：modeId=general 尺寸=750x（选择即锁定，不得覆盖）',
       ACTIVE_DESIGN_TEXTS.briefMissing
     ])
@@ -326,7 +323,7 @@ describe('确认参数系统提示行注入', () => {
 
     await host.prepareTurn('继续')
     expect(host.turnAssembly()?.contextLines).toEqual([
-      '[当前设计目标 nodeId=d1 modeId=longform profileId=watercolor briefId=b1]',
+      '[当前设计目标 nodeId=d1 briefId=b1]',
       ACTIVE_DESIGN_TEXTS.briefMissing
     ])
     host.finalizeTurn()
@@ -352,18 +349,17 @@ describe('每回合组装（assembleTurn）', () => {
     }
     const turn = assemble(registry, slot)
     expect(turn.systemPrompt).toBe('BASE\n\nLONGFORM-WORKFLOW\n\nPROFILE-BODY')
-    expect(turn.contextLines[0]).toBe(
-      '[当前设计目标 nodeId=d1 modeId=longform profileId=watercolor briefId=b1]'
-    )
+    expect(turn.contextLines[0]).toBe('[当前设计目标 nodeId=d1 briefId=b1]')
   })
 
-  test('general mode：走通用路径 = general workflow 段 + profile 段（与 longform 同架构）', () => {
+  test('general mode：走通用路径 = general workflow 段（profile.modes 不含 general 时不注 profile 段；P2-10）', () => {
     const turn = assemble(registry, {
       status: 'ok',
       design: designSnap({ modeId: 'general' }),
       briefMissing: false
     })
-    expect(turn.systemPrompt).toBe('BASE\n\nGENERAL-WORKFLOW\n\nPROFILE-BODY')
+    // P2-10：watercolor fixture 的 modes=['longform']——general 不在列，不注 profile
+    expect(turn.systemPrompt).toBe('BASE\n\nGENERAL-WORKFLOW')
   })
 
   test('profile 缺省 → 封套省略 profileId 字段且不注入 profile 段', () => {
@@ -373,7 +369,9 @@ describe('每回合组装（assembleTurn）', () => {
       briefMissing: false
     })
     expect(turn.systemPrompt).toBe('BASE\n\nLONGFORM-WORKFLOW')
-    expect(turn.contextLines[0]).toBe('[当前设计目标 nodeId=d1 modeId=longform briefId=b1]')
+    // P2-2（2026-09-07）：designTargetEnvelope 移除 modeId/profileId——agent 从
+    // system prompt 内容本身知道当前 workflow/profile，不需文件名 id
+    expect(turn.contextLines[0]).toBe('[当前设计目标 nodeId=d1 briefId=b1]')
   })
 
   test('profileId 未命中注册表 → 跳过（失败面归 manifest failures）', () => {
@@ -430,9 +428,10 @@ describe('P0-1 newIntent 优先级装配（resolveTurnAssets）', () => {
       { newIntent: intent('longform', 'watercolor') }
     )
     // 修复前：空槽恒 'BASE'（workflow/profile/references 全丢）
+    // P2-3（2026-09-07）：read_reference → load_reference
     expect(turn.systemPrompt).toBe(
       'BASE\n\nLONGFORM-WORKFLOW\n\nPROFILE-BODY\n\n' +
-        '## 按需参考（read_reference 工具按需读取）\n' +
+        '## 按需参考（load_reference 工具按需读取）\n' +
         '- references/imagery.md —— 图像决策纪律（workflow: longform）'
     )
     expect(Object.fromEntries(turn.allowedReferences)).toEqual({
@@ -454,10 +453,8 @@ describe('P0-1 newIntent 优先级装配（resolveTurnAssets）', () => {
     expect(turn.systemPrompt).toBe('BASE\n\nPOSTER-WORKFLOW')
     expect(turn.systemPrompt).not.toContain('LONGFORM-WORKFLOW')
     expect(turn.systemPrompt).not.toContain('PROFILE-BODY')
-    // 身份封套仍按 slot 落盘事实（目标节点没变）
-    expect(turn.contextLines[0]).toBe(
-      '[当前设计目标 nodeId=d1 modeId=longform profileId=watercolor briefId=b1]'
-    )
+    // 身份封套仍按 slot 落盘事实（目标节点没变；P2-2 移除 modeId/profileId）
+    expect(turn.contextLines[0]).toBe('[当前设计目标 nodeId=d1 briefId=b1]')
   })
 
   test('③ newIntent 未 confirmed / modeId 空 → 维持 slot 逻辑不变', () => {
@@ -483,13 +480,13 @@ describe('P0-1 newIntent 优先级装配（resolveTurnAssets）', () => {
     ).toBe('BASE')
   })
 
-  test('newIntent 的 modeId=general → 通用路径 = general workflow 段 + profile 段（无 workflowMissing 提示）', () => {
+  test('newIntent 的 modeId=general → 通用路径 = general workflow 段（profile.modes=[longform] 不匹配 general → 不注 profile；P2-10）', () => {
     const turn = assemble(
       makeRegistry(),
       { status: 'empty' },
       { newIntent: intent('general', 'watercolor') }
     )
-    expect(turn.systemPrompt).toBe('BASE\n\nGENERAL-WORKFLOW\n\nPROFILE-BODY')
+    expect(turn.systemPrompt).toBe('BASE\n\nGENERAL-WORKFLOW')
     expect(turn.contextLines).toEqual([])
   })
 
@@ -501,6 +498,30 @@ describe('P0-1 newIntent 优先级装配（resolveTurnAssets）', () => {
     )
     expect(turn.systemPrompt).toBe('BASE')
     expect(turn.contextLines).toEqual([ACTIVE_DESIGN_TEXTS.workflowMissing('ghost-mode')])
+  })
+
+  // P2-10（2026-09-07）：profile.modes 运行时过滤——显式填写时仅在列出的 mode 下注入
+  test('P2-10：profile.modes 显式列出 [longform] 时，slot=general + profile=watercolor → 不注 profile', () => {
+    // 默认 fixture 中 watercolor 的 modes = ['longform']——slot=general 时不匹配
+    const turn = assemble(makeRegistry(), {
+      status: 'ok',
+      design: designSnap({ modeId: 'general' }),
+      briefMissing: false
+    })
+    expect(turn.systemPrompt).toBe('BASE\n\nGENERAL-WORKFLOW') // 无 PROFILE-BODY
+  })
+
+  test('P2-10：profile.modes 缺省/空数组 = 所有 mode 可用（无限制）', () => {
+    const registry = makeRegistry()
+    // 把 watercolor 的 modes 改成空数组
+    const w = registry.profiles.get('watercolor')
+    if (w) w.modes = []
+    const turn = assemble(registry, {
+      status: 'ok',
+      design: designSnap({ modeId: 'general' }),
+      briefMissing: false
+    })
+    expect(turn.systemPrompt).toBe('BASE\n\nGENERAL-WORKFLOW\n\nPROFILE-BODY')
   })
 
   test('prepareTurn 端到端：pluginData newIntent（空槽）→ Turn 1 拿到 workflow + profile + 守卫置真', async () => {
@@ -592,7 +613,7 @@ describe('references 索引注入（T85 定谳 3/4）', () => {
     })
     expect(turn.systemPrompt).toBe(
       'BASE\n\nLONGFORM-WORKFLOW\n\n' +
-        '## 按需参考（read_reference 工具按需读取）\n' +
+        '## 按需参考（load_reference 工具按需读取）\n' +
         '- references/imagery.md —— 图像决策纪律（workflow: longform）\n' +
         '- references/typography.md —— 版式排印原则（workflow: longform）'
     )
@@ -616,7 +637,7 @@ describe('references 索引注入（T85 定谳 3/4）', () => {
   test('空槽 = base only：base 有 references 才出现索引节（source 标 base）', () => {
     const withBase = assemble(registryWithRefs({ base: true }), { status: 'empty' })
     expect(withBase.systemPrompt).toBe(
-      'BASE\n\n## 按需参考（read_reference 工具按需读取）\n- references/house.md —— 团队纪律（base）'
+      'BASE\n\n## 按需参考（load_reference 工具按需读取）\n- references/house.md —— 团队纪律（base）'
     )
     expect(Object.fromEntries(withBase.allowedReferences)).toEqual({
       'references/house.md': '/abs/studio/base/references/house.md'
@@ -833,11 +854,11 @@ describe('事件①：onDesignCreated 移槽', () => {
   })
 })
 
-test('designTargetEnvelope：三元组 + 节点 id（profileId 缺省省略）', () => {
-  expect(designTargetEnvelope(designSnap())).toBe(
-    '[当前设计目标 nodeId=d1 modeId=longform profileId=watercolor briefId=b1]'
-  )
+// P2-2（2026-09-07）：designTargetEnvelope 移除 modeId/profileId——agent 从
+// system prompt 内容本身知道当前 workflow/profile，不需文件名 id
+test('designTargetEnvelope：nodeId + briefId（modeId/profileId 已剥离）', () => {
+  expect(designTargetEnvelope(designSnap())).toBe('[当前设计目标 nodeId=d1 briefId=b1]')
   expect(designTargetEnvelope(designSnap({ profileId: '' }))).toBe(
-    '[当前设计目标 nodeId=d1 modeId=longform briefId=b1]'
+    '[当前设计目标 nodeId=d1 briefId=b1]'
   )
 })

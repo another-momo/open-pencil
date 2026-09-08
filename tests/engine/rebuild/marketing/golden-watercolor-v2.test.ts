@@ -61,9 +61,9 @@ import { setupToolTest } from '#tests/helpers/tools'
 const GOLDEN_TITLE_LINES = ['端午安康', '粽叶飘香'] as const
 /** 固定尺寸预设：电商详情长图 750x（T65 sizes 清单首条 = 首选预设） */
 const CANVAS_W = 750
-/** v2 Variable system：hero height 默认 = W */
+/** v2 Hero treatment 节：hero height 默认 = W */
 const HERO_H = 750
-/** v2 Recipe step 2：W=750 档 underlap/transition 均取 100 */
+/** v2 Hero treatment 节：W=750 档 underlap/transition 均取 100 */
 const UNDERLAP = 100
 const ROOT_H = 2120
 
@@ -72,7 +72,7 @@ const PROFILE_PATH = join(
   '../../../../src/app/ai/pi-backend/studio/profiles/watercolor_poster_v2.md'
 )
 
-/** v2 Fixed system 的 W=750 字阶档（从真实 profile 文件提取，改字阶即改门禁） */
+/** v2 Typography 节的 W=750 字阶档（从真实 profile 文件提取，改字阶即改门禁） */
 interface Tier750 {
   hero: [number, number]
   section: [number, number]
@@ -86,7 +86,7 @@ function readTier750(): Tier750 {
     /At W=750[^:]*: hero title (\d+)–(\d+)px, section titles (\d+)–(\d+), body (\d+)–(\d+), captions (\d+)–(\d+)/.exec(
       text
     )
-  if (!m) throw new Error('profile 的 W=750 字阶句未匹配——Fixed system 字阶表述被改写？')
+  if (!m) throw new Error('profile 的 W=750 字阶句未匹配——Typography 节字阶表述被改写？')
   const nums = m.slice(1).map(Number) as number[]
   return {
     hero: [nums[0], nums[1]],
@@ -189,32 +189,37 @@ function childByName(graph: SceneGraph, parent: SceneNode, name: string): SceneN
 
 // ── profile 文件钉扎（七必改的文件级门禁） ────────────────────────────────────
 
-test('golden-0 profile 钉扎：五必需节齐全、新序工具链、canvas_width 已绝迹、frontmatter 不动', () => {
+test('golden-0 profile 钉扎：六设计要素节齐全、Recipe 已迁出、frontmatter applicable_to 双 longform', () => {
   const text = readFileSync(PROFILE_PATH, 'utf8')
-  for (const section of ['Fixed system', 'Variable system', 'Anti-identity', 'Recipe', 'Tone']) {
+  // P2-1（2026-09-07）：profile 由 by 行为类别重组为 by 设计要素——六节名称钉扎
+  for (const section of ['Typography', 'Color', 'Layout', 'Hero treatment', 'Forbidden', 'Tone']) {
     expect(text).toContain(`## ${section}`)
   }
-  // frontmatter 钉扎（id/label/applicable_to/version 维持；hero_composition 裁决 = 不补带）
+  // Recipe 节已迁出到 workflow；profile 不再承载工序
+  expect(text).not.toContain('## Recipe')
+  expect(text).not.toContain('Fixed system')
+  expect(text).not.toContain('Variable system')
+  expect(text).not.toContain('Anti-identity')
+  // frontmatter 钉扎（id/label/version 维持；applicable_to 扩到双 longform workflow 共享）
   expect(
     text.startsWith(
-      '---\nid: watercolor_poster_v2\nlabel: 水彩海报 v2\napplicable_to: [longform-hero-kv-first]\nversion: 2\n---'
+      '---\nid: watercolor_poster_v2\nlabel: 水彩海报 v2\napplicable_to: [longform-hero-kv-first, longform-structure-first]\nversion: 2\n---'
     )
   ).toBe(true)
   expect(text).not.toContain('hero_composition')
-  // ① canvas_width 散参绝迹；② 新序：prepare_hero_scaffold → generate_image → compose_backdrop
+  // canvas_width 散参绝迹（已在 v2 重写前清除）
   expect(text).not.toContain('canvas_width')
-  const iPrepare = text.indexOf('prepare_hero_scaffold(')
-  const iGenerate = text.indexOf('generate_image')
-  const iCompose = text.indexOf('compose_backdrop({')
-  expect(iPrepare).toBeGreaterThan(-1)
-  expect(iGenerate).toBeGreaterThan(iPrepare)
-  expect(iCompose).toBeGreaterThan(iGenerate)
-  // ③ 阶段名对齐 hero-first 新五阶段；旧口径绝迹
-  expect(text).toContain('hero 物化')
-  expect(text).toContain('结构与填充')
+  // profile 不再谈 prepare_hero_scaffold / generate_image / compose_backdrop 工具链顺序——
+  // 工序归 workflow 侧；profile 只留设计意图
+  expect(text).not.toContain('prepare_hero_scaffold(')
+  expect(text).not.toContain('generate_image')
+  expect(text).not.toContain('compose_backdrop({')
+  // 旧阶段名绝迹（hero 物化 / 结构与填充 / Phase 2.* 已在 Recipe 中——Recipe 已迁）
+  expect(text).not.toContain('hero 物化')
+  expect(text).not.toContain('结构与填充')
   expect(text).not.toContain('Phase 2 skeleton')
   expect(text).not.toContain('Phase 2.5')
-  // ⑥ applicable_to 无 type 提法（T62 后 type 层级删除）
+  // applicable_to 无 type 提法（T62 后 type 层级删除）
   expect(text).not.toMatch(/applicable_to[^\n]*type/i)
 })
 

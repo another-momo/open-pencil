@@ -8,7 +8,8 @@
  *    注册表）——profile 下拉内容即注册表投影
  *
  * T45 连带：种子 config.yaml 退役——休闲活泼（casual_v1）未迁入 studio 集，
- * 本冒烟的选中项改为水彩海报 v3（watercolor_poster_v3）。
+ * 本冒烟的选中项改为水彩海报 v2（watercolor_poster_v2）。P2-1（2026-09-07）：
+ * profile 重组 v3 退役；v2_zh 落位为中文版（本冒烟保留英文选中态）。
  *
  * 实证流程要点沿用 t23 sessions-bind-smoke 头注释（恢复对话框/AI tab 复位/
  * openFile vite 路径/clear 异步等），勿回退。
@@ -16,12 +17,12 @@
  * 覆盖：
  *  ① 默认 ui 模式：模式选择器显示 "UI design"、profile 下拉不渲染；
  *    发送体 chatMode='ui' + pickedProfileId=null（C4/C5 默认态）
- *  ② 切 marketing：profile 下拉出现；打开列出注册表 profiles（水彩海报 v2/v3
- *    两精品——P0-2 删占位后）与 "No style profile" 项（C5 manifest 投影真实可见）
- *  ③ 选 watercolor_poster_v3 后发送：请求体 chatMode='marketing' +
- *    pickedProfileId='watercolor_poster_v3'，且体不含任何 manifest/overlay
+ *  ② 切 marketing：profile 下拉出现；打开列出注册表 profiles（水彩海报 v2 / 水彩
+ *    海报 v2（中文）双语精品——P0-2 删占位 + P2-1 重组后）与 "No style profile" 项
+ *  ③ 选 watercolor_poster_v2 后发送：请求体 chatMode='marketing' +
+ *    pickedProfileId='watercolor_poster_v2'，且体不含任何 manifest/overlay
  *    内容（C4 最小载荷）；SSE 延迟期间两个选择器均禁用（C5 流式中禁用）
- *  ④ 刷新恢复后选择态保留（Marketing + 水彩海报 v3，localStorage 持久化，C5）
+ *  ④ 刷新恢复后选择态保留（Marketing + 水彩海报 v2，localStorage 持久化，C5）
  *  ⑤ 切回 ui：profile 下拉消失；发送体 chatMode='ui'（注册表 acceptsProfile
  *    语义由后端兜底忽略 profile，浏览器只断言模式字段）
  *  ⑥ 第二页面拦死 manifest 路由（abort）：profile 下拉禁用空态降级、
@@ -181,14 +182,14 @@ try {
   check('② marketing 模式渲染 profile 下拉', await profileSelectPresent())
   await page.getByTestId('chat-style-profile-select').click()
   const editorialOption = page.getByRole('option', { name: '杂志封面海报' })
-  const watercolorOption = page.getByRole('option', { name: '水彩海报 v3' })
-  const watercolorV2Option = page.getByRole('option', { name: '水彩海报 v2' })
+  const watercolorOption = page.getByRole('option', { name: '水彩海报 v2' })
+  const watercolorZhOption = page.getByRole('option', { name: '水彩海报 v2（中文）' })
   const solidOption = page.getByRole('option', { name: '扁平几何海报' })
   await watercolorOption.waitFor({ timeout: 10000 })
   check(
-    '② profile 下拉列出注册表两精品（水彩海报 v2 / 水彩海报 v3；P0-2 删占位后杂志封面/扁平几何不再出现）',
-    (await watercolorV2Option.count()) === 1 &&
-      (await watercolorOption.count()) === 1 &&
+    '② profile 下拉列出注册表双语两精品（水彩海报 v2 / 水彩海报 v2（中文）；P0-2 删占位+P2-1 v3 退役，杂志封面/扁平几何不再出现）',
+    (await watercolorOption.count()) === 1 &&
+      (await watercolorZhOption.count()) === 1 &&
       (await editorialOption.count()) === 0 &&
       (await solidOption.count()) === 0
   )
@@ -197,15 +198,15 @@ try {
     (await page.getByRole('option', { name: 'No style profile' }).count()) === 1
   )
 
-  // ── ③ 选 watercolor_poster_v3 → 延迟 SSE 发送：载荷断言 + 流式中禁用
+  // ── ③ 选 watercolor_poster_v2 → 延迟 SSE 发送：载荷断言 + 流式中禁用
   await watercolorOption.click()
   check(
-    '③ 选中后触发器标签 = 水彩海报 v3',
+    '③ 选中后触发器标签 = 水彩海报 v2',
     await page.evaluate(
       () =>
         document
           .querySelector('[data-test-id="chat-style-profile-select"]')
-          ?.textContent?.includes('水彩海报 v3') ?? false
+          ?.textContent?.includes('水彩海报 v2') ?? false
     )
   )
   delayNextFulfillMs = 1500
@@ -227,9 +228,9 @@ try {
   )
   await waitEcho()
   check(
-    '③ 发送体：chatMode=marketing + pickedProfileId=watercolor_poster_v3',
+    '③ 发送体：chatMode=marketing + pickedProfileId=watercolor_poster_v2',
     marketingSend?.chatMode === 'marketing' &&
-      marketingSend?.pickedProfileId === 'watercolor_poster_v3',
+      marketingSend?.pickedProfileId === 'watercolor_poster_v2',
     JSON.stringify({
       chatMode: marketingSend?.chatMode,
       pickedProfileId: marketingSend?.pickedProfileId
@@ -253,13 +254,13 @@ try {
   await activateAiTab()
   check('④ 刷新后模式选择保留 Marketing', (await modeSelectLabel()) === 'Marketing')
   check(
-    '④ 刷新后 profile 选择保留（水彩海报 v3）',
+    '④ 刷新后 profile 选择保留（水彩海报 v2）',
     (await profileSelectPresent()) &&
       (await page.evaluate(
         () =>
           document
             .querySelector('[data-test-id="chat-style-profile-select"]')
-            ?.textContent?.includes('水彩海报 v3') ?? false
+            ?.textContent?.includes('水彩海报 v2') ?? false
       ))
   )
 

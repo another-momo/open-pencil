@@ -357,36 +357,32 @@ test('C3: sizes 条目级非法 → 不注册（缺 label / label 空 / canvas �
 
 // ── C4：profile 校验 ──────────────────────────────────────────────────────
 
-test('C4: 必需小节缺失/为空 → 失败；显式 no-op 合法', () => {
+test('C4: 节结构不再锁定——profile 任意节集（含全空）合法注册；只校验 applicable_to / hex / 字体', () => {
+  // P2-1（2026-09-07）：profile 由「by 行为类别」重组为「by 设计要素」——validate
+  // 移除 PROFILE_REQUIRED_SECTIONS；节空 / 节缺不再失败。sections 解析仍保留（供后续
+  // P2-6 推进），但不再参与门禁。
   put(builtinDir, 'base.md', BASE_MD)
   put(builtinDir, join('workflows', 'longform.md'), LONGFORM_MD)
+
+  // ① 节全空（只剩 frontmatter）——过往会因 Tone / Fixed system 等缺节失败；现在合法
   put(
     builtinDir,
     join('profiles', 'watercolor-poster-v3.md'),
-    PROFILE_MD.replace('## Tone\n\n克制、留白。', '## Tone')
+    `---\nid: watercolor-poster-v3\nlabel: 水彩海报 v3\napplicable_to: [longform]\nversion: 3\n---\n`
   )
   let r = loadBoth()
-  expect(r.profiles.size).toBe(0)
-  expect(r.failures.some((f) => f.reason.includes('`## Tone` 为空'))).toBe(true)
+  expect(r.profiles.size).toBe(1)
+  expect(r.failures).toEqual([])
 
+  // ② 节全删——同上合法
   put(
     builtinDir,
     join('profiles', 'watercolor-poster-v3.md'),
-    PROFILE_MD.replace('## Tone\n\n克制、留白。', '## Tone\n\nno-op')
+    `---\nid: watercolor-poster-v3\nlabel: 水彩海报 v3\napplicable_to: [longform]\nversion: 3\ndeprecated: true\n---\n\n没有节。\n`
   )
   r = loadBoth()
   expect(r.profiles.size).toBe(1)
   expect(r.failures).toEqual([])
-
-  put(
-    builtinDir,
-    join('profiles', 'watercolor-poster-v3.md'),
-    PROFILE_MD.replace('## Anti-identity\n\n不做廉价渐变。\n\n', '')
-  )
-  r = loadBoth()
-  expect(
-    r.failures.some((f) => f.reason.includes('缺必需小节') && f.reason.includes('Anti-identity'))
-  ).toBe(true)
 })
 
 test('C4: applicable_to 引用不存在的 mode → 失败；general 与真实 workflow 合法', () => {

@@ -253,20 +253,20 @@ try {
     JSON.stringify(manifest.failures).slice(0, 160)
   )
   check(
-    '路由 manifest：profiles 两精品摘要含 watercolor_poster_v2/v3（applicableTo=[longform-hero-kv-first]，P0-2 删占位后）',
+    '路由 manifest：profiles 两精品摘要含 watercolor_poster_v2/v2_zh（applicableTo[0]=longform-hero-kv-first；v3 退役 P2-1）',
     Array.isArray(manifest.profiles) &&
       manifest.profiles.length === 2 &&
       manifest.profiles.some(
         (p) =>
-          p.id === 'watercolor_poster_v3' &&
-          p.label === '水彩海报 v3' &&
+          p.id === 'watercolor_poster_v2' &&
+          p.label === '水彩海报 v2' &&
           Array.isArray(p.applicableTo) &&
           p.applicableTo[0] === 'longform-hero-kv-first'
       ) &&
       manifest.profiles.some(
         (p) =>
-          p.id === 'watercolor_poster_v2' &&
-          p.label === '水彩海报 v2' &&
+          p.id === 'watercolor_poster_v2_zh' &&
+          p.label === '水彩海报 v2（中文）' &&
           Array.isArray(p.applicableTo) &&
           p.applicableTo[0] === 'longform-hero-kv-first'
       )
@@ -396,7 +396,7 @@ try {
     {
       sessionId: 't60-envelope',
       messages: userMessage(
-        '[新建意图确认 modeId=longform-hero-kv-first profileId=watercolor_poster_v3]\n帮我做一张长图'
+        '[新建意图确认 modeId=longform-hero-kv-first profileId=watercolor_poster_v2]\n帮我做一张长图'
       )
     },
     token
@@ -426,7 +426,7 @@ try {
       sessionId: 't60-legacy-fields',
       messages: userMessage('兼容窗消息'),
       chatMode: 'marketing',
-      pickedProfileId: 'watercolor_poster_v3'
+      pickedProfileId: 'watercolor_poster_v2'
     },
     token
   )

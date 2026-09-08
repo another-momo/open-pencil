@@ -27,6 +27,12 @@
  * P1-5b（2026-09-08）：longform-structure-first 落位（骨架先行长图，与 hero-first
  * 并存对比）——四 workflow 终态：general + art-directed + longform-hero-kv-first +
  * longform-structure-first。
+ *
+ * P2-1（2026-09-07）：studio profile 由「by 行为类别」重组为「by 设计要素」——
+ * v2 重组为 Typography / Color / Layout / Hero treatment / Forbidden / Tone 六节，
+ * applicable_to 扩到 longform-hero-kv-first + longform-structure-first 两种
+ * longform workflow 共享；v3 退役（v2 是超集）；新增 watercolor_poster_v2_zh
+ * 中文版（id=watercolor_poster_v2_zh，label=水彩海报 v2（中文））。
  */
 
 import { expect, test } from 'bun:test'
@@ -38,7 +44,7 @@ import { loadStudioFromDirs } from '@/app/ai/pi-backend/studio'
 
 const BUILTIN_DIR = join(import.meta.dir, '../../../../src/app/ai/pi-backend/studio')
 
-test('内置资产集过校验面：failures 零、base 注册（免 label）、四 workflow 注册（general + longform-hero-kv-first/longform-structure-first 画布尺寸节非空；art-directed references 全解析；structure-first references 缺席）、两 profile 注册、modes=[general, art-directed, longform-hero-kv-first, longform-structure-first]', () => {
+test('内置资产集过校验面：failures 零、base 注册（免 label）、四 workflow 注册（general + longform-hero-kv-first/longform-structure-first 画布尺寸节非空；art-directed references 全解析；structure-first references 缺席）、两 profile 注册（v2 + v2_zh 双语）、modes=[general, art-directed, longform-hero-kv-first, longform-structure-first]', () => {
   const userDir = mkdtempSync(join(tmpdir(), 'studio-user-empty-'))
   try {
     const r = loadStudioFromDirs(BUILTIN_DIR, userDir)
@@ -107,10 +113,14 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
       structureFirst.sizes
     )
 
-    // profiles：恰好两份精品（watercolor_poster_v2 + v3），applicable_to 均指向 longform-hero-kv-first
-    expect([...r.profiles.keys()].sort()).toEqual(['watercolor_poster_v2', 'watercolor_poster_v3'])
+    // P2-1：profiles 双语精品——v2 英文 + v2_zh 中文；applicable_to 共享两种 longform workflow
+    //（longform-hero-kv-first + longform-structure-first 由 v2 一份 profile 覆盖）
+    expect([...r.profiles.keys()].sort()).toEqual([
+      'watercolor_poster_v2',
+      'watercolor_poster_v2_zh'
+    ])
     for (const p of r.profiles.values()) {
-      expect(p.applicableTo).toEqual(['longform-hero-kv-first'])
+      expect(p.applicableTo).toEqual(['longform-hero-kv-first', 'longform-structure-first'])
     }
 
     // modes 投影：general 首位（general.md 派生，source 标 general）+ 三 workflow 派生

@@ -149,7 +149,7 @@ mode 级尺寸预设：装配期 `sizes` 清单 = `[{label, canvas}]`——canva
 - **750x 档（宽 <900px，等比降档）**：正文 body ≥ 20 / 节标题 section ≥ 36 / hero 主标题 ≥ 72（与内置 profile 的 750 字阶对齐）。
 - 两档 caption / 辅助文字均 ≥ 16。
 
-检测：describe 树摘要行报每个文本节点的字号（`"文本" Npx 字族`），逐节点对照本表即机检。优先序：与当前 profile 的 Fixed system 字阶冲突时**以 profile 为准**；profile 未规定字阶时适用本表。
+检测：describe 树摘要行报每个文本节点的字号（`"文本" Npx 字族`），逐节点对照本表即机检。优先序：与当前 profile 的 Typography 节字阶冲突时**以 profile 为准**；profile 未规定字阶时适用本表。
 
 ## Fix Playbook（polish 段消费）
 

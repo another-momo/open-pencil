@@ -2,9 +2,10 @@
  * T43 studio 机制——按类加载期校验（lint）。
  *
  * 规格真源：doc/S2-asset-files-spec.md v2 §3（base）/ §4（workflow）/ §5
- * （profile 必需小节 / applicable_to 引用完整性 / hex / 字体白名单）。
- * 校验失败 = 该文件不注册 + failure 进注册表 failures（S2 §8），本模块只产出
- * 失败原因与修复指引文案，不做注册副作用。
+ * （profile 节结构 / applicable_to 引用完整性 / hex / 字体白名单）。
+ * 节结构校验已移除——profile 按设计要素重组后不再锁定 by 行为类别节集
+ * （P2-5，2026-09-07）；其余校验项保持。校验失败 = 该文件不注册 + failure 进注册表
+ * failures（S2 §8），本模块只产出失败原因与修复指引文案，不做注册副作用。
  *
  * 字体白名单经 core 字体注册表（T39 建成）结构性校验——`fontRegistryEntry`
  * 未命中即失败（2026-08-30 实测 `@open-pencil/core/text` 静态 import 无副作用，
@@ -44,7 +45,7 @@ export function validateCommon(
   } else if (!isAssetId(id)) {
     issues.push({
       reason: `id「${id}」不是合法机读 id`,
-      hint: 'id 只允许小写字母/数字/连字符/下划线（如 `watercolor_poster_v3` 或 `longform-hero-kv-first`）'
+      hint: 'id 只允许小写字母/数字/连字符/下划线（如 `watercolor_poster_v2` 或 `longform-hero-kv-first`）'
     })
   }
   if (!stringField(fm.label)) {
@@ -208,15 +209,6 @@ function parseSizes(
   return issues.length === before ? { sizes } : {}
 }
 
-/** profile 必需小节（S2 §5；节空但显式写 `no-op` 合法——09 §C-1 空节矛盾的解法） */
-export const PROFILE_REQUIRED_SECTIONS = [
-  'Fixed system',
-  'Variable system',
-  'Anti-identity',
-  'Tone',
-  'Recipe'
-] as const
-
 /**
  * 非法 hex 侦测（v1 启发式，宁可漏报不可误报）：
  * - 长度 5/7 且全 hex 字符（几乎必然是写坏的色值，如 #12345）；
@@ -251,9 +243,10 @@ function collectFontRefs(fm: Record<string, unknown>): string[] {
 }
 
 /**
- * profile 校验：必需小节非空或显式 `no-op`；applicable_to 引用完整性（引用的
- * mode 必须存在于注册表或为 general，PD-16）；非法 hex；字体白名单（注册表命中）；
- * references 按需参考清单（T85 定谳 1，与 workflow 同口径）。
+ * profile 校验：applicable_to 引用完整性（引用的 mode 必须存在于注册表或为
+ * general，PD-16）；非法 hex；字体白名单（注册表命中）；references 按需参考清单
+ * （T85 定谳 1，与 workflow 同口径）。节结构不锁——profile 按设计要素重组后
+ * 不再校验 by 行为类别节集（P2-5，2026-09-07）；sections 解析保留供后续 P2-6。
  *
  * `knownModeIds` 由 registry 在 workflow 注册完成后传入（含 general）。
  */
@@ -269,22 +262,8 @@ export function validateProfile(
   deprecated: boolean
   references?: StudioAssetReference[]
 } {
-  const { frontmatter: fm, sections, body } = parsed
+  const { frontmatter: fm, body } = parsed
   const issues = validateCommon(fm, filenameId, 'profile')
-
-  for (const name of PROFILE_REQUIRED_SECTIONS) {
-    if (!Object.hasOwn(sections, name)) {
-      issues.push({
-        reason: `缺必需小节 \`## ${name}\``,
-        hint: `补 \`## ${name}\` 小节；确无内容时节内写 \`no-op\`（显式空节，S2 §5）`
-      })
-    } else if (!sections[name]) {
-      issues.push({
-        reason: `必需小节 \`## ${name}\` 为空`,
-        hint: '填入内容，或节内写 `no-op` 显式声明空节'
-      })
-    }
-  }
 
   let applicableTo: string[] = []
   if ('applicable_to' in fm) {

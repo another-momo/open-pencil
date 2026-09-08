@@ -6,7 +6,6 @@
  */
 
 export { loadStudioFromDirs, reloadStudio, getStudioRegistry } from './registry'
-export { PROFILE_REQUIRED_SECTIONS } from './validate'
 export { splitFrontmatter, indexSections, isAssetId } from './parse'
 export { referenceBucketKey } from './types'
 export type {

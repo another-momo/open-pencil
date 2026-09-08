@@ -8,21 +8,21 @@
 
 /** references path 扩展名白名单（P2-3a）。 */
 export const REFERENCE_EXT_ALLOWLIST: ReadonlySet<string> = new Set([
-  ".md",
-  ".txt",
-  ".json",
-  ".yaml",
-  ".csv",
-]);
+  '.md',
+  '.txt',
+  '.json',
+  '.yaml',
+  '.csv'
+])
 
 /** reference path 形态问题（null = 合法）。 */
 export function referencePathProblem(path: string): string | null {
-  if (path.startsWith("/")) return "是绝对路径（UNC 同拒）";
-  if (/^[A-Za-z]:/.test(path)) return "含盘符";
-  if (path.split("/").some((seg) => seg === "..")) return "含 `..` 上跳";
-  const ext = path.slice(path.lastIndexOf(".")).toLowerCase();
+  if (path.startsWith('/')) return '是绝对路径（UNC 同拒）'
+  if (/^[A-Za-z]:/.test(path)) return '含盘符'
+  if (path.split('/').some((seg) => seg === '..')) return '含 `..` 上跳'
+  const ext = path.slice(path.lastIndexOf('.')).toLowerCase()
   if (!REFERENCE_EXT_ALLOWLIST.has(ext)) {
-    return `扩展名「${ext}」不在白名单（${[...REFERENCE_EXT_ALLOWLIST].join("/")}）`;
+    return `扩展名「${ext}」不在白名单（${[...REFERENCE_EXT_ALLOWLIST].join('/')}）`
   }
-  return null;
+  return null
 }

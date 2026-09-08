@@ -1,48 +1,48 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { type Locale, useI18n } from "@open-pencil/vue";
+import { computed, ref } from 'vue'
+import { type Locale, useI18n } from '@open-pencil/vue'
 
-import { recoveryEnabled, setRecoveryEnabled } from "@/app/document/recovery/preferences";
-import { setSnappingPreference } from "@/app/settings/preferences/apply";
-import { appPreferences } from "@/app/settings/preferences/store";
-import AppSelect from "@/components/ui/select/AppSelect.vue";
-import AppSwitch from "@/components/ui/toggle/AppSwitch.vue";
-import Tip from "@/components/ui/overlay/Tip.vue";
-import RenderingSettingsSection from "@/components/settings/general/RenderingSettingsSection.vue";
-import SettingsGroup from "@/components/settings/layout/SettingsGroup.vue";
-import SettingsSectionHeader from "@/components/settings/layout/SettingsSectionHeader.vue";
+import { recoveryEnabled, setRecoveryEnabled } from '@/app/document/recovery/preferences'
+import { setSnappingPreference } from '@/app/settings/preferences/apply'
+import { appPreferences } from '@/app/settings/preferences/store'
+import AppSelect from '@/components/ui/select/AppSelect.vue'
+import AppSwitch from '@/components/ui/toggle/AppSwitch.vue'
+import Tip from '@/components/ui/overlay/Tip.vue'
+import RenderingSettingsSection from '@/components/settings/general/RenderingSettingsSection.vue'
+import SettingsGroup from '@/components/settings/layout/SettingsGroup.vue'
+import SettingsSectionHeader from '@/components/settings/layout/SettingsSectionHeader.vue'
 
-const { availableLocales, locale, localeLabels, menu, recovery, setLocale, settings } = useI18n();
+const { availableLocales, locale, localeLabels, menu, recovery, setLocale, settings } = useI18n()
 
 const language = computed<Locale>({
   get: () => locale.value,
-  set: setLocale,
-});
+  set: setLocale
+})
 
 const languageOptions = availableLocales.map((value) => ({
   value,
-  label: localeLabels[value],
-}));
+  label: localeLabels[value]
+}))
 
 const preserveUnsavedWork = computed({
   get: () => recoveryEnabled.value,
-  set: setRecoveryEnabled,
-});
+  set: setRecoveryEnabled
+})
 
 const snapToGeometry = computed({
   get: () => appPreferences.value.editing.snapping.geometry,
-  set: (enabled: boolean) => setSnappingPreference("geometry", enabled),
-});
+  set: (enabled: boolean) => setSnappingPreference('geometry', enabled)
+})
 
 const snapToObjects = computed({
   get: () => appPreferences.value.editing.snapping.objects,
-  set: (enabled: boolean) => setSnappingPreference("objects", enabled),
-});
+  set: (enabled: boolean) => setSnappingPreference('objects', enabled)
+})
 
 const snapToPixelGrid = computed({
   get: () => appPreferences.value.editing.snapping.pixelGrid,
-  set: (enabled: boolean) => setSnappingPreference("pixelGrid", enabled),
-});
+  set: (enabled: boolean) => setSnappingPreference('pixelGrid', enabled)
+})
 
 // P2-11：studio 文件夹入口。当前 fork 尚未提供 Electron/Tauri IPC 桥让 UI
 // 直接调 shell.openPath；浏览器环境也无 file:// 链接等价行为。采用降级策略：
@@ -53,27 +53,27 @@ const snapToPixelGrid = computed({
 // Windows 实际为 `%USERPROFILE%\.openpencil\studio`，macOS 为
 // `$HOME/.openpencil/studio`，Linux 同 macOS。绝对路径需后端 IPC 才能解析，
 // 留待 IPC 桥就位后由后端注入。
-const studioFolderPath = "~/.openpencil/studio";
-const copyStatus = ref<"idle" | "copied" | "failed">("idle");
+const studioFolderPath = '~/.openpencil/studio'
+const copyStatus = ref<'idle' | 'copied' | 'failed'>('idle')
 
 async function copyStudioFolderPath(): Promise<void> {
   try {
-    await navigator.clipboard.writeText(studioFolderPath);
-    copyStatus.value = "copied";
+    await navigator.clipboard.writeText(studioFolderPath)
+    copyStatus.value = 'copied'
   } catch {
-    copyStatus.value = "failed";
+    copyStatus.value = 'failed'
   }
   // 1.2s 后回归 idle，避免状态文字长期残留
   setTimeout(() => {
-    copyStatus.value = "idle";
-  }, 1200);
+    copyStatus.value = 'idle'
+  }, 1200)
 }
 
 const copyStatusLabel = computed(() => {
-  if (copyStatus.value === "copied") return "已复制";
-  if (copyStatus.value === "failed") return "复制失败";
-  return "复制路径";
-});
+  if (copyStatus.value === 'copied') return '已复制'
+  if (copyStatus.value === 'failed') return '复制失败'
+  return '复制路径'
+})
 </script>
 
 <template>

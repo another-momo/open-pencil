@@ -60,34 +60,6 @@ Nested flex containers need w="fill" at EVERY level to stretch. `grow={1}` insid
 
 No margin property. For single-child offset, wrap in a Frame with padding.
 
-**Text wrapping (CRITICAL):** Multiline text MUST have `w="fill"` (not `w={N}`). Use `w="fill"` on Text inside `flex="col"` cards — this stretches text to card width and enables auto-wrapping. Never use fixed `w={N}` on text that should wrap — the width may not match the parent due to font metric differences. For fixed-height rows, add `maxLines={1}`. In wrap layouts, calculate: columns = floor((available + gap) / (child_w + gap)).
-
-## Corner radius
-
-Inner = outer − padding. Card `rounded={20} p={12}` → children `rounded={8}`. Cards 16–24, buttons 8–12, chips 4–8, pill = height/2.
-
-## Spacing
-
-Pick from 4px grid: 4, 8, 12, 16, 20, 24, 32, 48. Inside group < between groups < between sections. Padding ≥ gap in same container. Vertical padding > horizontal at equal values (compensate: py={10} px={20}). Once picked, stay consistent for same element type.
-
-## Typography
-
-6–8 sizes from consistent scale: Display 32–40, H1 24–28, H2 20–22, H3 17–18, Body 14–15, Caption 12–13, Overline 10–11. 2–3 weights max.
-
-Hierarchy via one property at a time: size OR weight OR color. Light bg: primary #111827, secondary #6B7280, tertiary #9CA3AF. Dark bg: #FFFFFF, #FFFFFF99, #FFFFFF66.
-
-Fonts are loaded automatically. **For Chinese text, default to `Alibaba PuHuiTi`** (bundled, covers 简体/繁體/拉丁). For Latin-only sections, `Inter` is also available. Available weights: Thin / Light / Regular / Medium / SemiBold / Bold / ExtraBold / Heavy / Black. Use Heavy/Black sparingly, primarily for display/decorative. Do not mix families within a single design — pick one and stay consistent.
-
-## Common patterns
-
-**Decorative layers:** Background effects (gradients, glows, color blobs) use x/y absolute positioning. Only content goes into flex.
-
-**Don't mix `w={N}` and `grow={N}`** — grow overrides width.
-
-**Card grids (product matrices, nine-grid):** Use `grow={1}` on each card in a `flex="row"` wrap grid, NOT fixed `w={N}`. Inside each card use `w="fill"` for images and title text so text wraps regardless of font metrics.
-
-**Dividers:** Use `<Rectangle w="fill" h={1} bg="#E2E8F0" />` inside `flex="col"` (or `w={1} h="fill"` inside `flex="row"`). ⚠ Never use `stroke` on a container as a divider — stroke creates a full border around the frame, not a single separator.
-
 ## Prohibited
 
 No style={{}}, className, CSS. No named colors or rgb(). No percentage values. No TypeScript casts. No Math.random(). No `Math.` prefix in calc — use `floor(x)` not `Math.floor(x)`. No emoji in UI elements (use `<Icon>` instead) — emoji renders as □. **No margin props — `mt`, `mb`, `ml`, `mr`, `mx`, `my` do not exist.** Vertical spacing between children = parent's `gap`; outer offset = wrap in a Frame with `p`. Inspect structure with `describe` and visuals with `look`.

@@ -312,20 +312,36 @@ export function loadStudioFromDirs(builtinDir: string, userDir: string): StudioR
   const knownModeIds = new Set<string>(['general', ...workflows.keys()])
   const profiles = loadProfiles(builtinDir, userDir, knownModeIds, resolved, failures)
 
-  // ── mode 投影（PD-16：文件存在 = mode 可用；general 恒在内置特例，S2 §2）──
-  const modes: StudioMode[] = [
-    { id: 'general', label: '通用设计', source: 'general' },
-    ...[...workflows.values()].map((w) => {
-      const mode: StudioMode = {
-        id: w.id,
-        label: w.label,
-        source: 'workflow' as const
-      }
-      if (w.subtitle) mode.subtitle = w.subtitle
-      if (w.sizes) mode.sizes = w.sizes
-      return mode
-    })
-  ]
+  // ── mode 投影（PD-16：文件存在 = mode 可用；general 走 workflows/general.md
+  //    统一走 workflow 派生，source 标记为 general 保持首位与历史语义；
+  //    general.md 缺失时回退硬编码 general entry——保持「general 恒在」语义）──
+  const modes: StudioMode[] = []
+  const generalWorkflow = workflows.get('general')
+  if (generalWorkflow) {
+    const mode: StudioMode = {
+      id: generalWorkflow.id,
+      label: generalWorkflow.label,
+      source: 'general' as const
+    }
+    if (generalWorkflow.subtitle) mode.subtitle = generalWorkflow.subtitle
+    if (generalWorkflow.sizes) mode.sizes = generalWorkflow.sizes
+    modes.push(mode)
+  } else {
+    // 回退：general.md 缺失（罕见，仅发生于用户删除或 fixture 场景）——保持
+    // 「general 恒在」语义不破；不投影 sizes（无来源）
+    modes.push({ id: 'general', label: '通用设计', source: 'general' })
+  }
+  for (const w of workflows.values()) {
+    if (w.id === 'general') continue // 已在首位登记
+    const mode: StudioMode = {
+      id: w.id,
+      label: w.label,
+      source: 'workflow' as const
+    }
+    if (w.subtitle) mode.subtitle = w.subtitle
+    if (w.sizes) mode.sizes = w.sizes
+    modes.push(mode)
+  }
 
   // 默认集整体缺失/全坏（S2 §8）：零注册成功且有失败 → 记整体态供错误条消费
   if (base === null && workflows.size === 0 && profiles.size === 0 && failures.length > 0) {

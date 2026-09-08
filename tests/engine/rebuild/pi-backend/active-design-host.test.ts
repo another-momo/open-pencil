@@ -80,7 +80,12 @@ function makeRegistry(): StudioRegistry {
       origin: 'builtin',
       path: 'base.md'
     },
-    workflows: new Map([['longform', makeWorkflow('longform', 'LONGFORM-WORKFLOW')]]),
+    // P1-6：general.md 落位后 fixture 同步——workflows map 含 general，
+    // resolveTurnAssets 通用路径命中（与 longform 同架构，无特判）
+    workflows: new Map([
+      ['general', makeWorkflow('general', 'GENERAL-WORKFLOW')],
+      ['longform', makeWorkflow('longform', 'LONGFORM-WORKFLOW')]
+    ]),
     profiles: new Map([
       [
         'watercolor',
@@ -352,13 +357,13 @@ describe('每回合组装（assembleTurn）', () => {
     )
   })
 
-  test('general mode：无 workflow 段；profile 选中仍注入', () => {
+  test('general mode：走通用路径 = general workflow 段 + profile 段（与 longform 同架构）', () => {
     const turn = assemble(registry, {
       status: 'ok',
       design: designSnap({ modeId: 'general' }),
       briefMissing: false
     })
-    expect(turn.systemPrompt).toBe('BASE\n\nPROFILE-BODY')
+    expect(turn.systemPrompt).toBe('BASE\n\nGENERAL-WORKFLOW\n\nPROFILE-BODY')
   })
 
   test('profile 缺省 → 封套省略 profileId 字段且不注入 profile 段', () => {
@@ -478,13 +483,13 @@ describe('P0-1 newIntent 优先级装配（resolveTurnAssets）', () => {
     ).toBe('BASE')
   })
 
-  test('newIntent 的 modeId=general → 无 workflow 段但 profile 注入（无 workflowMissing 提示）', () => {
+  test('newIntent 的 modeId=general → 通用路径 = general workflow 段 + profile 段（无 workflowMissing 提示）', () => {
     const turn = assemble(
       makeRegistry(),
       { status: 'empty' },
       { newIntent: intent('general', 'watercolor') }
     )
-    expect(turn.systemPrompt).toBe('BASE\n\nPROFILE-BODY')
+    expect(turn.systemPrompt).toBe('BASE\n\nGENERAL-WORKFLOW\n\nPROFILE-BODY')
     expect(turn.contextLines).toEqual([])
   })
 

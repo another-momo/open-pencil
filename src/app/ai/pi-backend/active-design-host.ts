@@ -218,9 +218,10 @@ export function assembleTurn(
  * newIntent 的 modeId/profileId 解析；否则按 slot.design 的落盘三元组解析。
  * 两者皆无 → 全空（空槽 base only）。
  *
- * workflow 缺失语义（沿用 T60 定谳）：modeId 非空且非 general 但 registry 未命中
- * → workflowMissingModeId 置位 + **profile 不注入**（按 general 组装，避免
- * profile 规则悬空执行）。general 天然无 workflow 文件 → 不算缺失。
+ * workflow 缺失语义（沿用 T60 定谳）：modeId 非空但 registry 未命中 workflow
+ * → workflowMissingModeId 置位 + **profile 不注入**（按 base only 组装，避免
+ * profile 规则悬空执行）。general 与其他 mode 一律走 registry 查表——general
+ * 在 workflows/general.md 落位后与 longform 等同（一致架构，无特殊分支）。
  */
 export function resolveTurnAssets(
   registry: StudioRegistry,
@@ -234,11 +235,8 @@ export function resolveTurnAssets(
   const profileId = useIntent ? newIntent.profileId : slotProfileId
   if (modeId === '') return slot
   const profile = profileId === '' ? undefined : registry.profiles.get(profileId)
-  if (modeId === 'general') {
-    return { ...slot, ...(profile ? { resolvedProfile: profile } : {}) }
-  }
   const workflow = registry.workflows.get(modeId)
-  // 缺失 → 按 general 组装（不注 profile）+ 提示行
+  // 缺失 → 按 base only 组装（不注 profile）+ 提示行
   if (!workflow) return { ...slot, workflowMissingModeId: modeId }
   return {
     ...slot,

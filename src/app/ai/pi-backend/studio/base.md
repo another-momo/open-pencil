@@ -36,7 +36,7 @@ These are ALL available props. Nothing else exists.
 
 **Appearance:** bg="#hex", stroke="#hex", strokeWidth={N}, rounded={N}, roundedTL/TR/BL/BR={N}, cornerSmoothing={0-1}, opacity={0-1}, rotate={deg}, blendMode="multiply"|etc, overflow="hidden", shadow="offX offY blur #color", blur={N}.
 
-**Text (only on `<Text>`):** size={N}, weight={N} or "thin"|"light"|"regular"|"medium"|"semibold"|"bold"|"extrabold"|"heavy"|"black" (case-insensitive; unknown names fall back to 400 with a warning), color="#hex", font="Family", dir="auto"|"ltr"|"rtl", textAlign="left"|"center"|"right"|"justified", lineHeight={N} (px), letterSpacing={N} (px), textDecoration="underline"|"strikethrough", textCase="upper"|"lower"|"title", maxLines={N}, truncate. ⚠ Text without `color` is invisible.
+**Text (only on `<Text>`):** size={N}, weight={N} or "thin"|"light"|"regular"|"medium"|"semibold"|"bold"|"extrabold"|"heavy"|"black" (case-insensitive; unknown names silently fall back to 400), color="#hex", font="Family", dir="auto"|"ltr"|"rtl", textAlign="left"|"center"|"right"|"justified", lineHeight={N} (px), letterSpacing={N} (px), textDecoration="underline"|"strikethrough", textCase="upper"|"lower"|"title", maxLines={N}, truncate. ⚠ Text without `color` is invisible.
 
 **Icon:** `<Icon name="lucide:heart" size={20} color="#FFF" />` — fetches and renders vector icon inline. No need for separate search/fetch/insert calls. Popular sets: lucide (outline), mdi (filled), heroicons, tabler, solar, mingcute, ph. ⚠ Always set `color` — default is black.
 
@@ -108,7 +108,8 @@ No style={{}}, className, CSS. No named colors or rgb(). No percentage values. N
 No single tool changes every property — pick the tool by the property you need:
 
 - Position / size / visibility / corner radius / opacity / name → `update_node`
-- Font family/size/weight → `update_node` (single prop) or `set_font` (atomic trio); bulk family/weight → `batch_update`
+- Font size / weight → `update_node` (`font_size`, `font_weight` only — it does NOT support `font_family`)
+- Font family (or family+size+weight atomically) → `set_font`, the only tool that accepts `font_family`. ❌ `batch_update` supports no font properties at all — no bulk font changes exist; loop `set_font` per node.
 - Text content → `update_node.text` or `set_text`
 - Partial text styling (one word bold/colored inside a text node) → `set_font_range`
 - Fill color / gradient → `set_fill`; image fill → `set_image_fill`

@@ -14,11 +14,17 @@
  *    （会话内不落盘），[表单作答 formId=…] 信封到达且节点仍合法 → 移槽。
  *  - 删除悬空清槽：每回合读穿发现槽位节点不存在/不再是设计区根框 → 清槽 +
  *    context 注入一行系统提示。
- *  - 每回合组装：system = base + workflow(落盘 mode body) + profile 全文
- *    （顺序固定）；context = 身份封套 + 系统提示行（pi before_agent_start 的
- *    result.message custom 通道注入——convertToLlm 转 user role 进模型上下文，
- *    不进 UI 流、不进历史回填）。空槽 = general（无 workflow 段）+ 无 profile
- *    + 无封套；落盘 mode 的 workflow 缺失 → 一行提示 + 按 general 组装。
+ *  - 每回合组装：system = base + workflow + profile 全文（顺序固定）；
+ *    context = 身份封套 + 系统提示行（pi before_agent_start 的 result.message
+ *    custom 通道注入——convertToLlm 转 user role 进模型上下文，不进 UI 流、
+ *    不进历史回填）。
+ *    P0-1（newIntent 时序缺口修复）：workflow/profile 的 registry 查找从
+ *    assembleTurn 上移到 probe 阶段（resolveTurnAssets），优先级 **newIntent >
+ *    slot**——newIntent 是「用户刚刚确认的意图」，slot 是「历史残留」。故
+ *    「确认新建 → 设计区尚未落图」的 Turn 1 也拿到 workflow + profile
+ *    （此前只有 base，工作流/风格/references 全丢）。空槽且无 newIntent
+ *    = base only + 无封套；mode 有 id 但 workflow 文件缺失 → 一行提示 +
+ *    按 general 组装（不注 profile）。
  *    T85 起尾段追加「按需参考」索引节（active 资产 references 并集非空时），
  *    并集即本回合 read_reference 允许集（read-reference.ts）。
  *  - 新建意图一次性旗标：首行信封 `[新建意图确认 modeId=<id> profileId=<id>
@@ -151,48 +157,96 @@ export function designTargetEnvelope(design: DesignRootSnapshot): string {
 }
 
 /**
- * 组装一回合的 system/context。规则（T60-plan 定谳 4）：
- *  - 空槽 = base only（general 无 workflow 文件）+ 无封套
- *  - 有槽：base + workflow(落盘 modeId 的文件 body，general 无段) + profile 全文
- *    （profileId 命中注册表时；未命中跳过——资产失败面经 manifest failures 暴露）
- *  - 落盘 mode 的 workflow 缺失 → 一行系统提示 + 按 general 组装（base only，
- *    不注 profile），身份封套保留（目标事实仍在）
- *  - brief 悬空（需求单被删）→ 一行系统提示（S1 §5 删除边界态）
+ * P0-1：装配输入 = core 槽位判定态 + probe 阶段已解析的资产对象。
+ *
+ * `resolvedWorkflow` / `resolvedProfile` 由 `probeSlotState` 按 **newIntent 优先于
+ * slot** 的优先级完成 registry 查找后填入——newIntent 是「用户刚刚确认的意图」，
+ * slot 是「历史残留」（可能指向旧设计），故 newIntent.confirmed && modeId 命中时
+ * 覆盖 slot 的解析结果。`assembleTurn` 只消费已解析对象，不再自己查 registry。
+ *
+ * 字段缺省（两者皆 undefined）= 未解析出任何资产：空槽 → base only；有槽且
+ * modeId 非 general → workflowMissing 提示（缺失面判定同样落在 probe 阶段，
+ * 见 resolveTurnAssets）。
+ */
+export type TurnSlotState = ActiveDesignSlotState & {
+  resolvedWorkflow?: StudioWorkflow
+  resolvedProfile?: StudioProfile
+  /** 落盘/意图 mode 有 id 但 registry 未命中 workflow → 装配注 workflowMissing 提示 */
+  workflowMissingModeId?: string
+}
+
+/**
+ * 组装一回合的 system/context。规则（T60-plan 定谳 4 + P0-1 修订）：
+ *  - 段序固定 base → workflow → profile（前缀缓存友好）；resolved 字段为空则该段跳过
+ *  - 空槽（status !== 'ok'）：无身份封套；resolved 命中时仍注 workflow/profile 段
+ *    ——这是 P0-1 的核心修复：newIntent 已确认但设计区尚未落图的 Turn 1，
+ *    AI 必须已经拿到 workflow（怎么做）与 profile（做成什么样）
+ *  - 有槽：身份封套首行 + resolved 段；brief 悬空（需求单被删）→ 一行系统提示
+ *  - workflowMissingModeId 非空 → 一行 workflowMissing 提示（身份封套保留——目标事实仍在）
  *  - T85 定谳 3：本回合 active 资产（base 恒在 + 命中 workflow + 命中 profile）的
  *    references 并集非空时，systemPrompt 尾段追加「按需参考」索引节；并集即本回合
- *    read_reference 允许集（allowedReferences，finalizeTurn 复位）。空槽 = base only
- *    ——base 有 references 才出现该节（mode 作用域隔离，不污染其他 mode 上下文）
+ *    read_reference 允许集（allowedReferences，finalizeTurn 复位）
  */
 export function assembleTurn(
   registry: StudioRegistry,
-  slot: ActiveDesignSlotState,
+  slot: TurnSlotState,
   extraNotices: string[] = []
 ): TurnAssembly {
   const base = registry.base?.body ?? ''
   const baseAsset = registry.base ? [registry.base] : []
-  if (slot.status !== 'ok') {
-    return finishTurn(registry, [base], [...extraNotices], baseAsset)
-  }
-  const { design } = slot
-  const contextLines = [designTargetEnvelope(design), ...extraNotices]
-  if (slot.briefMissing) contextLines.push(ACTIVE_DESIGN_TEXTS.briefMissing)
-  const profile = design.profileId === '' ? undefined : registry.profiles.get(design.profileId)
-  if (design.modeId === 'general') {
-    return finishTurn(registry, [base, profile?.body ?? ''], contextLines, [
-      ...baseAsset,
-      ...(profile ? [profile] : [])
-    ])
-  }
-  const workflow = registry.workflows.get(design.modeId)
-  if (!workflow) {
-    contextLines.push(ACTIVE_DESIGN_TEXTS.workflowMissing(design.modeId))
-    return finishTurn(registry, [base], contextLines, baseAsset)
-  }
-  return finishTurn(registry, [base, workflow.body, profile?.body ?? ''], contextLines, [
+  const { resolvedWorkflow, resolvedProfile } = slot
+  const activeAssets = [
     ...baseAsset,
-    workflow,
-    ...(profile ? [profile] : [])
-  ])
+    ...(resolvedWorkflow ? [resolvedWorkflow] : []),
+    ...(resolvedProfile ? [resolvedProfile] : [])
+  ]
+  const segments = [base, resolvedWorkflow?.body ?? '', resolvedProfile?.body ?? '']
+
+  const contextLines = slot.status === 'ok' ? [designTargetEnvelope(slot.design)] : []
+  contextLines.push(...extraNotices)
+  if (slot.status === 'ok' && slot.briefMissing) contextLines.push(ACTIVE_DESIGN_TEXTS.briefMissing)
+  if (slot.workflowMissingModeId !== undefined) {
+    contextLines.push(ACTIVE_DESIGN_TEXTS.workflowMissing(slot.workflowMissingModeId))
+  }
+  return finishTurn(registry, segments, contextLines, activeAssets)
+}
+
+/**
+ * P0-1：本回合资产解析（纯函数；probe 阶段调用，装配侧只消费结果）。
+ *
+ * 优先级 **newIntent > slot**：`newIntent.confirmed && newIntent.modeId` 为真时按
+ * newIntent 的 modeId/profileId 解析；否则按 slot.design 的落盘三元组解析。
+ * 两者皆无 → 全空（空槽 base only）。
+ *
+ * workflow 缺失语义（沿用 T60 定谳）：modeId 非空且非 general 但 registry 未命中
+ * → workflowMissingModeId 置位 + **profile 不注入**（按 general 组装，避免
+ * profile 规则悬空执行）。general 天然无 workflow 文件 → 不算缺失。
+ */
+export function resolveTurnAssets(
+  registry: StudioRegistry,
+  slot: ActiveDesignSlotState,
+  newIntent: NewIntentState | null
+): TurnSlotState {
+  const useIntent = newIntent !== null && newIntent.confirmed && newIntent.modeId !== ''
+  const modeId = useIntent ? newIntent.modeId : slot.status === 'ok' ? slot.design.modeId : ''
+  const profileId = useIntent
+    ? newIntent.profileId
+    : slot.status === 'ok'
+      ? slot.design.profileId
+      : ''
+  if (modeId === '') return slot
+  const profile = profileId === '' ? undefined : registry.profiles.get(profileId)
+  if (modeId === 'general') {
+    return { ...slot, ...(profile ? { resolvedProfile: profile } : {}) }
+  }
+  const workflow = registry.workflows.get(modeId)
+  // 缺失 → 按 general 组装（不注 profile）+ 提示行
+  if (!workflow) return { ...slot, workflowMissingModeId: modeId }
+  return {
+    ...slot,
+    resolvedWorkflow: workflow,
+    ...(profile ? { resolvedProfile: profile } : {})
+  }
 }
 
 function joinSegments(segments: string[]): string {
@@ -207,6 +261,12 @@ export interface SlotProbeData {
   design: DesignRootSnapshot | null
   brief: BriefLinkSnapshot | null
   materialized: boolean
+  /**
+   * P0-1：newIntent 三键随槽位探针同片段取回（合并前的 probeNewIntent 独立
+   * eval 已并入 buildProbeSource）。桥不可达时整个 probe 返 null；片段执行成功
+   * 但三键缺省 → { modeId:'', profileId:'', confirmed:false }。
+   */
+  newIntent: NewIntentState
 }
 
 export interface CandidateProbeData {
@@ -217,7 +277,10 @@ export interface CandidateProbeData {
 }
 
 export interface ActiveDesignBridgeIO {
-  /** 桥不可达 → null（调用方按空槽降级 + warn） */
+  /**
+   * 桥不可达 → null（调用方按空槽降级 + warn）。
+   * P0-1：返值含 newIntent 三键（原独立 probeNewIntent 已并入本探针）。
+   */
   probeSlot(documentId?: string, windowId?: string): Promise<SlotProbeData | null>
   probeCandidate(
     nodeId: string,
@@ -226,12 +289,6 @@ export interface ActiveDesignBridgeIO {
   ): Promise<CandidateProbeData | null>
   /** nodeId '' = 清槽；桥不可达/执行失败 → false */
   writeSlot(nodeId: string, documentId?: string, windowId?: string): Promise<boolean>
-  /**
-   * T91b：读 document root sharedPluginData 上的 newIntent 三键（modeId /
-   * profileId / confirmed）。桥不可达 → null（调用方按未确认降级）。
-   * 信源真源在浏览器端，宿主必须经桥 eval 探针拿——不通过 FigmaAPI 句柄。
-   */
-  probeNewIntent(documentId?: string, windowId?: string): Promise<NewIntentState | null>
   /**
    * T91b：setup_design 成功后清 document root pluginData 三键（避免下次
    * 装配误用旧 modeId）。桥不可达/执行失败 → false（不影响主流程——设计已落图）。
@@ -243,7 +300,11 @@ export interface ActiveDesignBridgeIO {
 
 const K = ACTIVE_DESIGN_PROBE_KEYS
 
-/** 探针 eval 片段：只取裸数据（快照 + 页归属 + 物化判据原料），判定在后端 */
+/**
+ * 探针 eval 片段：只取裸数据（快照 + 页归属 + 物化判据原料 + newIntent 三键），
+ * 判定在后端。P0-1：newIntent 三键并入本片段——原 probeNewIntent 独立 eval 撤销，
+ * 每回合桥 eval 从 2 次减为 1 次。
+ */
 function buildProbeSource(candidateNodeId?: string): string {
   return `const NS = ${JSON.stringify(K.namespace)};
 const CANDIDATE = ${JSON.stringify(candidateNodeId ?? '')};
@@ -281,7 +342,10 @@ const slotNodeId = figma.root.getSharedPluginData(NS, ${JSON.stringify(K.slotKey
 const targetId = CANDIDATE || slotNodeId;
 const design = targetId ? snap(targetId) : null;
 const brief = design ? briefSnap(design.briefId) : null;
-return { slotNodeId, currentPageId, design, brief, materialized: design ? hasMaterial(design.nodeId) : false };`
+const newIntent = { modeId: figma.root.getSharedPluginData(NS, ${JSON.stringify(K.newIntentModeIdKey)}),
+  profileId: figma.root.getSharedPluginData(NS, ${JSON.stringify(K.newIntentProfileIdKey)}),
+  confirmed: figma.root.getSharedPluginData(NS, ${JSON.stringify(K.newIntentConfirmedKey)}) === 'true' };
+return { slotNodeId, currentPageId, design, brief, materialized: design ? hasMaterial(design.nodeId) : false, newIntent };`
 }
 
 function buildWriteSlotSource(nodeId: string): string {
@@ -299,14 +363,6 @@ const NEW_INTENT_EVAL_PROLOGUE = (): string => {
 const M = ${M};
 const P = ${P};
 const C = ${C};`
-}
-
-/** T91b：探针读 document root sharedPluginData 三键（modeId / profileId / confirmed） */
-function buildProbeNewIntentSource(): string {
-  return `${NEW_INTENT_EVAL_PROLOGUE()}
-return { modeId: figma.root.getSharedPluginData(NS, M),
-  profileId: figma.root.getSharedPluginData(NS, P),
-  confirmed: figma.root.getSharedPluginData(NS, C) === 'true' };`
 }
 
 /** T91b：清 document root 上 newIntent 三键（空串置位 = 读侧视为缺省） */
@@ -367,6 +423,15 @@ function parseBriefSnapshot(raw: unknown): BriefLinkSnapshot | null {
   }
 }
 
+function parseNewIntent(raw: unknown): NewIntentState {
+  if (!isRecord(raw)) return { modeId: '', profileId: '', confirmed: false }
+  return {
+    modeId: asString(raw.modeId),
+    profileId: asString(raw.profileId),
+    confirmed: raw.confirmed === true
+  }
+}
+
 /** 生产桥实现：eval 探针/写槽；一切桥故障 → null/false（调用方定降级语义） */
 export function createBridgeSlotIO(): ActiveDesignBridgeIO {
   async function probe(
@@ -386,7 +451,8 @@ export function createBridgeSlotIO(): ActiveDesignBridgeIO {
       currentPageId: asString(raw.currentPageId),
       design: parseDesignSnapshot(raw.design),
       brief: parseBriefSnapshot(raw.brief),
-      materialized: raw.materialized === true
+      materialized: raw.materialized === true,
+      newIntent: parseNewIntent(raw.newIntent)
     }
   }
   return {
@@ -407,19 +473,6 @@ export function createBridgeSlotIO(): ActiveDesignBridgeIO {
         return true
       } catch {
         return false
-      }
-    },
-    probeNewIntent: async (documentId, windowId) => {
-      try {
-        const raw = await callBridgeEval(buildProbeNewIntentSource(), documentId, windowId)
-        if (!isRecord(raw)) return null
-        return {
-          modeId: asString(raw.modeId),
-          profileId: asString(raw.profileId),
-          confirmed: raw.confirmed === true
-        }
-      } catch {
-        return null
       }
     },
     clearNewIntent: async (documentId, windowId) => {
@@ -491,31 +544,53 @@ export function createActiveDesignHost(deps: ActiveDesignHostDeps): ActiveDesign
     if (probe && isFormTargetStillValid(probe)) await moveSlot(mapped, documentId, windowId)
   }
 
+  /**
+   * 槽位读穿 + 本回合资产解析（P0-1）。
+   *
+   * 一次桥 eval 同时取回槽位快照与 newIntent 三键（原 probeSlot + probeNewIntent
+   * 两次 eval 合并）。`intentConfirmed` 返值即 pluginData 侧确认旗标——prepareTurn
+   * 与信封路径 OR 后作为 setup_design 守卫真源。
+   */
   async function probeSlotState(
+    envelopeIntent: NewIntentState | null,
     documentId?: string,
     windowId?: string
   ): Promise<{
-    slot: ActiveDesignSlotState
+    slot: TurnSlotState
     notices: string[]
+    /** pluginData 侧 confirmed 旗标（桥不可达 → false，按未确认降级） */
+    intentConfirmed: boolean
   }> {
     const probe = await deps.bridge.probeSlot(documentId, windowId)
     if (!probe) {
       console.warn(
         '[pi-backend] active_design 桥探针不可用——本回合按空槽组装（桥不可达或无活动文档）'
       )
-      return { slot: { status: 'empty' }, notices: [] }
+      // 桥不可达但信封已带参数 → 仍按信封意图解析资产（Turn 1 不该退化成 base only）
+      return {
+        slot: resolveTurnAssets(deps.registry(), { status: 'empty' }, envelopeIntent),
+        notices: [],
+        intentConfirmed: false
+      }
     }
-    const slot = evaluateActiveDesignSlot(probe.slotNodeId, probe.design, probe.brief)
-    if (slot.status !== 'dangling') return { slot, notices: [] }
+    const evaluated = evaluateActiveDesignSlot(probe.slotNodeId, probe.design, probe.brief)
+    // newIntent 优先级：信封（本回合一次性，最新）> pluginData 三键
+    const intent = envelopeIntent && envelopeIntent.modeId !== '' ? envelopeIntent : probe.newIntent
+    const intentConfirmed = probe.newIntent.confirmed
+    if (evaluated.status !== 'dangling') {
+      return {
+        slot: resolveTurnAssets(deps.registry(), evaluated, intent),
+        notices: [],
+        intentConfirmed
+      }
+    }
     // 定谳 3：槽位节点删除/失格 → 清槽 + 一行系统提示
     await moveSlot('', documentId, windowId)
-    return { slot: { status: 'empty' }, notices: [ACTIVE_DESIGN_TEXTS.slotCleared] }
-  }
-
-  /** T91b：探针读 pluginData，组装 intentConfirmed 旗标（OR 信封兼容路径） */
-  async function probeIntentFlag(documentId?: string, windowId?: string): Promise<boolean> {
-    const snap = await deps.bridge.probeNewIntent(documentId, windowId)
-    return snap?.confirmed === true
+    return {
+      slot: resolveTurnAssets(deps.registry(), { status: 'empty' }, intent),
+      notices: [ACTIVE_DESIGN_TEXTS.slotCleared],
+      intentConfirmed
+    }
   }
 
   return {
@@ -536,20 +611,33 @@ export function createActiveDesignHost(deps: ActiveDesignHostDeps): ActiveDesign
       intentConfirmed = false
       const { envelope, stripped } = stripNewIntentEnvelope(text)
       const intentNotices: string[] = []
+      let envelopeIntent: NewIntentState | null = null
       if (envelope) {
         intentConfirmed = true
+        // P0-1：信封参数同样参与资产解析（前端确认卡未写 pluginData 的兼容路径）
+        envelopeIntent = {
+          modeId: envelope.modeId ?? '',
+          profileId: envelope.profileId ?? '',
+          confirmed: true
+        }
         // T65 集成缺口修复：确认参数随本回合 context 对 AI 可见（选择即锁定）；
         // 裸信封（无任何参数）不注入——无可锁定字段
         const confirmedLine = ACTIVE_DESIGN_TEXTS.newIntentConfirmed(envelope)
         if (confirmedLine !== '') intentNotices.push(confirmedLine)
       }
-      // T91b：pluginData 探针确认（二级信源；前端 ChatNewIntentCard 确认后写入）。
-      // OR 信封兼容路径——任一为真即放行。探针不可达按未确认降级（warn）。
-      if (!intentConfirmed && (await probeIntentFlag(documentId, windowId))) {
-        intentConfirmed = true
-      }
       await resolveFormAnswer(text, documentId, windowId)
-      const { slot, notices } = await probeSlotState(documentId, windowId)
+      const {
+        slot,
+        notices,
+        intentConfirmed: probeConfirmed
+      } = await probeSlotState(envelopeIntent, documentId, windowId)
+      // T91b：pluginData 探针确认（二级信源；前端 ChatNewIntentCard 确认后写入）。
+      // OR 信封兼容路径——任一为真即放行。探针不可达按未确认降级。
+      // 偏差说明（P0-1）：守卫旗标保留手动管理，不采文档建议的
+      // `slot.status !== 'ok' && resolvedWorkflow != null` 派生式——裸信封、
+      // modeId=general、slot=ok 的替换/新建议图三条路径下该派生式恒假，
+      // 会把 setup_design 的 __confirmedNewIntent 守卫误关。
+      if (!intentConfirmed && probeConfirmed) intentConfirmed = true
       currentSlotNodeId = slot.status === 'ok' ? slot.design.nodeId : ''
       turn = assembleTurn(deps.registry(), slot, [...intentNotices, ...notices])
       return { promptText: stripped }

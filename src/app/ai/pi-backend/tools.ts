@@ -71,11 +71,20 @@ export type SetupDesignHooks = {
   onDesignCreated?: (rootId: string) => void | Promise<void>
 }
 
+/**
+ * extended 白名单。P1-1 扩充：set_text_resize / set_font / set_effects 三件
+ * （均已在 core EXTENDED_TOOLS 定义，此前未放行 → AI 无法切换字体——
+ * set_font 是唯一支持 font_family 的工具；set_effects 是阴影/模糊唯一入口；
+ * set_text_resize 被 longform / editable-design-full workflow 引用）。
+ */
 const EXTENDED_WHITELIST = [
   'get_components',
   'list_libraries',
   'insert_library_component',
-  'create_shape'
+  'create_shape',
+  'set_text_resize',
+  'set_font',
+  'set_effects'
 ] as const
 
 export const MAX_AGENT_STEPS = 50

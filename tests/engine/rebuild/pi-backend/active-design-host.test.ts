@@ -16,8 +16,13 @@
  *  - 删除悬空：清槽（writeSlot('')）+ slotCleared 提示行；brief 悬空提示行
  *  - setup_design 旗标契约（验收标准 2 宿主半）：信封真 → newIntentConfirmed
  *    返真（注入缝 __confirmedNewIntent 的真源），无信封恒假
- *  - T91b：pluginData 探针（probeNewIntent）二源确认——document root 三键命中
- *    → 旗标置真，与 envelope 路径 OR。clearNewIntent hook 由 onDesignCreated 触发
+ *  - T91b：pluginData 三键二源确认——document root 三键命中 → 旗标置真，
+ *    与 envelope 路径 OR。clearNewIntent hook 由 onDesignCreated 触发
+ *  - P0-1（newIntent 时序缺口修复）：资产解析（resolveTurnAssets）优先级
+ *    newIntent > slot；空槽 + newIntent confirmed 的 Turn 1 也拿到
+ *    workflow + profile + references；newIntent 未确认/modeId 空则维持 slot 语义。
+ *    守卫（newIntentConfirmed）仍手动管理——不采文档建议的派生式（见宿主内注）。
+ *    探针合并：newIntent 三键随 probeSlot 同片段返回（原独立 eval 撤销）
  */
 
 import { describe, expect, test } from 'bun:test'
@@ -27,12 +32,14 @@ import type {
   DesignRootSnapshot
 } from '@open-pencil/core/tools/fork/marketing/active-design'
 import { serializeAskAnswer } from '@open-pencil/core/tools/fork/marketing/ask-user-question'
+import type { NewIntentState } from '@open-pencil/core/tools/fork/marketing/brief'
 import { ACTIVE_DESIGN_TEXTS } from '@open-pencil/core/tools/fork/marketing/texts'
 
 import {
   assembleTurn,
   createActiveDesignHost,
   designTargetEnvelope,
+  resolveTurnAssets,
   stripNewIntentEnvelope,
   type ActiveDesignBridgeIO,
   type CandidateProbeData,
@@ -114,6 +121,8 @@ type FakeBridge = ActiveDesignBridgeIO & {
   writes: string[]
   setSlot(slotNodeId: string, design: DesignRootSnapshot | null): void
   setCandidate(nodeId: string, design: DesignRootSnapshot | null): void
+  /** P0-1：pluginData newIntent 三键（随槽位探针同片段返回） */
+  setNewIntent(intent: NewIntentState): void
 }
 
 /** 假桥：内存槽位 + 写记录；probeCandidate 读独立候选表 */
@@ -123,7 +132,8 @@ function makeFakeBridge(): FakeBridge {
     currentPageId: 'page-1',
     design: null,
     brief: null,
-    materialized: false
+    materialized: false,
+    newIntent: { modeId: '', profileId: '', confirmed: false }
   }
   const candidateById = new Map<string, DesignRootSnapshot | null>()
   const writes: string[] = []
@@ -135,6 +145,9 @@ function makeFakeBridge(): FakeBridge {
     },
     setCandidate(nodeId, design) {
       candidateById.set(nodeId, design)
+    },
+    setNewIntent(intent) {
+      slot = { ...slot, newIntent: intent }
     },
     probeSlot: () => Promise.resolve(slot),
     probeCandidate: (nodeId) => {
@@ -152,14 +165,32 @@ function makeFakeBridge(): FakeBridge {
       slot = { ...slot, slotNodeId: nodeId }
       return Promise.resolve(true)
     },
-    // T91b：newIntent pluginData 探针 / 清键 stub（测试默认返未确认）
-    probeNewIntent: () => Promise.resolve(null),
+    // T91b：newIntent 清键 stub（探针侧已并入 probeSlot 的 newIntent 字段）
     clearNewIntent: () => Promise.resolve(true)
   }
 }
 
 function makeHost(bridge: ActiveDesignBridgeIO, registry = makeRegistry()) {
   return createActiveDesignHost({ registry: () => registry, bridge })
+}
+
+/**
+ * P0-1：装配链路完整口径 = resolveTurnAssets（probe 阶段的 registry 查找 +
+ * newIntent 优先级）→ assembleTurn（拼接）。测试统一走这条组合，与 prepareTurn
+ * 内部顺序一致。
+ */
+function assemble(
+  registry: StudioRegistry,
+  slot: ActiveDesignSlotState,
+  opts: { newIntent?: NewIntentState; notices?: string[] } = {}
+) {
+  const resolved = resolveTurnAssets(registry, slot, opts.newIntent ?? null)
+  return assembleTurn(registry, resolved, opts.notices ?? [])
+}
+
+/** newIntent 三键构造糖（confirmed 默认 true） */
+function intent(modeId: string, profileId = '', confirmed = true): NewIntentState {
+  return { modeId, profileId, confirmed }
 }
 
 // ── 信封剥离 ─────────────────────────────────────────────────────────────────
@@ -303,7 +334,7 @@ describe('每回合组装（assembleTurn）', () => {
   const registry = makeRegistry()
 
   test('空槽 = base only + 无封套（general + 无 profile）', () => {
-    const turn = assembleTurn(registry, { status: 'empty' })
+    const turn = assemble(registry, { status: 'empty' })
     expect(turn.systemPrompt).toBe('BASE')
     expect(turn.contextLines).toEqual([])
   })
@@ -314,7 +345,7 @@ describe('每回合组装（assembleTurn）', () => {
       design: designSnap(),
       briefMissing: false
     }
-    const turn = assembleTurn(registry, slot)
+    const turn = assemble(registry, slot)
     expect(turn.systemPrompt).toBe('BASE\n\nLONGFORM-WORKFLOW\n\nPROFILE-BODY')
     expect(turn.contextLines[0]).toBe(
       '[当前设计目标 nodeId=d1 modeId=longform profileId=watercolor briefId=b1]'
@@ -322,7 +353,7 @@ describe('每回合组装（assembleTurn）', () => {
   })
 
   test('general mode：无 workflow 段；profile 选中仍注入', () => {
-    const turn = assembleTurn(registry, {
+    const turn = assemble(registry, {
       status: 'ok',
       design: designSnap({ modeId: 'general' }),
       briefMissing: false
@@ -331,7 +362,7 @@ describe('每回合组装（assembleTurn）', () => {
   })
 
   test('profile 缺省 → 封套省略 profileId 字段且不注入 profile 段', () => {
-    const turn = assembleTurn(registry, {
+    const turn = assemble(registry, {
       status: 'ok',
       design: designSnap({ profileId: '' }),
       briefMissing: false
@@ -341,7 +372,7 @@ describe('每回合组装（assembleTurn）', () => {
   })
 
   test('profileId 未命中注册表 → 跳过（失败面归 manifest failures）', () => {
-    const turn = assembleTurn(registry, {
+    const turn = assemble(registry, {
       status: 'ok',
       design: designSnap({ profileId: 'ghost' }),
       briefMissing: false
@@ -350,7 +381,7 @@ describe('每回合组装（assembleTurn）', () => {
   })
 
   test('落盘 mode 的 workflow 缺失 → 一行系统提示 + 按 general 组装（封套保留）', () => {
-    const turn = assembleTurn(registry, {
+    const turn = assemble(registry, {
       status: 'ok',
       design: designSnap({ modeId: 'ghost-mode' }),
       briefMissing: false
@@ -361,12 +392,152 @@ describe('每回合组装（assembleTurn）', () => {
   })
 
   test('brief 悬空 → 提示行进 contextLines', () => {
-    const turn = assembleTurn(registry, {
+    const turn = assemble(registry, {
       status: 'ok',
       design: designSnap(),
       briefMissing: true
     })
     expect(turn.contextLines).toContain(ACTIVE_DESIGN_TEXTS.briefMissing)
+  })
+})
+
+// ── P0-1：newIntent 时序缺口修复（newIntent 优先于 slot）───────────────────────
+
+describe('P0-1 newIntent 优先级装配（resolveTurnAssets）', () => {
+  test('① 空槽 + newIntent confirmed（modeId+profileId）→ workflow + profile + references 索引', () => {
+    const registry = makeRegistry()
+    // workflow 挂 references，验证索引节随 newIntent 解析的资产一并出现
+    registry.workflows.set(
+      'longform',
+      makeWorkflow('longform', 'LONGFORM-WORKFLOW', [
+        { path: 'references/imagery.md', description: '图像决策纪律' }
+      ])
+    )
+    registry.resolvedReferences = new Map([
+      [
+        'workflow:longform',
+        new Map([['references/imagery.md', '/abs/studio/workflows/longform/references/imagery.md']])
+      ]
+    ])
+    const turn = assemble(
+      registry,
+      { status: 'empty' },
+      { newIntent: intent('longform', 'watercolor') }
+    )
+    // 修复前：空槽恒 'BASE'（workflow/profile/references 全丢）
+    expect(turn.systemPrompt).toBe(
+      'BASE\n\nLONGFORM-WORKFLOW\n\nPROFILE-BODY\n\n' +
+        '## 按需参考（read_reference 工具按需读取）\n' +
+        '- references/imagery.md —— 图像决策纪律（workflow: longform）'
+    )
+    expect(Object.fromEntries(turn.allowedReferences)).toEqual({
+      'references/imagery.md': '/abs/studio/workflows/longform/references/imagery.md'
+    })
+    // 空槽 → 无身份封套（设计区尚未落图）
+    expect(turn.contextLines).toEqual([])
+  })
+
+  test('② slot=ok（旧设计）+ newIntent confirmed（新模式）→ newIntent 胜出', () => {
+    const registry = makeRegistry()
+    registry.workflows.set('poster', makeWorkflow('poster', 'POSTER-WORKFLOW'))
+    const turn = assemble(
+      registry,
+      { status: 'ok', design: designSnap(), briefMissing: false }, // 旧设计 = longform/watercolor
+      { newIntent: intent('poster') }
+    )
+    // 新 workflow 而非旧设计的 LONGFORM-WORKFLOW；profileId 由 newIntent 给（此处空）
+    expect(turn.systemPrompt).toBe('BASE\n\nPOSTER-WORKFLOW')
+    expect(turn.systemPrompt).not.toContain('LONGFORM-WORKFLOW')
+    expect(turn.systemPrompt).not.toContain('PROFILE-BODY')
+    // 身份封套仍按 slot 落盘事实（目标节点没变）
+    expect(turn.contextLines[0]).toBe(
+      '[当前设计目标 nodeId=d1 modeId=longform profileId=watercolor briefId=b1]'
+    )
+  })
+
+  test('③ newIntent 未 confirmed / modeId 空 → 维持 slot 逻辑不变', () => {
+    const registry = makeRegistry()
+    registry.workflows.set('poster', makeWorkflow('poster', 'POSTER-WORKFLOW'))
+    const slot: ActiveDesignSlotState = {
+      status: 'ok',
+      design: designSnap(),
+      briefMissing: false
+    }
+    // confirmed=false → 忽略 newIntent，走 slot（longform + watercolor）
+    expect(assemble(registry, slot, { newIntent: intent('poster', '', false) }).systemPrompt).toBe(
+      'BASE\n\nLONGFORM-WORKFLOW\n\nPROFILE-BODY'
+    )
+    // confirmed=true 但 modeId 空（裸信封路径）→ 同样忽略，走 slot
+    expect(assemble(registry, slot, { newIntent: intent('') }).systemPrompt).toBe(
+      'BASE\n\nLONGFORM-WORKFLOW\n\nPROFILE-BODY'
+    )
+    // 空槽 + 未确认 → base only（原语义）
+    expect(
+      assemble(registry, { status: 'empty' }, { newIntent: intent('poster', '', false) })
+        .systemPrompt
+    ).toBe('BASE')
+  })
+
+  test('newIntent 的 modeId=general → 无 workflow 段但 profile 注入（无 workflowMissing 提示）', () => {
+    const turn = assemble(
+      makeRegistry(),
+      { status: 'empty' },
+      { newIntent: intent('general', 'watercolor') }
+    )
+    expect(turn.systemPrompt).toBe('BASE\n\nPROFILE-BODY')
+    expect(turn.contextLines).toEqual([])
+  })
+
+  test('newIntent 的 modeId 未命中 registry → workflowMissing 提示 + 不注 profile', () => {
+    const turn = assemble(
+      makeRegistry(),
+      { status: 'empty' },
+      { newIntent: intent('ghost-mode', 'watercolor') }
+    )
+    expect(turn.systemPrompt).toBe('BASE')
+    expect(turn.contextLines).toEqual([ACTIVE_DESIGN_TEXTS.workflowMissing('ghost-mode')])
+  })
+
+  test('prepareTurn 端到端：pluginData newIntent（空槽）→ Turn 1 拿到 workflow + profile + 守卫置真', async () => {
+    const bridge = makeFakeBridge()
+    bridge.setNewIntent(intent('longform', 'watercolor'))
+    const host = makeHost(bridge)
+    await host.prepareTurn('开始做图')
+    expect(host.turnAssembly()?.systemPrompt).toBe('BASE\n\nLONGFORM-WORKFLOW\n\nPROFILE-BODY')
+    // 守卫语义不变：pluginData confirmed → setup_design 的 __confirmedNewIntent 真源
+    expect(host.newIntentConfirmed()).toBe(true)
+    host.finalizeTurn()
+  })
+
+  test('prepareTurn 端到端：信封 modeId（pluginData 未写）也参与资产解析', async () => {
+    const host = makeHost(makeFakeBridge())
+    await host.prepareTurn('[新建意图确认 modeId=longform profileId=watercolor]\n做图')
+    expect(host.turnAssembly()?.systemPrompt).toBe('BASE\n\nLONGFORM-WORKFLOW\n\nPROFILE-BODY')
+    expect(host.newIntentConfirmed()).toBe(true)
+    host.finalizeTurn()
+  })
+
+  test('prepareTurn 端到端：信封优先于 pluginData（信封 modeId 非空时）', async () => {
+    const registry = makeRegistry()
+    registry.workflows.set('poster', makeWorkflow('poster', 'POSTER-WORKFLOW'))
+    const bridge = makeFakeBridge()
+    bridge.setNewIntent(intent('longform', 'watercolor')) // 旧 pluginData
+    const host = makeHost(bridge, registry)
+    await host.prepareTurn('[新建意图确认 modeId=poster]\n换一个')
+    expect(host.turnAssembly()?.systemPrompt).toBe('BASE\n\nPOSTER-WORKFLOW')
+    host.finalizeTurn()
+  })
+
+  test('守卫语义回归：slot=ok + pluginData confirmed（替换/另起）→ newIntentConfirmed 仍真', async () => {
+    // 文档建议的派生式 `slot.status !== 'ok' && resolvedWorkflow != null` 在此路径下
+    // 会把守卫误关；保留手动旗标 → 此处必须为真
+    const bridge = makeFakeBridge()
+    bridge.setSlot('d1', designSnap())
+    bridge.setNewIntent(intent('longform', 'watercolor'))
+    const host = makeHost(bridge)
+    await host.prepareTurn('再做一张')
+    expect(host.newIntentConfirmed()).toBe(true)
+    host.finalizeTurn()
   })
 })
 
@@ -409,7 +580,7 @@ describe('references 索引注入（T85 定谳 3/4）', () => {
   }
 
   test('有槽：索引节追加 systemPrompt 尾段（行格式逐字钉扎）+ 允许集 = 声明 path → 绝对路径', () => {
-    const turn = assembleTurn(registryWithRefs(), {
+    const turn = assemble(registryWithRefs(), {
       status: 'ok',
       design: designSnap({ profileId: '' }),
       briefMissing: false
@@ -427,7 +598,7 @@ describe('references 索引注入（T85 定谳 3/4）', () => {
   })
 
   test('无任何 references → 无索引节 + 允许集为空（systemPrompt 逐字不变）', () => {
-    const turn = assembleTurn(makeRegistry(), {
+    const turn = assemble(makeRegistry(), {
       status: 'ok',
       design: designSnap(),
       briefMissing: false
@@ -438,7 +609,7 @@ describe('references 索引注入（T85 定谳 3/4）', () => {
   })
 
   test('空槽 = base only：base 有 references 才出现索引节（source 标 base）', () => {
-    const withBase = assembleTurn(registryWithRefs({ base: true }), { status: 'empty' })
+    const withBase = assemble(registryWithRefs({ base: true }), { status: 'empty' })
     expect(withBase.systemPrompt).toBe(
       'BASE\n\n## 按需参考（read_reference 工具按需读取）\n- references/house.md —— 团队纪律（base）'
     )
@@ -446,13 +617,13 @@ describe('references 索引注入（T85 定谳 3/4）', () => {
       'references/house.md': '/abs/studio/base/references/house.md'
     })
     // base 无 references 的空槽：无节、空允许集
-    const plain = assembleTurn(makeRegistry(), { status: 'empty' })
+    const plain = assemble(makeRegistry(), { status: 'empty' })
     expect(plain.systemPrompt).toBe('BASE')
     expect(plain.allowedReferences.size).toBe(0)
   })
 
   test('profile 选中时其 references 同机制入并集（位于 workflow 行之后）', () => {
-    const turn = assembleTurn(registryWithRefs({ profile: true }), {
+    const turn = assemble(registryWithRefs({ profile: true }), {
       status: 'ok',
       design: designSnap(),
       briefMissing: false
@@ -468,7 +639,7 @@ describe('references 索引注入（T85 定谳 3/4）', () => {
   })
 
   test('落盘 mode 的 workflow 缺失 → workflow references 不进并集（按 general 组装）', () => {
-    const turn = assembleTurn(registryWithRefs(), {
+    const turn = assemble(registryWithRefs(), {
       status: 'ok',
       design: designSnap({ modeId: 'ghost-mode', profileId: '' }),
       briefMissing: false
@@ -491,21 +662,37 @@ describe('references 索引注入（T85 定谳 3/4）', () => {
 // ── prepareTurn 管线（桥假件）────────────────────────────────────────────────
 
 describe('prepareTurn 管线', () => {
-  test('桥不可达（probeSlot → null）→ 按空槽组装 + 信封照常剥离（T65：确认参数行仍注入）', async () => {
+  test('桥不可达（probeSlot → null）→ 空槽降级 + 信封照常剥离（T65 确认参数行 + P0-1 信封资产解析）', async () => {
     const down: ActiveDesignBridgeIO = {
       probeSlot: () => Promise.resolve(null),
       probeCandidate: () => Promise.resolve(null),
-      writeSlot: () => Promise.resolve(false)
+      writeSlot: () => Promise.resolve(false),
+      clearNewIntent: () => Promise.resolve(false)
     }
     const host = makeHost(down)
     const { promptText } = await host.prepareTurn('[新建意图确认 modeId=longform]\n做图')
     expect(promptText).toBe('做图')
     expect(host.newIntentConfirmed()).toBe(true)
+    // P0-1：桥不可达也不该把 Turn 1 退化成 base only——信封 modeId 仍驱动资产解析
     expect(host.turnAssembly()).toEqual({
-      systemPrompt: 'BASE',
+      systemPrompt: 'BASE\n\nLONGFORM-WORKFLOW',
       contextLines: ['用户已为本次新建确认参数：modeId=longform（选择即锁定，不得覆盖）'],
       allowedReferences: new Map()
     })
+    host.finalizeTurn()
+  })
+
+  test('桥不可达 + 无信封 → base only（原降级语义不变）', async () => {
+    const down: ActiveDesignBridgeIO = {
+      probeSlot: () => Promise.resolve(null),
+      probeCandidate: () => Promise.resolve(null),
+      writeSlot: () => Promise.resolve(false),
+      clearNewIntent: () => Promise.resolve(false)
+    }
+    const host = makeHost(down)
+    await host.prepareTurn('随便聊聊')
+    expect(host.newIntentConfirmed()).toBe(false)
+    expect(host.turnAssembly()?.systemPrompt).toBe('BASE')
     host.finalizeTurn()
   })
 

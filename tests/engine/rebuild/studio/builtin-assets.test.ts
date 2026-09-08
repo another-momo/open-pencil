@@ -23,6 +23,10 @@
  * P1-6（2026-09-08）：base 拆分——general.md 落位为第四个 workflow（后并入三件套：
  * general + art-directed + longform-hero-kv-first），装配无特判；modes[0].source 仍标
  * 'general' 保历史语义。
+ *
+ * P1-5b（2026-09-08）：longform-structure-first 落位（骨架先行长图，与 hero-first
+ * 并存对比）——四 workflow 终态：general + art-directed + longform-hero-kv-first +
+ * longform-structure-first。
  */
 
 import { expect, test } from 'bun:test'
@@ -34,7 +38,7 @@ import { loadStudioFromDirs } from '@/app/ai/pi-backend/studio'
 
 const BUILTIN_DIR = join(import.meta.dir, '../../../../src/app/ai/pi-backend/studio')
 
-test('内置资产集过校验面：failures 零、base 注册（免 label）、三 workflow 注册（general + longform-hero-kv-first 画布尺寸节非空；art-directed references 全解析）、两 profile 注册、modes=[general, art-directed, longform-hero-kv-first]', () => {
+test('内置资产集过校验面：failures 零、base 注册（免 label）、四 workflow 注册（general + longform-hero-kv-first/longform-structure-first 画布尺寸节非空；art-directed references 全解析；structure-first references 缺席）、两 profile 注册、modes=[general, art-directed, longform-hero-kv-first, longform-structure-first]', () => {
   const userDir = mkdtempSync(join(tmpdir(), 'studio-user-empty-'))
   try {
     const r = loadStudioFromDirs(BUILTIN_DIR, userDir)
@@ -69,8 +73,8 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
     expect(r.modes.find((m) => m.id === 'longform-hero-kv-first')?.sizes).toEqual(longform.sizes)
 
     // P1-5+P1-6：art-directed 注册（高保真海报 mode）+ 4 条 references 声明全解析；
-    // 扫描器不吞 references 子目录——workflows 恰好 3 个（references/*.md 未误注册）
-    expect(r.workflows.size).toBe(3)
+    // 扫描器不吞 references 子目录——workflows 恰好 4 个（references/*.md 未误注册）
+    expect(r.workflows.size).toBe(4)
     const artDirected = r.workflows.get('art-directed')
     if (!artDirected) throw new Error('art-directed 未注册')
     expect(artDirected.stepBudget).toBe(50)
@@ -91,18 +95,37 @@ test('内置资产集过校验面：failures 零、base 注册（免 label）、
     }
     expect(r.modes.find((m) => m.id === 'art-directed')?.sizes).toEqual(artDirected.sizes)
 
+    // 结构先行长图 mode：与 longform-hero-kv-first 同尺寸预设、同 step budget，
+    // references 字段缺席，画布尺寸节非空（同口径——mode 级尺寸说明存在性钉扎）
+    const structureFirst = r.workflows.get('longform-structure-first')
+    if (!structureFirst) throw new Error('longform-structure-first 未注册')
+    expect(structureFirst.stepBudget).toBe(50)
+    expect(structureFirst.sizes).toEqual(longform.sizes)
+    expect(structureFirst.references ?? []).toEqual([])
+    expect(structureFirst.sections['画布尺寸']).toBeTruthy()
+    expect(r.modes.find((m) => m.id === 'longform-structure-first')?.sizes).toEqual(
+      structureFirst.sizes
+    )
+
     // profiles：恰好两份精品（watercolor_poster_v2 + v3），applicable_to 均指向 longform-hero-kv-first
     expect([...r.profiles.keys()].sort()).toEqual(['watercolor_poster_v2', 'watercolor_poster_v3'])
     for (const p of r.profiles.values()) {
       expect(p.applicableTo).toEqual(['longform-hero-kv-first'])
     }
 
-    // modes 投影：general 首位（general.md 派生，source 标 general）+ 两 workflow 派生
-    //（文件名序：'a' < 'l'，故 art-directed.md 排在 longform-hero-kv-first.md 前）
-    expect(r.modes.map((m) => m.id)).toEqual(['general', 'art-directed', 'longform-hero-kv-first'])
+    // modes 投影：general 首位（general.md 派生，source 标 general）+ 三 workflow 派生
+    //（文件名序：'a' < 'l'；'longform-hero-kv-first' 与 'longform-structure-first'
+    // 共同前缀后 'h'(0x68) < 's'(0x73)，hero-kv-first 排前）
+    expect(r.modes.map((m) => m.id)).toEqual([
+      'general',
+      'art-directed',
+      'longform-hero-kv-first',
+      'longform-structure-first'
+    ])
     expect(r.modes[0].source).toBe('general')
     expect(r.modes[1].source).toBe('workflow')
     expect(r.modes[2].source).toBe('workflow')
+    expect(r.modes[3].source).toBe('workflow')
   } finally {
     rmSync(userDir, { recursive: true, force: true })
   }

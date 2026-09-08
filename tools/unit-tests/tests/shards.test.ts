@@ -10,11 +10,15 @@ import {
 } from '../src/shards'
 
 test('every engine test belongs to exactly one shard', async () => {
-  const discovered = await Array.fromAsync(
-    new Bun.Glob('tests/engine/**/*.test.ts').scan({
-      cwd: fileURLToPath(new URL('../../..', import.meta.url))
-    })
-  )
+  // fork patch：Bun.Glob 在 Windows 下经绝对路径 cwd 返回反斜杠路径，
+  // 与 shards.ts 的正斜杠前缀永不匹配——扫描边界归一为 POSIX 分隔符
+  const discovered = (
+    await Array.fromAsync(
+      new Bun.Glob('tests/engine/**/*.test.ts').scan({
+        cwd: fileURLToPath(new URL('../../..', import.meta.url))
+      })
+    )
+  ).map((file) => file.replaceAll('\\', '/'))
   const paths = pathsForUnitTestGroup('all')
   const invalidAssignments = discovered.flatMap((file) => {
     const owners = paths.filter((path) => file.startsWith(`${path}/`))

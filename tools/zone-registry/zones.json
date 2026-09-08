@@ -1,5 +1,5 @@
 {
-  "$comment": "Zone registry（工作机制 v2 现行规则，2026-09-06 瘦身）。本文件是 fork 与上游合并的文件所有权唯一真相，由 tools/zone-registry/src/check.ts（check:zones，pre-commit 强制）机器执行。现行规则：改动上游供血文件必须登记 patches；新增文件只许落在 ownedRoots；deletedPaths 不得复活；stubs 登记伪装上游接口的 fork 自有桩（与 patches 互斥——R-mutex）；pendingReclass 是计划元数据（重分类仪式完成前文件保持 follow-pure，可携带 deletion-cut patch）；relocations 登记搬移意图（上游旧位置→fork 新家园，空数组=纯裁撤无继承者），check.ts RELOCATION_WATCH 对 upstreamBase..upstream/master diff 命中时打印移植评估 advisory（永不 fail gate，--drift 出明细）；upstreamMergeTarball 机制（按合并事件白名单字节一致拷贝、锚 base SHA、drift 即违规）保留给未来合并，当前清零。上游合并 SOP：合并前 check:zones 绿 → 按 zone 裁定冲突 → 合并后 ownedFiles 字节审计（清 phantom）+ relocations/tarball 台账更新。最近合并：T98（2026-09-05/06，base 88c10770→d82aaff9e 全簇合并 + i18n 域下线 + ownedFiles 字节审计清 15 phantom + mechanism-v2  tarball 审计 38 路径全退休清零）。历史台账全本：docs/archive/rebuild-campaign/zones-comment-ledger-2026-09-06.md 与 git 历史。机制复盘节奏由 tools/hooks/src/mechanism-review.ts 跟踪。",
+  "$comment": "Zone registry（工作机制 v2 现行规则，2026-09-06 瘦身）。本文件是 fork 与上游合并的文件所有权唯一真相，由 tools/zone-registry/src/check.ts（check:zones，pre-commit 强制）机器执行。现行规则：改动上游供血文件必须登记 patches；新增文件只许落在 ownedRoots；deletedPaths 不得复活；stubs 登记伪装上游接口的 fork 自有桩（与 patches 互斥——R-mutex）；pendingReclass 是计划元数据（重分类仪式完成前文件保持 follow-pure，可携带 deletion-cut patch）；relocations 登记搬移意图（上游旧位置→fork 新家园，空数组=纯裁撤无继承者），check.ts RELOCATION_WATCH 对 upstreamBase..upstream/master diff 命中时打印移植评估 advisory（永不 fail gate，--drift 出明细）；upstreamMergeTarball 机制（按合并事件白名单字节一致拷贝、锚 base SHA、drift 即违规）保留给未来合并，当前清零。上游合并 SOP：合并前 check:zones 绿 → 按 zone 裁定冲突 → 合并后 ownedFiles 字节审计（清 phantom）+ relocations/tarball 台账更新。最近合并：2026-09-08 上游 d82aaff9e→9dac52da1（27 commits：UI family 重组收割 + P37 退役转 relocation + deletedPaths 增补 5 条——ModelsPanel.vue/credentials media.ts/diagnostics recent.ts+其测试/AppCombobox.vue；fuse.js 根依赖拒收，packages/vue 既有依赖保留）。历史台账全本：docs/archive/rebuild-campaign/zones-comment-ledger-2026-09-06.md 与 git 历史。机制复盘节奏由 tools/hooks/src/mechanism-review.ts 跟踪。",
   "ownedRoots": [
     "docs/",
     "tools/zone-registry/",
@@ -86,25 +86,25 @@
       "oldPath": "packages/cli/",
       "newPaths": ["packages/core/src/io/", "tools/visual-oracles/src/render-fixture.ts"],
       "since": "Batch 2b (2026-09-05)",
-      "note": "cli 裁撤；CanvasKit 初始化/字体预备吸收进 core/io，fixture 导出归 visual-oracles"
+      "note": "cli 裁撤；CanvasKit 初始化/字体预备吸收进 core/io，fixture 导出归 visual-oracles；2026-09-08 合并吸收上游改动（import.ts 随删除批）"
     },
     {
       "oldPath": "src/app/ai/chat/",
       "newPaths": ["src/app/ai/fork/"],
       "since": "Batch 2a (2026-09-05)",
-      "note": "路径分离：use/failure/transports 迁 fork；2026-09-05 整目录进 deletedPaths"
+      "note": "路径分离：use/failure/transports 迁 fork；2026-09-05 整目录进 deletedPaths；2026-09-08 合并吸收上游改动（storage/use.ts 随删除批）"
     },
     {
       "oldPath": "src/components/chat/",
       "newPaths": ["src/components/assistant/"],
       "since": "Batch 2f (2026-09-05)",
-      "note": "整目录搬家腾出上游仍在用的目录名"
+      "note": "整目录搬家腾出上游仍在用的目录名；2026-09-08 合并吸收上游改动（6 组件随删除批）"
     },
     {
       "oldPath": "src/app/automation/mcp/",
       "newPaths": [],
       "since": "Batch 2c (2026-09-05)",
-      "note": "mcp 外壳裁撤（纯删除，无继承者）"
+      "note": "mcp 外壳裁撤（纯删除，无继承者）；2026-09-08 合并吸收上游新增 settings/use.ts（owner 拍板③ outright-drop——import 全死链）"
     },
     {
       "oldPath": "tests/engine/mcp/",
@@ -117,6 +117,12 @@
       "newPaths": ["src/app/ai/pi-backend/studio/base.md"],
       "since": "T46 (2026-08)",
       "note": "提示词谱系：T46 转写副本 2026-09-05 退役，studio/ 唯一真源"
+    },
+    {
+      "oldPath": "src/components/settings/models/ModelsPanel.vue",
+      "newPaths": ["src/components/settings/models/PiModelsPanel.vue"],
+      "since": "upstream-merge d82aaff9e..9dac52da1 (2026-09-08)",
+      "note": "路径分离（owner 拍板①）：上游推平重写依赖已裁 ai/models 域，彻底抛弃；SettingsDialog 直引 PiModelsPanel（pi SDK 自持），P37 塌缩 patch 随之退役"
     }
   ],
   "patches": [
@@ -214,9 +220,9 @@
     {
       "id": "P19",
       "file": "tools/unit-tests/src/shards.ts",
-      "reason": "app group: drop acp/tauri dirs, add tests/engine/rebuild",
+      "reason": "app group: drop acp/tauri dirs, add tests/engine/rebuild；2026-09-08 上游合并：上游扩 app group（acp/cli/collab/tauri）未采——四目录均为 fork deletedPaths；按其归组语义吸收既有未覆盖目录：core→editor、bytes/library→scene（新版严格分片测试要求每测试恰好一片）",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
+      "lastReviewed": "2026-09-08"
     },
     {
       "id": "P20",
@@ -339,13 +345,6 @@
       "lastReviewed": "2026-08-25"
     },
     {
-      "id": "P37",
-      "file": "src/components/settings/models/ModelsPanel.vue",
-      "reason": "T21: VITE_PI_BACKEND=1 时改向渲染 PiModelsPanel（provider/凭据由 pi 后端管理）；旧 profile/assignment 路径保留给 legacy 模式 T25: 塌缩为恒渲染 PiModelsPanel，旧 profile/assignment 臂随 models/providers 族删除",
-      "disposition": "permanent",
-      "lastReviewed": "2026-08-25"
-    },
-    {
       "id": "P38",
       "file": "packages/vue/src/i18n/messages/dialogs.ts",
       "reason": "T21: PiModelsPanel 的 en 源文案键（pi* 前缀一组）；zh 翻译随附 locales/zh-cn/dialogs.json T25: 删旧面专属键 106 个 T27: harnessThinking* → piThinking* 改名 T35: **撤销**——pi 段迁回 fork seam（src/app/i18n/fork/），不再寄生 packages/vue 区",
@@ -376,9 +375,9 @@
     {
       "id": "P44",
       "file": "src/components/settings/SettingsDialog.vue",
-      "reason": "T25: MCP 导航/区块/导入切除（settings-mcp 面随 integrations/mcp 删除） T34: git merge 把 base 88c10770 的 mcp nav button 带回（面板未回——点击落裸 v-else 的 Storage，僵尸 nav） T36(2026-08-28): 删 mcp nav button + 裸 v-else 收窄为 v-else-if storage + 显式空态 fallback（owner 拍板③）；i18n 死键 settingsMCP 保留不删——packages/vue 的 messages/dialogs.ts 与 zh-cn/dialogs.json 经 T35 还原与上游字节一致，删键会制造新 patch 徒增下轮合并冲突面，死文案无害（取舍注记，owner 拍板③附带评估）；T41：设置对话框接入字体分区（FontsSettingsPanel 分支 + 导航按钮）；T54（2026-09-01）：media 段挂载 ImageGenKeysSection（生图凭证预设下拉+单 key 输入）；T96（2026-09-04）：ai 区 ModelsPanel 与 AgentSettingsPanel 之间加分隔线（预研 §5.3 视觉分组）；T91k（2026-09-04）：ai 区去 h-full，AgentSettingsPanel 进入对话框容器统一滚动流（owner 拍板：独立悬挂挤压模型清单可视面积）",
+      "reason": "T25: MCP 导航/区块/导入切除（settings-mcp 面随 integrations/mcp 删除） T34: git merge 把 base 88c10770 的 mcp nav button 带回（面板未回——点击落裸 v-else 的 Storage，僵尸 nav） T36(2026-08-28): 删 mcp nav button + 裸 v-else 收窄为 v-else-if storage + 显式空态 fallback（owner 拍板③）；i18n 死键 settingsMCP 保留不删——packages/vue 的 messages/dialogs.ts 与 zh-cn/dialogs.json 经 T35 还原与上游字节一致，删键会制造新 patch 徒增下轮合并冲突面，死文案无害（取舍注记，owner 拍板③附带评估）；T41：设置对话框接入字体分区（FontsSettingsPanel 分支 + 导航按钮）；T54（2026-09-01）：media 段挂载 ImageGenKeysSection（生图凭证预设下拉+单 key 输入）；T96（2026-09-04）：ai 区 ModelsPanel 与 AgentSettingsPanel 之间加分隔线（预研 §5.3 视觉分组）；T91k（2026-09-04）：ai 区去 h-full，AgentSettingsPanel 进入对话框容器统一滚动流（owner 拍板：独立悬挂挤压模型清单可视面积）；2026-09-08 上游合并：ModelsPanel 路径分离（owner 拍板①）——import/模板改直引 PiModelsPanel，上游重写版（依赖已裁 ai/models 域）弃收；上游 import 换轨（credentials/media 等）未采——stock-photo-keys 仍为 fork 凭证面（同 P185 立场）",
       "disposition": "permanent",
-      "lastReviewed": "2026-09-04"
+      "lastReviewed": "2026-09-08"
     },
     {
       "id": "P45",
@@ -459,9 +458,9 @@
     {
       "id": "P59",
       "file": "AGENTS.md",
-      "reason": "T29(2026-08-25): 决策单 #14 根文档最小指针——Documentation 节新增 2 行 docs/rebuild/README.md + tracker.md 指针（contributor/agent 可见 rebuild 跟踪）",
+      "reason": "T29(2026-08-25): 决策单 #14 根文档最小指针——Documentation 节新增 2 行 docs/rebuild/README.md + tracker.md 指针（contributor/agent 可见 rebuild 跟踪）；78c717abd 已重写为 fork 自持向导；2026-09-08 上游合并：采上游 Settings UI ownership/family 重组语义一行（§3 末条），上游长文段（含 tauri 凭证细节）不入",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-25",
+      "lastReviewed": "2026-09-08",
       "task": "T29"
     },
     {
@@ -596,10 +595,10 @@
     },
     {
       "id": "P122",
-      "file": "src/components/ui/AppSwitch.vue",
-      "reason": "T41：AppSwitch 增加 disabled prop 透传 SwitchRoot（bundled 字体锁定恒启用，开关置灰）",
+      "file": "src/components/ui/toggle/AppSwitch.vue",
+      "reason": "T41：AppSwitch 增加 disabled prop 透传 SwitchRoot（bundled 字体锁定恒启用，开关置灰）；2026-09-08 上游合并改锚——上游 UI family 重组把文件迁进 ui/toggle/（rename 自动合并，disabled prop 存活），引用方同步换轨",
       "disposition": "permanent",
-      "lastReviewed": "2026-08-30"
+      "lastReviewed": "2026-09-08"
     },
     {
       "id": "P124",
@@ -981,9 +980,9 @@
     {
       "id": "P185",
       "file": "src/components/settings/provider/StockPhotoKeysSection.vue",
-      "reason": "Batch 2a（2026-09-05，chat/ai 依赖点解耦）：pexels/unsplash 凭证读写由 useAIChat() 间接面改直引 @/app/settings/credentials/stock-photo-keys（2a 三处解耦点之一）",
+      "reason": "Batch 2a（2026-09-05，chat/ai 依赖点解耦）：pexels/unsplash 凭证读写由 useAIChat() 间接面改直引 @/app/settings/credentials/stock-photo-keys（2a 三处解耦点之一）；2026-09-08 上游合并：上游收敛同语义（其新 credentials/media.ts）——未采，stock-photo-keys 仍为唯一凭证面；media.ts 依赖已删 migration.ts 成死链，进 deletedPaths",
       "disposition": "permanent",
-      "lastReviewed": "2026-09-05"
+      "lastReviewed": "2026-09-08"
     },
     {
       "id": "P186",
@@ -1191,6 +1190,13 @@
       "lastReviewed": "2026-09-07"
     },
     {
+      "id": "P218",
+      "file": "tools/unit-tests/tests/shards.test.ts",
+      "reason": "upstream-merge（2026-09-08）：上游新版严格分片测试在 Windows 本机全灭——Bun.Glob 经绝对路径 cwd 返回反斜杠路径，与正斜杠前缀不匹配；扫描边界归一为 POSIX 分隔符（CI Linux 无此问题，纯本地 L2 可跑性修复）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-08"
+    },
+    {
       "id": "P215",
       "file": "src/app/runtime/config.ts",
       "reason": "ci-fix（2026-09-07）：appRuntimeConfig 模块顶层初始化在 bun 直跑测试时 IS_BROWSER 仍可能触 ReferenceError——Bun 1.3.5 + Windows 下 IS_BROWSER 冻结值与 window 取址时机错位。本轮直接复用常量，三元守卫与上游语义一致。",
@@ -1281,6 +1287,15 @@
     "src/app/ai/vision-runtime.ts",
     "src/app/ai/tools/vision.ts",
     "src/app/settings/credentials/migration.ts",
+    "src/app/settings/credentials/media.ts",
+    "src/app/diagnostics/settings/recent.ts",
+    "tests/engine/app/diagnostics/settings.test.ts",
+    "src/components/ui/select/AppCombobox.vue",
+    "src/components/ui/select/AppCombobox.stories.ts",
+    "tests/engine/app/ai/model-settings.test.ts",
+    "tests/engine/app/ai/profile-selection.test.ts",
+    "tests/engine/app/settings/mcp-workflow.test.ts",
+    "src/components/settings/models/ModelsPanel.vue",
     "src/components/settings/models/ProfileEditor.vue",
     "src/components/settings/models/RoleAssignments.vue",
     "tests/engine/app/ai/attachment",

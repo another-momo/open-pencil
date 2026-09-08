@@ -9,6 +9,7 @@ export const UNIT_TEST_GROUPS = {
   dom: ['tests/engine/dom-css', 'tests/engine/color', 'tests/engine/icons', 'tests/engine/pen'],
   editor: [
     'tests/engine/clipboard',
+    'tests/engine/core',
     'tests/engine/editor',
     'tests/engine/hit-test',
     'tests/engine/snap'
@@ -16,6 +17,8 @@ export const UNIT_TEST_GROUPS = {
   fig: ['tests/engine/figma', 'tests/engine/io', 'tests/engine/kiwi'],
   render: ['tests/engine/geometry', 'tests/engine/layout', 'tests/engine/render'],
   scene: [
+    'tests/engine/bytes',
+    'tests/engine/library',
     'tests/engine/lint',
     'tests/engine/random',
     'tests/engine/scene-graph',

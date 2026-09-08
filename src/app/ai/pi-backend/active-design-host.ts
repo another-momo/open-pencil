@@ -228,12 +228,10 @@ export function resolveTurnAssets(
   newIntent: NewIntentState | null
 ): TurnSlotState {
   const useIntent = newIntent !== null && newIntent.confirmed && newIntent.modeId !== ''
-  const modeId = useIntent ? newIntent.modeId : slot.status === 'ok' ? slot.design.modeId : ''
-  const profileId = useIntent
-    ? newIntent.profileId
-    : slot.status === 'ok'
-      ? slot.design.profileId
-      : ''
+  const slotModeId = slot.status === 'ok' ? slot.design.modeId : ''
+  const slotProfileId = slot.status === 'ok' ? slot.design.profileId : ''
+  const modeId = useIntent ? newIntent.modeId : slotModeId
+  const profileId = useIntent ? newIntent.profileId : slotProfileId
   if (modeId === '') return slot
   const profile = profileId === '' ? undefined : registry.profiles.get(profileId)
   if (modeId === 'general') {

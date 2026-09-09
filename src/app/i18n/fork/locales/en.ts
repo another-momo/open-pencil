@@ -11,9 +11,10 @@ import { params } from '@nanostores/i18n'
 
 export const piMessageDefaults = {
   modelsDescription:
-    'Providers, credentials, and the design model are managed by the local pi backend.',
+    'Providers, credentials, and the design model are managed by the local AI service.',
   catalogRefresh: 'Refresh',
-  catalogOffline: 'pi backend unreachable — start the dev server with `bun run dev`.',
+  catalogOffline:
+    'Local AI service unreachable — restart the app; in browser dev mode, start the local service first.',
   providerModels: params('{count} models'),
   modelSearchPlaceholder: 'Search models…',
   modelSearchEmpty: 'No models match your search.',
@@ -35,7 +36,9 @@ export const piMessageDefaults = {
   designProvider: 'Provider',
   designModelField: 'Model',
   designModelSave: 'Save',
-  designModelDefault: 'Backend default (openrouter/free)',
+  designModelDirty: 'Unsaved',
+  designModelSaved: 'Saved',
+  designModelDefault: 'Default model (configured by the local service)',
   designPickerEmpty: 'No matches.',
   thinkingLevel: 'Thinking level',
   thinkingOff: 'Off',
@@ -237,7 +240,7 @@ export const fontsMessageDefaults = {
   settingsFonts: 'Fonts',
   fontsPanelTitle: 'Font allowlist',
   fontsPanelDescription:
-    'Enable or disable font families across all sources. A disabled font is treated as not installed: it disappears from the font picker and documents fall back to the next available font.',
+    'Manage the fonts available on the canvas. A disabled font is treated as not installed: it disappears from the font picker and documents fall back to the next available font. Built-in fonts stay always on as the rendering fallback.',
   fontsSearchPlaceholder: 'Search fonts…',
   fontsLoading: 'Loading fonts…',
   fontsEmpty: 'No fonts match your search.',
@@ -258,9 +261,13 @@ export const fontsMessageDefaults = {
   fontsDisableAll: 'Disable all',
   fontsShowMore: params('Show more ({count} remaining)'),
   fontsOnlineMaster: 'Online font libraries',
+  fontsOnlineMasterHint:
+    'Master switch for four online libraries: Google Fonts, Fontsource, Bunny Fonts, Fontshare.',
+  fontsOnlineOffHint:
+    'Off — families from the four online libraries are hidden from the list and picker.',
   fontsCnMaster: 'Chinese Fonts CDN (中文网字计划)',
   fontsCnMasterHint: 'Independent switch — not affected by the online font libraries toggle.',
-  fontsSourceOffHint: 'This source is off — its families are hidden from the list and picker.',
+  fontsCnOffHint: 'Off — Chinese Fonts CDN families are hidden from the list and picker.',
   fontsUnauditedLicense: params('License: {license} (per package notice, unaudited)'),
   fontsCatalogHint:
     'Full Chinese Fonts CDN catalog. Off by default — enabled families appear in the picker and load subset pieces on demand.'

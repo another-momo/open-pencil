@@ -114,6 +114,19 @@ const designModelLabel = computed(() => {
   return model ? `${model.name} (${model.id})` : dialogs.value.designModelField
 })
 
+/** 与已持久化值比对——任一字段不同即未保存 */
+const designDirty = computed(() => {
+  const saved = piDesignAssignment.value
+  const savedProvider = saved?.providerId ?? ''
+  const savedModel = saved?.modelId ?? ''
+  const savedThinking = saved?.thinkingLevel ?? 'off'
+  return (
+    designProviderId.value !== savedProvider ||
+    designModelId.value !== savedModel ||
+    designThinking.value !== savedThinking
+  )
+})
+
 function thinkingLabel(level: PiThinkingLevel): string {
   // T38：useForkPi() 返回 Ref，script 内访问必须 .value（模板插值不在此列）
   const labels: Record<PiThinkingLevel, string> = {
@@ -590,14 +603,30 @@ onMounted(() => void refreshPiCatalog())
           </p>
         </template>
 
-        <button
-          type="button"
-          class="mt-1 self-start rounded bg-accent px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-accent/90"
-          data-test-id="pi-design-save"
-          @click="saveDesignModel"
-        >
-          {{ dialogs.designModelSave }}
-        </button>
+        <div class="mt-1 flex items-center gap-2">
+          <button
+            type="button"
+            class="self-start rounded bg-accent px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-accent/90"
+            data-test-id="pi-design-save"
+            @click="saveDesignModel"
+          >
+            {{ dialogs.designModelSave }}
+          </button>
+          <span
+            v-if="designDirty"
+            class="text-[10px] text-amber-400"
+            data-test-id="pi-design-dirty"
+          >
+            {{ dialogs.designModelDirty }}
+          </span>
+          <span
+            v-else-if="piDesignAssignment"
+            class="text-[10px] text-muted"
+            data-test-id="pi-design-saved"
+          >
+            {{ dialogs.designModelSaved }}
+          </span>
+        </div>
       </div>
     </section>
   </div>

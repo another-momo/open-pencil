@@ -6,6 +6,7 @@ import IconClipboard from '~icons/lucide/clipboard'
 import IconCopy from '~icons/lucide/copy'
 import IconCopyPlus from '~icons/lucide/copy-plus'
 import IconGroup from '~icons/lucide/group'
+import IconImage from '~icons/lucide/image'
 import IconLock from '~icons/lucide/lock'
 import IconScissors from '~icons/lucide/scissors'
 import IconTrash2 from '~icons/lucide/trash-2'
@@ -20,9 +21,10 @@ type ToolbarActionOptions = {
   store: EditorStore
   getCommand: ReturnType<typeof useEditorCommands>['getCommand']
   menu: Ref<{ copy: string; paste: string; cut: string; front: string; back: string; lock: string }>
+  addImage: () => void
 }
 
-export function useToolbarActions({ store, getCommand, menu }: ToolbarActionOptions) {
+export function useToolbarActions({ store, getCommand, menu, addImage }: ToolbarActionOptions) {
   const editActions = computed<ToolbarActionItem[]>(() => [
     { icon: IconCopy, label: menu.value.copy, action: () => void store.mobileCopy() },
     { icon: IconClipboard, label: menu.value.paste, action: () => store.mobilePaste() },
@@ -36,6 +38,11 @@ export function useToolbarActions({ store, getCommand, menu }: ToolbarActionOpti
       icon: IconTrash2,
       label: getCommand('selection.delete').label,
       action: () => getCommand('selection.delete').run()
+    },
+    {
+      icon: IconImage,
+      label: '添加图片',
+      action: () => addImage()
     }
   ])
 

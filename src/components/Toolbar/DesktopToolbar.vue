@@ -11,18 +11,32 @@ import {
 
 import type { Tool } from '@open-pencil/vue'
 import type { EditorToolDef } from '@open-pencil/core/editor'
-import type { ToolbarUI, ToolIconMap, ToolLabels } from '@/components/Toolbar/types'
+import type {
+  ToolbarActionItem,
+  ToolbarUI,
+  ToolIconMap,
+  ToolLabels
+} from '@/components/Toolbar/types'
 
-const { tools, activeTool, flyoutSelections, toolIcons, toolLabels, toolShortcuts, ui } =
-  defineProps<{
-    tools: EditorToolDef[]
-    activeTool: Tool
-    flyoutSelections: ReadonlyMap<Tool, Tool>
-    toolIcons: ToolIconMap
-    toolLabels: ToolLabels
-    toolShortcuts: Record<Tool, string>
-    ui?: ToolbarUI
-  }>()
+const {
+  tools,
+  activeTool,
+  flyoutSelections,
+  toolIcons,
+  toolLabels,
+  toolShortcuts,
+  addImage,
+  ui
+} = defineProps<{
+  tools: EditorToolDef[]
+  activeTool: Tool
+  flyoutSelections: ReadonlyMap<Tool, Tool>
+  toolIcons: ToolIconMap
+  toolLabels: ToolLabels
+  toolShortcuts: Record<Tool, string>
+  addImage: ToolbarActionItem
+  ui?: ToolbarUI
+}>()
 
 const emit = defineEmits<{
   setTool: [tool: Tool]
@@ -65,6 +79,17 @@ const emit = defineEmits<{
           </Tip>
         </ToolbarItem>
       </template>
+
+      <div class="mx-0.5 w-px self-stretch bg-border" />
+      <Tip :label="addImage.label">
+        <ToolButton
+          data-test-id="toolbar-add-image"
+          :icon="addImage.icon"
+          :label="addImage.label"
+          :ui="ui"
+          @click="addImage.action()"
+        />
+      </Tip>
     </div>
   </div>
 </template>

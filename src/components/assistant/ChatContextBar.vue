@@ -322,8 +322,6 @@ function handleOpen(value: boolean) {
                 </button>
               </div>
             </div>
-
-            <div class="text-[11px] text-muted">{{ panelsText.designsLocateHint }}</div>
           </div>
 
           <!-- ③ 需求单列表（当前页）+ 新建入口；条目点击 → ChatBriefDialog（T66） -->

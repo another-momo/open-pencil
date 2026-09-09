@@ -266,7 +266,7 @@ function modeLabel(modeId: string): string {
       <template v-else-if="view">
         <!-- 内容区 -->
         <section>
-          <div class="mb-1 flex items-center gap-2 text-[11px] font-medium text-muted">
+          <div class="mb-1.5 flex items-center gap-2 text-xs font-semibold text-surface">
             <span>{{ panelsText.briefContent }}</span>
             <span
               v-if="savedTick"
@@ -287,7 +287,7 @@ function modeLabel(modeId: string): string {
 
         <!-- 素材区（上传 / 选区添加 / 删除 / 缩略图 + 标题） -->
         <section class="mt-4">
-          <div class="mb-1 text-[11px] font-medium text-muted">
+          <div class="mb-1.5 text-xs font-semibold text-surface">
             {{ panelsText.briefMaterials }}
           </div>
           <div v-if="view.materials.length === 0" class="mb-2 text-[11px] text-muted">
@@ -354,7 +354,7 @@ function modeLabel(modeId: string): string {
 
         <!-- AI 结论区（只读） -->
         <section class="mt-4">
-          <div class="mb-1 text-[11px] font-medium text-muted">
+          <div class="mb-1.5 text-xs font-semibold text-surface">
             {{ panelsText.briefConclusions }}
           </div>
           <div v-if="view.conclusions.length === 0" class="text-[11px] text-muted">
@@ -375,7 +375,7 @@ function modeLabel(modeId: string): string {
 
         <!-- 关联设计区（只读） -->
         <section class="mt-4">
-          <div class="mb-1 text-[11px] font-medium text-muted">
+          <div class="mb-1.5 text-xs font-semibold text-surface">
             {{ panelsText.briefDesigns }}
           </div>
           <div v-if="view.designs.length === 0" class="text-[11px] text-muted">

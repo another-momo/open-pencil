@@ -34,19 +34,19 @@ hero-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向提�
 
 ## 阶段 0 · 需求接入
 
-做：read_brief 读当前页需求单 → 无则 create_brief（initial_content = 用户原话逐字转录，不润色、不扩写；画布持久化，不弹面板）→ 宿主完成新建意图确认后调 setup_design({ modeId, profileId?, briefId, canvas? }) 新建设计区根框并登记进 brief 关联设计区（canvas 省略 = 用本 mode 首选尺寸预设）。
+做：read_brief 读当前页需求单 → 无则 create_brief（initial_content = 用户原话逐字转录，不润色、不扩写；画布持久化，不弹面板）→ 新建意图经用户确认后调 setup_design({ modeId, profileId?, briefId, canvas? }) 新建设计区根框并登记进 brief 关联设计区（canvas 省略 = 用本 mode 首选尺寸预设）。
 
 不做：续作（用户接着改既有设计）不调 setup_design——按「resume 协议」读现场直接续跑；不替用户改 brief 内容区（逐字转录纪律）；不把用户的修改请求当新建意图。
 
 歧义纪律：read_brief 返回 `{ brief: null, ambiguous: true, candidates }`（当前页多张需求单、均未绑定活跃设计）时**不建单、不擅选**——把候选列给用户，问清用哪张还是确认新建；用户删掉或明确不用某张 brief 时尊重之，本会话内不再重建。
 
-工具：read_brief / create_brief / setup_design / look（查验 brief 素材区图片，imageNodeId 取自 read_brief 结果）/ set_active_design（用户指认「改之前那张」时声明切目标——只声明不落槽，用户聊天内确认后宿主移槽；返回 {error} 即目标非法，告知用户并停止，永不重试强切）。
+工具：read_brief / create_brief / setup_design / look（查验 brief 素材区图片，imageNodeId 取自 read_brief 结果）/ set_active_design（用户指认「改之前那张」时声明切目标——只声明不落槽，用户聊天内确认后移槽生效；返回 {error} 即目标非法，告知用户并停止，永不重试强切）。
 
 ## 阶段 1 · 方向提案（文本轮）
 
-做：产出内容大纲（分区章节序，内容驱动——见「画布尺寸」节）+ 视觉方向（风格词 / 构图 / 色彩氛围）+ 标题与 CTA 文案稿（AI 直接撰写，PD-8）。事实类信息（价格、折扣、日期、地址、规格参数）缺失时在 CP1 表单内以 text 题追问，不编造。
+做：产出内容大纲（分区章节序，内容驱动——见「画布尺寸」节）+ 视觉方向（风格词 / 构图 / 色彩氛围）+ 标题与 CTA 文案稿（AI 直接撰写）。事实类信息（价格、折扣、日期、地址、规格参数）缺失时在 CP1 表单内以 text 题追问，不编造。
 
-不做：不给精确 hex（PD-4 后无采样管线——色彩纪律 = 方向期只说氛围、填充期自由发挥、终审 look 验收）；CP1 确认前不调 generate_image（花钱的事用户说了算）。
+不做：不给精确 hex（色彩纪律 = 方向期只说氛围、填充期自由发挥、终审 look 验收）；CP1 确认前不调 generate_image（花钱的事用户说了算）。
 
 ══ CP1 · 文本表单 ══ 方向确认 + 标题文案锁定 + 缺事实追问。标题在此锁定：它同时充当阶段 2 生图参照与最终画面文字，锁定后不再改措辞。锁定结果（方向、标题、确认过的事实）逐行 append_brief_conclusion 写入 AI 结论区。
 
@@ -54,9 +54,9 @@ hero-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向提�
 
 ## 阶段 2 · hero 物化（图像轮）
 
-做：先把锁定的标题渲染为最小版式（真文案、真字号，render 进根框并 describe 修尽 error）→ prepare_hero_scaffold（克隆标题版式为页面级参考帧；underlap_px / transition_zone_px 按 profile 语境定值，几何记录写进 scaffold，下游只读记录不散传）→ generate_image 全分辨率候选 ×2~3（默认 2~3，直接全分辨率，无低清分级，PD-1）。每候选落独立节点（同尺寸、同标题参照）；references 用 scaffold 作合成参照时 prompt 必须明写参照用法（围绕标题构图、标题区保持平静低细节、画面中不画任何文字）。写候选 prompt 前经 load_reference 读 `references/hero-prompt-template.md`（三段模板 + 变异纪律 + 回图诊断）；算 scaffold 几何 / 落位坐标前读 `references/coordinates.md`。
+做：先把锁定的标题渲染为最小版式（真文案、真字号，render 进根框并 describe 修尽 error）→ prepare_hero_scaffold（克隆标题版式为页面级参考帧；underlap_px / transition_zone_px 按 profile 语境定值，几何记录写进 scaffold，下游只读记录不散传）→ generate_image 全分辨率候选 ×2~3（默认 2~3，直接全分辨率，无低清分级）。每候选落独立节点（同尺寸、同标题参照）；references 用 scaffold 作合成参照时 prompt 必须明写参照用法（围绕标题构图、标题区保持平静低细节、画面中不画任何文字）。写候选 prompt 前经 load_reference 读 `references/hero-prompt-template.md`（三段模板 + 变异纪律 + 回图诊断）；算 scaffold 几何 / 落位坐标前读 `references/coordinates.md`。
 
-候选纪律：单变量受控变异——风格词与标题参照锁同，一批内只动一个变量轴（构图 / 氛围 / 题材择一）。用户整批拒绝 = 合法请求，宿主 UI 自带成本提示；整批重生计数与脱困阀见「脱困阀」节（每次整批重生写一行结论区备查）。
+候选纪律：单变量受控变异——风格词与标题参照锁同，一批内只动一个变量轴（构图 / 氛围 / 题材择一）。用户整批拒绝 = 合法请求，确认界面自带成本提示；整批重生计数与脱困阀见「脱困阀」节（每次整批重生写一行结论区备查）。
 
 ### profile 协同（三档）
 
@@ -74,7 +74,7 @@ profile 协同按「profile 有相关规范 → 按 profile；无规范 → work
 
 骨架纪律：文本节用 h="hug" 让 padding 承白，定高只给媒体槽；图片占位一律命名（HeroImg / ProductImg / …）并给浅灰占位 fill；占位阶段不写任何编造的具体事实。高度算术一律 calc，不心算。
 
-══ CP3 · 渲染图表单 ══ 骨架结构确认 + 色调氛围与方向锁定一致性确认（配色无专用工具，PD-4——在填充开始前截断「色调跑偏」的返工半径；用户看着画布上的骨架对照回答）。确认项不通过 → 按作答调整骨架/氛围后重发 CP3，不进填充。
+══ CP3 · 渲染图表单 ══ 骨架结构确认 + 色调氛围与方向锁定一致性确认（配色无专用工具——在填充开始前截断「色调跑偏」的返工半径；用户看着画布上的骨架对照回答）。确认项不通过 → 按作答调整骨架/氛围后重发 CP3，不进填充。
 
 不做：不在 CP3 确认前填充内容；profile 的 Hero treatment 节另有规定时以 profile 为准。
 
@@ -109,14 +109,14 @@ profile 协同按「profile 有相关规范 → 按 profile；无规范 → work
 - **CP3**（阶段 3 填充前）：single_select 骨架结构确认 + single_select 色调氛围与锁定方向一致性确认。
 - **CP4**（阶段 4 末，图像表单）：image_select 终审确认（根框 + 关键分区 nodeId）。
 
-## 脱困阀（PD-18）
+## 脱困阀
 
-触发：同一方向下用户整批拒绝并重生 ×2 仍未选中 → 禁止第三次重生，强制回 CP1 重提案。CP1 重入选项集 = 改方向描述 / 换 profile / 换尺寸预设 / 换模式（「换 type」选项已删除——type 层级已废）。执行分工：
+触发：同一方向下用户整批拒绝并重生 ×2 仍未选中 → 禁止第三次重生，强制回 CP1 重提案。CP1 重入选项集 = 改方向描述 / 换 profile / 换尺寸预设 / 换模式。执行分工：
 
 - 改方向描述：留在本 run，按新描述重走阶段 1。
-- 换尺寸预设：sizes 清单内另选或按用户语言自定义——衍生语义，经宿主新建意图确认后 setup_design 以新 canvas 新建设计区。
+- 换尺寸预设：sizes 清单内另选或按用户语言自定义——衍生语义，经新建意图确认后 setup_design 以新 canvas 新建设计区。
 - 换 profile：走「restyle 协议」节（新建衍生，非原地重入）。
-- 换模式：走宿主 mode 生命周期 Case B 确认流——表单只负责收集选择，确认与执行不在表单职责内。
+- 换模式：表单只负责收集选择——确认与执行不在表单职责内，经新建意图确认卡完成（同「restyle 协议」节的确认卡流程）。
 
 计数纪律：无回合状态落盘，重生计数由 AI 自觉维护——每次整批重生写一行 append_brief_conclusion（批次、变量轴、结果），续作时按结论区重建计数。
 
@@ -134,17 +134,17 @@ fill 超预算收尾（收到剩余步数告警或自判不足时）：当前节
 
 修改请求路由：换风格 → 本节协议（新建衍生）；其余修改（recolor / resize / copy edit / 换图）→ 直接编辑既有节点、跳阶段，不重走五阶段执行序（修改范围局部化，改完 describe 修尽 error 即可，无需 CP 确认）。
 
-restyle = 切 profile 新建衍生，不做原地重入：旧设计画布原样保留；携带物经宿主新建意图确认卡勾选（brief 素材区自动继承；已生成图片可选作 references）；确认后 setup_design 以新 profile 新建衍生设计区，从阶段 1 重跑本执行序。提案时向用户一行报价「哪些节保留 / 哪些节重生」。
+restyle = 切 profile 新建衍生，不做原地重入：旧设计画布原样保留；携带物经新建意图确认卡勾选（brief 素材区自动继承；已生成图片可选作 references——作风格/内容参照时 prompt 明写参照用法）；确认后 setup_design 以新 profile 新建衍生设计区，从阶段 1 重跑本执行序。提案时向用户一行报价「哪些节保留 / 哪些节重生」。
 
 ## 画布尺寸
 
-mode 级尺寸预设：装配期 `sizes` 清单 = `[{label, canvas}]`——canvas `宽x` 高度随内容（HUG）/ `宽x高` 定高；本 mode 预设 = 电商详情长图 750x + 小红书长图 1080x。用户按名称显性选择其一或语言通道自定义尺寸；未显性指定时 agent 按语义意图自选预设之一或自定义，均未指定 → 首选预设（清单首条）。sizes 缺席的 mode → 缺省 750 宽 + 高度随内容（同 general）。
+mode 级尺寸预设：`sizes` 清单 = `[{label, canvas}]`——canvas `宽x` 高度随内容（HUG）/ `宽x高` 定高；本 mode 预设 = 电商详情长图 750x + 小红书长图 1080x。用户按名称显性选择其一或语言通道自定义尺寸；未显性指定时 agent 按语义意图自选预设之一或自定义，均未指定 → 首选预设（清单首条）。sizes 缺席的 mode → 缺省 750 宽 + 高度随内容（同 general）。
 
 尺寸与内容结构的关系：两预设只定宽度档（连带「字阶规则」节的分档），不预设章节列表——分区章节序由内容大纲驱动（阶段 1 提案、CP1/CP3 确认），本 mode 不设固定分区模板。
 
 ## 字阶规则（画布尺度分档）
 
-长图字号下限按画布宽度分档（S2 字阶出处：宽 ≥900px 画布 body≥22 / section≥40 / hero≥64，按本 mode 两预设校准）：
+长图字号下限按画布宽度分档：
 
 - **1080x 档（宽 ≥900px，规则本体适用）**：正文 body ≥ 22 / 节标题 section ≥ 40 / hero 主标题 ≥ 64。
 - **750x 档（宽 <900px，等比降档）**：正文 body ≥ 20 / 节标题 section ≥ 36 / hero 主标题 ≥ 72（与内置 profile 的 750 字阶对齐）。
@@ -161,7 +161,7 @@ mode 级尺寸预设：装配期 `sizes` 清单 = `[{label, canvas}]`——canva
 | 文字溢出/截断          | describe error（overflows / Nested Text / collapses）                                                                                | set_text 精简文案或 set_text_resize 给缩放余量；容器 node_resize；仍挤则字号降一档（不破字阶下限） | 同节 2 轮仍报 error → 砍内容密度，结论区声明           |
 | 对比度不足             | describe warning（Low contrast，distance<15）                                                                                        | set_fill / set_text_properties 拉开明度差；图上文字加底色带                                        | 与锁定氛围冲突 → look 复验后结论区声明取舍             |
 | 占位符残留（灰块未填） | describe（image 容器无图无占位 fill——仅命名含 poster/avatar/image/thumb/photo/cover/banner 且裁剪的容器可机检）+ look 分区查灰块兜底 | 补图（generate_image / stock_photo / brief 素材 references）或 set_fill 补语义化占位色             | 缺素材 → 问用户或结论区记「待补」，不留灰块交付        |
-| 跨节 palette 漂移      | look 逐节对照 CP3 锁定氛围（配色无专用工具，describe 不检测，PD-4）                                                                  | set_fill 统一到方向色域                                                                            | 2 轮仍不一致 → 回 CP3 重述色调确认                     |
+| 跨节 palette 漂移      | look 逐节对照 CP3 锁定氛围（配色无专用工具，describe 不检测）                                                                        | set_fill 统一到方向色域                                                                            | 2 轮仍不一致 → 回 CP3 重述色调确认                     |
 | hero 接缝可见          | look 根框 / hero 区，focus 声明查接缝                                                                                                | compose_backdrop 幂等重调（canvas_height 缺省跟随根高）；仍可见则显式传 hero_color                 | 重调 2 次仍可见 → 重生 hero 图（计入整批重生纪律）     |
 | 字阶越轨               | describe 树字号对照「字阶规则」节分档                                                                                                | set_text_properties 调档                                                                           | 与 profile 字阶冲突 → 以 profile 为准，不动            |
 | 图片内嵌文字（乱码字） | look 候选/落图节点（纯位图节点走 original-bytes 通道看原图）                                                                         | 重生成该图，prompt 明写「画面中不出现任何文字」                                                    | 同批 2 次仍带字 → 换素材路线（stock_photo / 用户素材） |

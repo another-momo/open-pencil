@@ -15,7 +15,7 @@
 #   sizes     (可选) 非空预设清单：[{label, canvas}]，label = 中文名，
 #                    canvas = `宽x`（高度随内容）或 `宽x高`（定高）。
 #   references(可选) 非空按需参考清单：[{path, description}]——AI 仅在显式调用
-#                    load_reference 时按需加载（不进入 system prompt 正文）。
+#                    load_reference 时按需加载（不进入 prompt 正文）。
 #                    path 为相对路径，扩展名限 .md/.txt/.json/.yaml/.csv，
 #                    禁 `..` / 绝对路径 / 盘符。
 id: _example

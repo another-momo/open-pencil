@@ -16,7 +16,7 @@ references:
   - path: references/layout-typography.md
     description: Layout and typography principles (hierarchy / grid / bands / type ramp / CJK typesetting)——版式拿不准时读；一体化决策前看「版式」节、渲染前看「画布构建约定」节
   - path: references/font-system.md
-    description: Font registry selection, role pairing, and landing checks——排印担纲设计 / brief 需要独特编辑声部 / 默认无衬线不够时读；一体化决策前看注册表
+    description: Font selection, role pairing, and landing checks——排印担纲设计 / brief 需要独特编辑声部 / 默认无衬线不够时读；一体化决策前看可用字体清单
 ---
 
 # Editable Design
@@ -86,8 +86,7 @@ descriptions.
 
 ### Choose the reference mode
 
-Treat reference handling as a four-value mode even when the host exposes no
-formal setting:
+Handle references in one of four modes:
 
 - `auto` — the default. Resolve it per-brief, not per-policy:
   - Resolve to `art-directed` when the brief clearly needs a composition
@@ -180,7 +179,7 @@ nodes, never lifted as pixels. And facts still come from the user.
 
 Say in the handoff that you were reproducing a reference, and name whatever you
 could not reproduce — a hand-drawn contour edge, a texture, a script face that
-is not in the font registry.
+is not in the available font list.
 
 ### Choose the asset architecture before prompting
 
@@ -310,7 +309,7 @@ one focused pass.
    assets are required, record the asset plan from that same decision there as
    well. When typography is a primary visual material or the defaults feel
    generic, read `references/font-system.md`, choose fonts by role from the
-   font registry, and do not default to the same system sans/serif pair.
+   available font list, and do not default to the same system sans/serif pair.
 5. **Generate the artwork** per the batching, retry, and inspection policy
    above. Record every shipping prompt verbatim in the conclusion area before
    calling, and the batch result once after.
@@ -325,7 +324,7 @@ one focused pass.
    misses its planned region, crop — never stretch: clip in the container
    toward the band that carries no text.
 7. **Check the font stacks once** with describe: the tree summary lists every
-   text node's family and size. A family outside the font registry, or a
+   text node's family and size. A family outside the available font list, or a
    latin-only family setting CJK text, is a defect — fix it before review.
 8. **Fix every error describe reports** before review; warnings are stated to
    the user, not blocking.
@@ -374,7 +373,7 @@ simply absent.
   than a generic card.
 - When unsure about the layout, read `references/layout-typography.md`.
 - When typography is prominent or the available choices feel generic, read
-  `references/font-system.md` and choose from the font registry by role.
+  `references/font-system.md` and choose from the available font list by role.
 
 ## Build for editing
 

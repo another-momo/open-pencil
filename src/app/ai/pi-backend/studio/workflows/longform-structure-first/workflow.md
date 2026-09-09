@@ -23,7 +23,7 @@ references:
 
 structure-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向提案（文本轮，CP1）→ 阶段 2 骨架渲染（CP2，先定结构不填图）→ 阶段 2.5 视觉环境物化（profile 驱动的独立 slot）→ 阶段 3 逐节填充（自检行 + 跨节一致性检查，polish 独立成段）→ 阶段 4 终审（CP4）**。Checkpoint 总数 = 3（CP1 文本 + CP2 渲染图 + CP4 图像），载体一律是 ask_user_question 表单（契约见「Checkpoint 表单」节）。
 
-与 hero-first（longform-hero-kv-first）的差异点：结构确认在视觉物化之前——阶段 2 骨架渲染完成即 CP2，用户确认分区配重后再进阶段 2.5 物化；hero-led 风格里骨架由 hero 反推，本 mode 骨架由内容大纲驱动，不被 hero 反向塑形。
+与 hero-first 的差异点：结构确认在视觉物化之前——阶段 2 骨架渲染完成即 CP2，用户确认分区配重后再进阶段 2.5 物化；hero-led 风格里骨架由 hero 反推，本 mode 骨架由内容大纲驱动，不被 hero 反向塑形。
 
 预算纪律：step_budget = 75；每 CP 自然停顿即 run 终止续跑，用户作答后预算重置；阶段 3 填充中途预算不足时按「resume 协议」节收尾，不硬撑。
 
@@ -38,13 +38,13 @@ structure-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向
 
 ## 阶段 0 · 需求接入
 
-做：read_brief 读当前页需求单 → 无则 create_brief（initial_content = 用户原话逐字转录，不润色、不扩写；画布持久化，不弹面板）→ 宿主完成新建意图确认后调 setup_design({ modeId, profileId?, briefId, canvas? }) 新建设计区根框并登记进 brief 关联设计区（canvas 省略 = 用本 mode 首选尺寸预设）。
+做：read_brief 读当前页需求单 → 无则 create_brief（initial_content = 用户原话逐字转录，不润色、不扩写；画布持久化，不弹面板）→ 新建意图经用户确认后调 setup_design({ modeId, profileId?, briefId, canvas? }) 新建设计区根框并登记进 brief 关联设计区（canvas 省略 = 用本 mode 首选尺寸预设）。
 
 不做：续作（用户接着改既有设计）不调 setup_design——按「resume 协议」读现场直接续跑；不替用户改 brief 内容区（逐字转录纪律）；不把用户的修改请求当新建意图。
 
 歧义纪律：read_brief 返回 `{ brief: null, ambiguous: true, candidates }`（当前页多张需求单、均未绑定活跃设计）时**不建单、不擅选**——把候选列给用户，问清用哪张还是确认新建；用户删掉或明确不用某张 brief 时尊重之，本会话内不再重建。
 
-工具：read_brief / create_brief / setup_design / look（查验 brief 素材区图片，imageNodeId 取自 read_brief 结果）/ set_active_design（用户指认「改之前那张」时声明切目标——只声明不落槽，用户聊天内确认后宿主移槽；返回 {error} 即目标非法，告知用户并停止，永不重试强切）。
+工具：read_brief / create_brief / setup_design / look（查验 brief 素材区图片，imageNodeId 取自 read_brief 结果）/ set_active_design（用户指认「改之前那张」时声明切目标——只声明不落槽，用户聊天内确认后移槽生效；返回 {error} 即目标非法，告知用户并停止，永不重试强切）。
 
 ## 阶段 1 · 方向提案（文本轮）
 
@@ -112,7 +112,7 @@ structure-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向
 - 忙图可读性三策（shadow / scrim 垫块 / global tint）见「通用纪律」组合原语则，不重复。
 - 库中一切尺寸/字号均为语义占位：宽度取当前尺寸预设的 W，字号按「字阶规则」节分档，profile 另有规定时以 profile 为准。
 
-## Checkpoint 表单（CP1–CP4 契约）
+## Checkpoint 表单（CP1/CP2/CP4 契约）
 
 载体 = ask_user_question，一次调用批量提全部问题（1..8 题），形状：`{ questions: [{ id, kind, label, options?, imageOptions?, required? }] }`——kind ∈ single_select | image_select | text；single_select 带 options（2..12 条，`{id, label, hint?}`）且不带 imageOptions；image_select 带 imageOptions（1..12 条，`{nodeId, label?}`，引用画布节点）且不带 options；text 两者均不带；required 缺省 true（可选题显式传 false）。id 全表单唯一、label 非空；校验失败返回 {error}，改正后重发，不抛异常。
 
@@ -120,7 +120,7 @@ structure-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向
 
 自由文本双角色：前端恒带自由文本输入——既是第四种作答（随作答信封 freeText 键回传，非空时豁免必填校验），也是跳过理由；方向类 single_select 选项集末位固定放一项「都不合适（我补充说明）」。
 
-表单内不提供 mode 切换入口（保持表单 mode 纯净）。四张表实例：
+表单内不提供 mode 切换入口（保持表单 mode 纯净）。三张表实例：
 
 - **CP1**（阶段 1 末，文本表单）：single_select 方向选项集（2..12 条 + 末位逃生项）+ text 缺事实追问（每条事实一题）+ single_select 标题文案锁定确认（确认 / 改写）。
 - **CP2**（阶段 2 末，渲染图表单）：single_select 骨架结构确认 + single_select 图片来源确认（CP2 之内的结构确认让用户先校骨架再定图片来源，避免骨架回炉时图片已生成浪费）。
@@ -130,12 +130,12 @@ structure-first 五阶段执行序：**阶段 0 需求接入 → 阶段 1 方向
 
 ## 脱困阀
 
-触发：同一方向下用户整批拒绝并重生 ×2 仍未选中（仅适用阶段 2.5 hero-led 场景） → 禁止第三次重生，强制回 CP1 重提案。CP1 重入选项集 = 改方向描述 / 换 profile / 换尺寸预设 / 换模式（「换 type」选项已删除——type 层级已废）。执行分工：
+触发：同一方向下用户整批拒绝并重生 ×2 仍未选中（仅适用阶段 2.5 hero-led 场景） → 禁止第三次重生，强制回 CP1 重提案。CP1 重入选项集 = 改方向描述 / 换 profile / 换尺寸预设 / 换模式。执行分工：
 
 - 改方向描述：留在本 run，按新描述重走阶段 1。
-- 换尺寸预设：sizes 清单内另选或按用户语言自定义——衍生语义，经宿主新建意图确认后 setup_design 以新 canvas 新建设计区。
+- 换尺寸预设：sizes 清单内另选或按用户语言自定义——衍生语义，经新建意图确认后 setup_design 以新 canvas 新建设计区。
 - 换 profile：走「restyle 协议」节（新建衍生，非原地重入）。
-- 换模式：走宿主 mode 生命周期 Case B 确认流——表单只负责收集选择，确认与执行不在表单职责内。
+- 换模式：表单只负责收集选择——确认与执行不在表单职责内，经新建意图确认卡完成（同「restyle 协议」节的确认卡流程）。
 
 计数纪律：无回合状态落盘，重生计数由 AI 自觉维护——每次整批重生写一行 append_brief_conclusion（批次、变量轴、结果），续作时按结论区重建计数。
 
@@ -155,17 +155,17 @@ fill 超预算收尾（收到剩余步数告警或自判不足时）：当前节
 
 修改请求路由：换风格 → 本节协议（新建衍生）；其余修改（recolor / resize / copy edit / 换图）→ 直接编辑既有节点、跳阶段，不重走五阶段执行序（修改范围局部化，改完 describe 修尽 error 即可，无需 CP 确认）。
 
-restyle = 切 profile 新建衍生，不做原地重入：旧设计画布原样保留；携带物经宿主新建意图确认卡勾选（brief 素材区自动继承；已生成图片可选作 references）；确认后 setup_design 以新 profile 新建衍生设计区，从阶段 1 重跑本执行序。提案时向用户一行报价「哪些节保留 / 哪些节重生」。
+restyle = 切 profile 新建衍生，不做原地重入：旧设计画布原样保留；携带物经新建意图确认卡勾选（brief 素材区自动继承；已生成图片可选作 references——作风格/内容参照时 prompt 明写参照用法）；确认后 setup_design 以新 profile 新建衍生设计区，从阶段 1 重跑本执行序。提案时向用户一行报价「哪些节保留 / 哪些节重生」。
 
 ## 画布尺寸
 
-mode 级尺寸预设：装配期 `sizes` 清单 = `[{label, canvas}]`——canvas `宽x` 高度随内容（HUG）/ `宽x高` 定高；本 mode 预设 = 电商详情长图 750x + 小红书长图 1080x（同 longform-hero-kv-first，structure-first 与 hero-first 共用画布尺寸档）。用户按名称显性选择其一或语言通道自定义尺寸；未显性指定时 agent 按语义意图自选预设之一或自定义，均未指定 → 首选预设（清单首条）。sizes 缺席的 mode → 缺省 750 宽 + 高度随内容（同 general）。
+mode 级尺寸预设：`sizes` 清单 = `[{label, canvas}]`——canvas `宽x` 高度随内容（HUG）/ `宽x高` 定高；本 mode 预设 = 电商详情长图 750x + 小红书长图 1080x（与 hero-first 共用画布尺寸档）。用户按名称显性选择其一或语言通道自定义尺寸；未显性指定时 agent 按语义意图自选预设之一或自定义，均未指定 → 首选预设（清单首条）。sizes 缺席的 mode → 缺省 750 宽 + 高度随内容（同 general）。
 
 尺寸与内容结构的关系：两预设只定宽度档（连带「字阶规则」节的分档），不预设章节列表——分区章节序由内容大纲驱动（阶段 1 提案、CP2 确认），本 mode 不设固定分区模板。
 
 ## 字阶规则（画布尺度分档）
 
-长图字号下限按画布宽度分档（S2 字阶出处：宽 ≥900px 画布 body≥22 / section≥40 / hero≥64，按本 mode 两预设校准）：
+长图字号下限按画布宽度分档：
 
 - **1080x 档（宽 ≥900px，规则本体适用）**：正文 body ≥ 22 / 节标题 section ≥ 40 / hero 主标题 ≥ 64。
 - **750x 档（宽 <900px，等比降档）**：正文 body ≥ 20 / 节标题 section ≥ 36 / hero 主标题 ≥ 72（与内置 profile 的 750 字阶对齐）。

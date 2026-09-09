@@ -6,7 +6,7 @@
 
 ## 适用对象
 
-- 当前内置 profile 为水彩组（`watercolor_poster_v2` / `watercolor_poster_v2_zh`），对 `longform-hero-kv-first` 与 `longform-structure-first` 都生效；注册集有新增时以 system prompt 实际注入的 profile 为准。
+- 当前内置 profile 为水彩组（中 / 英文两版），对两个长图 mode 都生效；内置集合有新增时以当前实际加载到的 profile 内容为准。
 - 无 active profile 时走本表兜底列。
 
 ## 字段查找表
@@ -25,9 +25,9 @@
 
 ## 字段读取动作
 
-- active profile 的全文**已在 system prompt 里**（装配期注入）——直接查对应章节即可，**不需要任何工具调用**。
-- `load_reference` 只用于加载本 workflow 的 references 文件（如 `coordinates.md`），不能也不用于读 profile。
-- profile 不在 active 集合内（system prompt 无 profile 段）：本表只用于「profile 应规定而没规定」的兜底判定。
+- active profile 的全文**已在当前上下文里**——直接查对应章节即可，**不需要任何工具调用**。
+- `load_reference` 只用于加载本 workflow 的 references 文件（如 `coordinates.md`），不用于读 profile。
+- profile 不在 active 集合内（当前上下文无 profile 内容）：本表只用于「profile 应规定而没规定」的兜底判定。
 
 ## 三档判定速查
 
@@ -62,5 +62,5 @@ profile 缺席 / profile 无规定而 agent 自行决定时（风格选择、参
 - profile 已规定 `underlap_px = 140 @ W=1080` 时仍传 100——按 profile。
 - 字阶与 profile 冲突时按 workflow「字阶规则」节走——必须以 profile 为准（正
   文已点这条优先序）。
-- profile 字段读取走 `find_nodes` / 文件系统搜索——profile 已在 system prompt，
-  直接查；references 用 `load_reference`，不散查。
+- profile 字段读取走 `find_nodes` / 文件系统搜索——profile 已在当前上下文，
+  直接查对应章节；references 一律经 `load_reference` 读取。

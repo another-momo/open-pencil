@@ -5,7 +5,7 @@ profile 或 profile 无 Hero treatment 节**时适用——按下方兜底工序
 
 ## 何时进入本篇
 
-- system prompt 里没有注入 profile 内容（无 active profile），或
+- 当前上下文里没有加载 profile 内容（无 active profile），或
 - active profile 没有 `Hero treatment` 节，或
 - 用户明确说「本设计走通用兜底，不要 profile 风格」。
 

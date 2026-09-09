@@ -182,7 +182,7 @@ const zhCN = {
     settingsFonts: '字体',
     fontsPanelTitle: '字体白名单',
     fontsPanelDescription:
-      '按来源开关字体家族。被关闭的字体视为未安装：从字体选择器消失，文档自动回退到下一可用字体。',
+      '管理画布可用的字体。被停用的字体视为未安装：从字体选择器消失，文档自动回退到下一可用字体；内置字体始终启用（渲染兜底）。',
     fontsSearchPlaceholder: '搜索字体…',
     fontsLoading: '字体加载中…',
     fontsEmpty: '没有匹配的字体。',
@@ -203,17 +203,20 @@ const zhCN = {
     fontsDisableAll: '全部停用',
     fontsShowMore: '显示更多（还有 {count} 个）',
     fontsOnlineMaster: '在线字体库',
+    fontsOnlineMasterHint:
+      'Google Fonts / Fontsource / Bunny Fonts / Fontshare 四个在线库的总开关。',
+    fontsOnlineOffHint: '已停用——四个在线库的家族从列表与字体选择器中隐藏。',
     fontsCnMaster: '中文网字计划 CDN',
     fontsCnMasterHint: '独立开关——不受在线字体库总开关影响。',
-    fontsSourceOffHint: '该来源已停用，其家族从列表与字体选择器中隐藏。',
+    fontsCnOffHint: '已停用——中文网字计划的家族从列表与字体选择器中隐藏。',
     fontsUnauditedLicense: '授权：{license}（以包内声明为准，未审计）',
     fontsCatalogHint:
       '中文网字计划全量目录。默认关闭——启用的家族出现在字体选择器中，按字符集按需加载子集分片。'
   },
   pi: {
-    modelsDescription: 'Provider、凭据和设计模型由本地 pi 后端管理。',
+    modelsDescription: 'Provider、凭据和设计模型由本地 AI 服务管理。',
     catalogRefresh: '刷新',
-    catalogOffline: '无法连接 pi 后端——请用 `bun run dev` 启动开发服务器。',
+    catalogOffline: '无法连接本地 AI 服务——请重启应用；浏览器开发模式请先启动本地服务。',
     providerModels: '{count} 个模型',
     modelSearchPlaceholder: '搜索模型…',
     modelSearchEmpty: '没有匹配的模型。',
@@ -234,7 +237,9 @@ const zhCN = {
     designProvider: 'Provider',
     designModelField: '模型',
     designModelSave: '保存',
-    designModelDefault: '后端默认（openrouter/free）',
+    designModelDirty: '未保存',
+    designModelSaved: '已保存',
+    designModelDefault: '默认模型（由本地服务配置）',
     designPickerEmpty: '没有匹配项。',
     thinkingLevel: '思考级别',
     thinkingOff: '关闭',

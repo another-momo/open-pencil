@@ -202,7 +202,7 @@ onMounted(async () => {
 })
 
 // 来源总开关变更 → 重拉枚举：core 按开关门禁 CDN/在线族（D-a），
-// 面板列表须与 fontsSourceOffHint 口径一致（关停来源的家族从列表消失）
+// 面板列表口径与 fontsOnlineOffHint / fontsCnOffHint 一致（关停来源的家族从列表消失）
 watch([cnFontsEnabled, onlineFontsEnabled], async () => {
   families.value = await listAllFamilies()
 })
@@ -220,7 +220,17 @@ watch([cnFontsEnabled, onlineFontsEnabled], async () => {
     <!-- T42：来源开关区（CDN 独立开关可见落点，与在线库总开关解耦） -->
     <div class="flex flex-col gap-2 rounded border border-border p-2" data-test-id="fonts-sources">
       <div class="flex items-center justify-between gap-2">
-        <span class="text-[10px] font-medium text-surface">{{ msgs.fontsOnlineMaster }}</span>
+        <div class="min-w-0">
+          <span class="text-[10px] font-medium text-surface">{{ msgs.fontsOnlineMaster }}</span>
+          <p class="text-[9px] leading-relaxed text-muted">{{ msgs.fontsOnlineMasterHint }}</p>
+          <p
+            v-if="!onlineFontsEnabled"
+            class="text-[9px] leading-relaxed text-muted"
+            data-test-id="fonts-online-off-hint"
+          >
+            {{ msgs.fontsOnlineOffHint }}
+          </p>
+        </div>
         <AppSwitch
           v-model="onlineFontsEnabled"
           :label="msgs.fontsOnlineMaster"
@@ -231,6 +241,13 @@ watch([cnFontsEnabled, onlineFontsEnabled], async () => {
         <div class="min-w-0">
           <span class="text-[10px] font-medium text-surface">{{ msgs.fontsCnMaster }}</span>
           <p class="text-[9px] leading-relaxed text-muted">{{ msgs.fontsCnMasterHint }}</p>
+          <p
+            v-if="!cnFontsEnabled"
+            class="text-[9px] leading-relaxed text-muted"
+            data-test-id="fonts-cn-off-hint"
+          >
+            {{ msgs.fontsCnOffHint }}
+          </p>
         </div>
         <AppSwitch
           v-model="cnFontsEnabled"
@@ -256,13 +273,6 @@ watch([cnFontsEnabled, onlineFontsEnabled], async () => {
           {{ msgs.fontsLocalAllow }}
         </AppButton>
       </div>
-      <p
-        v-if="!cnFontsEnabled || !onlineFontsEnabled"
-        class="text-[9px] leading-relaxed text-muted"
-        data-test-id="fonts-source-off-hint"
-      >
-        {{ msgs.fontsSourceOffHint }}
-      </p>
     </div>
 
     <div class="flex items-center gap-2">

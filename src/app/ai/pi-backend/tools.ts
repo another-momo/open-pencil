@@ -76,6 +76,9 @@ export type SetupDesignHooks = {
  * （均已在 core EXTENDED_TOOLS 定义，此前未放行 → AI 无法切换字体——
  * set_font 是唯一支持 font_family 的工具；set_effects 是阴影/模糊唯一入口；
  * set_text_resize 被 longform-hero-kv-first / art-directed workflow 引用）。
+ * 2026-09-09 扩充：set_font_range / set_image_fill / set_stroke_align /
+ * set_rotation / set_blend / set_locked 六件——studio base.md 路由表已把
+ * 这些能力路由到对应工具，未放行则按 prompt 调用必吃 tool-not-found。
  */
 const EXTENDED_WHITELIST = [
   'get_components',
@@ -84,7 +87,13 @@ const EXTENDED_WHITELIST = [
   'create_shape',
   'set_text_resize',
   'set_font',
-  'set_effects'
+  'set_effects',
+  'set_font_range',
+  'set_image_fill',
+  'set_stroke_align',
+  'set_rotation',
+  'set_blend',
+  'set_locked'
 ] as const
 
 export const MAX_AGENT_STEPS = 50

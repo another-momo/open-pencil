@@ -321,11 +321,20 @@ const snap = (id) => {
     marketingRoot: n.getSharedPluginData(NS, ${JSON.stringify(K.roleKey)}) === ${JSON.stringify(K.roleRoot)},
     modeId: n.getSharedPluginData(NS, ${JSON.stringify(K.modeKey)}),
     profileId: n.getSharedPluginData(NS, ${JSON.stringify(K.profileKey)}),
-    briefId: n.getSharedPluginData(NS, ${JSON.stringify(K.briefKey)}) };
+    briefId: n.getSharedPluginData(NS, ${JSON.stringify(K.briefKey)}),
+    uniqueId: n.getSharedPluginData(NS, ${JSON.stringify(K.uniqueIdKey)}) };
 };
 const briefSnap = (briefId) => {
   if (!briefId) return null;
-  const b = figma.getNodeById(briefId);
+  // T91a 形态兼容：新文档 design.briefId 存 brief uniqueId（UUID v4）——先按
+  // uniqueId 扫页级 brief（core listBriefs 同口径），落空回退节点 id 直查
+  // （老文档残留形态）。只按 getNodeById 会让全部新文档 422 brief_mismatch。
+  let b = null;
+  for (const child of figma.currentPage.children) {
+    if (child.getSharedPluginData(NS, ${JSON.stringify(K.roleKey)}) === ${JSON.stringify(K.roleBrief)} &&
+        child.getSharedPluginData(NS, ${JSON.stringify(K.uniqueIdKey)}) === briefId) { b = child; break; }
+  }
+  if (!b) b = figma.getNodeById(briefId);
   if (!b || b.getSharedPluginData(NS, ${JSON.stringify(K.roleKey)}) !== ${JSON.stringify(K.roleBrief)}) return null;
   const raw = b.getSharedPluginData(NS, ${JSON.stringify(K.bindingKey)});
   return { briefId: b.id, pageId: pageOf(b), boundDesignIds: raw ? raw.split(',').filter(Boolean) : [] };
@@ -347,6 +356,8 @@ const slotNodeId = figma.root.getSharedPluginData(NS, ${JSON.stringify(K.slotKey
 const targetId = CANDIDATE || slotNodeId;
 const design = targetId ? snap(targetId) : null;
 const brief = design ? briefSnap(design.briefId) : null;
+// T91a：briefId 归一为节点 id（snapshotDesignRoot 同语义）——下游信封/响应沿用旧形态
+if (design && brief) design.briefId = brief.briefId;
 const newIntent = { modeId: figma.root.getSharedPluginData(NS, ${JSON.stringify(K.newIntentModeIdKey)}),
   profileId: figma.root.getSharedPluginData(NS, ${JSON.stringify(K.newIntentProfileIdKey)}),
   confirmed: figma.root.getSharedPluginData(NS, ${JSON.stringify(K.newIntentConfirmedKey)}) === 'true' };
@@ -438,7 +449,18 @@ function parseNewIntent(raw: unknown): NewIntentState {
 }
 
 /** 生产桥实现：eval 探针/写槽；一切桥故障 → null/false（调用方定降级语义） */
-export function createBridgeSlotIO(): ActiveDesignBridgeIO {
+/**
+ * evalCode 可注入（默认走真桥 callBridgeEval）——测试借此把同一份生成的
+ * eval 串在真实 store 上执行，覆盖「生成代码 × 真实数据形态」的接线面
+ * （T91a UUID 迁移曾在此断裂且 mock 桥测不出来）。
+ */
+export function createBridgeSlotIO(
+  evalCode: (
+    code: string,
+    documentId?: string,
+    windowId?: string
+  ) => Promise<unknown> = callBridgeEval
+): ActiveDesignBridgeIO {
   async function probe(
     nodeId?: string,
     documentId?: string,
@@ -446,7 +468,7 @@ export function createBridgeSlotIO(): ActiveDesignBridgeIO {
   ): Promise<SlotProbeData | null> {
     let raw: unknown
     try {
-      raw = await callBridgeEval(buildProbeSource(nodeId), documentId, windowId)
+      raw = await evalCode(buildProbeSource(nodeId), documentId, windowId)
     } catch {
       return null
     }
@@ -474,7 +496,7 @@ export function createBridgeSlotIO(): ActiveDesignBridgeIO {
     },
     writeSlot: async (nodeId, documentId, windowId) => {
       try {
-        await callBridgeEval(buildWriteSlotSource(nodeId), documentId, windowId)
+        await evalCode(buildWriteSlotSource(nodeId), documentId, windowId)
         return true
       } catch {
         return false
@@ -482,7 +504,7 @@ export function createBridgeSlotIO(): ActiveDesignBridgeIO {
     },
     clearNewIntent: async (documentId, windowId) => {
       try {
-        await callBridgeEval(buildClearNewIntentSource(), documentId, windowId)
+        await evalCode(buildClearNewIntentSource(), documentId, windowId)
         return true
       } catch {
         return false

@@ -341,6 +341,8 @@ export const ACTIVE_DESIGN_PROBE_KEYS = {
   briefKey: DESIGN_BRIEF_KEY,
   bindingKey: BRIEF_BINDING_KEY,
   heroGeometryKey: HERO_GEOMETRY_KEY,
+  /** design 根与 brief 根同键名（'uniqueId'）——探针两侧捕获/解析共用 */
+  uniqueIdKey: DESIGN_UNIQUE_ID_KEY,
   // T91b：newIntent pluginData 三键（键面常量 import 单源，从 brief.ts 复用）
   newIntentModeIdKey: NEW_INTENT_MODE_ID_KEY,
   newIntentProfileIdKey: NEW_INTENT_PROFILE_ID_KEY,

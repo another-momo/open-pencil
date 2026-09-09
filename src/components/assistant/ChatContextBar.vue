@@ -149,8 +149,12 @@ watch(
 )
 
 function containsActive(entry: BriefListEntry): boolean {
-  const nodeId = active.value?.nodeId
-  return nodeId !== undefined && nodeId !== null && entry.boundDesignIds.includes(nodeId)
+  const design = active.value
+  if (!design) return false
+  // T91a：boundDesignIds 存 design uniqueId（UUID）——优先按 UUID 比；
+  // 老文档双形态残留（无 uniqueId / 列表存节点 id）回退节点 id 比对
+  if (design.uniqueId !== null && entry.boundDesignIds.includes(design.uniqueId)) return true
+  return entry.boundDesignIds.includes(design.nodeId)
 }
 
 // 新建需求单（T79 U1 推翻 T65 D1）：单「+ 新建」按钮 → createBriefOnPage('') 立

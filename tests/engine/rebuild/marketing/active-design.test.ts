@@ -314,6 +314,8 @@ test('桥探针键面常量钉扎（eval 片段插值的单一事实源）', () 
     briefKey: 'briefId',
     bindingKey: 'bound-designs',
     heroGeometryKey: 'hero-geometry',
+    // T91a 修复：design/brief 同键名 'uniqueId'——探针捕获/UUID 解析共用
+    uniqueIdKey: 'uniqueId',
     // T91b：newIntent pluginData 三键（键面 import 单源）
     newIntentModeIdKey: 'newIntentModeId',
     newIntentProfileIdKey: 'newIntentProfileId',

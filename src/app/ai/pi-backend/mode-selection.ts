@@ -34,7 +34,8 @@ import {
   BRIEF_PLUGIN_NAMESPACE,
   DESIGN_BRIEF_KEY,
   DESIGN_MODE_KEY,
-  DESIGN_PROFILE_KEY
+  DESIGN_PROFILE_KEY,
+  DESIGN_UNIQUE_ID_KEY
 } from '@open-pencil/core/tools/fork/marketing/brief'
 import { isMarketingDesignRoot } from '@open-pencil/core/tools/fork/marketing/setup'
 
@@ -130,6 +131,8 @@ export interface PiActiveDesignIdentity {
   modeId: string
   profileId: string | null
   briefId: string | null
+  /** T91a 寻址键（老文档缺省 null）——bound-designs 列表比对需优先用它（列表存 UUID） */
+  uniqueId: string | null
 }
 
 /** 当前 active_design 身份（读穿，null = 无 active → chips 默认态） */
@@ -149,7 +152,8 @@ function readActiveDesignIdentity(store: EditorStore | null): PiActiveDesignIden
     name: design.name,
     modeId: read(DESIGN_MODE_KEY) || PI_DEFAULT_MODE_ID,
     profileId: read(DESIGN_PROFILE_KEY) || null,
-    briefId: read(DESIGN_BRIEF_KEY) || null
+    briefId: read(DESIGN_BRIEF_KEY) || null,
+    uniqueId: read(DESIGN_UNIQUE_ID_KEY) || null
   }
 }
 

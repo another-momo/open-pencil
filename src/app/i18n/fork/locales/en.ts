@@ -50,7 +50,7 @@ export const piMessageDefaults = {
 export const imageGenMessageDefaults = {
   imageGenTitle: 'Image generation',
   imageGenDescription:
-    'Credentials for the generate_image tool, held by the local pi backend (separate from the chat LLM key). Pick the provider type, then enter its base URL, model and API key.',
+    'Credentials for image generation, held by the local AI service (separate from the chat key). Pick the provider type, then enter its base URL, model and API key.',
   imageGenProvider: 'Provider type',
   imageGenBaseUrl: 'Base URL',
   imageGenBaseUrlPlaceholder: 'https://api.openai.com/v1',
@@ -62,7 +62,7 @@ export const imageGenMessageDefaults = {
   imageGenKeyClear: 'Clear key',
   imageGenConfigured: 'Configured',
   imageGenNotConfigured: 'Not configured',
-  imageGenOffline: 'pi backend unreachable — start the dev server with `bun run dev`.'
+  imageGenOffline: 'Local AI service unreachable — restart the app; in browser dev mode, start the local service first.'
 } as const
 
 /** T56：ask_user_question 聊天内表单卡片（AskUserQuestionCard）英文默认值；
@@ -96,7 +96,7 @@ export const chipsMessageDefaults = {
   chipsNoProfile: 'No style profile',
   chipsPendingLabel: params('Will create: {mode} · {profile}'),
   chipsPendingUndo: 'Undo the new-design intent',
-  chipsManifestFailed: 'AI studio failed to load — selectors are disabled.',
+  chipsManifestFailed: 'Failed to load design modes and profiles — selectors are disabled.',
   chipsRetry: 'Retry',
   chipsCaptureSelection: 'Capture canvas selection',
   chipsCaptureEmpty: 'Nothing selected on the canvas',
@@ -140,20 +140,18 @@ export const panelsMessageDefaults = {
   contextTriggerDesignEmpty: 'Not created',
   contextTriggerBriefsLabel: 'Briefs: ',
   contextTriggerBriefsEmpty: 'None',
-  targetSection: 'Current target',
-  targetNoActive: 'No active design yet — pick a mode / style and send a message to start one.',
+  targetSection: 'Designing now',
+  targetNoActive: 'No design in progress yet — pick a mode / style and send a message to start one.',
   targetNoBriefBound: 'No brief bound',
   designsSection: 'Designs on this page',
-  designsEmpty: 'No marketing designs on this page yet.',
+  designsEmpty: 'No design areas on this page yet.',
   designsActive: 'Current',
-  designsSetCurrent: 'Set as current',
+  designsSetCurrent: 'Switch to this',
   designsSetting: 'Switching…',
-  designsLocateHint:
-    'Current page only. Click an entry to locate it on the canvas — switching only happens via the button.',
   designsSwitchFailed: 'Failed to set the current design.',
   briefsSection: 'Briefs on this page',
   briefListEmpty: 'No briefs on this page yet.',
-  briefContainsActive: 'Contains current target',
+  briefContainsActive: 'Contains active design',
   briefNew: 'New brief',
   briefNewPlaceholder: 'Requirement content (optional)…',
   briefCreate: 'Create',
@@ -229,7 +227,7 @@ export const confirmMessageDefaults = {
   reasoningTitle: 'Thinking process',
   // T96：流式中 reasoning 折叠卡标题（PiChatMessage.vue）——区别于已结束的
   //「Thinking process」；带呼吸点动画，纯 CSS，零 JS 定时器
-  reasoningStreamingTitle: 'Thinking…',
+  reasoningStreamingTitle: 'Thinking',
   // T94：用户主动停止回执（ChatPanel toast + ChatMessage 末条消息底部小字行）
   chatStopped: 'Stopped'
 } as const

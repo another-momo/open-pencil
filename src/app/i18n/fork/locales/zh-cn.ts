@@ -34,14 +34,14 @@ const zhCN = {
     chipsNoProfile: '无风格档案',
     chipsPendingLabel: '将新建：{mode} · {profile}',
     chipsPendingUndo: '撤销新建意图',
-    chipsManifestFailed: 'AI 工作室加载失败——选择器已禁用。',
+    chipsManifestFailed: '设计模式与风格加载失败——选择器已禁用。',
     chipsRetry: '重试',
     chipsCaptureSelection: '采集画布选区',
     chipsCaptureEmpty: '画布上还没有选中节点',
     // T89：skill dropdown trigger + 搜索占位 + 空匹配提示
-    chipsSkillChoose: '选择 skill',
-    chipsSkillSearchPlaceholder: '搜索 skill…',
-    chipsSkillEmpty: '没有匹配的 skill'
+    chipsSkillChoose: '选择技能',
+    chipsSkillSearchPlaceholder: '搜索技能…',
+    chipsSkillEmpty: '没有匹配的技能'
   },
   // T87→T89→T96：settings 面板 Agent 能力分区文案。
   // T96：三档位重构——章节标题/描述 + 文件访问三档 + 技能系统开关标签/描述。
@@ -63,19 +63,18 @@ const zhCN = {
     contextTriggerDesignEmpty: '待新建',
     contextTriggerBriefsLabel: '需求单：',
     contextTriggerBriefsEmpty: '无',
-    targetSection: '当前目标',
-    targetNoActive: '暂无当前目标设计——拨选模式 / 风格后发送消息即可新建。',
+    targetSection: '正在设计',
+    targetNoActive: '还没有正在设计的目标——选好模式 / 风格后发送消息即可新建。',
     targetNoBriefBound: '未绑定需求单',
     designsSection: '本页设计区',
-    designsEmpty: '当前页还没有营销设计区。',
+    designsEmpty: '当前页还没有设计区。',
     designsActive: '当前',
-    designsSetCurrent: '设为当前',
+    designsSetCurrent: '切换到此',
     designsSetting: '切换中…',
-    designsLocateHint: '仅当前页面。点击条目 = 画布定位；切换只走显式按钮。',
     designsSwitchFailed: '设为当前失败。',
     briefsSection: '本页需求单',
     briefListEmpty: '当前页还没有需求单。',
-    briefContainsActive: '含当前目标',
+    briefContainsActive: '含正在设计',
     briefNew: '新建需求单',
     briefNewPlaceholder: '需求内容（可选）…',
     briefCreate: '创建',
@@ -143,7 +142,7 @@ const zhCN = {
     reasoningTitle: '思考过程',
     // T96：流式中 reasoning 折叠卡标题（PiChatMessage.vue）——区别于已结束的
     //「思考过程」；带呼吸点动画，纯 CSS，零 JS 定时器
-    reasoningStreamingTitle: '思考中…',
+    reasoningStreamingTitle: '思考中',
     // T94：用户主动停止回执（ChatPanel toast + ChatMessage 末条消息底部小字行）
     chatStopped: '已停止'
   },
@@ -164,7 +163,7 @@ const zhCN = {
   imagegen: {
     imageGenTitle: '图像生成',
     imageGenDescription:
-      'generate_image 工具的凭证由本地 pi 后端持有（与聊天 LLM 密钥分开）。选择服务商类型，然后填写 Base URL、模型名与 API 密钥。',
+      '图片生成功能的凭证由本地 AI 服务持有（与聊天密钥分开）。选择服务商类型，然后填写 Base URL、模型名与 API 密钥。',
     imageGenProvider: '服务商类型',
     imageGenBaseUrl: 'Base URL',
     imageGenBaseUrlPlaceholder: 'https://api.openai.com/v1',
@@ -176,7 +175,7 @@ const zhCN = {
     imageGenKeyClear: '清除密钥',
     imageGenConfigured: '已配置',
     imageGenNotConfigured: '未配置',
-    imageGenOffline: '无法连接 pi 后端——请用 `bun run dev` 启动开发服务器。'
+    imageGenOffline: '无法连接本地 AI 服务——请重启应用；浏览器开发模式请先启动本地服务。'
   },
   fonts: {
     settingsFonts: '字体',

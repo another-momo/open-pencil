@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import IconImage from '~icons/lucide/image'
 
 import DesktopToolbar from '@/components/Toolbar/DesktopToolbar.vue'
 import MobileToolbar from '@/components/Toolbar/MobileToolbar.vue'
 import { useToolbarActions } from '@/components/Toolbar/actions'
+import { useAddImage } from '@/components/Toolbar/useAddImage'
 import { useActionToast } from '@/app/shell/toast/action'
 import { useEditorStore } from '@/app/editor/active-store'
 import { toolIcons } from '@/app/editor/icons'
@@ -55,7 +57,18 @@ const toolShortcuts: Record<Tool, string> = {
 
 const flyoutMenuCls = useMenuUI({ content: 'min-w-32' })
 const toolbarUI = { flyoutContent: flyoutMenuCls.content }
-const { editActions, arrangeActions } = useToolbarActions({ store, getCommand, menu })
+const { openImagePicker } = useAddImage(store)
+const addImageAction: ToolbarActionItem = {
+  icon: IconImage,
+  label: '添加图片',
+  action: () => openImagePicker()
+}
+const { editActions, arrangeActions } = useToolbarActions({
+  store,
+  getCommand,
+  menu,
+  addImage: openImagePicker
+})
 
 const { mobileCategory, slideDirection, hasPrev, hasNext, goPrev, goNext } = useToolbarState()
 
@@ -75,6 +88,7 @@ function onActionTap(item: ToolbarActionItem) {
       :tool-icons="toolIcons"
       :tool-labels="toolLabels"
       :tool-shortcuts="toolShortcuts"
+      :add-image="addImageAction"
       :ui="toolbarUI"
       @set-tool="actions.setTool"
     />

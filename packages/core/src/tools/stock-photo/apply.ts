@@ -58,7 +58,7 @@ export async function applyPhoto(
     }
   }
 
-  if (node.type !== 'BOOLEAN_OPERATION' && node.children.length > 0) {
+  if (node.type !== 'BOOLEAN_OPERATION' && node.type !== 'FRAME' && node.children.length > 0) {
     return { id: req.id, error: `"${node.name}" has children — use a leaf image placeholder` }
   }
 

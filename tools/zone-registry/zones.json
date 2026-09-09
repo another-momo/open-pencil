@@ -1266,6 +1266,20 @@
       "reason": "工具吸收 2026-09-09：batch_update 校验增强——SCENE_PROP_MAP 单一真源派生 description 支持列表与 unknown-key 逐操作报错（修 updated:0 静默）；检测不阻断已知键照应用；errors 非空置 partial:true。移植自 feature/agent-backend（instance-overrides 部分按拍板不移植）",
       "disposition": "permanent",
       "lastReviewed": "2026-09-09"
+    },
+    {
+      "id": "P226",
+      "file": "packages/core/src/tools/stock-photo/apply.ts",
+      "reason": "工具吸收 2026-09-09（owner 拍板）：stock_photo 子节点守卫加 FRAME 例外——FRAME 带子节点允许填图作背景（营销「有内容的 Frame 垫背景图」场景），COMPONENT/INSTANCE 等其余容器维持拒绝且消息不变",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-09"
+    },
+    {
+      "id": "P227",
+      "file": "tests/engine/tools/stock-photo/apply.test.ts",
+      "reason": "工具吸收 2026-09-09：FRAME 移出「带子容器拒绝」参数化（随 P226 放宽）；FRAME 接受行为新覆盖在 tests/engine/rebuild/stock-photo-frame-background.test.ts",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-09"
     }
   ],
   "deletedPaths": [

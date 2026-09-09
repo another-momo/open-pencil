@@ -220,7 +220,7 @@ describe('applyPhoto', () => {
     })
   }
 
-  for (const type of ['FRAME', 'COMPONENT', 'INSTANCE'] as const satisfies readonly NodeType[]) {
+  for (const type of ['COMPONENT', 'INSTANCE'] as const satisfies readonly NodeType[]) {
     test(`rejects ${type} content containers before searching`, async () => {
       const { graph, page, figma } = setup()
       const container = graph.createNode(type, page.id, {

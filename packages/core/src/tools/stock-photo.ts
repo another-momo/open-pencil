@@ -21,7 +21,9 @@ export const stockPhoto = defineTool({
   description:
     'Search stock photos and apply to leaf image placeholders or closed area geometry. ' +
     'Pass a JSON array; each item is {id, query, index?, orientation?}. ' +
-    'Containers with content, text, lines, and structural nodes are rejected.',
+    'Text, lines, and structural nodes are rejected. Containers with content are rejected — except FRAME, which takes the photo as a background fill behind its children. ' +
+    'Batch ALL photos in ONE call — do not loop with repeated single calls. ' +
+    'If no key is configured or the API returns 401, return the error to the user — do NOT fall back to eval-drawn gradients or rectangles as fake photos; leave placeholder colors as-is.',
   params: {
     requests: {
       type: 'string',

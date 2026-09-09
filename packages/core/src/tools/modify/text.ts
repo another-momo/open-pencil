@@ -24,7 +24,11 @@ export const setText = defineTool({
 export const setFont = defineTool({
   name: 'set_font',
   mutates: true,
-  description: 'Set font properties of a text node.',
+  description:
+    'Set font properties of a text node (family/size/style atomically). ' +
+    '`font_family` is the only property `update_node` does NOT support — set_font is the sole entry point for changing font family. ' +
+    'For font_size / font_weight, prefer `update_node` (it accepts numeric font_weight 100–900). ' +
+    'There is no bulk font-change tool — loop set_font per node. `batch_update` accepts no font properties.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     family: { type: 'string', description: 'Font family name' },
@@ -84,7 +88,11 @@ export const setFontRange = defineTool({
 export const setTextResize = defineTool({
   name: 'set_text_resize',
   mutates: true,
-  description: 'Set text auto-resize mode.',
+  description:
+    'Set text auto-resize mode. ' +
+    'Use this when you only need to switch the resize mode (NONE / WIDTH_AND_HEIGHT / HEIGHT / TRUNCATE) on a single text node. ' +
+    'Use `update_node` with explicit `width` / `height` for a fixed-size text box (combine with mode=NONE / TRUNCATE). ' +
+    'For other text layout properties at the same time (alignment, direction, decoration), prefer `set_text_properties` instead.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     mode: {

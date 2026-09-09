@@ -1280,6 +1280,27 @@
       "reason": "工具吸收 2026-09-09：FRAME 移出「带子容器拒绝」参数化（随 P226 放宽）；FRAME 接受行为新覆盖在 tests/engine/rebuild/stock-photo-frame-background.test.ts",
       "disposition": "permanent",
       "lastReviewed": "2026-09-09"
+    },
+    {
+      "id": "P228",
+      "file": "packages/core/src/tools/analyze/eval/index.ts",
+      "reason": "工具吸收 2026-09-09：eval 描述补技术约束——无 *Async 方法（getNodeByIdAsync 不存在/loadFontAsync 为 no-op）、计数≠写确认、批量操作正确路由（loop set_font / set_fill / render replace_id，batch_update 不收字体与填充）；base.md:98 三条引用与描述对齐",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-09"
+    },
+    {
+      "id": "P229",
+      "file": "packages/core/src/tools/stock-photo.ts",
+      "reason": "工具吸收 2026-09-09：描述补单调用批量 + 防 eval 画渐变伪图 fallback；容器拒绝句改写如实反映 FRAME 背景填充例外（随 P226 行为）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-09"
+    },
+    {
+      "id": "P230",
+      "file": "packages/core/src/tools/modify/text.ts",
+      "reason": "工具吸收 2026-09-09：set_font / set_text_resize 描述补路由建议——set_font 按 update_node 实际能力面（font_family 唯一入口、字重仅数字 100-900、无批量字体工具）；set_text_resize auto-resize vs update_node 固定尺寸",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-09"
     }
   ],
   "deletedPaths": [

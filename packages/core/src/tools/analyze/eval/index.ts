@@ -5,7 +5,11 @@ import { wrapEvalCode } from './wrap'
 export const evalCode = defineTool({
   name: 'eval',
   description:
-    'Execute JavaScript with full Figma Plugin API access. Use for operations not covered by other tools. The `figma` global is available.',
+    'Execute JavaScript with full Figma Plugin API access. Use for operations not covered by other tools. The `figma` global is available. ' +
+    'Technical constraints: sync API surface, no-op font loading, counter ≠ confirmation. ' +
+    'The figma object has NO `*Async` methods — `getNodeByIdAsync` does not exist (use sync `getNodeById`); `loadFontAsync` is a no-op (assign `fontName` directly). ' +
+    'A loop counter is NOT a write confirmation — after bulk mutations, `describe` a sample to verify writes landed. ' +
+    'For bulk font changes loop `set_font` per node; for fills use `set_fill` (`batch_update` supports neither font nor fill props) — for structural rewrites prefer `render` `replace_id`; eval is the last resort.',
   params: {
     code: { type: 'string', description: 'JavaScript code to execute', required: true }
   },

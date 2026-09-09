@@ -1225,27 +1225,27 @@
       "disposition": "permanent",
       "lastReviewed": "2026-09-08"
     },
-  {
-    "id": "P220",
-    "file": "src/components/Toolbar/Toolbar.vue",
-    "reason": "ux-polish 2026-09-07：挂「添加图片」入口——useAddImage composable + addImageAction 构造 + 传 DesktopToolbar prop / useToolbarActions 入参（owner 体验优化项 5）",
-    "disposition": "permanent",
-    "lastReviewed": "2026-09-09"
-  },
-  {
-    "id": "P221",
-    "file": "src/components/Toolbar/DesktopToolbar.vue",
-    "reason": "ux-polish 2026-09-07：工具条尾部加分隔线 + 「添加图片」ToolButton（addImage prop；data-test-id=toolbar-add-image）",
-    "disposition": "permanent",
-    "lastReviewed": "2026-09-09"
-  },
-  {
-    "id": "P222",
-    "file": "src/components/Toolbar/actions.ts",
-    "reason": "ux-polish 2026-09-07：useToolbarActions 加 addImage 入参，editActions 末位挂「添加图片」（移动端 edit 分类自动获得）",
-    "disposition": "permanent",
-    "lastReviewed": "2026-09-09"
-  }
+    {
+      "id": "P220",
+      "file": "src/components/Toolbar/Toolbar.vue",
+      "reason": "ux-polish 2026-09-07：挂「添加图片」入口——useAddImage composable + addImageAction 构造 + 传 DesktopToolbar prop / useToolbarActions 入参（owner 体验优化项 5）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-09"
+    },
+    {
+      "id": "P221",
+      "file": "src/components/Toolbar/DesktopToolbar.vue",
+      "reason": "ux-polish 2026-09-07：工具条尾部加分隔线 + 「添加图片」ToolButton（addImage prop；data-test-id=toolbar-add-image）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-09"
+    },
+    {
+      "id": "P222",
+      "file": "src/components/Toolbar/actions.ts",
+      "reason": "ux-polish 2026-09-07：useToolbarActions 加 addImage 入参，editActions 末位挂「添加图片」（移动端 edit 分类自动获得）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-09"
+    }
   ],
   "deletedPaths": [
     "desktop",

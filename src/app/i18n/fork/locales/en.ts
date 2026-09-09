@@ -65,7 +65,8 @@ export const imageGenMessageDefaults = {
   imageGenKeyClear: 'Clear key',
   imageGenConfigured: 'Configured',
   imageGenNotConfigured: 'Not configured',
-  imageGenOffline: 'Local AI service unreachable — restart the app; in browser dev mode, start the local service first.'
+  imageGenOffline:
+    'Local AI service unreachable — restart the app; in browser dev mode, start the local service first.'
 } as const
 
 /** T56：ask_user_question 聊天内表单卡片（AskUserQuestionCard）英文默认值；
@@ -144,7 +145,8 @@ export const panelsMessageDefaults = {
   contextTriggerBriefsLabel: 'Briefs: ',
   contextTriggerBriefsEmpty: 'None',
   targetSection: 'Designing now',
-  targetNoActive: 'No design in progress yet — pick a mode / style and send a message to start one.',
+  targetNoActive:
+    'No design in progress yet — pick a mode / style and send a message to start one.',
   targetNoBriefBound: 'No brief bound',
   designsSection: 'Designs on this page',
   designsEmpty: 'No design areas on this page yet.',

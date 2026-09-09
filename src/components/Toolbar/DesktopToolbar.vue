@@ -18,25 +18,17 @@ import type {
   ToolLabels
 } from '@/components/Toolbar/types'
 
-const {
-  tools,
-  activeTool,
-  flyoutSelections,
-  toolIcons,
-  toolLabels,
-  toolShortcuts,
-  addImage,
-  ui
-} = defineProps<{
-  tools: EditorToolDef[]
-  activeTool: Tool
-  flyoutSelections: ReadonlyMap<Tool, Tool>
-  toolIcons: ToolIconMap
-  toolLabels: ToolLabels
-  toolShortcuts: Record<Tool, string>
-  addImage: ToolbarActionItem
-  ui?: ToolbarUI
-}>()
+const { tools, activeTool, flyoutSelections, toolIcons, toolLabels, toolShortcuts, addImage, ui } =
+  defineProps<{
+    tools: EditorToolDef[]
+    activeTool: Tool
+    flyoutSelections: ReadonlyMap<Tool, Tool>
+    toolIcons: ToolIconMap
+    toolLabels: ToolLabels
+    toolShortcuts: Record<Tool, string>
+    addImage: ToolbarActionItem
+    ui?: ToolbarUI
+  }>()
 
 const emit = defineEmits<{
   setTool: [tool: Tool]

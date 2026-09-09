@@ -8,6 +8,30 @@ interface BatchOp {
   props: Record<string, unknown>
 }
 
+/**
+ * Single source of truth for batch_update props.
+ * Keys are the public prop names; values are the Figma node fields each prop writes to.
+ * Supported-prop list in the description and unknown-key error messages are derived from this map,
+ * so they can never drift from what applyBatchProps actually handles.
+ */
+export const SCENE_PROP_MAP: Record<string, readonly string[]> = {
+  spacing: ['itemSpacing'],
+  padding: ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'],
+  padding_horizontal: ['paddingLeft', 'paddingRight'],
+  padding_vertical: ['paddingTop', 'paddingBottom'],
+  counter_align: ['counterAxisAlign'],
+  align: ['primaryAxisAlign'],
+  sizing_horizontal: ['primaryAxisSizing', 'counterAxisSizing'],
+  sizing_vertical: ['primaryAxisSizing', 'counterAxisSizing'],
+  grow: ['layoutGrow'],
+  name: ['name'],
+  visible: ['visible'],
+  corner_radius: ['cornerRadius'],
+  opacity: ['opacity'],
+  auto_resize: ['textAutoResize'],
+  direction: ['layoutMode']
+}
+
 function str(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
@@ -93,7 +117,10 @@ export const batchUpdate = defineTool({
   name: 'batch_update',
   mutates: true,
   description:
-    'Execute multiple modifications in one call. Each operation is {id, props} where props can include: spacing, padding, padding_horizontal, padding_vertical, counter_align, sizing_horizontal, sizing_vertical, grow, name, visible, corner_radius, auto_resize (for text), direction. Runs all updates with one layout recompute.',
+    `Execute multiple modifications in one call. Each operation is {id, props} where props can include: ${Object.keys(SCENE_PROP_MAP).join(', ')}. ` +
+    `auto_resize applies to text nodes only. ` +
+    `Unrecognized prop keys are reported per operation (known keys in the same op are still applied). ` +
+    `Callers MUST inspect errors and the top-level partial flag — if partial: true, some operations failed; treat the result as a partial success and continue with the errors fixed.`,
   params: {
     operations: {
       type: 'string',
@@ -120,13 +147,22 @@ export const batchUpdate = defineTool({
         errors.push(`Node "${op.id}" not found`)
         continue
       }
+      const unknownKeys = Object.keys(op.props).filter((key) => !(key in SCENE_PROP_MAP))
+      if (unknownKeys.length > 0) {
+        errors.push(
+          `Node "${op.id}": unknown props ${unknownKeys.map((key) => `"${key}"`).join(', ')} — supported: ${Object.keys(SCENE_PROP_MAP).join(', ')}`
+        )
+      }
       const updated = applyBatchProps(node, op.props)
       if (updated.length > 0) results.push({ id: op.id, updated })
     }
 
     const out: Record<string, unknown> = { updated: results.length }
     if (results.length > 0) out.results = results
-    if (errors.length > 0) out.errors = errors
+    if (errors.length > 0) {
+      out.errors = errors
+      out.partial = true
+    }
     return out
   }
 })

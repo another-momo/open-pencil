@@ -1259,6 +1259,13 @@
       "reason": "工具吸收 2026-09-09：WEIGHT_MAP（3 档大小写敏感）删除，字重改走 scene-graph parseFontStyle（9 档 22 别名大小写不敏感 + 未知名 400 兜底）——studio base.md:39 教 9 名，旧映射 7/9 必中静默回退 400",
       "disposition": "permanent",
       "lastReviewed": "2026-09-09"
+    },
+    {
+      "id": "P225",
+      "file": "packages/core/src/tools/structure/batch.ts",
+      "reason": "工具吸收 2026-09-09：batch_update 校验增强——SCENE_PROP_MAP 单一真源派生 description 支持列表与 unknown-key 逐操作报错（修 updated:0 静默）；检测不阻断已知键照应用；errors 非空置 partial:true。移植自 feature/agent-backend（instance-overrides 部分按拍板不移植）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-09"
     }
   ],
   "deletedPaths": [

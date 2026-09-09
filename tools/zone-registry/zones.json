@@ -1252,6 +1252,13 @@
       "reason": "ux-polish 2026-09-09：placeFiles/placeImageFiles 返回值 Promise<void>→Promise<number>（成功落画布节点数）——「添加图片」入口据此在 0 时 toast 反馈，消除选不支持/解码失败文件后的静默无反应；既有 void 调用方（拖拽、粘贴）不受影响",
       "disposition": "permanent",
       "lastReviewed": "2026-09-09"
+    },
+    {
+      "id": "P224",
+      "file": "packages/core/src/design-jsx/props-overrides.ts",
+      "reason": "工具吸收 2026-09-09：WEIGHT_MAP（3 档大小写敏感）删除，字重改走 scene-graph parseFontStyle（9 档 22 别名大小写不敏感 + 未知名 400 兜底）——studio base.md:39 教 9 名，旧映射 7/9 必中静默回退 400",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-09"
     }
   ],
   "deletedPaths": [

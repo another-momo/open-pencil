@@ -8,16 +8,11 @@ import type {
   SceneNode,
   Stroke
 } from '@open-pencil/scene-graph'
+import { parseFontStyle } from '@open-pencil/scene-graph'
 import type { Color, JSONObject } from '@open-pencil/scene-graph/primitives'
 
 import { colorToFill, parseColor } from '#core/color'
 import { TRANSPARENT } from '#core/constants'
-
-const WEIGHT_MAP: Record<string, number> = {
-  normal: 400,
-  medium: 500,
-  bold: 700
-}
 
 const ALIGN_MAP: Record<string, SceneNode['primaryAxisAlign']> = {
   start: 'MIN',
@@ -468,7 +463,7 @@ function applyTextStyleOverrides(props: Record<string, unknown>, o: Partial<Scen
   if (typeof weight === 'number') {
     o.fontWeight = weight
   } else if (typeof weight === 'string') {
-    o.fontWeight = WEIGHT_MAP[weight] ?? 400
+    o.fontWeight = parseFontStyle(weight).weight
   }
 
   if (typeof props.color === 'string' || isColor(props.color)) {

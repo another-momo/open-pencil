@@ -140,17 +140,15 @@ export const agentCapabilitiesMessageDefaults = {
  */
 export const panelsMessageDefaults = {
   contextTriggerLabel: 'Canvas state',
-  contextTriggerDesignLabel: 'Design: ',
+  contextTriggerDesignLabel: 'Designing: ',
   contextTriggerDesignEmpty: 'Not created',
   contextTriggerBriefsLabel: 'Briefs: ',
   contextTriggerBriefsEmpty: 'None',
-  targetSection: 'Designing now',
-  targetNoActive:
-    'No design in progress yet — pick a mode / style and send a message to start one.',
-  targetNoBriefBound: 'No brief bound',
-  designsSection: 'Designs on this page',
-  designsEmpty: 'No design areas on this page yet.',
-  designsActive: 'Current',
+  designsSection: 'Design areas',
+  designsEmpty:
+    'No design areas on this page yet — pick a mode / style and send a message to start one.',
+  designsNoActive: 'No design area is being designed yet.',
+  designsActive: 'Designing',
   designsSetCurrent: 'Switch to this',
   designsSetting: 'Switching…',
   designsSwitchFailed: 'Failed to set the current design.',
@@ -273,4 +271,11 @@ export const fontsMessageDefaults = {
   fontsUnauditedLicense: params('License: {license} (per package notice, unaudited)'),
   fontsCatalogHint:
     'Full Chinese Fonts CDN catalog. Off by default — enabled families appear in the picker and load subset pieces on demand.'
+} as const
+
+/** ux-polish⑤（2026-09-09）：画布工具条「添加图片」文案域（Toolbar 按钮 / useAddImage 失败 toast） */
+export const toolbarMessageDefaults = {
+  addImage: 'Add image',
+  addImageFailed:
+    'Could not add the selected image — supported formats: PNG, JPEG, WebP, GIF, AVIF, SVG.'
 } as const

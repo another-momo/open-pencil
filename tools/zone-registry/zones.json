@@ -1245,6 +1245,13 @@
       "reason": "ux-polish 2026-09-07：useToolbarActions 加 addImage 入参，editActions 末位挂「添加图片」（移动端 edit 分类自动获得）",
       "disposition": "permanent",
       "lastReviewed": "2026-09-09"
+    },
+    {
+      "id": "P223",
+      "file": "packages/core/src/editor/clipboard/assets.ts",
+      "reason": "ux-polish 2026-09-09：placeFiles/placeImageFiles 返回值 Promise<void>→Promise<number>（成功落画布节点数）——「添加图片」入口据此在 0 时 toast 反馈，消除选不支持/解码失败文件后的静默无反应；既有 void 调用方（拖拽、粘贴）不受影响",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-09"
     }
   ],
   "deletedPaths": [

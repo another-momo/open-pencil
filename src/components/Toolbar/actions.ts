@@ -22,9 +22,16 @@ type ToolbarActionOptions = {
   getCommand: ReturnType<typeof useEditorCommands>['getCommand']
   menu: Ref<{ copy: string; paste: string; cut: string; front: string; back: string; lock: string }>
   addImage: () => void
+  addImageLabel: Ref<string>
 }
 
-export function useToolbarActions({ store, getCommand, menu, addImage }: ToolbarActionOptions) {
+export function useToolbarActions({
+  store,
+  getCommand,
+  menu,
+  addImage,
+  addImageLabel
+}: ToolbarActionOptions) {
   const editActions = computed<ToolbarActionItem[]>(() => [
     { icon: IconCopy, label: menu.value.copy, action: () => void store.mobileCopy() },
     { icon: IconClipboard, label: menu.value.paste, action: () => store.mobilePaste() },
@@ -41,7 +48,7 @@ export function useToolbarActions({ store, getCommand, menu, addImage }: Toolbar
     },
     {
       icon: IconImage,
-      label: '添加图片',
+      label: addImageLabel.value,
       action: () => addImage()
     }
   ])

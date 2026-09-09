@@ -131,11 +131,12 @@ export function createClipboardAssetActions(
     }).id
   }
 
-  async function placeFiles(files: File[], cx: number, cy: number) {
+  /** 返回成功落画布的节点数——0 = 全部文件不支持或解码失败（调用方可据此给用户反馈） */
+  async function placeFiles(files: File[], cx: number, cy: number): Promise<number> {
     const prepared = (await Promise.all(files.map(prepareAsset))).filter(
       (asset): asset is PreparedAsset => asset !== null
     )
-    if (prepared.length === 0) return
+    if (prepared.length === 0) return 0
 
     const previousSelection = new Set(ctx.state.selectedIds)
     const parentId = resolvePasteTarget(ctx)
@@ -165,11 +166,12 @@ export function createClipboardAssetActions(
       throw error
     }
 
-    if (created.length === 0) return
+    if (created.length === 0) return 0
     computeAllLayouts(ctx.graph, ctx.state.currentPageId)
     ctx.setSelectedIds(new Set(created))
     pushCreatedNodesUndo(created, previousSelection, 'Place files')
     ctx.requestRender()
+    return created.length
   }
 
   function placeImageFiles(files: File[], cx: number, cy: number) {

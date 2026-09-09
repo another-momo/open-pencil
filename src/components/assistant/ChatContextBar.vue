@@ -3,13 +3,14 @@
  * T65（决策 B1/B2）：画布工作状态面板三合一——当前设计显示 + 设计区列表 +
  * 需求单面板合一，挂在 ChatPanel header（会话下拉旁边）。
  *
- *  - trigger 按钮 = 双段式状态文案（T66 决策①）：「当前设计区：<设计名> |
+ *  - trigger 按钮 = 双段式状态文案（T66 决策①）：「正在设计：<设计名> |
  *    需求单：<N>」，空槽「待新建 / 无」text-muted 弱色——状态可见性与入口
  *    合一，且直接承担空槽引导职责（输入条引导条已删，UI 只此一处状态显示）。
  *  - 需求单计数口径 = 当前页（拍板⑩沿用 T65 D4；scanCurrentPageBriefs 即面板
  *    列表同一口径），sceneVersion watcher 保持新鲜（mode-selection 同范式）。
- *  - popover 内分节不分 tab：①当前目标卡 ②设计区列表（active 徽标 + 点击
- *    打开定位不切换 + 显式「设为当前」→ 端点）③需求单列表 + 新建入口。
+ *  - popover 内分节不分 tab：①设计区列表（active 条目 accent 描边 +「正在
+ *    设计」徽标，mode/profile 名称随行展示；点击条目 = 定位不切换；非
+ *    active 条目显式「切换到此」→ 端点）②需求单列表 + 新建入口。
  *  - 需求单详情编辑迁出 popover（T66 决策②）：点击条目 → ChatBriefDialog
  *    独立大面板（素材四能力在那）；popover 不再内嵌详情视图。
  *  - 「+ 新建需求单」（T79 U1 推翻 T65 D1）：单按钮 → 桥直调
@@ -58,7 +59,7 @@ const panelsText = useForkPanels()
 const cls = usePopoverUI({ content: 'isolate z-[51] w-80 p-3' })
 const open = ref(false)
 
-// ── ① 当前目标卡（无状态字段） ──
+// ── ① 设计区列表（当前页；active 徽标 + mode/profile 随行；点击 = 定位不切换） ──
 
 const active = computed(() => piActiveDesign.value)
 
@@ -72,15 +73,6 @@ function profileLabel(profileId: string | null): string | null {
     piStudioManifest.value?.profiles.find((profile) => profile.id === profileId)?.label ?? profileId
   )
 }
-
-const activeBriefName = computed(() => {
-  const briefId = active.value?.briefId
-  if (!briefId) return null
-  const store = getActiveEditorStoreOrNull()
-  return store?.graph.getNode(briefId)?.name ?? null
-})
-
-// ── ② 设计区列表（当前页；点击 = 定位不切换） ──
 
 const designs = ref<MarketingDesignRef[]>([])
 /** 逐条目切换中态（按钮按下即确认语义；防连击） */
@@ -121,7 +113,7 @@ async function setCurrent(design: MarketingDesignRef) {
   }
 }
 
-// ── ③ 需求单列表（当前页）+ 新建；详情编辑在 ChatBriefDialog（T66 决策②） ──
+// ── ② 需求单列表（当前页）+ 新建；详情编辑在 ChatBriefDialog（T66 决策②） ──
 
 const briefs = ref<BriefListEntry[]>([])
 
@@ -230,38 +222,8 @@ function handleOpen(value: boolean) {
     <PopoverPortal>
       <PopoverContent side="bottom" align="start" :side-offset="6" :class="cls.content">
         <div data-test-id="chat-context-panel" class="max-h-[70vh] space-y-3 overflow-y-auto">
-          <!-- ① 当前目标卡（无状态字段） -->
+          <!-- ① 设计区列表（当前页；active 徽标 + mode/profile 随行；点击 = 定位不切换） -->
           <div class="space-y-1">
-            <div class="flex items-center gap-2">
-              <icon-lucide-pin class="size-3.5 shrink-0 text-accent" />
-              <span class="text-[12px] font-medium text-surface">{{
-                panelsText.targetSection
-              }}</span>
-            </div>
-            <div
-              class="rounded-md border border-border bg-canvas px-2 py-1.5"
-              data-test-id="chat-context-target"
-            >
-              <div v-if="!active" class="text-[11px] text-muted">
-                {{ panelsText.targetNoActive }}
-              </div>
-              <template v-else>
-                <div class="truncate text-[11px] text-surface">{{ active.name }}</div>
-                <div class="mt-0.5 truncate text-[11px] text-muted">
-                  {{ modeLabel(active.modeId) }}
-                  <template v-if="profileLabel(active.profileId)">
-                    · {{ profileLabel(active.profileId) }}
-                  </template>
-                </div>
-                <div class="mt-0.5 truncate text-[11px] text-muted">
-                  {{ activeBriefName ?? panelsText.targetNoBriefBound }}
-                </div>
-              </template>
-            </div>
-          </div>
-
-          <!-- ② 设计区列表（当前页；点击 = 定位不切换） -->
-          <div class="space-y-1 border-t border-border pt-3">
             <div class="flex items-center gap-2">
               <icon-lucide-layout-grid class="size-3.5 shrink-0 text-accent" />
               <span class="text-[12px] font-medium text-surface">{{
@@ -271,6 +233,9 @@ function handleOpen(value: boolean) {
 
             <div v-if="designs.length === 0" class="text-[11px] text-muted">
               {{ panelsText.designsEmpty }}
+            </div>
+            <div v-else-if="!activeNodeId" class="text-[11px] text-muted">
+              {{ panelsText.designsNoActive }}
             </div>
 
             <div
@@ -324,7 +289,7 @@ function handleOpen(value: boolean) {
             </div>
           </div>
 
-          <!-- ③ 需求单列表（当前页）+ 新建入口；条目点击 → ChatBriefDialog（T66） -->
+          <!-- ② 需求单列表（当前页）+ 新建入口；条目点击 → ChatBriefDialog（T66） -->
           <div class="space-y-1 border-t border-border pt-3">
             <div class="flex items-center gap-2">
               <icon-lucide-book-open class="size-3.5 shrink-0 text-accent" />

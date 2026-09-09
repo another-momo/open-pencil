@@ -21,7 +21,8 @@ import type {
   fontsMessageDefaults,
   imageGenMessageDefaults,
   panelsMessageDefaults,
-  piMessageDefaults
+  piMessageDefaults,
+  toolbarMessageDefaults
 } from './en'
 
 const zhCN = {
@@ -59,16 +60,14 @@ const zhCN = {
   },
   panels: {
     contextTriggerLabel: '画布状态',
-    contextTriggerDesignLabel: '当前设计区：',
+    contextTriggerDesignLabel: '正在设计：',
     contextTriggerDesignEmpty: '待新建',
     contextTriggerBriefsLabel: '需求单：',
     contextTriggerBriefsEmpty: '无',
-    targetSection: '正在设计',
-    targetNoActive: '还没有正在设计的目标——选好模式 / 风格后发送消息即可新建。',
-    targetNoBriefBound: '未绑定需求单',
-    designsSection: '本页设计区',
-    designsEmpty: '当前页还没有设计区。',
-    designsActive: '当前',
+    designsSection: '设计区',
+    designsEmpty: '当前页还没有设计区——选好模式 / 风格后发送消息即可新建。',
+    designsNoActive: '还没有正在设计的设计区。',
+    designsActive: '正在设计',
     designsSetCurrent: '切换到此',
     designsSetting: '切换中…',
     designsSwitchFailed: '设为当前失败。',
@@ -247,6 +246,10 @@ const zhCN = {
     thinkingMedium: '中',
     thinkingHigh: '高',
     thinkingExtraHigh: '极高'
+  },
+  toolbar: {
+    addImage: '添加图片',
+    addImageFailed: '无法添加所选图片——支持 PNG / JPEG / WebP / GIF / AVIF / SVG。'
   }
 } satisfies ComponentsJSON
 
@@ -262,3 +265,4 @@ export type ChipsNamespace = typeof chipsMessageDefaults
 export type PanelsNamespace = typeof panelsMessageDefaults
 export type ConfirmNamespace = typeof confirmMessageDefaults
 export type AgentCapabilitiesNamespace = typeof agentCapabilitiesMessageDefaults
+export type ToolbarNamespace = typeof toolbarMessageDefaults

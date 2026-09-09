@@ -6,6 +6,7 @@ import DesktopToolbar from '@/components/Toolbar/DesktopToolbar.vue'
 import MobileToolbar from '@/components/Toolbar/MobileToolbar.vue'
 import { useToolbarActions } from '@/components/Toolbar/actions'
 import { useAddImage } from '@/components/Toolbar/useAddImage'
+import { useForkToolbar } from '@/app/i18n/fork'
 import { useActionToast } from '@/app/shell/toast/action'
 import { useEditorStore } from '@/app/editor/active-store'
 import { toolIcons } from '@/app/editor/icons'
@@ -58,16 +59,18 @@ const toolShortcuts: Record<Tool, string> = {
 const flyoutMenuCls = useMenuUI({ content: 'min-w-32' })
 const toolbarUI = { flyoutContent: flyoutMenuCls.content }
 const { openImagePicker } = useAddImage(store)
-const addImageAction: ToolbarActionItem = {
+const toolbarText = useForkToolbar()
+const addImageAction = computed<ToolbarActionItem>(() => ({
   icon: IconImage,
-  label: '添加图片',
+  label: toolbarText.value.addImage,
   action: () => openImagePicker()
-}
+}))
 const { editActions, arrangeActions } = useToolbarActions({
   store,
   getCommand,
   menu,
-  addImage: openImagePicker
+  addImage: openImagePicker,
+  addImageLabel: computed(() => toolbarText.value.addImage)
 })
 
 const { mobileCategory, slideDirection, hasPrev, hasNext, goPrev, goNext } = useToolbarState()

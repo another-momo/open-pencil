@@ -25,7 +25,8 @@ import {
   fontsMessageDefaults,
   imageGenMessageDefaults,
   panelsMessageDefaults,
-  piMessageDefaults
+  piMessageDefaults,
+  toolbarMessageDefaults
 } from './locales/en'
 
 export const forkI18n = createI18n<Locale, 'en'>(locale, {
@@ -42,7 +43,8 @@ export const forkI18n = createI18n<Locale, 'en'>(locale, {
         chips: mod.default.chips,
         panels: mod.default.panels,
         confirm: mod.default.confirm,
-        agentCapabilities: mod.default.agentCapabilities
+        agentCapabilities: mod.default.agentCapabilities,
+        toolbar: mod.default.toolbar
       }
     }
     return {}
@@ -75,6 +77,9 @@ export const forkAgentCapabilitiesMessages = forkI18n(
   agentCapabilitiesMessageDefaults
 )
 
+/** ux-polish⑤（2026-09-09）：画布工具条「添加图片」文案域（Toolbar / useAddImage） */
+export const forkToolbarMessages = forkI18n('toolbar', toolbarMessageDefaults)
+
 export function useForkAgentCapabilities() {
   return useStore(forkAgentCapabilitiesMessages)
 }
@@ -106,6 +111,11 @@ export function useForkPanels() {
 /** T61：同 useForkPi 形态 */
 export function useForkConfirm() {
   return useStore(forkConfirmMessages)
+}
+
+/** 同 useForkPi 形态 */
+export function useForkToolbar() {
+  return useStore(forkToolbarMessages)
 }
 
 // T38 修：返回诚实 Ref（照抄上游 useNotificationMessages 形态，类型推断保留

@@ -153,8 +153,9 @@ function hasAnyUnderscoreDir(dir: string): boolean {
       for (const entry of readdirSync(subDir, { withFileTypes: true })) {
         if (entry.isDirectory() && entry.name.startsWith('_')) return true
       }
-    } catch {
+    } catch (err) {
       // 权限/IO 错误：保守视为「无 _」，让后续复制尝试；不阻断启动
+      console.warn(`[studio] seed 预检 _ 目录失败（按「无」继续）：${subDir}`, err)
     }
   }
   return false

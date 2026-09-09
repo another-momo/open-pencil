@@ -239,12 +239,12 @@ function loadBase(
     kind: 'base',
     id: 'base',
     body: parsed.body,
-    ...(keptReferences ? { references: keptReferences } : {}),
-    ...(version !== undefined ? { version } : {}),
-    ...(deprecated ? { deprecated } : {}),
     origin: baseCandidate.origin,
     path: baseCandidate.path
   }
+  if (keptReferences) entry.references = keptReferences
+  if (version !== undefined) entry.version = version
+  if (deprecated) entry.deprecated = deprecated
   return entry
 }
 

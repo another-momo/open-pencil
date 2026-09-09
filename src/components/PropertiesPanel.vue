@@ -22,6 +22,14 @@ const { panels } = useI18n()
     <TabsRoot v-model="activeTab" class="flex min-h-0 flex-1 flex-col">
       <TabsList class="flex h-10 shrink-0 items-center gap-1 border-b border-border px-2">
         <TabsTrigger
+          value="ai"
+          data-test-id="properties-tab-ai"
+          class="relative flex items-center gap-1 rounded px-2.5 py-1 text-[11px] text-muted hover:text-surface data-[state=active]:font-semibold data-[state=active]:text-surface after:absolute after:inset-x-2 after:-bottom-[9px] after:h-0.5 after:rounded-full after:bg-transparent data-[state=active]:after:bg-accent"
+        >
+          <icon-lucide-sparkles class="size-3" />
+          {{ panels.ai }}
+        </TabsTrigger>
+        <TabsTrigger
           value="design"
           data-test-id="properties-tab-design"
           class="relative rounded px-2.5 py-1 text-[11px] text-muted hover:text-surface data-[state=active]:font-semibold data-[state=active]:text-surface after:absolute after:inset-x-2 after:-bottom-[9px] after:h-0.5 after:rounded-full after:bg-transparent data-[state=active]:after:bg-accent"
@@ -36,16 +44,17 @@ const { panels } = useI18n()
           <icon-lucide-code class="size-3" />
           {{ panels.code }}
         </TabsTrigger>
-        <TabsTrigger
-          value="ai"
-          data-test-id="properties-tab-ai"
-          class="relative flex items-center gap-1 rounded px-2.5 py-1 text-[11px] text-muted hover:text-surface data-[state=active]:font-semibold data-[state=active]:text-surface after:absolute after:inset-x-2 after:-bottom-[9px] after:h-0.5 after:rounded-full after:bg-transparent data-[state=active]:after:bg-accent"
-        >
-          <icon-lucide-sparkles class="size-3" />
-          {{ panels.ai }}
-        </TabsTrigger>
         <ZoomDropdown v-if="activeTab === 'design'" />
       </TabsList>
+
+      <TabsContent
+        value="ai"
+        class="flex min-h-0 flex-1 flex-col"
+        :force-mount="true"
+        :hidden="activeTab !== 'ai'"
+      >
+        <ChatPanel />
+      </TabsContent>
 
       <TabsContent
         value="design"
@@ -63,15 +72,6 @@ const { panels } = useI18n()
         :hidden="activeTab !== 'code'"
       >
         <CodePanel :active="activeTab === 'code'" />
-      </TabsContent>
-
-      <TabsContent
-        value="ai"
-        class="flex min-h-0 flex-1 flex-col"
-        :force-mount="true"
-        :hidden="activeTab !== 'ai'"
-      >
-        <ChatPanel />
       </TabsContent>
     </TabsRoot>
   </aside>

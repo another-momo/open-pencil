@@ -10,11 +10,18 @@
  * - P3：不显式指定 response_format——gpt-image 系端点拒绝该参数（400
  *   `Unknown parameter: 'response_format'`），extractImageBytes 双格式消费
  *   使显式指定无收益（据 docs/202609010000-image-gen-provider-review.md P3）。
- * - P7：background 由 provider 侧固定为 'auto'——Agent 无感，req.background
+ * - P7：legacy `background` 由 provider 侧固定——Agent 无感，req.background
  *   字段不再被读取（owner 2026-09-02 决策）。
  * - P6：抽出可复用核心 createProviderCore；createImageGenProvider 仅为
  *   OpenAI 兼容族的薄封装，Seedream 族见 provider-seedream.ts；分派见
  *   factory.ts。
+ *
+ * transparent_background 透传（owner 2026-09-10 裁决，详见
+ * docs/202609101102-transparent-bg-research.md）：
+ * - req.transparent_background === true  → 线路 background='transparent'
+ * - req.transparent_background === false → 线路 background='opaque'
+ * - undefined                              → 线路 background=wire.background
+ *                                              （OpenAI 兼容 'auto' / Seedream 'opaque' 兜底）
  *
  * 与源的差异：
  * - ofetch → 原生 fetch（红线：不引入新 npm 依赖；pi-backend 进程不经
@@ -115,8 +122,10 @@ export interface ImageGenProviderOptions {
 /**
  * T77 P6 抽出：provider 核心实现——OpenAI 兼容族与 Seedream 族共用。
  * - wire.name：provider.name（如 `openai-compatible(${model})`）
- * - wire.background：provider 侧固定 background 值（P7：OpenAI 'auto'，
- *   Seedream 'opaque'——后者不接受 'auto'）。req.background 不再被读取。
+ * - wire.background：provider 兜底 background 值（P7：OpenAI 'auto'，
+ *   Seedream 'opaque'——后者不接受 'auto'）。req.background 不再被读取；
+ *   req.transparent_background 为 true 时改写为 'transparent'，为 false 时
+ *   改写为 'opaque'，undefined 时回落 wire.background。
  * - wire.extraFields：族差异字段（如 Seedream 的 watermark: false）。
  *   FormData 路径 append(k, String(v))、JSON 路径对象展开（与
  *   withCompression 同款双形态写法）。
@@ -128,6 +137,16 @@ interface ProviderCoreWire {
   name: string
   background: 'auto' | 'opaque'
   extraFields?: Record<string, unknown>
+}
+
+/** T33: req.transparent_background 三态映射到 wire background 字段 */
+function resolveBackground(
+  wire: ProviderCoreWire,
+  transparentBackground: boolean | undefined
+): 'auto' | 'opaque' | 'transparent' {
+  if (transparentBackground === true) return 'transparent'
+  if (transparentBackground === false) return 'opaque'
+  return wire.background
 }
 
 /**
@@ -146,6 +165,11 @@ export function createProviderCore(
 
   return {
     name: wire.name,
+    // api 族：透传 background='transparent' 到上游；local 族（Seedream 等不支持
+    // 原生透明的 provider）由调用方 runGeneratePhase 检测后走 prompt 注入 +
+    // 后处理路径，本 provider 仍以 opaque baseline 收尾（transparent_background
+    // =false 也走 'opaque'）。
+    transparentSupport: 'api' as const,
     async generate(req: ImageGenRequest, images?: Uint8Array[]): Promise<ImageGenResult> {
       if (!credentials.apiKey) throw new Error('Image-gen API key not configured')
       const hasDims =
@@ -175,6 +199,9 @@ export function createProviderCore(
           else target[k] = v
         }
       }
+      // T33 transparent_background 三态映射：true→'transparent', false→'opaque',
+      // undefined→wire.background（OpenAI 兼容 'auto' / Seedream 'opaque'）。
+      const requestBackground = resolveBackground(wire, req.transparent_background)
 
       const signal = AbortSignal.timeout(timeoutMs)
       let response: Response
@@ -188,7 +215,7 @@ export function createProviderCore(
         form.append('output_format', req.outputFormat ?? 'png')
         withCompression(form)
         applyExtraFields(form)
-        form.append('background', wire.background)
+        form.append('background', requestBackground)
         form.append('moderation', 'auto')
         images.forEach((bytes, index) => {
           form.append(
@@ -212,7 +239,7 @@ export function createProviderCore(
           n: 1,
           quality: req.quality ?? 'auto',
           output_format: req.outputFormat ?? 'png',
-          background: wire.background,
+          background: requestBackground,
           moderation: 'auto'
         }
         applyExtraFields(body)

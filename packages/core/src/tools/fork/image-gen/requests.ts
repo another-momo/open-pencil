@@ -18,7 +18,14 @@ import { safeDestr } from 'destr'
 
 export type ImageGenQuality = 'low' | 'medium' | 'high' | 'auto'
 export type ImageGenFormat = 'png' | 'jpeg' | 'webp'
-export type ImageGenBackground = 'auto' | 'opaque'
+export type ImageGenBackground = 'auto' | 'opaque' | 'transparent'
+/**
+ * Per-provider transparency capability declaration. `api` = provider exposes
+ * OpenAI-style `background` parameter; `local` = provider does not support
+ * native transparency, generate.ts must inject prompt + run key-color post
+ * processing locally.
+ */
+export type ImageGenTransparentSupport = 'api' | 'local'
 
 export interface ImageGenReference {
   id: string
@@ -46,6 +53,12 @@ export interface ImageGenRequest {
   /** JPEG/WebP compression 0-100; only sent when output_format is jpeg/webp. */
   outputCompression?: number
   background?: ImageGenBackground
+  /**
+   * Agent-facing transparency toggle. true = request a transparent background
+   * (api path → wire background='transparent'; local path → prompt key-color
+   * injection + post-process). false = request opaque. Omitted = provider default.
+   */
+  transparent_background?: boolean
   /** The only source of input images; extracted by apply.ts before the call. */
   references?: ImageGenReference[]
 }
@@ -65,6 +78,13 @@ export interface ImageGenResult {
  */
 export interface ImageGenProvider {
   name: string
+  /**
+   * Capability declaration for `transparent_background` requests. `api` means
+   * the provider exposes a native transparency channel (OpenAI-style `background`
+   * parameter); `local` means the provider cannot deliver transparency natively
+   * and generate.ts must inject prompt + post-process locally.
+   */
+  transparentSupport: ImageGenTransparentSupport
   /**
    * @param req the generation/edit request
    * @param images input images extracted from `req.references`. Empty/absent →
@@ -284,6 +304,7 @@ interface RawRequest {
   output_format?: unknown
   output_compression?: unknown
   background?: unknown
+  transparent_background?: unknown
   references?: unknown
 }
 
@@ -334,6 +355,19 @@ function parseSingleRequest(
   const background = parseEnumParam('background', raw.background, BACKGROUND_VALUES)
   if (typeof background === 'object') return background
 
+  // transparent_background: strict boolean (or undefined). Mirror the strict
+  // rule used by typebox schema (additionalProperties:false would let non-boolean
+  // through here, so we gate it explicitly at the parse layer).
+  let transparentBackground: boolean | undefined
+  if (raw.transparent_background !== undefined && raw.transparent_background !== null) {
+    if (typeof raw.transparent_background !== 'boolean') {
+      return {
+        error: `Invalid transparent_background ${JSON.stringify(raw.transparent_background)} — expected boolean`
+      }
+    }
+    transparentBackground = raw.transparent_background
+  }
+
   return {
     replaceId: hasTarget ? rawReplaceId : undefined,
     prompt,
@@ -344,6 +378,7 @@ function parseSingleRequest(
     outputCompression:
       typeof raw.output_compression === 'number' ? raw.output_compression : undefined,
     background,
+    transparent_background: transparentBackground,
     references: references.length > 0 ? references : undefined
   }
 }

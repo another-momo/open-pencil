@@ -100,6 +100,7 @@ function mockProvider(): {
   const pending: Array<() => void> = []
   const provider: ImageGenProvider = {
     name: 'mock-provider',
+    transparentSupport: 'api',
     generate: (req) => {
       started.push(req.prompt)
       if (started.length === 2) resolveBoth()
@@ -233,6 +234,7 @@ describe('createImageGenTool 编排', () => {
     })
     const provider: ImageGenProvider = {
       name: 'mock-provider',
+      transparentSupport: 'api',
       generate: async (req) => ({
         bytes: GEN_BYTES,
         width: req.width ?? 1024,
@@ -261,6 +263,7 @@ describe('createImageGenTool 编排', () => {
     const { calls, callBridge } = mockBridge(events)
     const provider: ImageGenProvider = {
       name: 'mock-provider',
+      transparentSupport: 'api',
       generate: async () => ({ bytes: GEN_BYTES, width: 1024, height: 1024 })
     }
     const tool = createImageGenTool({

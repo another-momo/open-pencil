@@ -17,10 +17,16 @@
  * validateToolArguments 实证）；description 瘦身至 2000 字符内。
  * parseImageGenRequests 保留字符串宽容解析为兼容降级（见 core requests.ts）。
  *
- * T77 P7：background 字段从 schema 移除——provider 侧固定，Agent 无感
+ * T77 P7：legacy `background` 字段从 schema 移除——provider 侧固定，Agent 无感
  * （owner 2026-09-02 决策；详见 docs/202609010000-image-gen-provider-review.md
  * P7 与 provider.ts 头注）。parseImageGenRequests 的 ImageGenBackground
  * 类型与解析保留不动（类型层向后兼容）。
+ *
+ * transparent_background 参数（owner 2026-09-10 裁决，详见
+ * docs/202609101102-transparent-bg-research.md）：agent 侧开关——api provider
+ * 透传 `background='transparent'`；local provider 走 prompt 键色注入 + 后处理。
+ * schema 字段 hint 不承载 prompt 规则（T82 钉扎），具体键色规则活在
+ * transparent.ts 常量里。
  *
  * 装配形态：createImageGenTool(deps) 工厂返回 pi AgentTool——由主 agent
  * 集成期在 service.ts 装配进 customTools（本任务不改 service.ts/tools.ts）。
@@ -47,6 +53,7 @@ import {
 import { createBridgeCaller, type BridgeCaller, type BridgeCallTarget } from './bridge-call'
 import type { ImageGenCredentials, ImageGenCredentialStore } from './credentials'
 import { createProviderFor } from './factory'
+import { KEY_COLOR_PROMPT_SUFFIX, removeKeyedBackgroundFromPng } from './transparent'
 
 /** 与 fork/image-gen/tools.ts 的桥端点对齐 */
 const BEGIN_TOOL = 'image_gen_begin'
@@ -66,6 +73,8 @@ REPLACE vs CREATE: set \`replace_id\` to fill an existing node, replacing its cu
 REFERENCES are the ONLY input-image source: a node contributes its original IMAGE bytes by default (lossless); nodes WITHOUT an IMAGE fill (layout Frames, groups) are rendered automatically. Use {"id":"...","composite":true} for the rendered appearance (children, effects, rounded corners). No references = text-to-image; with references = image-to-image. To EDIT an image, set \`replace_id\` to it AND include its id in \`references\`; to REGENERATE unbiased (retrying a rejected result), set \`replace_id\` but omit the target from \`references\`. Name multiple references [image 1], [image 2], ... in the prompt in order. A reference must not point at another batch item's output — split dependent edits into separate calls.
 
 Generation is SLOW: batch ALL needed images in ONE call — never loop single calls. Any width/height is accepted — 16px-aligned and clipped to API constraints preserving aspect ratio; adjustments are reported in note.
+
+TRANSPARENT BACKGROUND: set \`transparent_background: true\` for cutouts needing a transparent canvas; omit when opaque.
 
 Returns node id metadata only (no image bytes): inspect with \`describe\`, visually accept with \`look\`; on miss, regenerate with an adjusted prompt (max 2 attempts). If the key is missing or the API returns 401, tell the user to add/check the Image Generation API key in AI chat settings (separate from the chat LLM key) — do NOT fall back to eval-drawn gradients.`
 
@@ -108,6 +117,8 @@ interface ItemResult {
   snapshot?: { id: string; name: string; version: number }
   note?: string
   error?: string
+  /** T33: true=透明背景后处理成功；false=未启用/未执行；'failed'=启用但后处理失败已回退原 bytes */
+  transparent?: boolean | 'failed'
 }
 
 type PipelineItem = {
@@ -116,6 +127,8 @@ type PipelineItem = {
   images?: Uint8Array[]
   gen?: ImageGenResult
   error?: string
+  /** T33: 后处理失败原因（仅当 transparent === 'failed' 时存在） */
+  transparentError?: string
 }
 
 function toToolResult(result: Record<string, unknown>): AgentToolResult<Record<string, unknown>> {
@@ -162,21 +175,55 @@ async function runBeginPhase(
   return items
 }
 
-/** 生成段（并行：provider HTTP 直发，不经桥） */
+/** 生成段（并行：provider HTTP 直发，不经桥）。
+ * T33 透明背景：local provider（Seedream 等不支持原生透明）走 prompt 注入 +
+ * 后处理路径——下发到 provider 的 prompt 追加 KEY_COLOR_PROMPT_SUFFIX；返回
+ * bytes 后过 removeKeyedBackgroundFromPng；抛错回退原 bytes 并记 transparentError。
+ * api provider（OpenAI 兼容）原生透传 background='transparent'，本函数不做干预。*/
 async function runGeneratePhase(items: PipelineItem[], provider: ImageGenProvider): Promise<void> {
+  const localPath = provider.transparentSupport === 'local'
   await Promise.all(
     items.map(async (item) => {
       if (!item.begin) return
+      const transparent = item.req.transparent_background === true
+      // 输出格式约束（spec C7）：api 路径 jpeg → png；local 路径一律 png（编解码仅 PNG）
+      const formatOverride = transparent
+        ? localPath || item.req.outputFormat === 'jpeg'
+          ? 'png'
+          : item.req.outputFormat
+        : item.req.outputFormat
+
       const finalReq: ImageGenRequest = {
         ...item.req,
         width: item.begin.width,
-        height: item.begin.height
+        height: item.begin.height,
+        outputFormat: formatOverride,
+        prompt:
+          transparent && localPath
+            ? `${item.req.prompt}\n\n${KEY_COLOR_PROMPT_SUFFIX}`
+            : item.req.prompt
       }
+
       try {
-        item.gen = await provider.generate(
+        const generated = await provider.generate(
           finalReq,
           item.images && item.images.length > 0 ? item.images : undefined
         )
+
+        if (transparent && localPath) {
+          // 后处理：失败回退原 bytes（spec C6：try/catch 包裹，沿用参考项目失败回退设计）
+          try {
+            item.gen = {
+              ...generated,
+              bytes: removeKeyedBackgroundFromPng(generated.bytes)
+            }
+          } catch (error) {
+            item.gen = generated
+            item.transparentError = toErrorMessage(error)
+          }
+        } else {
+          item.gen = generated
+        }
       } catch (error) {
         item.error = toErrorMessage(error)
       }
@@ -224,6 +271,7 @@ async function runCommitPhase(
         snapshot?: { id: string; name: string; version: number }
         note?: string
         error?: string
+        transparent?: boolean | 'failed'
       } = {
         id: commit.id,
         width: item.gen.width,
@@ -234,6 +282,24 @@ async function runCommitPhase(
       }
       if (commit.snapshot) commitResult.snapshot = commit.snapshot
       if (item.begin.note) commitResult.note = item.begin.note
+      // T33: 透明背景标注——api 路径只要 agent 显式 true 即视为成功（上游处理）；
+      // local 路径成功后处理成功记 true，失败记 'failed'。false/未传不标。
+      if (item.req.transparent_background === true) {
+        if (provider.transparentSupport === 'local') {
+          commitResult.transparent = item.transparentError ? 'failed' : true
+          if (item.transparentError) {
+            // 失败原因必须可见——只标 'failed' 不给原因，agent 无从判断下一步
+            commitResult.note = [
+              item.begin.note,
+              `transparent post-process failed（已回退原图）: ${item.transparentError}`
+            ]
+              .filter(Boolean)
+              .join('; ')
+          }
+        } else {
+          commitResult.transparent = true
+        }
+      }
       results.push(commitResult)
     } catch (error) {
       results.push({ id: item.begin.id, error: toErrorMessage(error) })
@@ -243,8 +309,9 @@ async function runCommitPhase(
 }
 
 /**
- * T66 P4：requests 拆为 schema 化数组（八字段，与 core requests.ts 解析层
- * RawRequest 对齐——T77 P7 删 background，由 provider 侧固定）。
+ * T66 P4：requests 拆为 schema 化数组（九字段，与 core requests.ts 解析层
+ * RawRequest 对齐——T77 P7 删 legacy background，2026-09-10 加
+ * transparent_background 字段，由 agent 显式传入）。
  * additionalProperties: false 让字段拼错（target_id 等）在 pi 运行时 schema
  * 校验期即拒绝；width/height 的「新图必填」是条件约束，schema 表达不了，
  * 留在 parseImageGenRequests 语义层（错误文案引导补全）。
@@ -280,6 +347,12 @@ export const GENERATE_IMAGE_PARAMETERS = Type.Object({
         ),
         output_compression: Type.Optional(
           Type.Number({ description: 'JPEG/WebP compression 0-100 (only with jpeg/webp)' })
+        ),
+        transparent_background: Type.Optional(
+          Type.Boolean({
+            description:
+              'true=透明背景：openai 兼容端点走 API 原生透明；seedream 等不支持的端点自动走键色抠图后处理。未传=auto 由供应商决定'
+          })
         ),
         replace_id: Type.Optional(
           Type.String({ description: 'Existing node ID to fill (omit = create new node)' })

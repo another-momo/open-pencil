@@ -46,9 +46,9 @@ export const listFonts = defineTool({
 export const listAvailableFonts = defineTool({
   name: 'list_available_fonts',
   description:
-    'List font families the host can render (system fonts on desktop plus any bundled fonts). ' +
-    'Use this to discover what fonts are available to set on a text node — distinct from list_fonts ' +
-    'which only reports families currently used in the page.',
+    'List font families available for rendering — bundled fonts plus enabled online font ' +
+    'sources and host-exposed local fonts. Use this to pick a family before set_font; ' +
+    'distinct from list_fonts which only reports families currently used in the page.',
   params: {
     family: { type: 'string', description: 'Filter by family name (substring, case-insensitive)' }
   },
@@ -60,6 +60,15 @@ export const listAvailableFonts = defineTool({
       families = families.filter((family) => family.toLowerCase().includes(q))
     }
     families.sort((a, b) => a.localeCompare(b))
+    // 空结果给说明——无枚举面的运行时（默认 stub / 浏览器未授权本地字体）返回 []，
+    // 不给 note 的话 agent 无法区分「没有字体」与「此运行时不提供枚举」
+    if (families.length === 0) {
+      return {
+        count: 0,
+        fonts: families,
+        note: 'No fonts enumerated — the host may not expose a font list in this runtime.'
+      }
+    }
     return { count: families.length, fonts: families }
   }
 })

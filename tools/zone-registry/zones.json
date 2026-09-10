@@ -1308,6 +1308,13 @@
       "reason": "CI 修红 2026-09-10（run 34344702361）：ProviderCall/createProvider 改为 import 共享 helper（tests/engine/rebuild/stock-photo/helpers.ts）——type-shapes 按结构判重，与 stock-photo-frame-background.test.ts 的本地副本撞车；跨测试文件 import 会双跑 describe 故抽 helper",
       "disposition": "permanent",
       "lastReviewed": "2026-09-10"
+    },
+    {
+      "id": "P232",
+      "file": "packages/core/src/tools/read/fonts.ts",
+      "reason": "字体专项 review 2026-09-10（owner 拍板：只优化 list_available_fonts）：description 失真两年修正——2026-06 起枚举面已含在线 provider/CDN/catalog 来源，旧文案仍声称 system+bundled；空结果补 note（无枚举面运行时返回 []，agent 需区分「没有字体」与「不提供枚举」）",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-10"
     }
   ],
   "deletedPaths": [

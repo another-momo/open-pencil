@@ -79,6 +79,9 @@ export type SetupDesignHooks = {
  * 2026-09-09 扩充：set_font_range / set_image_fill / set_stroke_align /
  * set_rotation / set_blend / set_locked 六件——studio base.md 路由表已把
  * 这些能力路由到对应工具，未放行则按 prompt 调用必吃 tool-not-found。
+ * 2026-09-10 扩充：list_available_fonts——字体「写前发现」入口（专项
+ * review 发现三字体工具全未放行，本件先行；list_fonts/get_font_status
+ * 与写入侧语义待 owner 另行裁决）。
  */
 const EXTENDED_WHITELIST = [
   'get_components',
@@ -93,7 +96,8 @@ const EXTENDED_WHITELIST = [
   'set_stroke_align',
   'set_rotation',
   'set_blend',
-  'set_locked'
+  'set_locked',
+  'list_available_fonts'
 ] as const
 
 export const MAX_AGENT_STEPS = 50

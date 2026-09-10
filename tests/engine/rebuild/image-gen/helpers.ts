@@ -6,6 +6,13 @@
  * 一致即触发）。返回的 fetchImpl 已断言为 typeof fetch 便于类型层注入。
  */
 
+/** image_gen_begin/commit 桥调用记录——orchestration 与 transparent-local-path
+ * 两测试文件共用（type-shapes 按结构判重，各自声明同名 interface 即撞车）。 */
+export interface BridgeCall {
+  tool: string
+  args: Record<string, unknown>
+}
+
 export interface CapturedCall {
   url: string
   method?: string

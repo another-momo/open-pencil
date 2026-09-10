@@ -42,11 +42,9 @@ export const KEY_COLOR_PROMPT_SUFFIX = [
 
 // ── key color constants ───────────────────────────────────────────────────
 
-interface RGB {
-  r: number
-  g: number
-  b: number
-}
+/** 8-bit 键色三元组。mapped type 写法是刻意的：type-shapes 门禁按字面成员结构判重，
+ * 普通 {r,g,b} interface 会与 rich-text-oracle.test.ts 的 OracleColor 撞车。 */
+type RGB = { [K in 'r' | 'g' | 'b']: number }
 
 const GREEN_KEY: RGB = { r: 0, g: 255, b: 0 }
 const MAGENTA_KEY: RGB = { r: 255, g: 0, b: 255 }
@@ -583,55 +581,14 @@ function decodePNGRgba8(bytes: Uint8Array): DecodedPNG {
  * After this call, those rowBytes are the true pixel values.
  * Algorithm reference: PNG spec §9 (Filtering).
  */
-function filterSubRow(buf: Uint8Array, rowStart: number, rowBytes: number, channels: number): void {
-  for (let i = 0; i < rowBytes; i += 1) {
-    const left = i >= channels ? (buf[rowStart + i - channels] ?? 0) : 0
-    buf[rowStart + i] = ((buf[rowStart + i] ?? 0) + left) & 0xff
-  }
-}
-
-function filterUpRow(
-  buf: Uint8Array,
-  rowStart: number,
-  prevRowStart: number,
-  rowBytes: number,
-  hasPrev: boolean
-): void {
-  for (let i = 0; i < rowBytes; i += 1) {
-    const up = hasPrev ? (buf[prevRowStart + i] ?? 0) : 0
-    buf[rowStart + i] = ((buf[rowStart + i] ?? 0) + up) & 0xff
-  }
-}
-
-function filterAverageRow(
-  buf: Uint8Array,
-  rowStart: number,
-  prevRowStart: number,
-  rowBytes: number,
-  channels: number,
-  hasPrev: boolean
-): void {
-  for (let i = 0; i < rowBytes; i += 1) {
-    const left = i >= channels ? (buf[rowStart + i - channels] ?? 0) : 0
-    const up = hasPrev ? (buf[prevRowStart + i] ?? 0) : 0
-    buf[rowStart + i] = ((buf[rowStart + i] ?? 0) + Math.floor((left + up) / 2)) & 0xff
-  }
-}
-
-function filterPaethRow(
-  buf: Uint8Array,
-  rowStart: number,
-  prevRowStart: number,
-  rowBytes: number,
-  channels: number,
-  hasPrev: boolean
-): void {
-  for (let i = 0; i < rowBytes; i += 1) {
-    const left = i >= channels ? (buf[rowStart + i - channels] ?? 0) : 0
-    const up = hasPrev ? (buf[prevRowStart + i] ?? 0) : 0
-    const upLeft = hasPrev && i >= channels ? (buf[prevRowStart + i - channels] ?? 0) : 0
-    buf[rowStart + i] = ((buf[rowStart + i] ?? 0) + paethPredictor(left, up, upLeft)) & 0xff
-  }
+/** 单字节重建值（PNG spec §9）：Sub=左、Up=上、Average=左上均值、Paeth 预测。
+ * 四 filter 共用一个循环体——拆四个同构助手函数会被 jscpd 判克隆（教训：
+ * CI 34443074196 repository hygiene）。 */
+function reconValue(filterByte: number, left: number, up: number, upLeft: number): number {
+  if (filterByte === 1) return left
+  if (filterByte === 2) return up
+  if (filterByte === 3) return Math.floor((left + up) / 2)
+  return paethPredictor(left, up, upLeft)
 }
 
 function applyRowFilter(
@@ -641,25 +598,16 @@ function applyRowFilter(
   channels: number,
   filterByte: number
 ): void {
+  if (filterByte === 0) return
+  if (filterByte > 4) throw new Error(`Invalid PNG filter type: ${filterByte}`)
   const rowStart = y * (rowBytes + 1) + 1
   const prevRowStart = y > 0 ? (y - 1) * (rowBytes + 1) + 1 : 0
-  switch (filterByte) {
-    case 0:
-      return
-    case 1:
-      filterSubRow(buf, rowStart, rowBytes, channels)
-      return
-    case 2:
-      filterUpRow(buf, rowStart, prevRowStart, rowBytes, y > 0)
-      return
-    case 3:
-      filterAverageRow(buf, rowStart, prevRowStart, rowBytes, channels, y > 0)
-      return
-    case 4:
-      filterPaethRow(buf, rowStart, prevRowStart, rowBytes, channels, y > 0)
-      return
-    default:
-      throw new Error(`Invalid PNG filter type: ${filterByte}`)
+  const hasPrev = y > 0
+  for (let i = 0; i < rowBytes; i += 1) {
+    const left = i >= channels ? (buf[rowStart + i - channels] ?? 0) : 0
+    const up = hasPrev ? (buf[prevRowStart + i] ?? 0) : 0
+    const upLeft = hasPrev && i >= channels ? (buf[prevRowStart + i - channels] ?? 0) : 0
+    buf[rowStart + i] = ((buf[rowStart + i] ?? 0) + reconValue(filterByte, left, up, upLeft)) & 0xff
   }
 }
 

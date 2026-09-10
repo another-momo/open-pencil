@@ -12,6 +12,8 @@ import type { ImageGenProvider } from '@open-pencil/core/tools/fork/image-gen/re
 import type { ImageGenCredentialStore } from '@/app/ai/pi-backend/image-gen/credentials'
 import { createImageGenTool } from '@/app/ai/pi-backend/image-gen/generate'
 
+import type { BridgeCall } from '#tests/engine/rebuild/image-gen/helpers'
+
 const SECRET_KEY = 'sk-orchestrate-secret'
 
 function fakeStore(apiKey: string | null): ImageGenCredentialStore {
@@ -43,11 +45,6 @@ function fakeStore(apiKey: string | null): ImageGenCredentialStore {
     reloadForTests: () => undefined,
     exists: () => credentials !== null
   }
-}
-
-interface BridgeCall {
-  tool: string
-  args: Record<string, unknown>
 }
 
 interface BridgeHandlers {

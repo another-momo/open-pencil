@@ -1301,6 +1301,13 @@
       "reason": "工具吸收 2026-09-09：set_font / set_text_resize 描述补路由建议——set_font 按 update_node 实际能力面（font_family 唯一入口、字重仅数字 100-900、无批量字体工具）；set_text_resize auto-resize vs update_node 固定尺寸",
       "disposition": "permanent",
       "lastReviewed": "2026-09-09"
+    },
+    {
+      "id": "P231",
+      "file": "tests/engine/tools/stock-photo/apply.test.ts",
+      "reason": "CI 修红 2026-09-10（run 34344702361）：ProviderCall/createProvider 改为 import 共享 helper（tests/engine/rebuild/stock-photo/helpers.ts）——type-shapes 按结构判重，与 stock-photo-frame-background.test.ts 的本地副本撞车；跨测试文件 import 会双跑 describe 故抽 helper",
+      "disposition": "permanent",
+      "lastReviewed": "2026-09-10"
     }
   ],
   "deletedPaths": [

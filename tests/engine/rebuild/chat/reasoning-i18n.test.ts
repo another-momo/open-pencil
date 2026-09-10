@@ -1,11 +1,13 @@
 /**
- * T96：reasoning 折叠卡 i18n 文案钉扎——「思考过程」（结束态）/「思考中…」
+ * T96：reasoning 折叠卡 i18n 文案钉扎——「思考过程」（结束态）/「思考中」
  * （流式态）键都在 confirmMessageDefaults 里存在且符合预期文案。
  *
  * 验收映射：
  *  - 结束态文案保持 T93 原文不变（回归保护）
- *  - 流式态文案新增 reasoningStreamingTitle（区别于结束态；带省略号）
- *  - 英文默认走 'Thinking process' / 'Thinking…'
+ *  - 流式态文案新增 reasoningStreamingTitle（区别于结束态）
+ *  - 英文默认走 'Thinking process' / 'Thinking'
+ *  - 流式态不带省略号为刻意设计（owner 2026-09-10 拍板），与结束态
+ *    'Thinking process' 靠文案本身区分
  *
  * 不覆盖：PiChatMessage.vue 的 markup/动画——组件需要 vue runtime + reka-ui +
  * happy-dom 才能 mount，仓库当前测试栈（bun:test）无 DOM 基础设施，引入
@@ -26,7 +28,7 @@ describe('T96 reasoning i18n keys', () => {
 
   test('流式态 reasoningStreamingTitle 新增且文案与结束态可区分', () => {
     expect(typeof confirmMessageDefaults.reasoningStreamingTitle).toBe('string')
-    expect(confirmMessageDefaults.reasoningStreamingTitle).toBe('Thinking…')
+    expect(confirmMessageDefaults.reasoningStreamingTitle).toBe('Thinking')
     // 区别于结束态（流式应传达「进行中」）
     expect(confirmMessageDefaults.reasoningStreamingTitle).not.toBe(
       confirmMessageDefaults.reasoningTitle

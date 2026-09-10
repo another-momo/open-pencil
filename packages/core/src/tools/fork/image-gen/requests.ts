@@ -308,6 +308,16 @@ interface RawRequest {
   references?: unknown
 }
 
+/** transparent_background：严格 boolean 或 undefined。typebox schema 的
+ * additionalProperties:false 拦不到解析层，故在此显式闸（与 schema 同规则）。 */
+function parseTransparentBackground(raw: unknown): boolean | undefined | { error: string } {
+  if (raw === undefined || raw === null) return undefined
+  if (typeof raw !== 'boolean') {
+    return { error: `Invalid transparent_background ${JSON.stringify(raw)} — expected boolean` }
+  }
+  return raw
+}
+
 /** Parse one request entry; pushes size-adjustment notes onto `sizeNotes`. */
 function parseSingleRequest(
   raw: RawRequest,
@@ -355,18 +365,8 @@ function parseSingleRequest(
   const background = parseEnumParam('background', raw.background, BACKGROUND_VALUES)
   if (typeof background === 'object') return background
 
-  // transparent_background: strict boolean (or undefined). Mirror the strict
-  // rule used by typebox schema (additionalProperties:false would let non-boolean
-  // through here, so we gate it explicitly at the parse layer).
-  let transparentBackground: boolean | undefined
-  if (raw.transparent_background !== undefined && raw.transparent_background !== null) {
-    if (typeof raw.transparent_background !== 'boolean') {
-      return {
-        error: `Invalid transparent_background ${JSON.stringify(raw.transparent_background)} — expected boolean`
-      }
-    }
-    transparentBackground = raw.transparent_background
-  }
+  const transparentBackground = parseTransparentBackground(raw.transparent_background)
+  if (typeof transparentBackground === 'object') return transparentBackground
 
   return {
     replaceId: hasTarget ? rawReplaceId : undefined,

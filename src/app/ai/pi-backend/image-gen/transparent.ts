@@ -42,14 +42,14 @@ export const KEY_COLOR_PROMPT_SUFFIX = [
 
 // ── key color constants ───────────────────────────────────────────────────
 
-interface Rgb {
+interface RGB {
   r: number
   g: number
   b: number
 }
 
-const GREEN_KEY: Rgb = { r: 0, g: 255, b: 0 }
-const MAGENTA_KEY: Rgb = { r: 255, g: 0, b: 255 }
+const GREEN_KEY: RGB = { r: 0, g: 255, b: 0 }
+const MAGENTA_KEY: RGB = { r: 255, g: 0, b: 255 }
 
 /**
  * 边缘像素投票距离阈值（参考 transparentImage.ts:95-96 阈值 100 投票）。
@@ -94,17 +94,17 @@ export function detectKeyColorFromPixels(
  * 回退策略（generate.ts：try/catch 回退原 bytes 并在该结果项上标注
  * 后处理失败）。
  */
-export function removeKeyedBackgroundFromPng(bytes: Uint8Array): Uint8Array {
-  const decoded = decodePngRgba8(bytes)
+export function removeKeyedBackgroundFromPNG(bytes: Uint8Array): Uint8Array {
+  const decoded = decodePNGRgba8(bytes)
   const key = detectKeyColorFromPixels(decoded.data, decoded.width, decoded.height)
-  const keyRgb = key === 'magenta' ? MAGENTA_KEY : GREEN_KEY
-  applyKeyedTransparency(decoded.data, decoded.width, decoded.height, keyRgb)
-  return encodePngRgba8(decoded.data, decoded.width, decoded.height)
+  const keyRGB = key === 'magenta' ? MAGENTA_KEY : GREEN_KEY
+  applyKeyedTransparency(decoded.data, decoded.width, decoded.height, keyRGB)
+  return encodePNGRgba8(decoded.data, decoded.width, decoded.height)
 }
 
 /** 检测 RGBA 像素块是否含键色背景——测试用（验证 transparent 出口） */
 export function hasAlphaChannel(bytes: Uint8Array): boolean {
-  const decoded = decodePngRgba8(bytes)
+  const decoded = decodePNGRgba8(bytes)
   return decoded.colorType === 6
 }
 
@@ -125,24 +125,24 @@ export const __test__ = {
   getEdgeTransparency,
   getKeyChannelMix,
   removeColorSpill,
-  decodePngRgba8,
-  encodePngRgba8,
+  decodePNGRgba8,
+  encodePNGRgba8,
   applyRowFilter,
   paethPredictor,
   GREEN_KEY,
   MAGENTA_KEY
 }
 
-function colorDistance(data: Uint8ClampedArray, offset: number, key: Rgb): number {
+function colorDistance(data: Uint8ClampedArray, offset: number, key: RGB): number {
   const dr = (data[offset] ?? 0) - key.r
   const dg = (data[offset + 1] ?? 0) - key.g
   const db = (data[offset + 2] ?? 0) - key.b
-  return Math.sqrt(dr * dr + dg * dg + db * db)
+  return Math.hypot(dr, dg, db)
 }
 
-function getBackgroundConfidence(data: Uint8ClampedArray, index: number, keyRgb: Rgb): number {
+function getBackgroundConfidence(data: Uint8ClampedArray, index: number, keyRGB: RGB): number {
   const offset = index * 4
-  const dist = colorDistance(data, offset, keyRgb)
+  const dist = colorDistance(data, offset, keyRGB)
   return clamp01((150 - dist) / 150)
 }
 
@@ -158,9 +158,9 @@ function applyKeyedTransparency(
   data: Uint8ClampedArray,
   width: number,
   height: number,
-  keyRgb: Rgb
+  keyRGB: RGB
 ): void {
-  const mask = buildBackgroundMask(data, width, height, keyRgb)
+  const mask = buildBackgroundMask(data, width, height, keyRGB)
   const distance = computeDistanceToBackground(mask, width, height, 4)
   const pixelCount = width * height
 
@@ -169,7 +169,7 @@ function applyKeyedTransparency(
     const red = data[offset] ?? 0
     const green = data[offset + 1] ?? 0
     const blue = data[offset + 2] ?? 0
-    const confidence = getBackgroundConfidence(data, index, keyRgb)
+    const confidence = getBackgroundConfidence(data, index, keyRGB)
     let alpha = 255
 
     if (mask[index]) {
@@ -177,11 +177,14 @@ function applyKeyedTransparency(
     } else {
       const d = distance[index] ?? 0
       if (d > 0) {
-        const transparency = getEdgeTransparency(red, green, blue, confidence, d, keyRgb)
+        const transparency = getEdgeTransparency(red, green, blue, confidence, d, keyRGB)
         if (transparency > 0) alpha = Math.round(255 * (1 - transparency))
-        alpha = Math.max(alpha, d === 1 ? 48 : d === 2 ? 128 : 196)
+        let minAlpha = 196
+        if (d === 1) minAlpha = 48
+        else if (d === 2) minAlpha = 128
+        alpha = Math.max(alpha, minAlpha)
       } else {
-        const isolatedSpill = getKeyChannelMix(red, green, blue, keyRgb)
+        const isolatedSpill = getKeyChannelMix(red, green, blue, keyRGB)
         if (confidence >= 0.46 && isolatedSpill >= 0.45) {
           alpha = Math.round(255 * (1 - isolatedSpill * 0.75))
           alpha = Math.max(alpha, 96)
@@ -194,7 +197,7 @@ function applyKeyedTransparency(
       green,
       blue,
       alpha,
-      keyRgb,
+      keyRGB,
       confidence,
       distance[index] ?? 0
     )
@@ -209,10 +212,10 @@ function buildBackgroundMask(
   data: Uint8ClampedArray,
   width: number,
   height: number,
-  keyRgb: Rgb
+  keyRGB: RGB
 ): Uint8Array {
-  const mask = buildConnectedBackgroundMask(data, width, height, keyRgb)
-  addInteriorKeyColorIslands(data, width, height, keyRgb, mask)
+  const mask = buildConnectedBackgroundMask(data, width, height, keyRGB)
+  addInteriorKeyColorIslands(data, width, height, keyRGB, mask)
   return mask
 }
 
@@ -220,7 +223,7 @@ function buildConnectedBackgroundMask(
   data: Uint8ClampedArray,
   width: number,
   height: number,
-  keyRgb: Rgb
+  keyRGB: RGB
 ): Uint8Array {
   const pixelCount = width * height
   const mask = new Uint8Array(pixelCount)
@@ -232,7 +235,7 @@ function buildConnectedBackgroundMask(
   const enqueue = (index: number) => {
     if (visited[index]) return
     visited[index] = 1
-    if (getBackgroundConfidence(data, index, keyRgb) < 0.18) return
+    if (getBackgroundConfidence(data, index, keyRGB) < 0.18) return
     mask[index] = 1
     queue[queueEnd] = index
     queueEnd += 1
@@ -248,7 +251,7 @@ function buildConnectedBackgroundMask(
   }
 
   while (queueStart < queueEnd) {
-    const index = queue[queueStart]!
+    const index = queue[queueStart]
     queueStart += 1
     const x = index % width
     const y = Math.floor(index / width)
@@ -265,7 +268,7 @@ function addInteriorKeyColorIslands(
   data: Uint8ClampedArray,
   width: number,
   height: number,
-  keyRgb: Rgb,
+  keyRGB: RGB,
   mask: Uint8Array
 ): void {
   const pixelCount = width * height
@@ -275,7 +278,7 @@ function addInteriorKeyColorIslands(
 
   for (let seed = 0; seed < pixelCount; seed += 1) {
     if (mask[seed] || visited[seed]) continue
-    if (getBackgroundConfidence(data, seed, keyRgb) < 0.68) continue
+    if (getBackgroundConfidence(data, seed, keyRGB) < 0.68) continue
 
     let queueStart = 0
     let queueEnd = 0
@@ -290,16 +293,16 @@ function addInteriorKeyColorIslands(
 
     const enqueueNeighbor = (neighborIndex: number) => {
       if (neighborIndex < 0 || mask[neighborIndex] || visited[neighborIndex]) return
-      if (getBackgroundConfidence(data, neighborIndex, keyRgb) < 0.24) return
+      if (getBackgroundConfidence(data, neighborIndex, keyRGB) < 0.24) return
       visited[neighborIndex] = 1
       queue[queueEnd] = neighborIndex
       queueEnd += 1
     }
 
     while (queueStart < queueEnd) {
-      const index = queue[queueStart]!
+      const index = queue[queueStart]
       queueStart += 1
-      const confidence = getBackgroundConfidence(data, index, keyRgb)
+      const confidence = getBackgroundConfidence(data, index, keyRGB)
       component[componentLength] = index
       componentLength += 1
       confidenceSum += confidence
@@ -325,7 +328,7 @@ function addInteriorKeyColorIslands(
 
     if (shouldRemove) {
       for (let i = 0; i < componentLength; i += 1) {
-        mask[component[i]!] = 1
+        mask[component[i]] = 1
       }
     }
   }
@@ -404,16 +407,20 @@ function getEdgeTransparency(
   blue: number,
   confidence: number,
   distance: number,
-  keyRgb: Rgb
+  keyRGB: RGB
 ): number {
-  const edgeStrength = distance <= 1 ? 1 : distance === 2 ? 0.75 : distance === 3 ? 0.45 : 0.25
+  let edgeStrength: number
+  if (distance <= 1) edgeStrength = 1
+  else if (distance === 2) edgeStrength = 0.75
+  else if (distance === 3) edgeStrength = 0.45
+  else edgeStrength = 0.25
   const distanceEstimate = clamp01(((confidence - 0.08) / 0.84) * edgeStrength)
-  const channelEstimate = getKeyChannelMix(red, green, blue, keyRgb) * edgeStrength
+  const channelEstimate = getKeyChannelMix(red, green, blue, keyRGB) * edgeStrength
   return clamp01(Math.max(distanceEstimate, channelEstimate))
 }
 
-function getKeyChannelMix(red: number, green: number, blue: number, keyRgb: Rgb): number {
-  if (keyRgb.g === 255) return clamp01((green - Math.min(red, blue)) / 255)
+function getKeyChannelMix(red: number, green: number, blue: number, keyRGB: RGB): number {
+  if (keyRGB.g === 255) return clamp01((green - Math.min(red, blue)) / 255)
   return clamp01((Math.min(red, blue) - green * 0.65) / 255)
 }
 
@@ -422,23 +429,23 @@ function removeColorSpill(
   green: number,
   blue: number,
   alpha: number,
-  keyRgb: Rgb,
+  keyRGB: RGB,
   confidence: number,
   distanceToBackground: number
-): Rgb {
+): RGB {
   if (alpha === 0) return { r: red, g: green, b: blue }
 
-  const edgeStrength =
-    distanceToBackground <= 0
-      ? confidence >= 0.46
-        ? 0.35
-        : 0
-      : distanceToBackground === 1
-        ? 0.55
-        : distanceToBackground === 2
-          ? 0.32
-          : 0.16
-  const spillMix = getKeyChannelMix(red, green, blue, keyRgb) * edgeStrength
+  let edgeStrength: number
+  if (distanceToBackground <= 0) {
+    edgeStrength = confidence >= 0.46 ? 0.35 : 0
+  } else if (distanceToBackground === 1) {
+    edgeStrength = 0.55
+  } else if (distanceToBackground === 2) {
+    edgeStrength = 0.32
+  } else {
+    edgeStrength = 0.16
+  }
+  const spillMix = getKeyChannelMix(red, green, blue, keyRGB) * edgeStrength
   const backgroundMix = clamp01(
     Math.max((255 - alpha) / 255, ((confidence - 0.1) / 0.9) * edgeStrength, spillMix)
   )
@@ -446,15 +453,15 @@ function removeColorSpill(
 
   const foregroundMix = Math.max(0.08, 1 - backgroundMix)
   return {
-    r: clampByte((red - keyRgb.r * backgroundMix) / foregroundMix),
-    g: clampByte((green - keyRgb.g * backgroundMix) / foregroundMix),
-    b: clampByte((blue - keyRgb.b * backgroundMix) / foregroundMix)
+    r: clampByte((red - keyRGB.r * backgroundMix) / foregroundMix),
+    g: clampByte((green - keyRGB.g * backgroundMix) / foregroundMix),
+    b: clampByte((blue - keyRGB.b * backgroundMix) / foregroundMix)
   }
 }
 
 // ── minimal PNG encoder/decoder（pi-backend 无 DOM/Canvas） ────────────────
 
-interface DecodedPng {
+interface DecodedPNG {
   width: number
   height: number
   /** 2 = RGB, 6 = RGBA */
@@ -465,7 +472,18 @@ interface DecodedPng {
 
 const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
-function decodePngRgba8(bytes: Uint8Array): DecodedPng {
+interface PNGChunks {
+  width: number
+  height: number
+  bitDepth: number
+  colorType: number
+  interlace: number
+  idatData: Uint8Array
+}
+
+/** PNG chunk 遍历：解析 IHDR + 收集全部 IDAT（多 IDAT 拼接，spec §11.2.4），
+ * 未知 ancillary chunk（sRGB/sBIT/gAMA/tEXt/iTXt 等）一律跳过不校验。 */
+function walkPNGChunks(bytes: Uint8Array): PNGChunks {
   if (bytes.length < 8) throw new Error('Invalid PNG: header too short')
   for (let i = 0; i < 8; i += 1) {
     if (bytes[i] !== PNG_SIGNATURE[i]) throw new Error('Invalid PNG: bad signature')
@@ -497,29 +515,25 @@ function decodePngRgba8(bytes: Uint8Array): DecodedPng {
       }
       interlace = bytes[dataStart + 12] ?? 0
     } else if (type === 'IDAT') {
-      // PNG spec §11.2.4：IDAT 流是所有 IDAT chunk 的拼接——必须先收集全部
-      // 再 inflate（生产样本常见多 IDAT 分片，如 seedream 124×8KB 分片）。
+      // 生产样本常见多 IDAT 分片（如 seedream 124×8KB 分片）
       idatChunks.push(bytes.subarray(dataStart, dataEnd))
     } else if (type === 'IEND') {
       break
     }
-    // 未知 chunk（sRGB / sBIT / gAMA / tEXt / iTXt 等 ancillary）一律跳过——
-    // 不校验 CRC、不报错；pos 推进 4 + length + 4（chunk header + data + CRC）。
+    // pos 推进 4 + length + 4（chunk header + data + CRC）
     pos = dataEnd + 4
   }
 
-  if (width <= 0 || height <= 0) throw new Error('Invalid PNG: missing IHDR')
-  if (bitDepth !== 8)
-    throw new Error(`Unsupported PNG bit depth: ${bitDepth} (only 8-bit supported)`)
-  if (colorType !== 2 && colorType !== 6) {
-    throw new Error(`Unsupported PNG color type: ${colorType} (only RGB=2 / RGBA=6 supported)`)
-  }
-  // Adam7 隔行扫描的像素排列完全不同，静默解会产出垃圾图——必须抛错走回退
-  if (interlace !== 0)
-    throw new Error(`Unsupported PNG interlace: ${interlace} (Adam7 not supported)`)
+  return { width, height, bitDepth, colorType, interlace, idatData: concatBytes(idatChunks) }
+}
 
-  const channels = colorType === 6 ? 4 : 3
-  const inflated = inflateSync(concatBytes(idatChunks))
+/** 逐行 unfilter（PNG spec §9：0=None 1=Sub 2=Up 3=Average 4=Paeth）并展开为 RGBA */
+function unfilterToRgba(
+  inflated: Uint8Array,
+  width: number,
+  height: number,
+  channels: number
+): Uint8ClampedArray {
   const rowBytes = width * channels
   const expected = (rowBytes + 1) * height
   if (inflated.length !== expected) {
@@ -529,8 +543,6 @@ function decodePngRgba8(bytes: Uint8Array): DecodedPng {
   }
 
   const out = new Uint8ClampedArray(width * height * 4)
-  // Apply filters in place row by row (filter types per PNG spec §9):
-  //   0=None 1=Sub 2=Up 3=Average 4=Paeth. Then copy to RGBA out.
   for (let y = 0; y < height; y += 1) {
     const filterByte = inflated[y * (rowBytes + 1)] ?? 0
     applyRowFilter(inflated, y, rowBytes, channels, filterByte)
@@ -543,8 +555,25 @@ function decodePngRgba8(bytes: Uint8Array): DecodedPng {
       out[dst + 3] = channels === 4 ? (inflated[src + 3] ?? 255) : 255
     }
   }
+  return out
+}
 
-  return { width, height, colorType, data: out }
+function decodePNGRgba8(bytes: Uint8Array): DecodedPNG {
+  const { width, height, bitDepth, colorType, interlace, idatData } = walkPNGChunks(bytes)
+
+  if (width <= 0 || height <= 0) throw new Error('Invalid PNG: missing IHDR')
+  if (bitDepth !== 8)
+    throw new Error(`Unsupported PNG bit depth: ${bitDepth} (only 8-bit supported)`)
+  if (colorType !== 2 && colorType !== 6) {
+    throw new Error(`Unsupported PNG color type: ${colorType} (only RGB=2 / RGBA=6 supported)`)
+  }
+  // Adam7 隔行扫描的像素排列完全不同，静默解会产出垃圾图——必须抛错走回退
+  if (interlace !== 0)
+    throw new Error(`Unsupported PNG interlace: ${interlace} (Adam7 not supported)`)
+
+  const channels = colorType === 6 ? 4 : 3
+  const data = unfilterToRgba(inflateSync(idatData), width, height, channels)
+  return { width, height, colorType, data }
 }
 
 /**
@@ -554,6 +583,57 @@ function decodePngRgba8(bytes: Uint8Array): DecodedPng {
  * After this call, those rowBytes are the true pixel values.
  * Algorithm reference: PNG spec §9 (Filtering).
  */
+function filterSubRow(buf: Uint8Array, rowStart: number, rowBytes: number, channels: number): void {
+  for (let i = 0; i < rowBytes; i += 1) {
+    const left = i >= channels ? (buf[rowStart + i - channels] ?? 0) : 0
+    buf[rowStart + i] = ((buf[rowStart + i] ?? 0) + left) & 0xff
+  }
+}
+
+function filterUpRow(
+  buf: Uint8Array,
+  rowStart: number,
+  prevRowStart: number,
+  rowBytes: number,
+  hasPrev: boolean
+): void {
+  for (let i = 0; i < rowBytes; i += 1) {
+    const up = hasPrev ? (buf[prevRowStart + i] ?? 0) : 0
+    buf[rowStart + i] = ((buf[rowStart + i] ?? 0) + up) & 0xff
+  }
+}
+
+function filterAverageRow(
+  buf: Uint8Array,
+  rowStart: number,
+  prevRowStart: number,
+  rowBytes: number,
+  channels: number,
+  hasPrev: boolean
+): void {
+  for (let i = 0; i < rowBytes; i += 1) {
+    const left = i >= channels ? (buf[rowStart + i - channels] ?? 0) : 0
+    const up = hasPrev ? (buf[prevRowStart + i] ?? 0) : 0
+    buf[rowStart + i] = ((buf[rowStart + i] ?? 0) + Math.floor((left + up) / 2)) & 0xff
+  }
+}
+
+function filterPaethRow(
+  buf: Uint8Array,
+  rowStart: number,
+  prevRowStart: number,
+  rowBytes: number,
+  channels: number,
+  hasPrev: boolean
+): void {
+  for (let i = 0; i < rowBytes; i += 1) {
+    const left = i >= channels ? (buf[rowStart + i - channels] ?? 0) : 0
+    const up = hasPrev ? (buf[prevRowStart + i] ?? 0) : 0
+    const upLeft = hasPrev && i >= channels ? (buf[prevRowStart + i - channels] ?? 0) : 0
+    buf[rowStart + i] = ((buf[rowStart + i] ?? 0) + paethPredictor(left, up, upLeft)) & 0xff
+  }
+}
+
 function applyRowFilter(
   buf: Uint8Array,
   y: number,
@@ -566,37 +646,18 @@ function applyRowFilter(
   switch (filterByte) {
     case 0:
       return
-    case 1: {
-      for (let i = 0; i < rowBytes; i += 1) {
-        const left = i >= channels ? (buf[rowStart + i - channels] ?? 0) : 0
-        buf[rowStart + i] = ((buf[rowStart + i] ?? 0) + left) & 0xff
-      }
+    case 1:
+      filterSubRow(buf, rowStart, rowBytes, channels)
       return
-    }
-    case 2: {
-      for (let i = 0; i < rowBytes; i += 1) {
-        const up = y > 0 ? (buf[prevRowStart + i] ?? 0) : 0
-        buf[rowStart + i] = ((buf[rowStart + i] ?? 0) + up) & 0xff
-      }
+    case 2:
+      filterUpRow(buf, rowStart, prevRowStart, rowBytes, y > 0)
       return
-    }
-    case 3: {
-      for (let i = 0; i < rowBytes; i += 1) {
-        const left = i >= channels ? (buf[rowStart + i - channels] ?? 0) : 0
-        const up = y > 0 ? (buf[prevRowStart + i] ?? 0) : 0
-        buf[rowStart + i] = ((buf[rowStart + i] ?? 0) + Math.floor((left + up) / 2)) & 0xff
-      }
+    case 3:
+      filterAverageRow(buf, rowStart, prevRowStart, rowBytes, channels, y > 0)
       return
-    }
-    case 4: {
-      for (let i = 0; i < rowBytes; i += 1) {
-        const left = i >= channels ? (buf[rowStart + i - channels] ?? 0) : 0
-        const up = y > 0 ? (buf[prevRowStart + i] ?? 0) : 0
-        const upLeft = y > 0 && i >= channels ? (buf[prevRowStart + i - channels] ?? 0) : 0
-        buf[rowStart + i] = ((buf[rowStart + i] ?? 0) + paethPredictor(left, up, upLeft)) & 0xff
-      }
+    case 4:
+      filterPaethRow(buf, rowStart, prevRowStart, rowBytes, channels, y > 0)
       return
-    }
     default:
       throw new Error(`Invalid PNG filter type: ${filterByte}`)
   }
@@ -612,7 +673,7 @@ function paethPredictor(a: number, b: number, c: number): number {
   return c
 }
 
-function encodePngRgba8(data: Uint8ClampedArray, width: number, height: number): Uint8Array {
+function encodePNGRgba8(data: Uint8ClampedArray, width: number, height: number): Uint8Array {
   const channels = 4
   const rowBytes = width * channels
   // Prepend filter byte (0 = None) per scanline.
@@ -711,8 +772,8 @@ const CRC_TABLE: Uint32Array = (() => {
 
 function crc32(bytes: Uint8Array): number {
   let crc = 0xffffffff
-  for (let i = 0; i < bytes.length; i += 1) {
-    crc = (crc >>> 8) ^ (CRC_TABLE[(crc ^ (bytes[i] ?? 0)) & 0xff] ?? 0)
+  for (const byte of bytes) {
+    crc = (crc >>> 8) ^ (CRC_TABLE[(crc ^ byte) & 0xff] ?? 0)
   }
   return (crc ^ 0xffffffff) >>> 0
 }

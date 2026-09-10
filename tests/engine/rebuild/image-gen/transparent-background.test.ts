@@ -11,7 +11,6 @@ import { describe, expect, test } from 'bun:test'
 
 import { Value } from 'typebox/value'
 
-import type { ImageGenProvider } from '@open-pencil/core/tools/fork/image-gen/requests'
 import { parseImageGenRequests } from '@open-pencil/core/tools/fork/image-gen/requests'
 
 import { GENERATE_IMAGE_PARAMETERS } from '@/app/ai/pi-backend/image-gen/generate'
@@ -152,7 +151,9 @@ describe('transparent_background api 路径三态（OpenAI 兼容）', () => {
       { prompt: 'opaque edit', width: 1024, height: 1024, transparent_background: false },
       [new Uint8Array([2, 2, 2])]
     )
-    expect((calls[1]?.body as FormData).get('background')).toBe('opaque')
+    const editCall = calls[1]
+    if (!editCall) throw new Error('expected edits call')
+    expect((editCall.body as FormData).get('background')).toBe('opaque')
   })
 
   test('transparent_background 未传 → background=wire.background（OpenAI 兜底 auto）', async () => {
@@ -163,7 +164,9 @@ describe('transparent_background api 路径三态（OpenAI 兼容）', () => {
     await provider.generate({ prompt: 'normal edit', width: 1024, height: 1024 }, [
       new Uint8Array([3])
     ])
-    expect((calls[1]?.body as FormData).get('background')).toBe('auto')
+    const editCall = calls[1]
+    if (!editCall) throw new Error('expected edits call')
+    expect((editCall.body as FormData).get('background')).toBe('auto')
   })
 })
 

@@ -9,6 +9,7 @@
  *   PNG 字节四角透明、中心不透明（验证后处理出口）。
  */
 import { describe, expect, test } from 'bun:test'
+import { deflateSync, inflateSync } from 'node:zlib'
 
 import { decodeBase64 } from '@open-pencil/core/bytes'
 import type {
@@ -70,13 +71,12 @@ function mockBridge() {
 
 /**
  * 程序化构造 16x16 RGBA PNG——四角键色绿 (#00FF00)、中心红色块。
- * 走 transparent.ts 的 encodePngRgba8 等价路径（实际测试通过透明模块的
+ * 走 transparent.ts 的 encodePNGRgba8 等价路径（实际测试通过透明模块的
  * import 完成），不引入额外 fixture。
  */
-function buildKeyColorPng(): Uint8Array {
+function buildKeyColorPNG(): Uint8Array {
   // 直接复用 transparent.ts 的检测逻辑——但 encoder 私有；改用本文件内
   // 的 zlib + chunk 拼装程序化构造（不引入新依赖）。
-  const { deflateSync } = require('node:zlib') as typeof import('node:zlib')
   const width = 16
   const height = 16
   const data = new Uint8ClampedArray(width * height * 4)
@@ -97,7 +97,7 @@ function buildKeyColorPng(): Uint8Array {
       }
     }
   }
-  // 编码（与 transparent.ts encodePngRgba8 同样的流程）
+  // 编码（与 transparent.ts encodePNGRgba8 同样的流程）
   const channels = 4
   const rowBytes = width * channels
   const raw = new Uint8Array((rowBytes + 1) * height)
@@ -168,21 +168,20 @@ const CRC_TABLE: Uint32Array = (() => {
 
 function crc32(bytes: Uint8Array): number {
   let crc = 0xffffffff
-  for (let i = 0; i < bytes.length; i += 1) {
-    crc = (crc >>> 8) ^ (CRC_TABLE[(crc ^ (bytes[i] ?? 0)) & 0xff] ?? 0)
+  for (const byte of bytes) {
+    crc = (crc >>> 8) ^ (CRC_TABLE[(crc ^ byte) & 0xff] ?? 0)
   }
   return (crc ^ 0xffffffff) >>> 0
 }
 
-interface DecodedPng {
+interface DecodedPNG {
   width: number
   height: number
   colorType: number
   data: Uint8ClampedArray
 }
 
-function decodePngRgba8(bytes: Uint8Array): DecodedPng {
-  const { inflateSync } = require('node:zlib') as typeof import('node:zlib')
+function decodePNGRgba8(bytes: Uint8Array): DecodedPNG {
   const readU32 = (p: number) =>
     ((bytes[p] ?? 0) << 24) |
     ((bytes[p + 1] ?? 0) << 16) |
@@ -245,14 +244,14 @@ function concatBytes(chunks: Uint8Array[]): Uint8Array {
 
 describe('transparent_background local 路径（seedream = transparentSupport=local）', () => {
   test('透明=true → 下发 prompt 含 KEY_COLOR_PROMPT_SUFFIX；commit 携带去键色 RGBA PNG', async () => {
-    const keyPng = buildKeyColorPng()
+    const keyPNG = buildKeyColorPNG()
     const seenPrompts: string[] = []
     const provider: ImageGenProvider = {
       name: 'mock-seedream',
       transparentSupport: 'local',
       generate: async (req: ImageGenRequest) => {
         seenPrompts.push(req.prompt)
-        return { bytes: keyPng, width: req.width ?? 16, height: req.height ?? 16 }
+        return { bytes: keyPNG, width: req.width ?? 16, height: req.height ?? 16 }
       }
     }
     const { calls, callBridge } = mockBridge()
@@ -272,12 +271,14 @@ describe('transparent_background local 路径（seedream = transparentSupport=lo
 
     // 2) begin 段 prompt 仍为原 prompt（注入只在 generate 段）
     const beginCall = calls.find((c) => c.tool === 'image_gen_begin')
-    expect((beginCall?.args as { prompt: string }).prompt).toBe('icon')
+    if (!beginCall) throw new Error('expected image_gen_begin call')
+    expect((beginCall.args as { prompt: string }).prompt).toBe('icon')
 
     // 3) commit 阶段 image_data 是去键色后的 PNG——四角 alpha<128、中心 alpha>128
     const commitCall = calls.find((c) => c.tool === 'image_gen_commit')
-    const imageB64 = String((commitCall?.args as { image_data: string }).image_data)
-    const decoded = decodePngRgba8(decodeBase64(imageB64))
+    if (!commitCall) throw new Error('expected image_gen_commit call')
+    const imageB64 = String((commitCall.args as { image_data: string }).image_data)
+    const decoded = decodePNGRgba8(decodeBase64(imageB64))
     expect(decoded.colorType).toBe(6) // RGBA
     expect(decoded.width).toBe(16)
     expect(decoded.height).toBe(16)
@@ -295,14 +296,14 @@ describe('transparent_background local 路径（seedream = transparentSupport=lo
   })
 
   test('透明=false / 未传 → prompt 不含 KEY_COLOR_PROMPT_SUFFIX；commit 用原 bytes', async () => {
-    const keyPng = buildKeyColorPng()
+    const keyPNG = buildKeyColorPNG()
     const seenPrompts: string[] = []
     const provider: ImageGenProvider = {
       name: 'mock-seedream',
       transparentSupport: 'local',
       generate: async (req: ImageGenRequest) => {
         seenPrompts.push(req.prompt)
-        return { bytes: keyPng, width: req.width ?? 16, height: req.height ?? 16 }
+        return { bytes: keyPNG, width: req.width ?? 16, height: req.height ?? 16 }
       }
     }
     const { calls, callBridge } = mockBridge()
@@ -326,19 +327,19 @@ describe('transparent_background local 路径（seedream = transparentSupport=lo
     const commitBodies = calls
       .filter((c) => c.tool === 'image_gen_commit')
       .map((c) => (c.args as { image_data: string }).image_data)
-    // 两条 commit 携带的 bytes 都与原 keyPng 字节一致（不经后处理）
+    // 两条 commit 携带的 bytes 都与原 keyPNG 字节一致（不经后处理）
     expect(commitBodies[0]).toBe(commitBodies[1])
   })
 
   test('api provider（transparentSupport=api）下发 prompt 不注入键色规则', async () => {
-    const keyPng = buildKeyColorPng()
+    const keyPNG = buildKeyColorPNG()
     const seenPrompts: string[] = []
     const provider: ImageGenProvider = {
       name: 'mock-openai',
       transparentSupport: 'api',
       generate: async (req: ImageGenRequest) => {
         seenPrompts.push(req.prompt)
-        return { bytes: keyPng, width: req.width ?? 16, height: req.height ?? 16 }
+        return { bytes: keyPNG, width: req.width ?? 16, height: req.height ?? 16 }
       }
     }
     const { callBridge } = mockBridge()
@@ -377,7 +378,8 @@ describe('transparent_background local 路径（seedream = transparentSupport=lo
 
     const commitCall = calls.find((c) => c.tool === 'image_gen_commit')
     expect(commitCall).toBeDefined()
-    const imageB64 = String((commitCall?.args as { image_data: string }).image_data)
+    if (!commitCall) throw new Error('expected image_gen_commit call')
+    const imageB64 = String((commitCall.args as { image_data: string }).image_data)
     // 原 bytes 回退——base64 后内容应该和 badBytes 一致
     expect(imageB64).toBe(Buffer.from(badBytes).toString('base64'))
 

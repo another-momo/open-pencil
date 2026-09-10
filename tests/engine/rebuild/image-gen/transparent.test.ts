@@ -13,17 +13,17 @@ import { describe, expect, test } from 'bun:test'
 import {
   __test__,
   detectKeyColorFromPixels,
-  removeKeyedBackgroundFromPng
+  removeKeyedBackgroundFromPNG
 } from '@/app/ai/pi-backend/image-gen/transparent'
 
-const { decodePngRgba8, encodePngRgba8, applyKeyedTransparency } = __test__
+const { decodePNGRgba8, encodePNGRgba8, applyKeyedTransparency } = __test__
 
 /**
  * 构造程序化 RGBA 像素矩阵 + 编码为 PNG 字节流（避免依赖 canvas）。用于：
  * - round-trip 测试（decode 再 encode 再 decode 应一致）
  * - 算法行为测试（构造已知图像，跑算法，断言 alpha 阶梯）
  */
-function makePng(
+function makePNG(
   width: number,
   height: number,
   fill: (x: number, y: number) => [number, number, number, number]
@@ -39,19 +39,19 @@ function makePng(
       data[i + 3] = a
     }
   }
-  return encodePngRgba8(data, width, height)
+  return encodePNGRgba8(data, width, height)
 }
 
 describe('PNG 编解码 round-trip', () => {
   test('16x16 RGBA 全绿（含 alpha 255） → decode = encode → decode 一致', () => {
-    const png = makePng(16, 16, () => [0, 255, 0, 255])
-    const decoded1 = decodePngRgba8(png)
+    const png = makePNG(16, 16, () => [0, 255, 0, 255])
+    const decoded1 = decodePNGRgba8(png)
     expect(decoded1.width).toBe(16)
     expect(decoded1.height).toBe(16)
     expect(decoded1.colorType).toBe(6)
     // round-trip
-    const reEncoded = encodePngRgba8(decoded1.data, decoded1.width, decoded1.height)
-    const decoded2 = decodePngRgba8(reEncoded)
+    const reEncoded = encodePNGRgba8(decoded1.data, decoded1.width, decoded1.height)
+    const decoded2 = decodePNGRgba8(reEncoded)
     expect(Array.from(decoded2.data)).toEqual(Array.from(decoded1.data))
   })
 
@@ -62,9 +62,9 @@ describe('PNG 编解码 round-trip', () => {
       data[i + 1] = 150
       data[i + 2] = 200
     }
-    // 直接构造 RGB PNG——encodePngRgba8 强制 RGBA，故本测试仅校验：
+    // 直接构造 RGB PNG——encodePNGRgba8 强制 RGBA，故本测试仅校验：
     // 重新编码→解码后 alpha = 255（RGBA 路径）
-    const png = encodePngRgba8(
+    const png = encodePNGRgba8(
       new Uint8ClampedArray(8 * 8 * 4).map((_, i) => {
         // 每个像素 R/G/B + alpha 255
         if (i % 4 === 3) return 255
@@ -75,7 +75,7 @@ describe('PNG 编解码 round-trip', () => {
       8,
       8
     )
-    const decoded = decodePngRgba8(png)
+    const decoded = decodePNGRgba8(png)
     expect(decoded.colorType).toBe(6)
     for (let i = 0; i < 64; i += 1) {
       expect(decoded.data[i * 4 + 3]).toBe(255)
@@ -83,8 +83,8 @@ describe('PNG 编解码 round-trip', () => {
   })
 
   test('非法 PNG 抛错', () => {
-    expect(() => decodePngRgba8(new Uint8Array([1, 2, 3]))).toThrow(/Invalid PNG/)
-    expect(() => decodePngRgba8(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]))).toThrow(
+    expect(() => decodePNGRgba8(new Uint8Array([1, 2, 3]))).toThrow(/Invalid PNG/)
+    expect(() => decodePNGRgba8(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]))).toThrow(
       /signature/
     )
   })
@@ -93,14 +93,14 @@ describe('PNG 编解码 round-trip', () => {
   // 解码器必须正确收集全部 IDAT → 拼接 → 单次 inflate（PNG spec §11.2.4）。
   // 本测试把编码器输出切成多 IDAT 片段，验证拼回后像素一致。
   test('多 IDAT chunk 拼接解码（模拟 seedream 124×8KB 分片模式——这里用 4×~16B）', () => {
-    const png = makePng(16, 16, (x, y) => [
+    const png = makePNG(16, 16, (x, y) => [
       (x * 16) & 0xff,
       (y * 16) & 0xff,
       ((x + y) * 8) & 0xff,
       255
     ])
     // 解析出 IHDR / IDAT(s) / IEND，强行把 IDAT 数据切成 4 份重新打包。
-    const { decodePngRgba8: decodeFn, encodePngRgba8: encodeFn } = __test__
+    const { decodePNGRgba8: decodeFn, encodePNGRgba8: encodeFn } = __test__
     void encodeFn // 调用方已经构造好 png——下面对 png 做切片重打包
     const readU32 = (b: Uint8Array, p: number) =>
       ((b[p] ?? 0) << 24) | ((b[p + 1] ?? 0) << 16) | ((b[p + 2] ?? 0) << 8) | (b[p + 3] ?? 0)
@@ -124,7 +124,7 @@ describe('PNG 编解码 round-trip', () => {
       pos += 8 + length + 4
     }
     expect(idatBytes.length).toBe(1) // 编码器单 IDAT 兜底——下面手动切片成 4 份
-    const singleIdat = idatBytes[0]!
+    const singleIdat = idatBytes[0]
     // 切成 4 个 IDAT（slice into 4 份不等长数据；IHDR/IEND 保持）
     const chunkSize = Math.ceil(singleIdat.length / 4)
     const splitParts: Uint8Array[] = []
@@ -142,14 +142,14 @@ describe('PNG 编解码 round-trip', () => {
     )
     rebuilt.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0)
     let off = 8
-    rebuilt.set(ihdrBytes[0]!, off)
-    off += ihdrBytes[0]!.length
+    rebuilt.set(ihdrBytes[0], off)
+    off += ihdrBytes[0].length
     for (const part of splitParts) {
       const chunk = makeChunkLocal('IDAT', part)
       rebuilt.set(chunk, off)
       off += chunk.length
     }
-    rebuilt.set(iendBytes[0]!, off)
+    rebuilt.set(iendBytes[0], off)
 
     const decodedMulti = decodeFn(rebuilt)
     const decodedSingle = decodeFn(png)
@@ -162,7 +162,7 @@ describe('PNG 编解码 round-trip', () => {
   // T33 补：生产样本带 sRGB/sBIT 等 ancillary chunk——解码器对未知 ancillary
   // 一律跳过（不报错、不校验 CRC）。
   test('未知 ancillary chunk（sRGB / sBIT / tEXt）解码时被跳过不报错', () => {
-    const png = makePng(8, 8, () => [10, 20, 30, 255])
+    const png = makePNG(8, 8, () => [10, 20, 30, 255])
     // 在 IHDR 和 IDAT 之间插入三个 ancillary chunk：sRGB(1B) + sBIT(3B) + tEXt(11B)。
     const sRGB = makeChunkLocal('sRGB', new Uint8Array([0]))
     const sBIT = makeChunkLocal('sBIT', new Uint8Array([8, 8, 8]))
@@ -198,54 +198,54 @@ describe('PNG 编解码 round-trip', () => {
     )
     rebuilt.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0)
     let off = 8
-    rebuilt.set(ihdrBytes[0]!, off)
-    off += ihdrBytes[0]!.length
+    rebuilt.set(ihdrBytes[0], off)
+    off += ihdrBytes[0].length
     rebuilt.set(sRGB, off)
     off += sRGB.length
     rebuilt.set(sBIT, off)
     off += sBIT.length
     rebuilt.set(tEXt, off)
     off += tEXt.length
-    rebuilt.set(idatBytes[0]!, off)
-    off += idatBytes[0]!.length
-    rebuilt.set(iendBytes[0]!, off)
+    rebuilt.set(idatBytes[0], off)
+    off += idatBytes[0].length
+    rebuilt.set(iendBytes[0], off)
 
-    const decoded = decodePngRgba8(rebuilt)
+    const decoded = decodePNGRgba8(rebuilt)
     expect(decoded.width).toBe(8)
     expect(decoded.height).toBe(8)
     expect(decoded.colorType).toBe(6)
     // 像素应与无 ancillary 的版本一致
-    const baseline = decodePngRgba8(png)
+    const baseline = decodePNGRgba8(png)
     expect(Array.from(decoded.data)).toEqual(Array.from(baseline.data))
   })
 })
 
 describe('detectKeyColorFromPixels 边缘投票', () => {
   test('四周纯绿（distance < 100） → green 胜出', () => {
-    const png = makePng(8, 8, () => [0, 255, 0, 255])
-    const { data, width, height } = decodePngRgba8(png)
+    const png = makePNG(8, 8, () => [0, 255, 0, 255])
+    const { data, width, height } = decodePNGRgba8(png)
     expect(detectKeyColorFromPixels(data, width, height)).toBe('green')
   })
 
   test('四周纯洋红 → magenta 胜出', () => {
-    const png = makePng(8, 8, () => [255, 0, 255, 255])
-    const { data, width, height } = decodePngRgba8(png)
+    const png = makePNG(8, 8, () => [255, 0, 255, 255])
+    const { data, width, height } = decodePNGRgba8(png)
     expect(detectKeyColorFromPixels(data, width, height)).toBe('magenta')
   })
 
   test('无键色（纯蓝） → 默认 green（投票为 0 时取 green 兜底）', () => {
-    const png = makePng(8, 8, () => [0, 0, 255, 255])
-    const { data, width, height } = decodePngRgba8(png)
+    const png = makePNG(8, 8, () => [0, 0, 255, 255])
+    const { data, width, height } = decodePNGRgba8(png)
     expect(detectKeyColorFromPixels(data, width, height)).toBe('green')
   })
 
   test('平局（绿/洋红同票） → green 兜底（magentaScore > greenScore 严格不等）', () => {
     // 顶/底两行绿，左/右两列洋红——四角投票各 16 vs 14 → green 胜
-    const png = makePng(4, 4, (x, y) => {
+    const png = makePNG(4, 4, (x, y) => {
       if (y === 0 || y === 3) return [0, 255, 0, 255]
       return [255, 0, 255, 255]
     })
-    const { data, width, height } = decodePngRgba8(png)
+    const { data, width, height } = decodePNGRgba8(png)
     // 4×4：top/bottom 各 4 像素 = 8 绿；left/right(中间 2 行) = 4 洋红 → green
     expect(detectKeyColorFromPixels(data, width, height)).toBe('green')
   })
@@ -411,14 +411,14 @@ describe('removeColorSpill 溢出抑制（绿溢出恢复）', () => {
   })
 })
 
-describe('removeKeyedBackgroundFromPng 端到端', () => {
+describe('removeKeyedBackgroundFromPNG 端到端', () => {
   test('合法键色 PNG → 返回 RGBA PNG 字节流', () => {
-    const png = makePng(8, 8, (x, y) => {
+    const png = makePNG(8, 8, (x, y) => {
       if (x === 0 || y === 0 || x === 7 || y === 7) return [0, 255, 0, 255]
       return [200, 30, 30, 255]
     })
-    const result = removeKeyedBackgroundFromPng(png)
-    const decoded = decodePngRgba8(result)
+    const result = removeKeyedBackgroundFromPNG(png)
+    const decoded = decodePNGRgba8(result)
     expect(decoded.width).toBe(8)
     expect(decoded.height).toBe(8)
     expect(decoded.colorType).toBe(6)
@@ -427,7 +427,7 @@ describe('removeKeyedBackgroundFromPng 端到端', () => {
   })
 
   test('非法 PNG 输入抛错', () => {
-    expect(() => removeKeyedBackgroundFromPng(new Uint8Array([1, 2, 3]))).toThrow(/Invalid PNG/)
+    expect(() => removeKeyedBackgroundFromPNG(new Uint8Array([1, 2, 3]))).toThrow(/Invalid PNG/)
   })
 })
 
@@ -460,8 +460,8 @@ const CRC_TABLE_LOCAL: Uint32Array = (() => {
 
 function crc32Local(bytes: Uint8Array): number {
   let crc = 0xffffffff
-  for (let i = 0; i < bytes.length; i += 1) {
-    crc = (crc >>> 8) ^ (CRC_TABLE_LOCAL[(crc ^ (bytes[i] ?? 0)) & 0xff] ?? 0)
+  for (const byte of bytes) {
+    crc = (crc >>> 8) ^ (CRC_TABLE_LOCAL[(crc ^ byte) & 0xff] ?? 0)
   }
   return (crc ^ 0xffffffff) >>> 0
 }

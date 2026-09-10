@@ -53,7 +53,7 @@ import {
 import { createBridgeCaller, type BridgeCaller, type BridgeCallTarget } from './bridge-call'
 import type { ImageGenCredentials, ImageGenCredentialStore } from './credentials'
 import { createProviderFor } from './factory'
-import { KEY_COLOR_PROMPT_SUFFIX, removeKeyedBackgroundFromPng } from './transparent'
+import { KEY_COLOR_PROMPT_SUFFIX, removeKeyedBackgroundFromPNG } from './transparent'
 
 /** 与 fork/image-gen/tools.ts 的桥端点对齐 */
 const BEGIN_TOOL = 'image_gen_begin'
@@ -178,7 +178,7 @@ async function runBeginPhase(
 /** 生成段（并行：provider HTTP 直发，不经桥）。
  * T33 透明背景：local provider（Seedream 等不支持原生透明）走 prompt 注入 +
  * 后处理路径——下发到 provider 的 prompt 追加 KEY_COLOR_PROMPT_SUFFIX；返回
- * bytes 后过 removeKeyedBackgroundFromPng；抛错回退原 bytes 并记 transparentError。
+ * bytes 后过 removeKeyedBackgroundFromPNG；抛错回退原 bytes 并记 transparentError。
  * api provider（OpenAI 兼容）原生透传 background='transparent'，本函数不做干预。*/
 async function runGeneratePhase(items: PipelineItem[], provider: ImageGenProvider): Promise<void> {
   const localPath = provider.transparentSupport === 'local'
@@ -187,11 +187,10 @@ async function runGeneratePhase(items: PipelineItem[], provider: ImageGenProvide
       if (!item.begin) return
       const transparent = item.req.transparent_background === true
       // 输出格式约束（spec C7）：api 路径 jpeg → png；local 路径一律 png（编解码仅 PNG）
-      const formatOverride = transparent
-        ? localPath || item.req.outputFormat === 'jpeg'
-          ? 'png'
-          : item.req.outputFormat
-        : item.req.outputFormat
+      let formatOverride = item.req.outputFormat
+      if (transparent && (localPath || item.req.outputFormat === 'jpeg')) {
+        formatOverride = 'png'
+      }
 
       const finalReq: ImageGenRequest = {
         ...item.req,
@@ -215,7 +214,7 @@ async function runGeneratePhase(items: PipelineItem[], provider: ImageGenProvide
           try {
             item.gen = {
               ...generated,
-              bytes: removeKeyedBackgroundFromPng(generated.bytes)
+              bytes: removeKeyedBackgroundFromPNG(generated.bytes)
             }
           } catch (error) {
             item.gen = generated

@@ -45,8 +45,8 @@ describe('batch_update validation', () => {
     expect(result.partial).toBe(true)
     expect(Array.isArray(result.errors)).toBe(true)
     const errs = result.errors as string[]
-    expect(errs.length).toBe(1)
-    const msg = errs[0]!
+    expect(errs).toHaveLength(1)
+    const [msg] = errs as [string]
     expect(msg).toContain(rect.id)
     expect(msg).toContain('"frobnicate"')
     expect(msg).toContain('"font_size"')
@@ -59,7 +59,9 @@ describe('batch_update validation', () => {
     // updated counter reflects the known key only
     expect(result.updated).toBe(1)
     const results = result.results as Array<{ id: string; updated: string[] }>
-    expect(results[0]!.updated).toEqual(['spacing'])
+    expect(results).toHaveLength(1)
+    const [first] = results as [{ id: string; updated: string[] }]
+    expect(first.updated).toEqual(['spacing'])
   })
 
   test('all-unknown props: updated=0 and partial=true, node untouched', () => {

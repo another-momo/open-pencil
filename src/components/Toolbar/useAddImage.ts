@@ -36,6 +36,7 @@ export function useAddImage(store: EditorStore) {
     const cy = (-store.state.panY + window.innerHeight / 2) / store.state.zoom
     void store.placeFiles(Array.from(files).map(withRepairedMime), cx, cy).then((placed) => {
       if (placed === 0) toast.error(toolbarText.value.addImageFailed)
+      return placed
     })
   })
 

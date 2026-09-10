@@ -9,7 +9,7 @@ import { copyFills } from '@open-pencil/scene-graph/copy'
 
 import { applyPhoto } from '#core/tools/stock-photo/apply'
 
-import { createProvider, type ProviderCall } from '#tests/engine/rebuild/stock-photo'
+import { createProvider, type ProviderCall } from '#tests/engine/rebuild/stock-photo/helpers'
 
 function setup() {
   const graph = new SceneGraph()

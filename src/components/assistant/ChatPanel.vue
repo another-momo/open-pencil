@@ -108,7 +108,19 @@ const messagesEnd = ref<HTMLDivElement>()
 // 更新必再崩（级联，owner 实测 Enter/发送/停止全报同一错）。捕获该签名错误后
 // 整树强制重挂自愈——代价是丢失未提交草稿，远好于输入框永久坏到刷新页面。
 // nextTick 推迟到当前 flush 落定后再换 key，避免同 flush 内 unmount 半补丁树。
+//
+// 2026-09-11：B 方案把触发源从崩溃后提前到崩溃前——PiChatInput 的
+// syncTextFromDom 检到 editorRef 子节点里没有 data-seg-root（Blink 空编辑
+// 器规范化吃掉了 seg-root）就 emit('segRootLost', text)。本 handler 与 T98
+// 共用同一个 chatInputRemountKey：runtime-dom 的 unmount 对游离 seg-root
+// 安全（remove 有 parentNode 守卫），unmount + 整树重挂 + restoreDraft 回
+// 填草稿，**保留草稿** vs T98 丢草稿。T98 onErrorCaptured 留作最后防线
+//（A 拦不住且 syncTextFromDom 也漏检的真崩溃路径仍能兜住）。
 const chatInputRemountKey = ref(0)
+function handleSegRootLost(text: string) {
+  chatInputRemountKey.value += 1
+  void nextTick(() => chatInputRef.value?.restoreDraft(text))
+}
 onErrorCaptured((err, instance) => {
   // .type 在内部实例（instance.$）上；ComponentPublicInstance 公共类型不含该
   // 属性——旧写法 vue-tsc 报错且运行时经公共代理取不到值，guard 恒不触发
@@ -864,6 +876,7 @@ function handleClearChat() {
       @submit="handleSubmit"
       @stop="handleStop"
       @error="toast.error"
+      @seg-root-lost="handleSegRootLost"
     />
 
     <!-- T66（决策②）：需求单大面板——ChatContextBar 列表条目点击打开；

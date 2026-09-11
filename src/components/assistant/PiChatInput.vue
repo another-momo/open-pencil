@@ -37,6 +37,33 @@
 //   - **chip reactive 数据**：缩略图 graph/renderer 是 ChatNodePreview 内部
 //     状态，不在编辑器 children 上——结构重建换 chip 时新 ChatNodePreview
 //     实例拿新 props 自渲。chip 文字 label 走 props 也走结构重建。
+//   - **删空一击收编为结构事件（2026-09-11 修复，见
+//     docs/202609112147-chat-input-seg-root-detached-review.md）**：keydown
+//     （Backspace/Delete）+ beforeinput（deleteContent*/deleteByCut）拦「删
+//     完即空 / 空文档删除键 / 选区覆盖全文」→ preventDefault 改走
+//     commitStructuralChange('')——Vue 重挂 seg-root（带 lone <br>），编辑
+//     器永不为空，Blink 永远吃不到 seg-root。空文档再按删除键 = no-op，
+//     仅 preventDefault 不触发无意义重挂。
+//   - **seg-root 缺失 = 腐化签名 → 崩溃前安全重挂**：syncTextFromDom 检到
+//     editorRef 子节点里没有 data-seg-root（Blink 空编辑器规范化吃掉了
+//     seg-root，根因同上）→ **不** 走 commitStructuralChange（同一个 patch
+//     必炸）→ emit('segRootLost', normalized) 让父级 bump remount key 整
+//     树换实例，草稿经 restoreDraft 回填。T98 onErrorCaptured 留作最后防线。
+//   - **包裹层必须是正常 block 盒**——display:contents 在 Blink 下不能作为
+//     caret/插入点宿主（实测：空编辑器首字符被插到编辑器根部游离、清空重
+//     输完全打不进字）；block 盒内 inline 内容照常被包进 text flow，chip
+//     仍与文字同行。
+//   - **空文档必须显式渲染占位 <br>**：segments=[] 时 seg-root 里只剩
+//     Vue fragment 的空文本锚点，Blink 不认锚点为合法插入点——点击 caret
+//     落进锚点空文本节点后 insertText（中文/IME 路径）插入成功但 caret
+//     停在偏移 0（实测：后续字符插到首字符前面，首字符被挤到文末）。有
+//     br 时 caret 规范化为 (seg-root, 0)，insertText 正常消费 br、caret
+//     跟随。lone <br> 在序列化侧由 isLoneBr 按 0 长处理，不进文本。
+//   - **ux6 三修模板注释已挪出 contenteditable**（2026-09-11 卫生修复）：
+//     模板内大段 HTML 注释被 Vue 编译成真实 comment 节点常驻编辑器，实测
+//     它先于 seg-root 被 Blink 空编辑器规范化删掉，是 hoist/caret 归位
+//     逻辑的长期干扰项。hoistStraysIntoSegRoot 里的 COMMENT_NODE 跳过逻辑
+//     保留（防御性）。
 import { useTimeoutFn } from '@vueuse/core'
 import {
   ComboboxAnchor,
@@ -54,6 +81,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import ChatModeChips from '@/components/assistant/ChatModeChips.vue'
 import ChatNodePreview from '@/components/assistant/ChatNodePreview.vue'
+import { deletionEmptiesDocument } from '@/components/assistant/delete-guard'
 import {
   resolveSelectionTokenChips,
   type SelectionTokenChip
@@ -105,6 +133,12 @@ const emit = defineEmits<{
   submit: [text: string]
   stop: []
   error: [message: string]
+  /** 编辑器里的 data-seg-root 被 Blink 空编辑器规范化吃掉（腐化签名）。
+   *  父级收到后 bump remount key 整树换实例——比 T98 onErrorCaptured 提前到
+   *  崩溃前（runtime-dom 的 unmount 对游离树安全，patch/insert 才会炸）；
+   *  payload 是 walk 读出的 DOM 当前文本——空编辑器首字符等游离文本也能
+   *  救回。 */
+  segRootLost: [text: string]
 }>()
 
 /** 文本态模型——三轨结构（ux6 后续修复）：
@@ -143,6 +177,10 @@ const emit = defineEmits<{
 let shadowText = ''
 const input = ref('')
 const hasText = ref(false)
+/** seg-root 腐化一次只上报一次：组件实例被父级换走前，连续 @input 会反复
+ *  命中同一腐化签名，重复 emit 既无意义又会逼父级连续 remount。父级 key
+ *  一变本实例就卸载，标志位随实例灭失自然复位。 */
+let segRootLostEmitted = false
 
 const isStreaming = computed(() => disabled || status === 'streaming' || status === 'submitted')
 
@@ -400,6 +438,13 @@ function syncTextFromDom(): string {
   const el = editorRef.value
   if (!el) return shadowText
   hoistStraysIntoSegRoot(el)
+  // 腐化签名（2026-09-11）：hoist 之后 seg-root 仍缺席 = Blink 把整个
+  // data-seg-root div 从编辑器里吃掉了（空编辑器规范化，唯一会吃 seg-root
+  // 的 native 路径）。此路径**严禁**调 commitStructuralChange（同一个 patch
+  // 必炸——已游离的旧 seg-root.el 算插入容器得 null → insertBefore 崩溃），
+  // 继续走下面的 walk 同步 shadowText 即可：编辑器根级游离文本照样能 walk
+  // 读到（草稿恢复源），emit 由父级整树换实例（恢复草稿 + 重挂 seg-root）。
+  const segRootMissing = el.querySelector(':scope > [data-seg-root]') === null
   let text = ''
   const walk = (node: Node) => {
     if (node.nodeType === Node.TEXT_NODE) {
@@ -424,6 +469,10 @@ function syncTextFromDom(): string {
   const normalized = text.replace(/\u200B/g, '').replace(/\r\n?/g, '\n')
   shadowText = normalized
   hasText.value = normalized.trim().length > 0
+  if (segRootMissing && !segRootLostEmitted) {
+    segRootLostEmitted = true
+    emit('segRootLost', normalized)
+  }
   return normalized
 }
 
@@ -565,6 +614,10 @@ function handleKeydown(event: KeyboardEvent) {
       }
     }
   }
+  // 删空一击收编（2026-09-11 修复，详见
+  // docs/202609112147-chat-input-seg-root-detached-review.md）→ 抽 helper
+  // 控制 handleKeydown 复杂度（基线本就贴着 20 阈值）
+  if (tryGuardDeletionEmptiesFromKeydown(event)) return
   // T70：Backspace/Delete 紧邻 chip 时原子删除——contenteditable=false 天然原子
   // 浏览器会自动删除整个 chip span + 触发 input 事件；不需要 keydown 拦截。
   // 唯一需要兜底：IME 合成期（浏览器不会删 chip）。
@@ -585,6 +638,94 @@ function isCaretAtEditorStart(range: Range): boolean {
   r.selectNodeContents(el)
   r.setEnd(range.startContainer, range.startOffset)
   return r.toString().replace(/\u200B/g, '').length === 0
+}
+
+/** 从当前 Selection 算出 keydown 视角的删除区间 [s, e)。
+ *  collapsed + Backspace → [o-1, o)；collapsed + Delete → [o, o+1)。
+ *  非 collapsed → 选区两端各算文本偏移。anchor 不在编辑器内 / 拿不到选区
+ *  → null（让浏览器走默认路径）。 */
+function selectionToDeletionRange(direction: 'backward' | 'forward'): [number, number] | null {
+  const el = editorRef.value
+  if (!el) return null
+  const sel = window.getSelection()
+  if (!sel || sel.rangeCount === 0) return null
+  const range = sel.getRangeAt(0)
+  if (range.startContainer !== el && !el.contains(range.startContainer)) return null
+  if (range.collapsed) {
+    const o = domOffsetToTextOffset(el, range.startContainer, range.startOffset)
+    return direction === 'backward' ? [o - 1, o] : [o, o + 1]
+  }
+  const s = domOffsetToTextOffset(el, range.startContainer, range.startOffset)
+  const e = domOffsetToTextOffset(el, range.endContainer, range.endOffset)
+  // 防御：浏览器偶发把反向选区（end < start）抛上来——按最小在前归一
+  return s <= e ? [s, e] : [e, s]
+}
+
+/** 从 InputEvent.getTargetRanges() 拿到的 StaticRange 算出 [s, e)。
+ *  beforeinput 的 target ranges 由浏览器基于「这次输入将要修改的 DOM 区段」
+ *  算出，是 keydown 看不到的路径（Ctrl+Backspace 词删除、右键剪切等）的
+ *  权威层。无 target ranges / 容器不在编辑器内 → null。 */
+function staticRangeToDeletionRange(range: StaticRange): [number, number] | null {
+  const el = editorRef.value
+  if (!el) return null
+  if (range.startContainer !== el && !el.contains(range.startContainer)) return null
+  if (range.endContainer !== el && !el.contains(range.endContainer)) return null
+  const s = domOffsetToTextOffset(el, range.startContainer, range.startOffset)
+  const e = domOffsetToTextOffset(el, range.endContainer, range.endOffset)
+  return s <= e ? [s, e] : [e, s]
+}
+
+/** keydown 入口：判定 Backspace/Delete（合成期跳过）→ 调 guardDeletionEmpties。
+ *  返回 true = 已拦截（外层 return）。抽出来是为了压住 handleKeydown 的
+ *  复杂度阈值。 */
+function tryGuardDeletionEmptiesFromKeydown(event: KeyboardEvent): boolean {
+  if (event.code !== 'Backspace' && event.code !== 'Delete') return false
+  if (event.isComposing) return false
+  return guardDeletionEmpties(event, event.code === 'Backspace' ? 'backward' : 'forward')
+}
+
+/** keydown 拦截统一出口：算出 [s, e) → 调 deletionEmptiesDocument →
+ *  命中则 preventDefault + commitClearUnlessSegRootMissing，返回 true
+ *  表示已拦截（外层应当 return）。 */
+function guardDeletionEmpties(event: KeyboardEvent, direction: 'backward' | 'forward'): boolean {
+  const range = selectionToDeletionRange(direction)
+  if (!range) return false
+  const [s, e] = range
+  if (!deletionEmptiesDocument(shadowText, s, e)) return false
+  event.preventDefault()
+  commitClearUnlessSegRootMissing()
+  return true
+}
+
+/** 清空统一出口：仅 seg-root 健在才走结构事件清空。seg-root 缺席 =
+ *  处于腐化窗口（B 方案已 emit、父级重挂在途）——此时 commit 同一个
+ *  patch 必炸（已游离的旧 seg-root.el 算插入容器得 null → insertBefore
+ *  崩溃），只 preventDefault 阻断浏览器、等重挂即可。事件循环序（emit
+ *  同步 → flush microtask → 下一 keydown macrotask）本已使该窗口不可达，
+ *  此守卫把它从时序论证升级为结构保证。 */
+function commitClearUnlessSegRootMissing(): void {
+  const el = editorRef.value
+  if (!el || !el.querySelector(':scope > [data-seg-root]')) return
+  if (shadowText.length > 0) commitStructuralChange('')
+}
+
+/** beforeinput 拦截统一出口：inputType 是删除族且 [s, e) 删空 →
+ *  preventDefault + commitClearUnlessSegRootMissing。getTargetRanges 为
+ *  空 → 不拦截（让浏览器走默认路径，与既有 getSelection 拿不到同律）。 */
+function handleBeforeInput(event: InputEvent): void {
+  if (event.isComposing) return
+  const t = event.inputType
+  const isDelete = t.startsWith('deleteContent') || t === 'deleteByCut'
+  if (!isDelete) return
+  const ranges = event.getTargetRanges()
+  if (ranges.length === 0) return
+  const target = ranges[0]
+  const range = staticRangeToDeletionRange(target)
+  if (!range) return
+  const [s, e] = range
+  if (!deletionEmptiesDocument(shadowText, s, e)) return
+  event.preventDefault()
+  commitClearUnlessSegRootMissing()
 }
 
 /** 原子 chip 删除兜底：结构事件路径。IME 合成期浏览器不删 chip；
@@ -929,6 +1070,7 @@ defineExpose({ restoreDraft, clearDraft })
               class="chat-inline-editor block min-h-12 w-full resize-none overflow-y-auto whitespace-pre-wrap break-words bg-transparent px-3 pt-2.5 pb-1 text-xs leading-relaxed text-surface outline-none disabled:cursor-not-allowed disabled:opacity-60"
               :style="skillChipIndent > 0 ? { textIndent: `${skillChipIndent}px` } : undefined"
               @keydown="handleKeydown"
+              @beforeinput="handleBeforeInput"
               @input="handleInput"
               @compositionstart="handleCompositionStart"
               @compositionend="handleCompositionEnd"
@@ -939,24 +1081,6 @@ defineExpose({ restoreDraft, clearDraft })
               @focus="ensureCaretInSegRoot"
               @mousedown.capture="handleChipMouseDown"
             >
-              <!-- ux6 三修：编辑器内容**完全非受控**。
-                   - 模板挂 :key="segVersion"——结构事件触发 Vue 整段 unmount+mount。
-                     旧 vnode 整片丢弃（浏览器脏 DOM 一并替换），新 vnode 干净挂载。
-                   - 打字 / IME 路径不写 input.value/segVersion → Vue 响应式依赖图
-                     上零路径 → 零重渲 → 编辑器 children 由浏览器独占维护。
-                   - 无 v-if、无 isComposing 门控——v-if 的 unmount 语义会把 Vue
-                     挂过的 chip span 整片 remove（实测三修前的精确机理）。
-                   - 包裹层必须是**正常 block 盒**——display:contents 在 Blink 下
-                     不能作为 caret/插入点宿主（实测：空编辑器首字符被插到编辑器
-                     根部游离、清空重输完全打不进字）；block 盒内 inline 内容
-                     照常被包进 text flow，chip 仍与文字同行。
-                   - 空文档必须显式渲染占位 <br>：segments=[] 时 seg-root 里只剩
-                     Vue fragment 的空文本锚点，Blink 编辑引擎不认锚点为合法
-                     插入点——点击 caret 落进锚点空文本节点后 insertText（中文/
-                     IME 路径）插入成功但 caret 停在偏移 0（实测：后续字符插到
-                     首字符前面，首字符被挤到文末）。有 br 时 caret 规范化为
-                     (seg-root, 0)，insertText 正常消费 br、caret 跟随。
-                     lone <br> 在序列化侧由 isLoneBr 按 0 长处理，不进文本。 -->
               <div :key="segVersion" v-memo="[segVersion]" data-seg-root>
                 <br v-if="segments.length === 0" />
                 <template v-for="(seg, idx) in segments" :key="`seg-${idx}`">

@@ -65,7 +65,7 @@ describe('deletionEmptiesDocument', () => {
 
   test('text + token selection covers all → empties', () => {
     // 文本 + token 全覆盖：token 是字面，算进区间后总长 = 全文 → 收编。
-    const text = '前缀' + '「@画布选区-1」' + '后缀'
+    const text = '前缀「@画布选区-1」后缀'
     expect(deletionEmptiesDocument(text, 0, text.length)).toBe(true)
   })
 })
